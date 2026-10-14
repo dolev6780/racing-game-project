@@ -8,13 +8,21 @@ namespace RacingGame.Core
 {
     public enum GameKey { Up, Down, Left, Right, Fire, Mine, Boost, Camera, Restart }
 
+    /// <summary>A finger on the screen (or the mouse, id -1). Position origin is bottom-left.</summary>
+    public struct TouchPointer
+    {
+        public int Id;
+        public Vector2 Position;
+    }
+
     /// <summary>
     /// Thin wrapper so the game works with the new Input System, the legacy Input Manager, or both.
     /// Screen positions use Unity's convention: origin at bottom-left.
     /// </summary>
     public static class InputBridge
     {
-        static readonly List<Vector2> touchBuffer = new List<Vector2>(10);
+        static readonly List<TouchPointer> touchBuffer = new List<TouchPointer>(10);
+        const int MouseId = -1;
 
         public static bool IsHeld(GameKey key)
         {
@@ -82,31 +90,65 @@ namespace RacingGame.Core
         /// Current touch points (plus the mouse while its left button is held, so touch
         /// controls can be tested in the editor).
         /// </summary>
-        public static List<Vector2> GetPointers()
+        public static List<TouchPointer> GetPointers()
         {
             touchBuffer.Clear();
+            bool anyTouch = false;
 #if ENABLE_INPUT_SYSTEM
             var ts = Touchscreen.current;
             if (ts != null)
             {
                 foreach (var touch in ts.touches)
-                    if (touch.press.isPressed)
-                        touchBuffer.Add(touch.position.ReadValue());
+                {
+                    if (!touch.press.isPressed) continue;
+                    touchBuffer.Add(new TouchPointer { Id = touch.touchId.ReadValue(), Position = touch.position.ReadValue() });
+                    anyTouch = true;
+                }
             }
             var mouse = Mouse.current;
-            if (mouse != null && mouse.leftButton.isPressed)
-                touchBuffer.Add(mouse.position.ReadValue());
+            if (!anyTouch && mouse != null && mouse.leftButton.isPressed)
+                touchBuffer.Add(new TouchPointer { Id = MouseId, Position = mouse.position.ReadValue() });
 #else
             for (int i = 0; i < Input.touchCount; i++)
             {
                 var t = Input.GetTouch(i);
-                if (t.phase != TouchPhase.Ended && t.phase != TouchPhase.Canceled)
-                    touchBuffer.Add(t.position);
+                if (t.phase == TouchPhase.Ended || t.phase == TouchPhase.Canceled) continue;
+                touchBuffer.Add(new TouchPointer { Id = t.fingerId, Position = t.position });
+                anyTouch = true;
             }
-            if (Input.touchCount == 0 && Input.GetMouseButton(0))
-                touchBuffer.Add(Input.mousePosition);
+            if (!anyTouch && Input.GetMouseButton(0))
+                touchBuffer.Add(new TouchPointer { Id = MouseId, Position = Input.mousePosition });
 #endif
             return touchBuffer;
+        }
+
+        public static bool HasTiltSensor
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                return Accelerometer.current != null;
+#else
+                return SystemInfo.supportsAccelerometer;
+#endif
+            }
+        }
+
+        /// <summary>
+        /// Gravity direction in the device's natural (portrait) frame, normalized.
+        /// Returns Vector3.zero when no accelerometer is available.
+        /// </summary>
+        public static Vector3 ReadGravity()
+        {
+#if ENABLE_INPUT_SYSTEM
+            var acc = Accelerometer.current;
+            if (acc == null) return Vector3.zero;
+            if (!acc.enabled) InputSystem.EnableDevice(acc);
+            Vector3 g = acc.acceleration.ReadValue();
+#else
+            Vector3 g = Input.acceleration;
+#endif
+            return g.sqrMagnitude > 0.0001f ? g.normalized : Vector3.zero;
         }
     }
 }

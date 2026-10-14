@@ -23,6 +23,7 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | Armor & money pickups on track | ✅ |
 | Isometric camera (classic) + chase camera | ✅ |
 | Touch controls (auto-accelerate) + keyboard | ✅ |
+| Phone steering: floating joystick / tilt / buttons | ✅ |
 | Garage / shop / upgrades | ⏳ next |
 | Real 3D car models, finish arch, forest scenery (Kenney) | ✅ |
 | Engine / skid / crash / explosion sounds | ✅ |
@@ -45,13 +46,19 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 
 | Action | Keyboard | Touch |
 |---|---|---|
-| Steer | A/D or ←/→ | `<` `>` buttons |
-| Gas / Brake | W/S or ↑/↓ | auto-gas, `BRAKE` button |
+| Steer | A/D or ←/→ | Joystick (drag on left side), Tilt, or `<` `>` buttons |
+| Gas / Brake | W/S or ↑/↓ | auto-gas, `BRAKE` button (or pull joystick down) |
 | Fire missile | Space / J | `FIRE` |
 | Drop mine | E / K | `MINE` |
 | Nitro | Left Shift / L | `NITRO` |
 | Switch camera | C | `CAM` button |
 | Restart race | R | `RACE AGAIN` |
+
+**Phone steering modes** — tap **STEER** (top-right) to switch; your choice is saved:
+- **STICK** (default): put your thumb anywhere on the left side of the screen and drag left/right. The joystick appears where you touch.
+- **TILT**: turn the phone like a steering wheel. Tilt is centred on how you hold the phone when the race starts;
+  tap **CENTER** to re-centre, or **INVERT** if left/right feel reversed.
+- **BTNS**: classic `<` `>` buttons.
 
 In the editor, press **TOUCH: ON** in the top-right to preview the phone controls (click with the mouse).
 

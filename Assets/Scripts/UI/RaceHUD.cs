@@ -96,6 +96,21 @@ namespace RacingGame.UI
             if (GUI.Button(new Rect(w - 240, 10, 110, 40), PlayerCarInput.ShowTouchControls ? "TOUCH: ON" : "TOUCH: OFF", button))
                 PlayerCarInput.ShowTouchControls = !PlayerCarInput.ShowTouchControls;
 #endif
+            if (PlayerCarInput.ShowTouchControls) DrawSteeringButtons(w);
+        }
+
+        void DrawSteeringButtons(float w)
+        {
+            var mode = PlayerCarInput.Steering;
+            string label = mode == SteeringMode.Joystick ? "STEER: STICK" : mode == SteeringMode.Tilt ? "STEER: TILT" : "STEER: BTNS";
+            if (GUI.Button(new Rect(w - 400, 10, 150, 40), label, button))
+                PlayerCarInput.CycleSteering();
+
+            if (mode != SteeringMode.Tilt) return;
+            if (GUI.Button(new Rect(320, 10, 120, 40), "CENTER", button))
+                PlayerCarInput.RequestTiltCalibration();
+            if (GUI.Button(new Rect(320, 56, 120, 40), PlayerCarInput.InvertTilt ? "INVERT: ON" : "INVERT: OFF", button))
+                PlayerCarInput.InvertTilt = !PlayerCarInput.InvertTilt;
         }
 
         void DrawCenterMessages(Racer player, float w, float h)
