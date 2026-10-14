@@ -5,8 +5,9 @@ armed cars, missiles, mines, nitro, money, alien-planet tracks.
 
 Built with **Unity 6 + C#**.
 
-## Status: v0.3 — main menu & new HUD
+## Status: v0.4 — garage & shop
 
+Garage with 5 vehicles to buy and 5 upgrade types (4 levels each), shown in a 3D showroom.
 Main menu with 3D backdrop, race setup (laps / opponents / difficulty), settings, pause menu,
 and a new HUD (speedometer, standings, kill feed, results screen).
 Low-poly 3D trucks, finish arch, forests and pit tents (Kenney, CC0), engine/skid/crash sounds.
@@ -30,7 +31,8 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | HUD: position, laps, speedometer, armor, standings, kill feed, damage flash | ✅ |
 | Pause menu & results screen with prize breakdown | ✅ |
 | Difficulty levels (Easy / Normal / Hard, harder pays more) | ✅ |
-| Garage / shop / upgrades | ⏳ next |
+| Garage: 5 vehicles (Rumbler, Bruiser, Viper, Phantom, Hellcat bike) | ✅ |
+| Upgrades: Engine, Tires, Armor, Weapons, Nitro (4 levels each, per vehicle) | ✅ |
 | Real 3D car models, finish arch, forest scenery (Kenney) | ✅ |
 | Engine / skid / crash / explosion sounds | ✅ |
 | Music & announcer | ⏳ |
@@ -84,16 +86,23 @@ Assets/Scripts/
   Track/      TrackBuilder (procedural track), TrackPath (centerline/progress), Pickup
   Car/        CarController (physics), CarHealth, RacerProgress (laps),
               PlayerCarInput (keyboard+touch), AICarInput, CarBuilder, CarAudio
+  Garage/     VehicleCatalog, PlayerGarage (owned/selected/upgrades), Wallet
   Weapons/    WeaponSystem, Missile, Mine
   Race/       RaceManager (countdown, laps, standings, pause, prize money), RaceConfig
   CameraRig/  RaceCamera (isometric / chase), MenuCamera (orbit)
-  UI/         UIKit (code-built uGUI), MainMenu, SettingsPanel, RaceHUD, TouchControlsView
+  UI/         UIKit (code-built uGUI), MainMenu, GarageScreen, SettingsPanel, RaceHUD, TouchControlsView
   Editor/     RacingGameMenu (scene creation tools)
 ```
 
 3D models live in `Assets/Resources/Models` and sounds in `Assets/Resources/Audio` (see [CREDITS.md](CREDITS.md)).
 To use your own car model, drop a `.glb` there with children named `body` and `wheel-front-left`, `wheel-front-right`,
 `wheel-back-left`, `wheel-back-right` (pivot at each wheel's centre), and pass its name to `CarBuilder.Create`.
+
+### Garage & economy
+Vehicles, prices and upgrade effects are defined in `Assets/Scripts/Garage/Garage.cs` (`VehicleCatalog`).
+Win races to earn money (prize by place x difficulty, $100 per wreck, $100 per money pickup),
+then buy vehicles and upgrades in the **GARAGE**. Upgrades belong to each vehicle.
+Use **Racing Game → Reset Saved Progress** in the editor to start over.
 
 Tuning lives in public fields (e.g. `CarController.maxSpeed`, `WeaponSystem.missilesPerLap`,
 `RaceManager.totalLaps`) and track layouts in `TrackBuilder.DefaultLayout`.

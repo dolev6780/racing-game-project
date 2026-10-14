@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using RacingGame.CameraRig;
 using RacingGame.Core;
+using RacingGame.Garage;
 using RacingGame.Race;
 using RacingGame.Track;
 
@@ -18,8 +19,15 @@ namespace RacingGame.UI
         static readonly string[] DifficultyNames = { "EASY", "NORMAL", "HARD" };
 
         Canvas canvas;
-        GameObject home, setup;
+        GameObject home, setup, garage, shade;
         Text bankText;
+
+        // Showroom
+        GameObject showcase;
+        string showcaseModel;
+        Vector3 showcasePos, homeCenter;
+        Quaternion showcaseRot;
+        MenuCamera orbit;
 
         void Start()
         {
@@ -37,8 +45,10 @@ namespace RacingGame.UI
             Vector3 dir = path.Direction(0);
             Vector3 right = Vector3.Cross(Vector3.up, dir).normalized;
 
-            // Player truck in front, two rivals behind.
-            PlaceTruck(RaceManager.PlayerModel, start + dir * 6f, Quaternion.LookRotation(dir) * Quaternion.Euler(0f, -25f, 0f));
+            // Your selected vehicle in front, two rivals behind.
+            showcasePos = start + dir * 6f;
+            showcaseRot = Quaternion.LookRotation(dir) * Quaternion.Euler(0f, -25f, 0f);
+            ShowcaseVehicle(PlayerGarage.Selected);
             PlaceTruck("vehicle-truck-red", start - dir * 1f - right * 4f, Quaternion.LookRotation(dir) * Quaternion.Euler(0f, 15f, 0f));
             PlaceTruck("vehicle-truck-purple", start - dir * 2f + right * 4.5f, Quaternion.LookRotation(dir) * Quaternion.Euler(0f, -10f, 0f));
 
@@ -50,10 +60,28 @@ namespace RacingGame.UI
             listener.enabled = true;
             cam.fieldOfView = 45f;
 
-            var orbit = cam.GetComponent<MenuCamera>();
+            orbit = cam.GetComponent<MenuCamera>();
             if (orbit == null) orbit = cam.gameObject.AddComponent<MenuCamera>();
             orbit.enabled = true;
-            orbit.center = start + dir * 3f;
+            homeCenter = start + dir * 3f;
+            orbit.Configure(homeCenter, 16f, 5.5f, 0f, 7f);
+        }
+
+        /// <summary>Swaps the vehicle on display (used by the garage when browsing).</summary>
+        public void ShowcaseVehicle(VehicleDef v)
+        {
+            if (showcase != null && showcaseModel == v.Model) return;
+            if (showcase) Destroy(showcase);
+            showcaseModel = v.Model;
+            showcase = ModelLibrary.Instantiate(v.Model, transform);
+            if (showcase == null) return;
+            showcase.transform.SetPositionAndRotation(showcasePos, showcaseRot);
+            showcase.transform.localScale = Vector3.one * 1.3f;
+        }
+
+        public void RefreshBank()
+        {
+            if (bankText) bankText.text = UIKit.Money(Wallet.Money);
         }
 
         void PlaceTruck(string model, Vector3 pos, Quaternion rot)
@@ -71,9 +99,10 @@ namespace RacingGame.UI
             canvas = UIKit.CreateCanvas("MenuCanvas", transform, 20);
 
             // Darken the left side so the menu text pops over the 3D scene.
-            var shade = UIKit.Rect(canvas.transform, "Shade", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero,
+            var shadeRt = UIKit.Rect(canvas.transform, "Shade", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero,
                 new Vector2(1500f, 2400f));
-            UIKit.Image(shade, UIKit.SoftGlow, new Color(0f, 0f, 0f, 0.55f));
+            UIKit.Image(shadeRt, UIKit.SoftGlow, new Color(0f, 0f, 0f, 0.55f));
+            shade = shadeRt.gameObject;
 
             // Bank chip (top-right)
             var bank = UIKit.Panel(canvas.transform, "Bank", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-40f, -36f),
@@ -83,11 +112,16 @@ namespace RacingGame.UI
             ShowHome();
         }
 
-        void ShowHome()
+        public void ShowHome()
         {
             if (setup) Destroy(setup);
             if (home) Destroy(home);
-            bankText.text = UIKit.Money(RaceManager.TotalMoney);
+            if (garage) Destroy(garage);
+            RefreshBank();
+            shade.SetActive(true);
+            ShowcaseVehicle(PlayerGarage.Selected);
+            orbit.lookOffset = new Vector3(0f, 1.2f, 0f);
+            orbit.Configure(homeCenter, 16f, 5.5f, 0f, 7f);
 
             var root = UIKit.Stretch(canvas.transform, "Home");
             home = root.gameObject;
@@ -107,8 +141,7 @@ namespace RacingGame.UI
             var btnSize = new Vector2(520f, 110f);
             UIKit.Button(root, "RACE", left, left, new Vector2(110f, 30f), btnSize, ShowSetup,
                 UIKit.Accent, new Color(0.1f, 0.1f, 0.12f), 56);
-            var garage = UIKit.Button(root, "GARAGE  (SOON)", left, left, new Vector2(110f, -100f), btnSize, null, fontSize: 40);
-            garage.interactable = false;
+            UIKit.Button(root, "GARAGE", left, left, new Vector2(110f, -100f), btnSize, ShowGarage, fontSize: 44);
             UIKit.Button(root, "SETTINGS", left, left, new Vector2(110f, -230f), btnSize, ShowSettings, fontSize: 44);
             if (Application.platform != RuntimePlatform.IPhonePlayer)
                 UIKit.Button(root, "QUIT", left, left, new Vector2(110f, -360f), btnSize, Quit, fontSize: 44);
@@ -148,6 +181,19 @@ namespace RacingGame.UI
                 new Vector2(320f, 100f), ShowHome, fontSize: 44);
             UIKit.Button(panel, "START", new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(20f, 36f),
                 new Vector2(380f, 100f), StartRace, UIKit.Accent, new Color(0.1f, 0.1f, 0.12f), 52);
+        }
+
+        void ShowGarage()
+        {
+            if (home) Destroy(home);
+            shade.SetActive(false);
+            // Close-up orbit, vehicle framed on the left, panel on the right.
+            orbit.lookOffset = new Vector3(0f, 0.9f, 0f);
+            orbit.Configure(showcasePos, 8.5f, 3.2f, 2.8f, 10f);
+
+            garage = new GameObject("Garage", typeof(RectTransform));
+            garage.transform.SetParent(canvas.transform, false);
+            garage.AddComponent<GarageScreen>().Init(this);
         }
 
         void ShowSettings()

@@ -193,7 +193,7 @@ namespace RacingGame.UI
         void BuildAmmo(Transform root)
         {
             var origin = new Vector2(0f, 0f);
-            var panel = UIKit.Panel(root, "Ammo", origin, origin, new Vector2(30f, 30f), new Vector2(420f, 210f));
+            var panel = UIKit.Panel(root, "Ammo", origin, origin, new Vector2(30f, 30f), new Vector2(500f, 210f));
             ammoRoot = panel.gameObject;
             string[] names = { "MISSILES", "MINES", "NITRO" };
             Color[] colors = { UIKit.AccentHot, new Color(0.85f, 0.85f, 0.9f), UIKit.Nitro };
@@ -202,7 +202,7 @@ namespace RacingGame.UI
                 float y = -24f - i * 60f;
                 UIKit.Label(panel.transform, names[i], 30, UIKit.TextMain, new Vector2(0f, 1f), new Vector2(0f, 1f),
                     new Vector2(26f, y), new Vector2(200f, 50f), TextAnchor.MiddleLeft);
-                var pips = new Image[6];
+                var pips = new Image[8];
                 for (int k = 0; k < pips.Length; k++)
                 {
                     var p = UIKit.Rect(panel.transform, "Pip", new Vector2(0f, 1f), new Vector2(0f, 1f),

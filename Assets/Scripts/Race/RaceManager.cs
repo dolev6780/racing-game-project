@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEngine;
 using RacingGame.Car;
 using RacingGame.Core;
+using RacingGame.Garage;
 using RacingGame.CameraRig;
 using RacingGame.Track;
 using RacingGame.UI;
@@ -41,7 +42,6 @@ namespace RacingGame.Race
 
         public static readonly int[] PrizeMoney = { 1000, 600, 350, 150, 75, 0 };
         public const int KillBonus = 100;
-        const string MoneyKey = "money";
 
         public RaceState State { get; private set; }
         public bool Paused { get; private set; }
@@ -60,12 +60,9 @@ namespace RacingGame.Race
 
         public static int TotalMoney
         {
-            get => PlayerPrefs.GetInt(MoneyKey, 0);
-            private set { PlayerPrefs.SetInt(MoneyKey, value); PlayerPrefs.Save(); }
+            get => Wallet.Money;
+            private set => Wallet.Money = value;
         }
-
-        public const string PlayerModel = "vehicle-truck-yellow";
-        public static readonly Color PlayerColor = new Color(1f, 0.8f, 0.15f);
 
         static readonly (string name, Color color, string model)[] Opponents =
         {
@@ -113,6 +110,7 @@ namespace RacingGame.Race
             int playerSlot = Mathf.Min(3, total - 1);   // start mid-pack, like the classics
             int opponentIndex = 0;
             var difficulty = RaceConfig.Difficulty;
+            var playerVehicle = PlayerGarage.Selected;
 
             for (int slot = 0; slot < total; slot++)
             {
@@ -127,7 +125,7 @@ namespace RacingGame.Race
                 bool isPlayer = slot == playerSlot;
                 string name, model;
                 Color color;
-                if (isPlayer) { name = "You"; color = PlayerColor; model = PlayerModel; }
+                if (isPlayer) { name = "You"; color = playerVehicle.Color; model = playerVehicle.Model; }
                 else
                 {
                     var o = Opponents[opponentIndex % Opponents.Length];
@@ -150,7 +148,11 @@ namespace RacingGame.Race
                 racer.Progress.NewLap += (p, lap) => racer.Weapons.Refill();
 
                 if (!isPlayer) ConfigureAI(car, difficulty);
-                else Player = racer;
+                else
+                {
+                    PlayerGarage.ApplyTo(car, PlayerGarage.Stats(playerVehicle));
+                    Player = racer;
+                }
 
                 Racers.Add(racer);
             }

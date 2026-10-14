@@ -45,6 +45,13 @@ namespace RacingGame.Car
             }
         }
 
+        /// <summary>Used by the garage to apply armor upgrades before the race.</summary>
+        public void SetMaxArmor(float value)
+        {
+            maxArmor = value;
+            Armor = value;
+        }
+
         public void Repair(float amount)
         {
             if (IsWrecked) return;
