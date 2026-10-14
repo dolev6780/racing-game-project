@@ -15,6 +15,7 @@ namespace RacingGame.Race
     public class Racer
     {
         public string Name;
+        public Color Color;
         public CarController Car;
         public RacerProgress Progress;
         public CarHealth Health;
@@ -27,14 +28,13 @@ namespace RacingGame.Race
     }
 
     /// <summary>
-    /// Builds the world (track, cars, camera, HUD) and runs the race:
-    /// countdown, laps, positions, finish order and prize money.
+    /// Builds the race (track, cars, camera, HUD) and runs it:
+    /// countdown, laps, positions, pause, finish order and prize money.
     /// </summary>
     public class RaceManager : MonoBehaviour
     {
         public static RaceManager Instance { get; private set; }
 
-        [Header("Race")]
         public int totalLaps = 4;
         public int opponentCount = 5;
         public float countdownSeconds = 3f;
@@ -44,13 +44,19 @@ namespace RacingGame.Race
         const string MoneyKey = "money";
 
         public RaceState State { get; private set; }
+        public bool Paused { get; private set; }
         public float Countdown { get; private set; }
         public float RaceTime { get; private set; }
         public TrackPath Path { get; private set; }
         public Racer Player { get; private set; }
         public List<Racer> Racers { get; } = new List<Racer>();
         public List<Racer> Standings { get; private set; } = new List<Racer>();
-        public int EarnedThisRace { get; private set; }
+
+        // Payout breakdown (filled when the player finishes)
+        public int EarnedPrize { get; private set; }
+        public int EarnedKills { get; private set; }
+        public int EarnedPickups { get; private set; }
+        public int EarnedThisRace => EarnedPrize + EarnedKills + EarnedPickups;
 
         public static int TotalMoney
         {
@@ -58,8 +64,8 @@ namespace RacingGame.Race
             private set { PlayerPrefs.SetInt(MoneyKey, value); PlayerPrefs.Save(); }
         }
 
-        const string PlayerModel = "vehicle-truck-yellow";
-        static readonly Color PlayerColor = new Color(1f, 0.8f, 0.15f);
+        public const string PlayerModel = "vehicle-truck-yellow";
+        public static readonly Color PlayerColor = new Color(1f, 0.8f, 0.15f);
 
         static readonly (string name, Color color, string model)[] Opponents =
         {
@@ -77,17 +83,20 @@ namespace RacingGame.Race
         void Awake()
         {
             Instance = this;
+            totalLaps = RaceConfig.Laps;
+            opponentCount = RaceConfig.Opponents;
         }
 
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
             CarHealth.Wrecked -= OnCarWrecked;
+            Time.timeScale = 1f;
         }
 
         void Start()
         {
-            SetupEnvironment();
+            GameFlow.SetupEnvironment();
             Path = TrackBuilder.Build(transform);
             SpawnRacers();
             SetupCamera();
@@ -98,34 +107,12 @@ namespace RacingGame.Race
             Countdown = countdownSeconds;
         }
 
-        void SetupEnvironment()
-        {
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.58f, 0.6f, 0.66f);
-            RenderSettings.fog = true;
-            RenderSettings.fogColor = new Color(0.62f, 0.8f, 0.95f);
-            RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 120f;
-            RenderSettings.fogEndDistance = 320f;
-
-            bool hasSun = FindObjectsByType<Light>(FindObjectsSortMode.None).Any(l => l.type == LightType.Directional);
-            if (!hasSun)
-            {
-                var sun = new GameObject("Sun").AddComponent<Light>();
-                sun.transform.SetParent(transform, false);
-                sun.type = LightType.Directional;
-                sun.intensity = 1.2f;
-                sun.color = new Color(1f, 0.92f, 0.85f);
-                sun.shadows = LightShadows.Soft;
-                sun.transform.rotation = Quaternion.Euler(55f, -35f, 0f);
-            }
-        }
-
         void SpawnRacers()
         {
             int total = opponentCount + 1;
             int playerSlot = Mathf.Min(3, total - 1);   // start mid-pack, like the classics
             int opponentIndex = 0;
+            var difficulty = RaceConfig.Difficulty;
 
             for (int slot = 0; slot < total; slot++)
             {
@@ -152,6 +139,7 @@ namespace RacingGame.Race
                 var racer = new Racer
                 {
                     Name = name,
+                    Color = color,
                     Car = car,
                     Progress = car.GetComponent<RacerProgress>(),
                     Health = car.GetComponent<CarHealth>(),
@@ -161,13 +149,7 @@ namespace RacingGame.Race
                 racer.Progress.Initialize(Path);
                 racer.Progress.NewLap += (p, lap) => racer.Weapons.Refill();
 
-                if (!isPlayer)
-                {
-                    var ai = car.GetComponent<AICarInput>();
-                    ai.skill = Random.Range(0.45f, 0.95f);
-                    ai.aggression = Random.Range(0.3f, 0.9f);
-                    car.speedMultiplier = Random.Range(0.9f, 0.98f);
-                }
+                if (!isPlayer) ConfigureAI(car, difficulty);
                 else Player = racer;
 
                 Racers.Add(racer);
@@ -175,29 +157,52 @@ namespace RacingGame.Race
             Standings = new List<Racer>(Racers);
         }
 
+        static void ConfigureAI(CarController car, Difficulty difficulty)
+        {
+            var ai = car.GetComponent<AICarInput>();
+            switch (difficulty)
+            {
+                case Difficulty.Easy:
+                    ai.skill = Random.Range(0.25f, 0.55f);
+                    ai.aggression = Random.Range(0.15f, 0.45f);
+                    car.speedMultiplier = Random.Range(0.82f, 0.9f);
+                    break;
+                case Difficulty.Hard:
+                    ai.skill = Random.Range(0.75f, 1f);
+                    ai.aggression = Random.Range(0.6f, 1f);
+                    car.speedMultiplier = Random.Range(0.97f, 1.04f);
+                    break;
+                default:
+                    ai.skill = Random.Range(0.45f, 0.95f);
+                    ai.aggression = Random.Range(0.3f, 0.9f);
+                    car.speedMultiplier = Random.Range(0.9f, 0.98f);
+                    break;
+            }
+        }
+
         void SetupCamera()
         {
-            var cam = Camera.main;
-            if (cam == null)
-            {
-                var go = new GameObject("Main Camera") { tag = "MainCamera" };
-                go.transform.SetParent(transform, false);
-                cam = go.AddComponent<Camera>();
-            }
+            var cam = GameFlow.GetCamera();
+            var menuCam = cam.GetComponent<MenuCamera>();
+            if (menuCam) menuCam.enabled = false;
+
             // Hear the race from the player's car, not from the high camera.
             var camListener = cam.GetComponent<AudioListener>();
             if (camListener) camListener.enabled = false;
             Player.Car.gameObject.AddComponent<AudioListener>();
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = RenderSettings.fogColor;
-            cam.farClipPlane = 400f;
+
+            RaceCamera.Isometric = RaceConfig.IsometricCamera;
             var rig = cam.GetComponent<RaceCamera>();
             if (rig == null) rig = cam.gameObject.AddComponent<RaceCamera>();
+            rig.enabled = true;
             rig.SetTarget(Player.Car);
         }
 
         void Update()
         {
+            if (InputBridge.WasPressedThisFrame(GameKey.Pause) && State != RaceState.Finished) SetPaused(!Paused);
+            if (Paused) return;
+
             switch (State)
             {
                 case RaceState.Countdown:
@@ -218,7 +223,14 @@ namespace RacingGame.Race
 
             UpdateStandings();
 
-            if (InputBridge.WasPressedThisFrame(GameKey.Restart)) Restart();
+            if (State == RaceState.Finished && InputBridge.WasPressedThisFrame(GameKey.Restart)) Restart();
+        }
+
+        public void SetPaused(bool paused)
+        {
+            Paused = paused;
+            Time.timeScale = paused ? 0f : 1f;
+            AudioListener.pause = paused;
         }
 
         void CheckFinishers()
@@ -242,8 +254,11 @@ namespace RacingGame.Race
 
         void AwardMoney(Racer player)
         {
+            float mult = RaceConfig.PrizeMultiplier;
             int prize = player.FinishPlace - 1 < PrizeMoney.Length ? PrizeMoney[player.FinishPlace - 1] : 0;
-            EarnedThisRace = prize + player.Kills * KillBonus + player.Car.MoneyCollected;
+            EarnedPrize = Mathf.RoundToInt(prize * mult);
+            EarnedKills = player.Kills * KillBonus;
+            EarnedPickups = player.Car.MoneyCollected;
             TotalMoney += EarnedThisRace;
         }
 
@@ -258,22 +273,25 @@ namespace RacingGame.Race
 
         public int PositionOf(Racer racer) => Standings.IndexOf(racer) + 1;
 
+        public Racer RacerFor(CarHealth health) => Racers.FirstOrDefault(r => r.Health == health);
+
         void OnCarWrecked(CarHealth victim, CarHealth attacker)
         {
             if (attacker == null || attacker == victim) return;
-            var r = Racers.FirstOrDefault(x => x.Health == attacker);
+            var r = RacerFor(attacker);
             if (r != null && !r.Finished) r.Kills++;
         }
 
-        /// <summary>Rebuilds the whole race from scratch (works even in an unsaved scene).</summary>
         public void Restart()
         {
-            Mine.ClearAll();
-            var cam = Camera.main;
-            if (cam != null && cam.transform.IsChildOf(transform)) cam.transform.SetParent(null);
-            foreach (var light in GetComponentsInChildren<Light>()) light.transform.SetParent(null);
-            new GameObject("RaceManager").AddComponent<RaceManager>();
-            Destroy(gameObject);
+            AudioListener.pause = false;
+            GameFlow.StartRace();
+        }
+
+        public void ExitToMenu()
+        {
+            AudioListener.pause = false;
+            GameFlow.ShowMenu();
         }
     }
 }

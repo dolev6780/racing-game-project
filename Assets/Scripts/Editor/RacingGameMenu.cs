@@ -8,32 +8,48 @@ namespace RacingGame.EditorTools
 {
     public static class RacingGameMenu
     {
-        const string ScenePath = "Assets/Scenes/Race.unity";
+        const string GameScenePath = "Assets/Scenes/Game.unity";
+        const string QuickRaceScenePath = "Assets/Scenes/QuickRace.unity";
 
-        [MenuItem("Racing Game/Create Race Scene")]
-        static void CreateRaceScene()
+        /// <summary>Empty scene: the bootstrap opens the main menu. This is the scene to build.</summary>
+        [MenuItem("Racing Game/Create Game Scene (Main Menu)")]
+        static void CreateGameScene()
         {
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
-
-            System.IO.Directory.CreateDirectory("Assets/Scenes");
-            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-            new GameObject("RaceManager").AddComponent<RaceManager>();
-            EditorSceneManager.SaveScene(scene, ScenePath);
-
-            var scenes = EditorBuildSettings.scenes.ToList();
-            if (!scenes.Any(s => s.path == ScenePath))
-            {
-                scenes.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
-                EditorBuildSettings.scenes = scenes.ToArray();
-            }
-            Debug.Log("Race scene created at " + ScenePath + " and added to Build Settings. Press Play!");
+            if (!CreateScene(GameScenePath, null)) return;
+            AddToBuild(GameScenePath, first: true);
+            Debug.Log("Game scene created at " + GameScenePath + " and set as the first scene in Build Settings. Press Play!");
         }
 
-        [MenuItem("Racing Game/Reset Saved Money")]
-        static void ResetMoney()
+        /// <summary>Developer shortcut: skips the menu and starts a race immediately.</summary>
+        [MenuItem("Racing Game/Create Quick Race Scene (dev)")]
+        static void CreateQuickRaceScene()
         {
-            PlayerPrefs.DeleteKey("money");
-            Debug.Log("Saved money reset.");
+            if (!CreateScene(QuickRaceScenePath, () => new GameObject("RaceManager").AddComponent<RaceManager>())) return;
+            Debug.Log("Quick race scene created at " + QuickRaceScenePath + ". Press Play to race without the menu.");
+        }
+
+        static bool CreateScene(string path, System.Action populate)
+        {
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return false;
+            System.IO.Directory.CreateDirectory("Assets/Scenes");
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            populate?.Invoke();
+            EditorSceneManager.SaveScene(scene, path);
+            return true;
+        }
+
+        static void AddToBuild(string path, bool first)
+        {
+            var scenes = EditorBuildSettings.scenes.Where(s => s.path != path).ToList();
+            scenes.Insert(first ? 0 : scenes.Count, new EditorBuildSettingsScene(path, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
+        }
+
+        [MenuItem("Racing Game/Reset Saved Progress")]
+        static void ResetProgress()
+        {
+            PlayerPrefs.DeleteAll();
+            Debug.Log("Saved money and settings reset.");
         }
     }
 }

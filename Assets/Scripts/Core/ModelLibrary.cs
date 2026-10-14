@@ -45,8 +45,9 @@ namespace RacingGame.Core
             return clip;
         }
 
-        /// <summary>Plays a one-shot sound at a position (2D-ish so it is audible from the high camera).</summary>
-        public static void PlayAt(string clipName, Vector3 position, float volume = 1f, float pitch = 1f)
+        /// <summary>Plays a one-shot sound at a position (mostly 2D so it is audible from the high camera).</summary>
+        public static void PlayAt(string clipName, Vector3 position, float volume = 1f, float pitch = 1f,
+            float spatialBlend = 0.6f)
         {
             var clip = Clip(clipName);
             if (clip == null) return;
@@ -56,7 +57,8 @@ namespace RacingGame.Core
             src.clip = clip;
             src.volume = volume;
             src.pitch = pitch;
-            src.spatialBlend = 0.6f;
+            src.spatialBlend = spatialBlend;
+            src.ignoreListenerPause = spatialBlend <= 0f;   // UI sounds still play while paused
             src.rolloffMode = AudioRolloffMode.Linear;
             src.maxDistance = 120f;
             src.Play();

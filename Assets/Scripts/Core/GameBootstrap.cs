@@ -1,17 +1,15 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using RacingGame.Race;
+using RacingGame.UI;
 
 namespace RacingGame.Core
 {
     /// <summary>
-    /// Makes the game playable from any empty scene: press Play and a full race is built.
-    /// Scenes listed in <see cref="ScenesWithoutAutoRace"/> (e.g. future menus) are skipped.
+    /// Makes the game playable from any empty scene: press Play and the main menu appears.
+    /// If the scene already contains a RaceManager (dev "quick race" scene), the race starts directly.
     /// </summary>
     public static class GameBootstrap
     {
-        static readonly string[] ScenesWithoutAutoRace = { "MainMenu", "Garage" };
-
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Init()
         {
@@ -22,13 +20,11 @@ namespace RacingGame.Core
             Screen.autorotateToPortraitUpsideDown = false;
             Screen.autorotateToLandscapeLeft = true;
             Screen.autorotateToLandscapeRight = true;
+            AudioListener.volume = RaceConfig.Volume;
 
-            string sceneName = SceneManager.GetActiveScene().name;
-            foreach (var skip in ScenesWithoutAutoRace)
-                if (sceneName == skip) return;
-
-            if (Object.FindAnyObjectByType<RaceManager>() == null)
-                new GameObject("RaceManager").AddComponent<RaceManager>();
+            if (Object.FindAnyObjectByType<RaceManager>() != null) return;
+            if (Object.FindAnyObjectByType<MainMenu>() != null) return;
+            GameFlow.ShowMenu();
         }
     }
 }

@@ -50,12 +50,11 @@ namespace RacingGame.Car
 
         // ---------- Buttons ----------
 
-        enum Btn { Left, Right, Brake, Fire, Mine, Boost, Count }
+        public enum Btn { Left, Right, Brake, Fire, Mine, Boost, Count }
 
         readonly Rect[] rects = new Rect[(int)Btn.Count];
         readonly bool[] held = new bool[(int)Btn.Count];
         readonly bool[] heldLastFrame = new bool[(int)Btn.Count];
-        static readonly string[] labels = { "<", ">", "BRAKE", "FIRE", "MINE", "NITRO" };
 
         // ---------- Joystick ----------
 
@@ -72,8 +71,15 @@ namespace RacingGame.Car
         float tiltNeutral;
         float tiltSteer;
 
-        GUIStyle buttonStyle;
-        static Texture2D circleTexture;
+        // ---------- State for the touch-controls view (GUI pixel coords, top-left origin) ----------
+
+        public Rect ButtonRect(Btn b) { LayoutButtons(); return rects[(int)b]; }
+        public bool IsHeld(Btn b) => held[(int)b];
+        public bool JoystickActive => joyPointer != NoPointer;
+        public Vector2 JoystickOrigin => joyOrigin;
+        public Vector2 JoystickKnob => joyKnob;
+        public float JoystickRadius => Screen.height * 0.11f;
+        public float TiltSteer => tiltSteer;
 
         public CarInputState ReadInput()
         {
@@ -244,79 +250,6 @@ namespace RacingGame.Car
             rects[(int)Btn.Mine] = new Rect(w - m * 2f - big - u, h - m - u, u, u);
             rects[(int)Btn.Brake] = new Rect(w - m * 3f - big - u * 2f, h - m - u, u, u);
             rects[(int)Btn.Boost] = new Rect(w - m - big + (big - u) * 0.5f, h - m * 2f - big - u, u, u);
-        }
-
-        void OnGUI()
-        {
-            if (!ShowTouchControls) return;
-            LayoutButtons();
-            if (buttonStyle == null)
-            {
-                buttonStyle = new GUIStyle(GUI.skin.box)
-                {
-                    alignment = TextAnchor.MiddleCenter,
-                    fontStyle = FontStyle.Bold,
-                };
-            }
-            buttonStyle.fontSize = Mathf.RoundToInt(Screen.height * 0.035f);
-
-            var old = GUI.color;
-            for (int i = 0; i < rects.Length; i++)
-            {
-                if (rects[i].width <= 0f) continue;
-                GUI.color = held[i] ? new Color(1f, 0.8f, 0.2f, 0.9f) : new Color(1f, 1f, 1f, 0.55f);
-                GUI.Box(rects[i], labels[i], buttonStyle);
-            }
-
-            if (Steering == SteeringMode.Joystick) DrawJoystick();
-            else if (Steering == SteeringMode.Tilt) DrawTiltIndicator();
-            GUI.color = old;
-        }
-
-        void DrawJoystick()
-        {
-            if (circleTexture == null) circleTexture = MakeCircleTexture(128);
-            float r = Screen.height * 0.11f;
-            bool active = joyPointer != NoPointer;
-
-            // Idle: show a faint hint where the thumb usually rests.
-            Vector2 origin = active ? joyOrigin : new Vector2(Screen.width * 0.14f, Screen.height * 0.75f);
-            Vector2 knob = active ? joyKnob : origin;
-
-            GUI.color = new Color(1f, 1f, 1f, active ? 0.35f : 0.18f);
-            GUI.DrawTexture(new Rect(origin.x - r, origin.y - r, r * 2f, r * 2f), circleTexture);
-            float kr = r * 0.45f;
-            GUI.color = new Color(1f, 0.85f, 0.2f, active ? 0.9f : 0.35f);
-            GUI.DrawTexture(new Rect(knob.x - kr, knob.y - kr, kr * 2f, kr * 2f), circleTexture);
-        }
-
-        void DrawTiltIndicator()
-        {
-            // A small steering bar so the player sees how much they are turning.
-            float w = Screen.height * 0.4f, h = Screen.height * 0.025f;
-            var bar = new Rect(Screen.height * 0.05f, Screen.height * 0.9f, w, h);
-            GUI.color = new Color(0f, 0f, 0f, 0.4f);
-            GUI.DrawTexture(bar, Texture2D.whiteTexture);
-            GUI.color = new Color(1f, 0.85f, 0.2f, 0.9f);
-            float cx = bar.x + w * 0.5f + tiltSteer * w * 0.5f;
-            GUI.DrawTexture(new Rect(cx - h, bar.y - h * 0.5f, h * 2f, h * 2f), Texture2D.whiteTexture);
-        }
-
-        static Texture2D MakeCircleTexture(int size)
-        {
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-            float c = (size - 1) * 0.5f;
-            var pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
-            {
-                float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c;
-                byte a = (byte)(Mathf.Clamp01((1f - d) * size * 0.5f) * 255);
-                pixels[y * size + x] = new Color32(255, 255, 255, a);
-            }
-            tex.SetPixels32(pixels);
-            tex.Apply();
-            return tex;
         }
     }
 }

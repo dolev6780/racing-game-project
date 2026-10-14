@@ -80,7 +80,8 @@ namespace RacingGame.Car
 
         void Update()
         {
-            CurrentInput = InputActive && InputSource != null ? InputSource.ReadInput() : default;
+            bool paused = Time.timeScale <= 0f;
+            CurrentInput = InputActive && !paused && InputSource != null ? InputSource.ReadInput() : default;
             UpdateVisuals();
         }
 

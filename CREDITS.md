@@ -12,3 +12,9 @@ Files used (in `Assets/Resources/`):
 - `Audio/engine.ogg`, `Audio/impact.ogg`, `Audio/skid.ogg`
 
 Consider supporting Kenney: https://kenney.nl/donate
+
+## Fonts
+- **Russo One** by Jovanny Lemonad — SIL Open Font License 1.1 (`Assets/Resources/Fonts/RussoOne.ttf`)
+- **Rubik** by The Rubik Project Authors — SIL Open Font License 1.1 (`Assets/Resources/Fonts/RubikBold.ttf`)
+
+License texts: [Licenses/](Licenses/)

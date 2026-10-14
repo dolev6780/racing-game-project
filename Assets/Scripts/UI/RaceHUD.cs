@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using RacingGame.Car;
 using RacingGame.CameraRig;
 using RacingGame.Race;
@@ -6,191 +8,537 @@ using RacingGame.Race;
 namespace RacingGame.UI
 {
     /// <summary>
-    /// Placeholder HUD drawn with IMGUI (no prefabs/scenes needed).
-    /// Will be replaced by a proper uGUI/UI Toolkit HUD with art later.
+    /// In-race HUD built with uGUI: position/lap card, standings, speedometer + armor,
+    /// countdown, warnings, kill feed, damage flash, pause menu and results screen.
     /// </summary>
     public class RaceHUD : MonoBehaviour
     {
-        const float RefHeight = 720f;
-
         RaceManager race;
-        GUIStyle label, big, small, panel, button;
+        Racer player;
+        Canvas canvas;
+
+        // Top-left card
+        Text posText, posTotal, lapText, timeText;
+        // Standings
+        readonly List<(Image bg, Image bar, Text text)> rows = new List<(Image, Image, Text)>();
+        // Speedometer
+        Image gaugeFill, gaugeGlow;
+        Text speedText;
+        RectTransform armorFill;
+        Image armorFillImage;
+        // Ammo (shown when touch controls are hidden)
+        GameObject ammoRoot;
+        readonly List<Image[]> ammoPips = new List<Image[]>();
+        // Center
+        Text countdownText;
+        Punch countdownPunch;
+        int lastCountdown = -1;
         float goTimer;
+        GameObject warningRoot;
+        Text warningText;
+        GameObject finalLapBanner;
+        float finalLapTimer;
+        bool finalLapShown;
+        // Effects
+        Image damageFlash;
+        float flash;
+        float lastArmor;
+        // Kill feed
+        RectTransform feedRoot;
+        readonly List<(GameObject go, float time)> feed = new List<(GameObject, float)>();
+        // Overlays
+        GameObject pauseRoot, resultsRoot;
+        readonly List<(Text left, Text right)> resultRows = new List<(Text, Text)>();
+        float resultsRefresh;
 
-        void Awake() => race = GetComponent<RaceManager>();
+        TouchControlsView touchView;
 
-        void EnsureStyles()
+        void Start()
         {
-            if (label != null) return;
-            label = new GUIStyle(GUI.skin.label) { fontSize = 26, fontStyle = FontStyle.Bold };
-            label.normal.textColor = Color.white;
-            small = new GUIStyle(label) { fontSize = 18 };
-            big = new GUIStyle(label) { fontSize = 120, alignment = TextAnchor.MiddleCenter };
-            panel = new GUIStyle(GUI.skin.box);
-            button = new GUIStyle(GUI.skin.button) { fontSize = 22, fontStyle = FontStyle.Bold };
+            race = GetComponent<RaceManager>();
+            player = race.Player;
+            lastArmor = player.Health.Armor;
+
+            canvas = UIKit.CreateCanvas("HUD", transform, 10);
+            var root = canvas.transform;
+
+            BuildDamageFlash(root);
+            touchView = new GameObject("TouchControls", typeof(RectTransform)).AddComponent<TouchControlsView>();
+            touchView.Init(root, canvas, player);
+            BuildTopLeft(root);
+            BuildTopCenter(root);
+            BuildStandings(root);
+            BuildSpeedometer(root);
+            BuildAmmo(root);
+            BuildCenter(root);
+
+            CarHealth.Wrecked += OnWrecked;
         }
 
-        void OnGUI()
+        void OnDestroy() => CarHealth.Wrecked -= OnWrecked;
+
+        // ---------- Build ----------
+
+        void BuildDamageFlash(Transform root)
         {
-            if (race == null || race.Player == null) return;
-            EnsureStyles();
-
-            float scale = Screen.height / RefHeight;
-            GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale, scale, 1f));
-            float w = Screen.width / scale;
-            float h = RefHeight;
-
-            var player = race.Player;
-            DrawTopLeft(player);
-            DrawStandings(w);
-            DrawTopButtons(w);
-            DrawCenterMessages(player, w, h);
-            if (race.State == RaceState.Finished) DrawResults(w, h);
-
-            GUI.matrix = Matrix4x4.identity;
+            var rt = UIKit.Stretch(root, "DamageFlash");
+            damageFlash = UIKit.Image(rt, UIKit.Vignette, new Color(1f, 0.1f, 0.05f, 0f));
         }
 
-        void DrawTopLeft(Racer player)
+        void BuildTopLeft(Transform root)
         {
-            GUI.Box(new Rect(10, 10, 300, 200), GUIContent.none, panel);
-            int lap = Mathf.Clamp(player.Progress.Lap, 1, race.totalLaps);
-            Shadowed(new Rect(22, 14, 280, 34), $"LAP {lap}/{race.totalLaps}", label);
-            Shadowed(new Rect(22, 46, 280, 34), $"POS {race.PositionOf(player)}/{race.Racers.Count}", label);
-            Shadowed(new Rect(22, 78, 280, 30), $"{player.Car.SpeedKmh:0} km/h    {FormatTime(race.RaceTime)}", small);
+            var card = UIKit.Panel(root, "PositionCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, -30f),
+                new Vector2(470f, 190f)).rectTransform;
 
-            // Armor bar
-            var bar = new Rect(22, 110, 270, 18);
-            GUI.color = new Color(0f, 0f, 0f, 0.6f);
-            GUI.DrawTexture(bar, Texture2D.whiteTexture);
-            float a = player.Health.Armor01;
-            GUI.color = Color.Lerp(Color.red, Color.green, a);
-            GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * a, bar.height), Texture2D.whiteTexture);
-            GUI.color = Color.white;
-            Shadowed(new Rect(22, 106, 270, 26), "ARMOR", small);
+            var accent = UIKit.Rect(card, "Accent", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(14f, 0f),
+                new Vector2(10f, 150f));
+            UIKit.Image(accent, UIKit.RoundedSmall, UIKit.Accent);
 
-            var wpn = player.Weapons;
-            Shadowed(new Rect(22, 134, 280, 26), $"MISSILES {Pips(wpn.Missiles, wpn.missilesPerLap)}", small);
-            Shadowed(new Rect(22, 156, 280, 26), $"MINES    {Pips(wpn.Mines, wpn.minesPerLap)}", small);
-            Shadowed(new Rect(22, 178, 280, 26), $"NITRO    {Pips(wpn.Boosts, wpn.boostsPerLap)}", small);
+            posText = UIKit.Label(card, "1", 130, UIKit.TextMain, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(40f, 6f), new Vector2(220f, 160f), TextAnchor.MiddleLeft, true);
+            posTotal = UIKit.Label(card, "/6", 40, UIKit.TextDim, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(40f, -58f), new Vector2(220f, 50f), TextAnchor.MiddleLeft, true);
+
+            UIKit.Label(card, "LAP", 30, UIKit.TextDim, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -18f),
+                new Vector2(200f, 40f), TextAnchor.MiddleRight);
+            lapText = UIKit.Label(card, "1/4", 70, UIKit.Accent, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -54f),
+                new Vector2(220f, 80f), TextAnchor.MiddleRight, true);
+            timeText = UIKit.Label(card, "0:00.00", 34, UIKit.TextMain, new Vector2(1f, 0f), new Vector2(1f, 0f),
+                new Vector2(-30f, 16f), new Vector2(220f, 44f), TextAnchor.MiddleRight);
         }
 
-        void DrawStandings(float w)
+        void BuildTopCenter(Transform root)
         {
-            float x = w - 230, y = 60;
-            GUI.Box(new Rect(x, y, 220, 26 * race.Standings.Count + 10), GUIContent.none, panel);
-            for (int i = 0; i < race.Standings.Count; i++)
+            var top = new Vector2(0.5f, 1f);
+            var pause = UIKit.Button(root, "II", top, top, new Vector2(0f, -30f), new Vector2(110f, 110f),
+                () => SetPaused(true), fontSize: 46);
+            pause.GetComponent<Image>().sprite = UIKit.Circle;
+            pause.GetComponent<Image>().type = Image.Type.Simple;
+
+            var cam = UIKit.Button(root, "CAM", top, top, new Vector2(150f, -42f), new Vector2(150f, 86f),
+                RaceCamera.Toggle, fontSize: 34);
+            cam.GetComponent<Image>().color = UIKit.PanelDark;
+
+            finalLapBanner = UIKit.Panel(root, "FinalLap", top, top, new Vector2(0f, -170f), new Vector2(520f, 100f),
+                UIKit.AccentHot).gameObject;
+            UIKit.Label(finalLapBanner.transform, "FINAL LAP!", 60, UIKit.TextMain, TextAnchor.MiddleCenter, true);
+            finalLapBanner.AddComponent<Punch>();
+            finalLapBanner.SetActive(false);
+
+            feedRoot = UIKit.Rect(root, "KillFeed", top, top, new Vector2(0f, -290f), new Vector2(900f, 400f));
+        }
+
+        void BuildStandings(Transform root)
+        {
+            int n = race.Racers.Count;
+            const float rowH = 50f;
+            var panel = UIKit.Panel(root, "Standings", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -30f),
+                new Vector2(380f, n * rowH + 24f)).rectTransform;
+
+            for (int i = 0; i < n; i++)
             {
-                var r = race.Standings[i];
-                GUI.color = r.IsPlayer ? new Color(0.4f, 1f, 0.4f) : Color.white;
-                string suffix = r.Finished ? "  FIN" : r.Health.IsWrecked ? "  X" : "";
-                Shadowed(new Rect(x + 10, y + 4 + i * 26, 210, 26), $"{i + 1}. {r.Name}{suffix}", small);
+                var row = UIKit.Rect(panel, "Row" + i, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                    new Vector2(0f, -12f - i * rowH), new Vector2(356f, rowH - 6f));
+                var bg = UIKit.Image(row, UIKit.RoundedSmall, new Color(1f, 1f, 1f, 0f));
+                var barRt = UIKit.Rect(row, "Bar", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(8f, 0f),
+                    new Vector2(8f, 32f));
+                var bar = UIKit.Image(barRt, UIKit.RoundedSmall, Color.white);
+                var text = UIKit.Label(row, "", 30, UIKit.TextMain, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                    new Vector2(28f, 0f), new Vector2(320f, rowH), TextAnchor.MiddleLeft);
+                rows.Add((bg, bar, text));
             }
-            GUI.color = Color.white;
         }
 
-        void DrawTopButtons(float w)
+        void BuildSpeedometer(Transform root)
         {
-            if (GUI.Button(new Rect(w - 120, 10, 110, 40), RaceCamera.Isometric ? "CAM: ISO" : "CAM: CHASE", button))
-                RaceCamera.Toggle();
-#if UNITY_EDITOR || UNITY_STANDALONE
-            if (GUI.Button(new Rect(w - 240, 10, 110, 40), PlayerCarInput.ShowTouchControls ? "TOUCH: ON" : "TOUCH: OFF", button))
-                PlayerCarInput.ShowTouchControls = !PlayerCarInput.ShowTouchControls;
-#endif
-            if (PlayerCarInput.ShowTouchControls) DrawSteeringButtons(w);
+            var bottom = new Vector2(0.5f, 0f);
+            var gauge = UIKit.Rect(root, "Speedometer", bottom, bottom, new Vector2(0f, 70f), new Vector2(300f, 300f));
+            UIKit.Image(gauge, UIKit.Circle, new Color(0.05f, 0.06f, 0.1f, 0.6f));
+
+            var glowRt = UIKit.Rect(gauge, "Glow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(420f, 420f));
+            gaugeGlow = UIKit.Image(glowRt, UIKit.SoftGlow, new Color(UIKit.Nitro.r, UIKit.Nitro.g, UIKit.Nitro.b, 0f));
+            glowRt.SetAsFirstSibling();
+
+            gaugeFill = MakeArc(gauge, "Track", new Color(1f, 1f, 1f, 0.15f), 0.75f);
+            gaugeFill = MakeArc(gauge, "Fill", UIKit.Accent, 0f);
+
+            speedText = UIKit.Label(gauge, "0", 96, UIKit.TextMain, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, 14f), new Vector2(280f, 110f), TextAnchor.MiddleCenter, true);
+            UIKit.Label(gauge, "KM/H", 28, UIKit.TextDim, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                new Vector2(0f, -54f), new Vector2(200f, 40f), TextAnchor.MiddleCenter);
+
+            // Armor bar under the gauge
+            var armorBg = UIKit.Rect(root, "Armor", bottom, bottom, new Vector2(0f, 26f), new Vector2(340f, 30f));
+            UIKit.Image(armorBg, UIKit.RoundedSmall, new Color(0f, 0f, 0f, 0.55f));
+            armorFill = UIKit.Stretch(armorBg, "Fill");
+            armorFill.offsetMin = new Vector2(4f, 4f);
+            armorFill.offsetMax = new Vector2(-4f, -4f);
+            armorFillImage = UIKit.Image(armorFill, UIKit.RoundedSmall, UIKit.Good);
+            UIKit.Label(armorBg, "ARMOR", 20, UIKit.TextMain, TextAnchor.MiddleCenter);
         }
 
-        void DrawSteeringButtons(float w)
+        static Image MakeArc(RectTransform parent, string name, Color color, float amount)
         {
-            var mode = PlayerCarInput.Steering;
-            string label = mode == SteeringMode.Joystick ? "STEER: STICK" : mode == SteeringMode.Tilt ? "STEER: TILT" : "STEER: BTNS";
-            if (GUI.Button(new Rect(w - 400, 10, 150, 40), label, button))
-                PlayerCarInput.CycleSteering();
-
-            if (mode != SteeringMode.Tilt) return;
-            if (GUI.Button(new Rect(320, 10, 120, 40), "CENTER", button))
-                PlayerCarInput.RequestTiltCalibration();
-            if (GUI.Button(new Rect(320, 56, 120, 40), PlayerCarInput.InvertTilt ? "INVERT: ON" : "INVERT: OFF", button))
-                PlayerCarInput.InvertTilt = !PlayerCarInput.InvertTilt;
+            var rt = UIKit.Rect(parent, name, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(280f, 280f));
+            rt.localEulerAngles = new Vector3(0f, 0f, -45f);   // 270° gauge with the gap at the bottom
+            var img = UIKit.Image(rt, UIKit.Ring, color);
+            img.type = Image.Type.Filled;
+            img.fillMethod = Image.FillMethod.Radial360;
+            img.fillOrigin = (int)Image.Origin360.Bottom;
+            img.fillClockwise = true;
+            img.fillAmount = amount;
+            return img;
         }
 
-        void DrawCenterMessages(Racer player, float w, float h)
+        void BuildAmmo(Transform root)
         {
-            var center = new Rect(0, h * 0.25f, w, 160);
+            var origin = new Vector2(0f, 0f);
+            var panel = UIKit.Panel(root, "Ammo", origin, origin, new Vector2(30f, 30f), new Vector2(420f, 210f));
+            ammoRoot = panel.gameObject;
+            string[] names = { "MISSILES", "MINES", "NITRO" };
+            Color[] colors = { UIKit.AccentHot, new Color(0.85f, 0.85f, 0.9f), UIKit.Nitro };
+            for (int i = 0; i < 3; i++)
+            {
+                float y = -24f - i * 60f;
+                UIKit.Label(panel.transform, names[i], 30, UIKit.TextMain, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                    new Vector2(26f, y), new Vector2(200f, 50f), TextAnchor.MiddleLeft);
+                var pips = new Image[6];
+                for (int k = 0; k < pips.Length; k++)
+                {
+                    var p = UIKit.Rect(panel.transform, "Pip", new Vector2(0f, 1f), new Vector2(0f, 1f),
+                        new Vector2(220f + k * 32f, y - 12f), new Vector2(26f, 26f));
+                    pips[k] = UIKit.Image(p, UIKit.Circle, colors[i]);
+                }
+                ammoPips.Add(pips);
+            }
+        }
+
+        void BuildCenter(Transform root)
+        {
+            var center = new Vector2(0.5f, 0.5f);
+            var cd = UIKit.Rect(root, "Countdown", center, center, new Vector2(0f, 120f), new Vector2(800f, 320f));
+            countdownText = UIKit.Label(cd, "", 260, UIKit.TextMain, TextAnchor.MiddleCenter, true);
+            countdownPunch = cd.gameObject.AddComponent<Punch>();
+
+            warningRoot = UIKit.Panel(root, "Warning", center, center, new Vector2(0f, 60f), new Vector2(640f, 120f),
+                new Color(0.75f, 0.08f, 0.08f, 0.85f)).gameObject;
+            warningText = UIKit.Label(warningRoot.transform, "", 64, UIKit.TextMain, TextAnchor.MiddleCenter, true);
+            warningRoot.SetActive(false);
+        }
+
+        // ---------- Update ----------
+
+        void Update()
+        {
+            if (race == null || player == null) return;
+
+            UpdateTopLeft();
+            UpdateStandings();
+            UpdateSpeedometer();
+            UpdateAmmo();
+            UpdateCountdown();
+            UpdateWarnings();
+            UpdateDamageFlash();
+            UpdateFeed();
+
+            if (race.State == RaceState.Finished && resultsRoot == null) ShowResults();
+            if (resultsRoot != null) UpdateResults();
+        }
+
+        void UpdateTopLeft()
+        {
+            int pos = race.PositionOf(player);
+            posText.text = $"{pos}<size=56>{UIKit.OrdinalSuffix(pos)}</size>";
+            posTotal.text = "/" + race.Racers.Count;
+            int lap = Mathf.Clamp(player.Progress.Lap, 1, race.totalLaps);
+            lapText.text = $"{lap}/{race.totalLaps}";
+            timeText.text = UIKit.Time(race.RaceTime);
+        }
+
+        void UpdateStandings()
+        {
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var row = rows[i];
+                if (i >= race.Standings.Count) { row.text.text = ""; continue; }
+                var r = race.Standings[i];
+                string status = r.Finished ? "  <color=#9CF29C>FIN</color>" : r.Health.IsWrecked ? "  <color=#FF6060>WRECK</color>" : "";
+                row.text.text = $"{i + 1}  {r.Name.ToUpperInvariant()}{status}";
+                row.text.color = r.IsPlayer ? UIKit.Accent : UIKit.TextMain;
+                row.bar.color = r.Color;
+                row.bg.color = r.IsPlayer ? new Color(1f, 0.78f, 0.1f, 0.18f) : new Color(1f, 1f, 1f, 0f);
+            }
+        }
+
+        void UpdateSpeedometer()
+        {
+            var car = player.Car;
+            float speed01 = Mathf.Clamp01(Mathf.Abs(car.ForwardSpeed) / (car.maxSpeed * car.boostMultiplier));
+            gaugeFill.fillAmount = Mathf.Lerp(gaugeFill.fillAmount, 0.75f * speed01, 1f - Mathf.Exp(-12f * Time.deltaTime));
+            gaugeFill.color = car.IsBoosting ? UIKit.Nitro : Color.Lerp(UIKit.Accent, UIKit.AccentHot, speed01);
+            var g = gaugeGlow.color;
+            g.a = Mathf.MoveTowards(g.a, car.IsBoosting ? 0.6f : 0f, Time.deltaTime * 3f);
+            gaugeGlow.color = g;
+            speedText.text = Mathf.RoundToInt(car.SpeedKmh).ToString();
+
+            float a = player.Health.Armor01;
+            armorFill.anchorMax = new Vector2(Mathf.Max(a, 0.001f), 1f);
+            armorFillImage.color = a > 0.5f ? UIKit.Good : a > 0.25f ? UIKit.Accent : UIKit.Bad;
+            armorFillImage.enabled = a > 0.01f;
+        }
+
+        void UpdateAmmo()
+        {
+            ammoRoot.SetActive(!PlayerCarInput.ShowTouchControls);
+            if (!ammoRoot.activeSelf) return;
+            var w = player.Weapons;
+            SetPips(ammoPips[0], w.Missiles, w.missilesPerLap);
+            SetPips(ammoPips[1], w.Mines, w.minesPerLap);
+            SetPips(ammoPips[2], w.Boosts, w.boostsPerLap);
+        }
+
+        static void SetPips(Image[] pips, int have, int max)
+        {
+            for (int i = 0; i < pips.Length; i++)
+            {
+                pips[i].enabled = i < max;
+                var c = pips[i].color;
+                c.a = i < have ? 1f : 0.2f;
+                pips[i].color = c;
+            }
+        }
+
+        void UpdateCountdown()
+        {
             if (race.State == RaceState.Countdown)
             {
                 int n = Mathf.CeilToInt(race.Countdown);
-                Shadowed(center, n.ToString(), big);
-                goTimer = 1f;
+                if (n != lastCountdown)
+                {
+                    lastCountdown = n;
+                    countdownText.text = n.ToString();
+                    countdownText.color = UIKit.TextMain;
+                    countdownPunch.Play();
+                }
+                goTimer = 1.2f;
             }
             else if (goTimer > 0f)
             {
+                if (lastCountdown != 0)
+                {
+                    lastCountdown = 0;
+                    countdownText.text = "GO!";
+                    countdownText.color = UIKit.Accent;
+                    countdownPunch.Play(2f);
+                }
                 goTimer -= Time.deltaTime;
-                GUI.color = new Color(1f, 0.85f, 0.1f);
-                Shadowed(center, "GO!", big);
-                GUI.color = Color.white;
+                var c = countdownText.color;
+                c.a = Mathf.Clamp01(goTimer / 0.4f);
+                countdownText.color = c;
+                if (goTimer <= 0f) countdownText.text = "";
             }
+        }
 
+        void UpdateWarnings()
+        {
+            string msg = null;
             if (race.State == RaceState.Racing)
             {
-                var msg = new GUIStyle(label) { fontSize = 48, alignment = TextAnchor.MiddleCenter };
-                if (player.Health.IsWrecked) Shadowed(new Rect(0, h * 0.4f, w, 80), "WRECKED!", msg);
-                else if (player.Progress.WrongWay) Shadowed(new Rect(0, h * 0.4f, w, 80), "WRONG WAY!", msg);
-                else if (player.Progress.Lap == race.totalLaps && race.RaceTime > 1f)
-                    Shadowed(new Rect(0, 12, w, 50), "FINAL LAP", new GUIStyle(label) { alignment = TextAnchor.MiddleCenter });
+                if (player.Health.IsWrecked) msg = "WRECKED!";
+                else if (player.Progress.WrongWay) msg = "WRONG WAY!";
             }
-        }
+            bool show = msg != null && (msg == "WRECKED!" || Mathf.Repeat(Time.time * 2.5f, 1f) > 0.3f);
+            warningRoot.SetActive(show);
+            if (show) warningText.text = msg;
 
-        void DrawResults(float w, float h)
-        {
-            float pw = 520, ph = 120 + race.Standings.Count * 30 + 110;
-            var r = new Rect((w - pw) * 0.5f, (h - ph) * 0.5f, pw, ph);
-            GUI.Box(r, GUIContent.none, panel);
-            GUI.Box(r, GUIContent.none, panel);
-
-            var title = new GUIStyle(label) { fontSize = 40, alignment = TextAnchor.MiddleCenter };
-            int place = race.Player.FinishPlace;
-            Shadowed(new Rect(r.x, r.y + 10, pw, 50), place == 1 ? "YOU WIN!" : $"YOU FINISHED {Ordinal(place)}", title);
-
-            float y = r.y + 70;
-            for (int i = 0; i < race.Standings.Count; i++)
+            if (!finalLapShown && race.State == RaceState.Racing && race.totalLaps > 1 && player.Progress.Lap == race.totalLaps)
             {
-                var s = race.Standings[i];
-                GUI.color = s.IsPlayer ? new Color(0.4f, 1f, 0.4f) : Color.white;
-                string time = s.Finished ? FormatTime(s.FinishTime) : "racing...";
-                Shadowed(new Rect(r.x + 30, y, 300, 30), $"{i + 1}. {s.Name}", small);
-                Shadowed(new Rect(r.x + 330, y, 160, 30), time, small);
-                y += 30;
+                finalLapShown = true;
+                finalLapTimer = 2.5f;
+                finalLapBanner.SetActive(true);
+                finalLapBanner.GetComponent<Punch>().Play(1.4f);
             }
-            GUI.color = Color.white;
-
-            y += 10;
-            var p = race.Player;
-            Shadowed(new Rect(r.x + 30, y, pw - 60, 30),
-                $"Earned ${race.EarnedThisRace}   (kills: {p.Kills}, pickups: ${p.Car.MoneyCollected})", small);
-            Shadowed(new Rect(r.x + 30, y + 26, pw - 60, 30), $"Bank: ${RaceManager.TotalMoney}", small);
-
-            if (GUI.Button(new Rect(r.x + pw * 0.5f - 100, r.yMax - 55, 200, 45), "RACE AGAIN", button))
-                race.Restart();
+            if (finalLapTimer > 0f)
+            {
+                finalLapTimer -= Time.deltaTime;
+                if (finalLapTimer <= 0f) finalLapBanner.SetActive(false);
+            }
         }
 
-        static void Shadowed(Rect r, string text, GUIStyle style)
+        void UpdateDamageFlash()
         {
-            var c = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.8f * c.a);
-            GUI.Label(new Rect(r.x + 2, r.y + 2, r.width, r.height), text, style);
-            GUI.color = c;
-            GUI.Label(r, text, style);
+            float armor = player.Health.Armor;
+            if (armor < lastArmor - 0.5f) flash = Mathf.Clamp01(flash + (lastArmor - armor) / 30f + 0.3f);
+            lastArmor = armor;
+            flash = Mathf.MoveTowards(flash, 0f, Time.deltaTime * 1.8f);
+            var c = damageFlash.color;
+            c.a = flash * 0.7f;
+            damageFlash.color = c;
         }
 
-        static string Pips(int have, int max)
+        // ---------- Kill feed ----------
+
+        void OnWrecked(CarHealth victim, CarHealth attacker)
         {
-            var sb = new System.Text.StringBuilder();
-            for (int i = 0; i < max; i++) sb.Append(i < have ? "■ " : "□ ");
-            return sb.ToString();
+            if (race == null) return;
+            var v = race.RacerFor(victim);
+            var a = attacker != null ? race.RacerFor(attacker) : null;
+            if (v == null) return;
+
+            if (a != null && a.IsPlayer && !v.IsPlayer) AddFeed($"YOU WRECKED {v.Name.ToUpperInvariant()}  +{UIKit.Money(RaceManager.KillBonus)}", UIKit.Accent);
+            else if (v.IsPlayer) AddFeed(a != null ? $"{a.Name.ToUpperInvariant()} WRECKED YOU!" : "YOU WRECKED YOURSELF!", UIKit.Bad);
+            else if (a != null) AddFeed($"{a.Name.ToUpperInvariant()} WRECKED {v.Name.ToUpperInvariant()}", UIKit.TextMain);
         }
 
-        static string FormatTime(float t) => $"{(int)(t / 60f)}:{t % 60f:00.00}";
+        void AddFeed(string message, Color color)
+        {
+            var item = UIKit.Panel(feedRoot, "Feed", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), Vector2.zero,
+                new Vector2(Mathf.Max(420f, message.Length * 24f), 70f), UIKit.PanelDark);
+            UIKit.Label(item.transform, message, 34, color, TextAnchor.MiddleCenter, true);
+            item.gameObject.AddComponent<Punch>().Play(1.25f);
+            feed.Insert(0, (item.gameObject, Time.time));
+            if (feed.Count > 4)
+            {
+                Destroy(feed[feed.Count - 1].go);
+                feed.RemoveAt(feed.Count - 1);
+            }
+        }
 
-        static string Ordinal(int n) => n == 1 ? "1ST" : n == 2 ? "2ND" : n == 3 ? "3RD" : n + "TH";
+        void UpdateFeed()
+        {
+            for (int i = feed.Count - 1; i >= 0; i--)
+            {
+                var (go, t) = feed[i];
+                float age = Time.time - t;
+                if (age > 3f || go == null)
+                {
+                    if (go) Destroy(go);
+                    feed.RemoveAt(i);
+                    continue;
+                }
+                var rt = (RectTransform)go.transform;
+                rt.anchoredPosition = Vector2.Lerp(rt.anchoredPosition, new Vector2(0f, -i * 80f), 1f - Mathf.Exp(-12f * Time.deltaTime));
+                var cg = go.GetComponent<CanvasGroup>();
+                if (cg == null) cg = go.AddComponent<CanvasGroup>();
+                cg.alpha = Mathf.Clamp01((3f - age) / 0.5f);
+            }
+        }
+
+        // ---------- Pause ----------
+
+        void SetPaused(bool paused)
+        {
+            if (race.State == RaceState.Finished) return;
+            race.SetPaused(paused);
+        }
+
+        void LateUpdate()
+        {
+            // Keep the pause overlay in sync with the race (Esc/P/back button can pause too).
+            if (race.Paused && pauseRoot == null) ShowPause();
+            else if (!race.Paused && pauseRoot != null) { Destroy(pauseRoot); pauseRoot = null; }
+        }
+
+        void ShowPause()
+        {
+            var root = UIKit.Stretch(canvas.transform, "Pause");
+            pauseRoot = root.gameObject;
+            UIKit.Image(root, null, new Color(0f, 0f, 0f, 0.6f), true);   // blocks clicks to the HUD
+            BuildPauseMenu(root);
+        }
+
+        void BuildPauseMenu(RectTransform root)
+        {
+            var menu = UIKit.Stretch(root, "Menu");
+            menu.gameObject.AddComponent<CanvasGroup>();
+            menu.gameObject.AddComponent<FadeIn>();
+
+            var c = new Vector2(0.5f, 0.5f);
+            var panel = UIKit.Panel(menu, "Panel", c, c, Vector2.zero, new Vector2(640f, 700f)).rectTransform;
+            UIKit.Label(panel, "PAUSED", 76, UIKit.Accent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -30f), new Vector2(600f, 100f), TextAnchor.MiddleCenter, true);
+
+            var top = new Vector2(0.5f, 1f);
+            var size = new Vector2(480f, 100f);
+            var dark = new Color(0.1f, 0.1f, 0.12f);
+            UIKit.Button(panel, "RESUME", top, top, new Vector2(0f, -160f), size, () => race.SetPaused(false), UIKit.Accent, dark, 48);
+            UIKit.Button(panel, "RESTART", top, top, new Vector2(0f, -280f), size, race.Restart, fontSize: 44);
+            UIKit.Button(panel, "SETTINGS", top, top, new Vector2(0f, -400f), size, () =>
+            {
+                Destroy(menu.gameObject);
+                SettingsPanel.Build(root, () => BuildPauseMenu(root));
+            }, fontSize: 44);
+            UIKit.Button(panel, "MAIN MENU", top, top, new Vector2(0f, -520f), size, race.ExitToMenu, fontSize: 44);
+        }
+
+        // ---------- Results ----------
+
+        void ShowResults()
+        {
+            var root = UIKit.Stretch(canvas.transform, "Results");
+            resultsRoot = root.gameObject;
+            UIKit.Image(root, null, new Color(0f, 0f, 0f, 0.55f), true);
+            var content = UIKit.Stretch(root, "Content");
+            content.gameObject.AddComponent<CanvasGroup>();
+            content.gameObject.AddComponent<FadeIn>().duration = 0.4f;
+
+            int n = race.Racers.Count;
+            float listH = n * 58f;
+            var c = new Vector2(0.5f, 0.5f);
+            var panel = UIKit.Panel(content, "Panel", c, c, Vector2.zero, new Vector2(1400f, 330f + listH)).rectTransform;
+
+            int place = player.FinishPlace;
+            string title = place == 1 ? "VICTORY!" : $"YOU FINISHED {UIKit.Ordinal(place)}";
+            UIKit.Label(panel, title, 90, place <= 3 ? UIKit.Accent : UIKit.TextMain, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -24f), new Vector2(1300f, 120f), TextAnchor.MiddleCenter, true);
+
+            // Finishing order (left)
+            for (int i = 0; i < n; i++)
+            {
+                var left = UIKit.Label(panel, "", 34, UIKit.TextMain, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                    new Vector2(60f, -160f - i * 58f), new Vector2(560f, 56f), TextAnchor.MiddleLeft);
+                var right = UIKit.Label(panel, "", 34, UIKit.TextMain, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                    new Vector2(620f, -160f - i * 58f), new Vector2(220f, 56f), TextAnchor.MiddleRight);
+                resultRows.Add((left, right));
+            }
+            UpdateResults();
+
+            // Earnings (right)
+            var earn = UIKit.Panel(panel, "Earnings", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-50f, -160f),
+                new Vector2(480f, 330f), UIKit.PanelLight).rectTransform;
+            string diff = RaceConfig.Difficulty.ToString().ToUpperInvariant();
+            string lines =
+                $"PRIZE ({diff})\nWRECKS x{player.Kills}\nPICKUPS\n\nTOTAL\nBANK";
+            string values =
+                $"{UIKit.Money(race.EarnedPrize)}\n{UIKit.Money(race.EarnedKills)}\n{UIKit.Money(race.EarnedPickups)}\n\n" +
+                $"<color=#FFC81A>{UIKit.Money(race.EarnedThisRace)}</color>\n{UIKit.Money(RaceManager.TotalMoney)}";
+            var l = UIKit.Label(earn, lines, 32, UIKit.TextDim, TextAnchor.MiddleLeft);
+            ((RectTransform)l.transform).offsetMin = new Vector2(30f, 0f);
+            l.lineSpacing = 1.15f;
+            var v = UIKit.Label(earn, values, 32, UIKit.TextMain, TextAnchor.MiddleRight, true);
+            ((RectTransform)v.transform).offsetMax = new Vector2(-30f, 0f);
+            v.lineSpacing = 1.15f;
+
+            var bottom = new Vector2(0.5f, 0f);
+            UIKit.Button(panel, "MAIN MENU", bottom, new Vector2(1f, 0f), new Vector2(-20f, 36f), new Vector2(420f, 110f),
+                race.ExitToMenu, fontSize: 44);
+            UIKit.Button(panel, "RACE AGAIN", bottom, new Vector2(0f, 0f), new Vector2(20f, 36f), new Vector2(420f, 110f),
+                race.Restart, UIKit.Accent, new Color(0.1f, 0.1f, 0.12f), 48);
+        }
+
+        void UpdateResults()
+        {
+            if (Time.unscaledTime < resultsRefresh) return;
+            resultsRefresh = Time.unscaledTime + 0.25f;
+            for (int i = 0; i < resultRows.Count && i < race.Standings.Count; i++)
+            {
+                var r = race.Standings[i];
+                string color = r.IsPlayer ? "FFC81A" : ColorUtility.ToHtmlStringRGB(Color.Lerp(r.Color, Color.white, 0.35f));
+                var (left, right) = resultRows[i];
+                left.text = $"{UIKit.Ordinal(i + 1)}   <color=#{color}>{r.Name.ToUpperInvariant()}</color>";
+                right.text = r.Finished ? UIKit.Time(r.FinishTime) : "racing...";
+                right.color = r.Finished ? UIKit.TextMain : UIKit.TextDim;
+            }
+        }
     }
 }

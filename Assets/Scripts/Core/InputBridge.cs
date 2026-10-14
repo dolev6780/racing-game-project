@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 
 namespace RacingGame.Core
 {
-    public enum GameKey { Up, Down, Left, Right, Fire, Mine, Boost, Camera, Restart }
+    public enum GameKey { Up, Down, Left, Right, Fire, Mine, Boost, Camera, Restart, Pause }
 
     /// <summary>A finger on the screen (or the mouse, id -1). Position origin is bottom-left.</summary>
     public struct TouchPointer
@@ -71,6 +71,7 @@ namespace RacingGame.Core
                 case GameKey.Boost: return kb.leftShiftKey.wasPressedThisFrame || kb.lKey.wasPressedThisFrame;
                 case GameKey.Camera: return kb.cKey.wasPressedThisFrame;
                 case GameKey.Restart: return kb.rKey.wasPressedThisFrame;
+                case GameKey.Pause: return kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame;
                 default: return false;
             }
 #else
@@ -81,6 +82,7 @@ namespace RacingGame.Core
                 case GameKey.Boost: return Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.L);
                 case GameKey.Camera: return Input.GetKeyDown(KeyCode.C);
                 case GameKey.Restart: return Input.GetKeyDown(KeyCode.R);
+                case GameKey.Pause: return Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P);
                 default: return false;
             }
 #endif
