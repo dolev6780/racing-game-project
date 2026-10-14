@@ -5,8 +5,9 @@ armed cars, missiles, mines, nitro, money, alien-planet tracks.
 
 Built with **Unity 6 + C#**.
 
-## Status: v0.4 — garage & shop
+## Status: v0.5 — championship & 4 tracks
 
+Championship mode: 4 leagues x 4 races with points, season standings and unlocks; 4 themed tracks.
 Garage with 5 vehicles to buy and 5 upgrade types (4 levels each), shown in a 3D showroom.
 Main menu with 3D backdrop, race setup (laps / opponents / difficulty), settings, pause menu,
 and a new HUD (speedometer, standings, kill feed, results screen).
@@ -22,6 +23,8 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | Weapons: missiles (aim-assist), mines, nitro — refill every lap | ✅ |
 | Armor, ramming damage, wreck & respawn | ✅ |
 | Laps, positions, wrong-way, countdown, results | ✅ |
+| 4 tracks: Green Valley, Desert Canyon, Frost Peak, Alien Wastes (own colors, fog, scenery) | ✅ |
+| Championship: 4 leagues, points (10-7-5-3-2-1), season standings, win bonus, unlock next league | ✅ |
 | Money: prize by place + kills + pickups (saved) | ✅ |
 | Armor & money pickups on track | ✅ |
 | Isometric camera (classic) + chase camera | ✅ |
@@ -36,7 +39,6 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | Real 3D car models, finish arch, forest scenery (Kenney) | ✅ |
 | Engine / skid / crash / explosion sounds | ✅ |
 | Music & announcer | ⏳ |
-| Championship / multiple tracks / planets | ⏳ |
 | Multiplayer | ⏳ |
 
 ## How to open & run
@@ -83,20 +85,33 @@ In the editor, turn on **Settings → TOUCH CONTROLS** to preview the phone cont
 ```
 Assets/Scripts/
   Core/       GameBootstrap (auto-start), GameFlow (menu <-> race), InputBridge, ModelLibrary (models+audio), MaterialFactory, Explosion
-  Track/      TrackBuilder (procedural track), TrackPath (centerline/progress), Pickup
+  Track/      TrackLibrary (layouts + themes), TrackBuilder (procedural track), TrackPath (centerline/progress), Pickup
   Car/        CarController (physics), CarHealth, RacerProgress (laps),
               PlayerCarInput (keyboard+touch), AICarInput, CarBuilder, CarAudio
   Garage/     VehicleCatalog, PlayerGarage (owned/selected/upgrades), Wallet
   Weapons/    WeaponSystem, Missile, Mine
-  Race/       RaceManager (countdown, laps, standings, pause, prize money), RaceConfig
+  Race/       RaceManager (countdown, laps, standings, pause, prize money), RaceRequest, RaceConfig, Championship
   CameraRig/  RaceCamera (isometric / chase), MenuCamera (orbit)
-  UI/         UIKit (code-built uGUI), MainMenu, GarageScreen, SettingsPanel, RaceHUD, TouchControlsView
+  UI/         UIKit (code-built uGUI), MainMenu, ChampionshipScreen, GarageScreen, SettingsPanel, RaceHUD, TouchControlsView
   Editor/     RacingGameMenu (scene creation tools)
 ```
 
 3D models live in `Assets/Resources/Models` and sounds in `Assets/Resources/Audio` (see [CREDITS.md](CREDITS.md)).
 To use your own car model, drop a `.glb` there with children named `body` and `wheel-front-left`, `wheel-front-right`,
 `wheel-back-left`, `wheel-back-right` (pivot at each wheel's centre), and pass its name to `CarBuilder.Create`.
+
+### Championship
+**CHAMPIONSHIP** in the main menu. Each league is a season of 4 races; finishing positions earn points
+(10, 7, 5, 3, 2, 1). Between races you can visit the garage. Win the season to unlock the next league:
+
+| League | Laps | Prizes | Win bonus | Opponents |
+|---|---|---|---|---|
+| Rookie League | 3 | x1 | $3,000 | slow, timid |
+| Pro League | 4 | x2 | $6,000 | faster, more aggressive |
+| Elite League | 4 | x3.5 | $10,000 | fast, armored |
+| Riot Masters | 5 | x5 | $20,000 | top speed of an upgraded car |
+
+Leagues and AI strength: `Assets/Scripts/Race/Championship.cs`. Tracks and themes: `Assets/Scripts/Track/TrackLibrary.cs`.
 
 ### Garage & economy
 Vehicles, prices and upgrade effects are defined in `Assets/Scripts/Garage/Garage.cs` (`VehicleCatalog`).

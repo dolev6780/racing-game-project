@@ -16,34 +16,31 @@ namespace RacingGame.Track
         const float WallHeight = 1.4f;
         const float WallThickness = 0.8f;
 
-        // Alien-planet circuit (x, z). Start line is near the first point, on the long straight.
-        static readonly Vector2[] DefaultLayout =
-        {
-            new Vector2(0, -20), new Vector2(0, 40), new Vector2(10, 80), new Vector2(40, 100),
-            new Vector2(80, 95), new Vector2(100, 70), new Vector2(95, 40), new Vector2(70, 20),
-            new Vector2(60, -10), new Vector2(80, -40), new Vector2(110, -60), new Vector2(115, -100),
-            new Vector2(90, -125), new Vector2(40, -125), new Vector2(8, -112), new Vector2(0, -80),
-        };
 
-        static readonly Color RoadColor = new Color(0.27f, 0.27f, 0.31f);
-        static readonly Color GroundColor = new Color(0.36f, 0.66f, 0.4f);
-        static readonly Color WallColorA = new Color(0.88f, 0.9f, 0.96f);
-        static readonly Color WallColorB = new Color(0.55f, 0.66f, 0.88f);
+        // Colors come from the track's theme (set at the start of Build).
+        static TrackTheme theme;
+        static Color RoadColor => theme.Road;
+        static Color GroundColor => theme.Ground;
+        static Color WallColorA => theme.WallA;
+        static Color WallColorB => theme.WallB;
+        static Color RockColor => theme.Rock;
         static readonly Color CurbRed = new Color(0.9f, 0.27f, 0.22f);
         static readonly Color CurbWhite = new Color(0.97f, 0.97f, 0.97f);
         static readonly Color EdgeYellow = new Color(1f, 0.8f, 0.2f);
-        static readonly Color RockColor = new Color(0.5f, 0.5f, 0.55f);
 
         // Kenney model tiles are 10m; scale them to our wider road.
         const float DecorationScale = 1.3f;
         const float FinishArchScale = 1.4f;
 
-        public static TrackPath Build(Transform parent)
+        public static TrackPath Build(Transform parent) => Build(parent, TrackLibrary.Get(0));
+
+        public static TrackPath Build(Transform parent, TrackDef def)
         {
             var root = new GameObject("Track");
             root.transform.SetParent(parent, false);
 
-            var samples = SampleClosedCatmullRom(DefaultLayout, SampleSpacing);
+            theme = def.Theme;
+            var samples = SampleClosedCatmullRom(def.Layout, SampleSpacing);
             var path = root.AddComponent<TrackPath>();
             path.Initialize(samples, RoadWidth);
 
@@ -276,12 +273,12 @@ namespace RacingGame.Track
             root.transform.SetParent(parent, false);
             var rng = new System.Random(1234);
 
-            if (BuildForest(root.transform, path, rng)) return;
+            if (theme.Forest && BuildForest(root.transform, path, rng)) return;
 
             float clearance = path.RoadWidth * 0.5f + 6f;
 
             int placed = 0, attempts = 0;
-            while (placed < 70 && attempts < 1000)
+            while (placed < theme.SceneryCount && attempts < 2000)
             {
                 attempts++;
                 int i = rng.Next(path.Count);
@@ -291,10 +288,10 @@ namespace RacingGame.Track
                 if (Vector3.Distance(path.Point(path.FindClosest(pos)), pos) < clearance) continue;
 
                 float s = 1.5f + (float)rng.NextDouble() * 5f;
-                bool crystal = rng.Next(4) == 0;
+                bool crystal = rng.NextDouble() < theme.CrystalChance;
                 if (crystal)
                 {
-                    var color = new Color(0.2f, 0.9f, 1f);
+                    var color = theme.Crystal;
                     MaterialFactory.Visual(PrimitiveType.Cylinder, root.transform, pos + Vector3.up * s,
                         new Vector3(s * 0.3f, s, s * 0.3f), color,
                         Quaternion.Euler((float)rng.NextDouble() * 30f, (float)rng.NextDouble() * 360f, 0f));

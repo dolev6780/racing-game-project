@@ -16,6 +16,12 @@ namespace RacingGame.Race
             set => PlayerPrefs.SetInt("cfg_laps", value);
         }
 
+        public static int TrackIndex
+        {
+            get => PlayerPrefs.GetInt("cfg_track", 0);
+            set => PlayerPrefs.SetInt("cfg_track", value);
+        }
+
         public static int Opponents
         {
             get => PlayerPrefs.GetInt("cfg_opponents", 5);

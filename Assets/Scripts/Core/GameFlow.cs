@@ -1,5 +1,6 @@
 using UnityEngine;
 using RacingGame.Race;
+using RacingGame.Track;
 using RacingGame.UI;
 using RacingGame.Weapons;
 
@@ -17,8 +18,10 @@ namespace RacingGame.Core
             new GameObject("MainMenu").AddComponent<MainMenu>();
         }
 
+        /// <summary>Starts the race described by RaceRequest.Current (a quick race if none is set).</summary>
         public static void StartRace()
         {
+            if (RaceRequest.Current == null) RaceRequest.Current = RaceRequest.QuickRace();
             ClearCurrent();
             new GameObject("RaceManager").AddComponent<RaceManager>();
         }
@@ -33,26 +36,34 @@ namespace RacingGame.Core
             if (menu) Object.Destroy(menu.gameObject);
         }
 
-        /// <summary>Sun, fog and ambient light shared by menu and race. Lives outside the mode roots.</summary>
-        public static void SetupEnvironment()
+        /// <summary>Sun, fog and ambient light for a track theme. The sun lives outside the mode roots.</summary>
+        public static void SetupEnvironment(TrackTheme theme = null)
         {
+            theme ??= TrackLibrary.Get(0).Theme;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.58f, 0.6f, 0.66f);
+            RenderSettings.ambientLight = theme.Ambient;
             RenderSettings.fog = true;
-            RenderSettings.fogColor = new Color(0.62f, 0.8f, 0.95f);
+            RenderSettings.fogColor = theme.Fog;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogStartDistance = 120f;
             RenderSettings.fogEndDistance = 320f;
 
+            Light sun = null;
             foreach (var l in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
-                if (l.type == LightType.Directional) return;
+                if (l.type == LightType.Directional) { sun = l; break; }
 
-            var sun = new GameObject("Sun").AddComponent<Light>();
-            sun.type = LightType.Directional;
-            sun.intensity = 1.2f;
-            sun.color = new Color(1f, 0.92f, 0.85f);
-            sun.shadows = LightShadows.Soft;
-            sun.transform.rotation = Quaternion.Euler(55f, -35f, 0f);
+            if (sun == null)
+            {
+                sun = new GameObject("Sun").AddComponent<Light>();
+                sun.type = LightType.Directional;
+                sun.intensity = 1.2f;
+                sun.shadows = LightShadows.Soft;
+                sun.transform.rotation = Quaternion.Euler(55f, -35f, 0f);
+            }
+            sun.color = theme.Sun;
+
+            var cam = Camera.main;
+            if (cam != null) cam.backgroundColor = theme.Fog;
         }
 
         /// <summary>The main camera (created once, outside the mode roots).</summary>

@@ -34,7 +34,7 @@ namespace RacingGame.UI
             UIKit.Label(rt, "GARAGE", 90, UIKit.Accent, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(60f, -30f),
                 new Vector2(800f, 120f), TextAnchor.MiddleLeft, true);
             UIKit.Button(rt, "BACK", new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(50f, 40f), new Vector2(300f, 100f),
-                () => menu.ShowHome(), fontSize: 44);
+                () => menu.CloseGarage(), fontSize: 44);
 
             Rebuild();
         }

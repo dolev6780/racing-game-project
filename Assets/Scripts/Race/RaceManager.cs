@@ -58,6 +58,13 @@ namespace RacingGame.Race
         public int EarnedPickups { get; private set; }
         public int EarnedThisRace => EarnedPrize + EarnedKills + EarnedPickups;
 
+        public RaceRequest Request { get; private set; }
+        /// <summary>Championship points the player earned in this race (-1 if not a championship race).</summary>
+        public int ChampionshipPoints { get; private set; } = -1;
+
+        /// <summary>Opponent names in grid order (championship standings use the same roster).</summary>
+        public static string OpponentName(int i) => Opponents[i % Opponents.Length].name;
+
         public static int TotalMoney
         {
             get => Wallet.Money;
@@ -80,8 +87,9 @@ namespace RacingGame.Race
         void Awake()
         {
             Instance = this;
-            totalLaps = RaceConfig.Laps;
-            opponentCount = RaceConfig.Opponents;
+            Request = RaceRequest.Current ?? RaceRequest.QuickRace();
+            totalLaps = Request.Laps;
+            opponentCount = Request.Opponents;
         }
 
         void OnDestroy()
@@ -93,8 +101,8 @@ namespace RacingGame.Race
 
         void Start()
         {
-            GameFlow.SetupEnvironment();
-            Path = TrackBuilder.Build(transform);
+            GameFlow.SetupEnvironment(Request.Track.Theme);
+            Path = TrackBuilder.Build(transform, Request.Track);
             SpawnRacers();
             SetupCamera();
             gameObject.AddComponent<RaceHUD>();
@@ -109,7 +117,6 @@ namespace RacingGame.Race
             int total = opponentCount + 1;
             int playerSlot = Mathf.Min(3, total - 1);   // start mid-pack, like the classics
             int opponentIndex = 0;
-            var difficulty = RaceConfig.Difficulty;
             var playerVehicle = PlayerGarage.Selected;
 
             for (int slot = 0; slot < total; slot++)
@@ -147,7 +154,7 @@ namespace RacingGame.Race
                 racer.Progress.Initialize(Path);
                 racer.Progress.NewLap += (p, lap) => racer.Weapons.Refill();
 
-                if (!isPlayer) ConfigureAI(car, difficulty);
+                if (!isPlayer) ConfigureAI(car, Request);
                 else
                 {
                     PlayerGarage.ApplyTo(car, PlayerGarage.Stats(playerVehicle));
@@ -159,27 +166,15 @@ namespace RacingGame.Race
             Standings = new List<Racer>(Racers);
         }
 
-        static void ConfigureAI(CarController car, Difficulty difficulty)
+        static void ConfigureAI(CarController car, RaceRequest req)
         {
             var ai = car.GetComponent<AICarInput>();
-            switch (difficulty)
-            {
-                case Difficulty.Easy:
-                    ai.skill = Random.Range(0.25f, 0.55f);
-                    ai.aggression = Random.Range(0.15f, 0.45f);
-                    car.speedMultiplier = Random.Range(0.82f, 0.9f);
-                    break;
-                case Difficulty.Hard:
-                    ai.skill = Random.Range(0.75f, 1f);
-                    ai.aggression = Random.Range(0.6f, 1f);
-                    car.speedMultiplier = Random.Range(0.97f, 1.04f);
-                    break;
-                default:
-                    ai.skill = Random.Range(0.45f, 0.95f);
-                    ai.aggression = Random.Range(0.3f, 0.9f);
-                    car.speedMultiplier = Random.Range(0.9f, 0.98f);
-                    break;
-            }
+            ai.skill = Random.Range(req.AiSkill.x, req.AiSkill.y);
+            ai.aggression = Random.Range(req.AiAggression.x, req.AiAggression.y);
+            car.maxSpeed = req.AiTopSpeed;
+            car.speedMultiplier = Random.Range(req.AiSpeedMultiplier.x, req.AiSpeedMultiplier.y);
+            var health = car.GetComponent<CarHealth>();
+            if (health) health.SetMaxArmor(req.AiArmor);
         }
 
         void SetupCamera()
@@ -256,12 +251,20 @@ namespace RacingGame.Race
 
         void AwardMoney(Racer player)
         {
-            float mult = RaceConfig.PrizeMultiplier;
+            float mult = Request.PrizeMultiplier;
             int prize = player.FinishPlace - 1 < PrizeMoney.Length ? PrizeMoney[player.FinishPlace - 1] : 0;
             EarnedPrize = Mathf.RoundToInt(prize * mult);
             EarnedKills = player.Kills * KillBonus;
             EarnedPickups = player.Car.MoneyCollected;
             TotalMoney += EarnedThisRace;
+
+            if (Request.IsChampionship)
+            {
+                // Remaining racers are ranked by their current race position.
+                UpdateStandings();
+                var order = Standings.Select(r => r.Name).ToList();
+                ChampionshipPoints = Championship.RecordRace(Request.ChampionshipRace, order);
+            }
         }
 
         void UpdateStandings()

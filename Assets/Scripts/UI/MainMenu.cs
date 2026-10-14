@@ -18,8 +18,13 @@ namespace RacingGame.UI
 
         static readonly string[] DifficultyNames = { "EASY", "NORMAL", "HARD" };
 
+        public enum MenuScreen { Home, Championship }
+        /// <summary>Screen to open when the menu is next shown (e.g. back to the season hub after a race).</summary>
+        public static MenuScreen PendingScreen = MenuScreen.Home;
+
         Canvas canvas;
-        GameObject home, setup, garage, shade;
+        GameObject home, setup, garage, shade, championship;
+        bool garageFromChampionship;
         Text bankText;
 
         // Showroom
@@ -34,6 +39,9 @@ namespace RacingGame.UI
             GameFlow.SetupEnvironment();
             BuildBackdrop();
             BuildUI();
+
+            if (PendingScreen == MenuScreen.Championship) ShowChampionship();
+            PendingScreen = MenuScreen.Home;
         }
 
         // ---------- 3D backdrop ----------
@@ -112,16 +120,27 @@ namespace RacingGame.UI
             ShowHome();
         }
 
-        public void ShowHome()
+        void ClearScreens()
         {
             if (setup) Destroy(setup);
             if (home) Destroy(home);
             if (garage) Destroy(garage);
-            RefreshBank();
+            if (championship) Destroy(championship);
+        }
+
+        void HomeCamera()
+        {
             shade.SetActive(true);
             ShowcaseVehicle(PlayerGarage.Selected);
             orbit.lookOffset = new Vector3(0f, 1.2f, 0f);
             orbit.Configure(homeCenter, 16f, 5.5f, 0f, 7f);
+        }
+
+        public void ShowHome()
+        {
+            ClearScreens();
+            RefreshBank();
+            HomeCamera();
 
             var root = UIKit.Stretch(canvas.transform, "Home");
             home = root.gameObject;
@@ -138,44 +157,59 @@ namespace RacingGame.UI
             var stripe = UIKit.Rect(root, "Stripe", left, left, new Vector2(116f, 160f), new Vector2(420f, 10f));
             UIKit.Image(stripe, UIKit.RoundedSmall, UIKit.AccentHot);
 
-            var btnSize = new Vector2(520f, 110f);
-            UIKit.Button(root, "RACE", left, left, new Vector2(110f, 30f), btnSize, ShowSetup,
-                UIKit.Accent, new Color(0.1f, 0.1f, 0.12f), 56);
-            UIKit.Button(root, "GARAGE", left, left, new Vector2(110f, -100f), btnSize, ShowGarage, fontSize: 44);
-            UIKit.Button(root, "SETTINGS", left, left, new Vector2(110f, -230f), btnSize, ShowSettings, fontSize: 44);
+            var btnSize = new Vector2(560f, 100f);
+            string champLabel = Championship.HasActiveSeason ? "CONTINUE SEASON" : "CHAMPIONSHIP";
+            UIKit.Button(root, champLabel, left, left, new Vector2(110f, 50f), btnSize, ShowChampionship,
+                UIKit.Accent, new Color(0.1f, 0.1f, 0.12f), 48);
+            UIKit.Button(root, "QUICK RACE", left, left, new Vector2(110f, -64f), btnSize, ShowSetup, fontSize: 44);
+            UIKit.Button(root, "GARAGE", left, left, new Vector2(110f, -178f), btnSize, () => OpenGarage(false), fontSize: 44);
+            UIKit.Button(root, "SETTINGS", left, left, new Vector2(110f, -292f), btnSize, ShowSettings, fontSize: 44);
             if (Application.platform != RuntimePlatform.IPhonePlayer)
-                UIKit.Button(root, "QUIT", left, left, new Vector2(110f, -360f), btnSize, Quit, fontSize: 44);
+                UIKit.Button(root, "QUIT", left, left, new Vector2(110f, -406f), btnSize, Quit, fontSize: 44);
 
             UIKit.Label(root, "3D art & sounds: Kenney (CC0)", 26, UIKit.TextDim, new Vector2(1f, 0f), new Vector2(1f, 0f),
                 new Vector2(-40f, 24f), new Vector2(700f, 40f), TextAnchor.LowerRight);
         }
 
+        public void ShowChampionship()
+        {
+            ClearScreens();
+            HomeCamera();
+            RefreshBank();
+            championship = new GameObject("Championship", typeof(RectTransform));
+            championship.transform.SetParent(canvas.transform, false);
+            championship.AddComponent<ChampionshipScreen>().Init(this);
+        }
+
         void ShowSetup()
         {
-            if (home) Destroy(home);
+            ClearScreens();
             var root = UIKit.Stretch(canvas.transform, "Setup");
             setup = root.gameObject;
             setup.AddComponent<CanvasGroup>();
             setup.AddComponent<FadeIn>();
 
             var panel = UIKit.Panel(root, "Panel", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(980f, 720f)).rectTransform;
-            UIKit.Label(panel, "RACE SETUP", 64, UIKit.Accent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(980f, 820f)).rectTransform;
+            UIKit.Label(panel, "QUICK RACE", 64, UIKit.Accent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0f, -30f), new Vector2(900f, 90f), TextAnchor.MiddleCenter, true);
 
             const float w = 880f;
             var laps = System.Array.ConvertAll(RaceConfig.LapOptions, l => l.ToString());
-            UIKit.OptionRow(panel, "LAPS", -150f, w, laps, Mathf.Max(0, System.Array.IndexOf(RaceConfig.LapOptions, RaceConfig.Laps)),
+            var trackNames = TrackLibrary.Tracks.ConvertAll(t => t.Name).ToArray();
+            UIKit.OptionRow(panel, "TRACK", -150f, w, trackNames, Mathf.Clamp(RaceConfig.TrackIndex, 0, trackNames.Length - 1),
+                i => RaceConfig.TrackIndex = i);
+            UIKit.OptionRow(panel, "LAPS", -250f, w, laps, Mathf.Max(0, System.Array.IndexOf(RaceConfig.LapOptions, RaceConfig.Laps)),
                 i => RaceConfig.Laps = RaceConfig.LapOptions[i]);
             var opp = System.Array.ConvertAll(RaceConfig.OpponentOptions, o => o.ToString());
-            UIKit.OptionRow(panel, "OPPONENTS", -250f, w, opp,
+            UIKit.OptionRow(panel, "OPPONENTS", -350f, w, opp,
                 Mathf.Max(0, System.Array.IndexOf(RaceConfig.OpponentOptions, RaceConfig.Opponents)),
                 i => RaceConfig.Opponents = RaceConfig.OpponentOptions[i]);
-            UIKit.OptionRow(panel, "DIFFICULTY", -350f, w, DifficultyNames, (int)RaceConfig.Difficulty,
+            UIKit.OptionRow(panel, "DIFFICULTY", -450f, w, DifficultyNames, (int)RaceConfig.Difficulty,
                 i => RaceConfig.Difficulty = (Difficulty)i);
 
             UIKit.Label(panel, "Harder races pay more prize money", 28, UIKit.TextDim, new Vector2(0.5f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0f, -450f), new Vector2(880f, 50f), TextAnchor.MiddleCenter);
+                new Vector2(0.5f, 1f), new Vector2(0f, -550f), new Vector2(880f, 50f), TextAnchor.MiddleCenter);
 
             UIKit.Button(panel, "BACK", new Vector2(0.5f, 0f), new Vector2(1f, 0f), new Vector2(-20f, 36f),
                 new Vector2(320f, 100f), ShowHome, fontSize: 44);
@@ -183,9 +217,10 @@ namespace RacingGame.UI
                 new Vector2(380f, 100f), StartRace, UIKit.Accent, new Color(0.1f, 0.1f, 0.12f), 52);
         }
 
-        void ShowGarage()
+        public void OpenGarage(bool fromChampionship)
         {
-            if (home) Destroy(home);
+            ClearScreens();
+            garageFromChampionship = fromChampionship;
             shade.SetActive(false);
             // Close-up orbit, vehicle framed on the left, panel on the right.
             orbit.lookOffset = new Vector3(0f, 0.9f, 0f);
@@ -196,15 +231,24 @@ namespace RacingGame.UI
             garage.AddComponent<GarageScreen>().Init(this);
         }
 
+        /// <summary>Garage BACK: return to wherever the garage was opened from.</summary>
+        public void CloseGarage()
+        {
+            if (garageFromChampionship && Championship.HasActiveSeason) ShowChampionship();
+            else ShowHome();
+        }
+
         void ShowSettings()
         {
-            if (home) Destroy(home);
+            ClearScreens();
             SettingsPanel.Build(canvas.transform, ShowHome);
         }
 
         void StartRace()
         {
             PlayerPrefs.Save();
+            RaceRequest.Current = RaceRequest.QuickRace();
+            PendingScreen = MenuScreen.Home;
             GameFlow.StartRace();
         }
 

@@ -32,6 +32,7 @@ namespace RacingGame.UI
         // Center
         Text countdownText;
         Punch countdownPunch;
+        GameObject trackBanner;
         int lastCountdown = -1;
         float goTimer;
         GameObject warningRoot;
@@ -220,6 +221,18 @@ namespace RacingGame.UI
             countdownText = UIKit.Label(cd, "", 260, UIKit.TextMain, TextAnchor.MiddleCenter, true);
             countdownPunch = cd.gameObject.AddComponent<Punch>();
 
+            // Track / event banner shown during the countdown
+            var req = race.Request;
+            string evt = req.IsChampionship
+                ? $"{req.Label}  -  RACE {req.ChampionshipRace + 1}/{Championship.Active?.Tracks.Length ?? 1}"
+                : $"QUICK RACE  -  {req.Label}";
+            var banner = UIKit.Panel(root, "TrackBanner", center, center, new Vector2(0f, 330f), new Vector2(900f, 140f));
+            trackBanner = banner.gameObject;
+            UIKit.Label(banner.transform, req.Track.Name, 64, UIKit.Accent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -8f), new Vector2(880f, 80f), TextAnchor.MiddleCenter, true);
+            UIKit.Label(banner.transform, $"{evt}  -  {race.totalLaps} LAPS", 28, UIKit.TextMain, new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 12f), new Vector2(880f, 40f), TextAnchor.MiddleCenter);
+
             warningRoot = UIKit.Panel(root, "Warning", center, center, new Vector2(0f, 60f), new Vector2(640f, 120f),
                 new Color(0.75f, 0.08f, 0.08f, 0.85f)).gameObject;
             warningText = UIKit.Label(warningRoot.transform, "", 64, UIKit.TextMain, TextAnchor.MiddleCenter, true);
@@ -322,6 +335,7 @@ namespace RacingGame.UI
                 }
                 goTimer = 1.2f;
             }
+            if (trackBanner.activeSelf && race.State != RaceState.Countdown) trackBanner.SetActive(false);
             else if (goTimer > 0f)
             {
                 if (lastCountdown != 0)
@@ -485,7 +499,8 @@ namespace RacingGame.UI
             int n = race.Racers.Count;
             float listH = n * 58f;
             var c = new Vector2(0.5f, 0.5f);
-            var panel = UIKit.Panel(content, "Panel", c, c, Vector2.zero, new Vector2(1400f, 330f + listH)).rectTransform;
+            float extra = race.ChampionshipPoints >= 0 ? 80f : 0f;
+            var panel = UIKit.Panel(content, "Panel", c, c, Vector2.zero, new Vector2(1400f, 330f + listH + extra)).rectTransform;
 
             int place = player.FinishPlace;
             string title = place == 1 ? "VICTORY!" : $"YOU FINISHED {UIKit.Ordinal(place)}";
@@ -506,7 +521,7 @@ namespace RacingGame.UI
             // Earnings (right)
             var earn = UIKit.Panel(panel, "Earnings", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-50f, -160f),
                 new Vector2(480f, 330f), UIKit.PanelLight).rectTransform;
-            string diff = RaceConfig.Difficulty.ToString().ToUpperInvariant();
+            string diff = race.Request.Label;
             string lines =
                 $"PRIZE ({diff})\nWRECKS x{player.Kills}\nPICKUPS\n\nTOTAL\nBANK";
             string values =
@@ -520,10 +535,21 @@ namespace RacingGame.UI
             v.lineSpacing = 1.15f;
 
             var bottom = new Vector2(0.5f, 0f);
-            UIKit.Button(panel, "MAIN MENU", bottom, new Vector2(1f, 0f), new Vector2(-20f, 36f), new Vector2(420f, 110f),
-                race.ExitToMenu, fontSize: 44);
-            UIKit.Button(panel, "RACE AGAIN", bottom, new Vector2(0f, 0f), new Vector2(20f, 36f), new Vector2(420f, 110f),
-                race.Restart, UIKit.Accent, new Color(0.1f, 0.1f, 0.12f), 48);
+            if (race.ChampionshipPoints >= 0)
+            {
+                // Championship: points earned, then back to the season hub.
+                UIKit.Label(panel, $"+{race.ChampionshipPoints} CHAMPIONSHIP POINTS", 44, UIKit.Accent, bottom, bottom,
+                    new Vector2(0f, 160f), new Vector2(1300f, 60f), TextAnchor.MiddleCenter, true);
+                UIKit.Button(panel, "CONTINUE", bottom, bottom, new Vector2(0f, 36f), new Vector2(520f, 110f),
+                    race.ExitToMenu, UIKit.Accent, new Color(0.1f, 0.1f, 0.12f), 50);
+            }
+            else
+            {
+                UIKit.Button(panel, "MAIN MENU", bottom, new Vector2(1f, 0f), new Vector2(-20f, 36f), new Vector2(420f, 110f),
+                    race.ExitToMenu, fontSize: 44);
+                UIKit.Button(panel, "RACE AGAIN", bottom, new Vector2(0f, 0f), new Vector2(20f, 36f), new Vector2(420f, 110f),
+                    race.Restart, UIKit.Accent, new Color(0.1f, 0.1f, 0.12f), 48);
+            }
         }
 
         void UpdateResults()
