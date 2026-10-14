@@ -25,11 +25,18 @@ namespace RacingGame.Track
             new Vector2(90, -125), new Vector2(40, -125), new Vector2(8, -112), new Vector2(0, -80),
         };
 
-        static readonly Color RoadColor = new Color(0.22f, 0.22f, 0.25f);
-        static readonly Color GroundColor = new Color(0.35f, 0.18f, 0.32f);   // purple alien soil
-        static readonly Color WallColorA = new Color(0.9f, 0.15f, 0.1f);
-        static readonly Color WallColorB = new Color(0.95f, 0.95f, 0.95f);
-        static readonly Color RockColor = new Color(0.25f, 0.12f, 0.3f);
+        static readonly Color RoadColor = new Color(0.27f, 0.27f, 0.31f);
+        static readonly Color GroundColor = new Color(0.36f, 0.66f, 0.4f);
+        static readonly Color WallColorA = new Color(0.88f, 0.9f, 0.96f);
+        static readonly Color WallColorB = new Color(0.55f, 0.66f, 0.88f);
+        static readonly Color CurbRed = new Color(0.9f, 0.27f, 0.22f);
+        static readonly Color CurbWhite = new Color(0.97f, 0.97f, 0.97f);
+        static readonly Color EdgeYellow = new Color(1f, 0.8f, 0.2f);
+        static readonly Color RockColor = new Color(0.5f, 0.5f, 0.55f);
+
+        // Kenney model tiles are 10m; scale them to our wider road.
+        const float DecorationScale = 1.3f;
+        const float FinishArchScale = 1.4f;
 
         public static TrackPath Build(Transform parent)
         {
@@ -42,6 +49,7 @@ namespace RacingGame.Track
 
             BuildGround(root.transform, samples);
             BuildRoad(root.transform, path);
+            BuildCurbs(root.transform, path);
             BuildWalls(root.transform, path, -1);
             BuildWalls(root.transform, path, +1);
             BuildStartLine(root.transform, path);
@@ -157,6 +165,34 @@ namespace RacingGame.Track
             road.AddComponent<MeshRenderer>().sharedMaterial = MaterialFactory.Get(RoadColor);
         }
 
+        /// <summary>Red/white curbs on both road edges plus a yellow edge line, like the Kenney kit.</summary>
+        static void BuildCurbs(Transform parent, TrackPath path)
+        {
+            var red = new MeshBuilder();
+            var white = new MeshBuilder();
+            var yellow = new MeshBuilder();
+            float half = path.RoadWidth * 0.5f;
+            const float curbWidth = 1.1f, lineWidth = 0.25f;
+            Vector3 up = Vector3.up * 0.035f;
+
+            for (int i = 0; i < path.Count; i++)
+            {
+                Vector3 p0 = path.Point(i), p1 = path.Point(i + 1);
+                Vector3 r0 = SmoothedRight(path, i), r1 = SmoothedRight(path, i + 1);
+                var curb = i % 2 == 0 ? red : white;
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    float outer = half * side, inner = (half - curbWidth) * side;
+                    curb.AddQuad(p0 + r0 * inner + up, p1 + r1 * inner + up, p1 + r1 * outer + up, p0 + r0 * outer + up);
+                    float li = (half - curbWidth - 0.35f) * side, lo = (half - curbWidth - 0.35f - lineWidth) * side;
+                    yellow.AddQuad(p0 + r0 * lo + up, p1 + r1 * lo + up, p1 + r1 * li + up, p0 + r0 * li + up);
+                }
+            }
+            red.CreateObject("CurbsRed", parent, CurbRed);
+            white.CreateObject("CurbsWhite", parent, CurbWhite);
+            yellow.CreateObject("EdgeLines", parent, EdgeYellow);
+        }
+
         /// <summary>Average of neighbouring segment directions, to avoid gaps on corners.</summary>
         static Vector3 SmoothedRight(TrackPath path, int i)
         {
@@ -216,7 +252,15 @@ namespace RacingGame.Track
                     Quaternion.LookRotation(dir));
             }
 
-            // Overhead gantry
+            // Finish arch (3D model), or a simple gantry as fallback.
+            var arch = ModelLibrary.Instantiate("track-finish", root.transform);
+            if (arch != null)
+            {
+                arch.transform.SetPositionAndRotation(p + dir * 2f - Vector3.up * 0.05f, Quaternion.LookRotation(dir));
+                arch.transform.localScale = Vector3.one * FinishArchScale;
+                return;
+            }
+
             float h = 6f;
             float w = path.RoadWidth * 0.5f + 2f;
             var gray = new Color(0.3f, 0.3f, 0.35f);
@@ -231,6 +275,9 @@ namespace RacingGame.Track
             var root = new GameObject("Scenery");
             root.transform.SetParent(parent, false);
             var rng = new System.Random(1234);
+
+            if (BuildForest(root.transform, path, rng)) return;
+
             float clearance = path.RoadWidth * 0.5f + 6f;
 
             int placed = 0, attempts = 0;
@@ -260,6 +307,49 @@ namespace RacingGame.Track
                 }
                 placed++;
             }
+        }
+
+        /// <summary>Fills the area around the track with Kenney forest tiles and adds pit tents.</summary>
+        static bool BuildForest(Transform root, TrackPath path, System.Random rng)
+        {
+            float tile = 10f * DecorationScale;
+            float clearance = path.RoadWidth * 0.5f + 1.5f + tile * 0.71f;   // road + wall + half tile diagonal
+            const float maxDistance = 55f;
+
+            var bounds = new Bounds(path.Point(0), Vector3.zero);
+            for (int i = 0; i < path.Count; i++) bounds.Encapsulate(path.Point(i));
+            bounds.Expand(maxDistance * 2f);
+
+            // Pit tents beside the start straight.
+            int placed = 0;
+            for (int k = 0; k < 2; k++)
+            {
+                float d = -20f - k * tile;
+                Vector3 pos = path.PointAtDistance(d, out Vector3 dir);
+                Vector3 right = Vector3.Cross(Vector3.up, dir).normalized;
+                var tents = ModelLibrary.Instantiate("decoration-tents", root);
+                if (tents == null) return false;
+                tents.transform.SetPositionAndRotation(pos - right * clearance + Vector3.up * 0.01f,
+                    Quaternion.LookRotation(dir) * Quaternion.Euler(0f, 90f, 0f));
+                tents.transform.localScale = Vector3.one * DecorationScale;
+                placed++;
+            }
+
+            for (float x = bounds.min.x; x <= bounds.max.x; x += tile)
+            for (float z = bounds.min.z; z <= bounds.max.z; z += tile)
+            {
+                var pos = new Vector3(x, 0.01f, z);
+                float dist = Vector3.Distance(path.Point(path.FindClosest(pos)), pos);
+                if (dist < clearance || dist > maxDistance) continue;
+                if (rng.NextDouble() < 0.3) continue;   // clearings
+
+                var forest = ModelLibrary.Instantiate("decoration-forest", root);
+                if (forest == null) return placed > 0;
+                forest.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, 90f * rng.Next(4), 0f));
+                forest.transform.localScale = Vector3.one * DecorationScale;
+                placed++;
+            }
+            return placed > 0;
         }
 
         static void BuildPickups(Transform parent, TrackPath path)
@@ -305,7 +395,7 @@ namespace RacingGame.Track
             }
 
             /// <summary>Double-sided quad so winding order never hides a face.</summary>
-            void AddQuad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3)
+            public void AddQuad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3)
             {
                 AddSingleQuad(p0, p1, p2, p3);
                 AddSingleQuad(p3, p2, p1, p0);

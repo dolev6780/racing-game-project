@@ -58,15 +58,18 @@ namespace RacingGame.Race
             private set { PlayerPrefs.SetInt(MoneyKey, value); PlayerPrefs.Save(); }
         }
 
-        static readonly (string name, Color color)[] Opponents =
+        const string PlayerModel = "vehicle-truck-yellow";
+        static readonly Color PlayerColor = new Color(1f, 0.8f, 0.15f);
+
+        static readonly (string name, Color color, string model)[] Opponents =
         {
-            ("Rip Torque", new Color(0.9f, 0.2f, 0.15f)),
-            ("Vixen", new Color(0.95f, 0.45f, 0.8f)),
-            ("Grim Gaskett", new Color(0.4f, 0.4f, 0.45f)),
-            ("Nova Blaze", new Color(1f, 0.6f, 0.1f)),
-            ("Krusher", new Color(0.55f, 0.3f, 0.9f)),
-            ("Dust Devil", new Color(0.8f, 0.7f, 0.4f)),
-            ("Hex", new Color(0.1f, 0.8f, 0.7f)),
+            ("Rip Torque", new Color(0.9f, 0.2f, 0.15f), "vehicle-truck-red"),
+            ("Vixen", new Color(0.6f, 0.35f, 0.9f), "vehicle-truck-purple"),
+            ("Grim Gaskett", new Color(0.25f, 0.75f, 0.35f), "vehicle-truck-green"),
+            ("Nova Blaze", new Color(0.95f, 0.3f, 0.2f), "vehicle-truck-red"),
+            ("Krusher", new Color(0.55f, 0.3f, 0.9f), "vehicle-truck-purple"),
+            ("Dust Devil", new Color(0.3f, 0.8f, 0.4f), "vehicle-truck-green"),
+            ("Hex", new Color(0.9f, 0.25f, 0.25f), "vehicle-truck-red"),
         };
 
         int finishedCount;
@@ -98,12 +101,12 @@ namespace RacingGame.Race
         void SetupEnvironment()
         {
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.45f, 0.38f, 0.5f);
+            RenderSettings.ambientLight = new Color(0.58f, 0.6f, 0.66f);
             RenderSettings.fog = true;
-            RenderSettings.fogColor = new Color(0.32f, 0.16f, 0.35f);
+            RenderSettings.fogColor = new Color(0.62f, 0.8f, 0.95f);
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 90f;
-            RenderSettings.fogEndDistance = 260f;
+            RenderSettings.fogStartDistance = 120f;
+            RenderSettings.fogEndDistance = 320f;
 
             bool hasSun = FindObjectsByType<Light>(FindObjectsSortMode.None).Any(l => l.type == LightType.Directional);
             if (!hasSun)
@@ -135,17 +138,17 @@ namespace RacingGame.Race
                 Quaternion rot = Quaternion.LookRotation(dir);
 
                 bool isPlayer = slot == playerSlot;
-                string name;
+                string name, model;
                 Color color;
-                if (isPlayer) { name = "You"; color = new Color(0.15f, 0.5f, 1f); }
+                if (isPlayer) { name = "You"; color = PlayerColor; model = PlayerModel; }
                 else
                 {
                     var o = Opponents[opponentIndex % Opponents.Length];
-                    name = o.name; color = o.color;
+                    name = o.name; color = o.color; model = o.model;
                     opponentIndex++;
                 }
 
-                var car = CarBuilder.Create(name, color, pos, rot, transform, isPlayer);
+                var car = CarBuilder.Create(name, color, model, pos, rot, transform, isPlayer);
                 var racer = new Racer
                 {
                     Name = name,
@@ -180,8 +183,11 @@ namespace RacingGame.Race
                 var go = new GameObject("Main Camera") { tag = "MainCamera" };
                 go.transform.SetParent(transform, false);
                 cam = go.AddComponent<Camera>();
-                go.AddComponent<AudioListener>();
             }
+            // Hear the race from the player's car, not from the high camera.
+            var camListener = cam.GetComponent<AudioListener>();
+            if (camListener) camListener.enabled = false;
+            Player.Car.gameObject.AddComponent<AudioListener>();
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = RenderSettings.fogColor;
             cam.farClipPlane = 400f;

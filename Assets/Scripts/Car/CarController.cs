@@ -44,6 +44,7 @@ namespace RacingGame.Car
         public ICarInputSource InputSource { get; set; }
         public CarInputState CurrentInput { get; private set; }
         public float ForwardSpeed { get; private set; }
+        public float LateralSpeed { get; private set; }
         public float SpeedKmh => Mathf.Abs(ForwardSpeed) * 3.6f;
         public bool IsBoosting => boostTimer > 0f;
         public bool IsGrounded { get; private set; }
@@ -98,6 +99,7 @@ namespace RacingGame.Car
             Vector3 right = transform.right;
             float fwdSpeed = Vector3.Dot(velocity, forward);
             ForwardSpeed = fwdSpeed;
+            LateralSpeed = Vector3.Dot(velocity, right);
 
             // Extra gravity keeps the car planted.
             Body.AddForce(Vector3.down * 12f, ForceMode.Acceleration);
@@ -165,9 +167,10 @@ namespace RacingGame.Car
             foreach (var pivot in steerPivots)
                 if (pivot) pivot.localRotation = Quaternion.Euler(0f, steerAngle, 0f);
 
-            float spin = ForwardSpeed / 0.38f * Mathf.Rad2Deg * Time.deltaTime;
+            // Wheels spin around their local X axis (the axle).
+            float spin = ForwardSpeed / 0.39f * Mathf.Rad2Deg * Time.deltaTime;
             foreach (var wheel in wheelMeshes)
-                if (wheel) wheel.Rotate(Vector3.up, spin, Space.Self);
+                if (wheel) wheel.Rotate(Vector3.right, spin, Space.Self);
 
             if (boostFlame)
             {

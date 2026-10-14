@@ -20,6 +20,7 @@ namespace RacingGame.Core
             var ex = go.AddComponent<Explosion>();
             ex.size = size;
             ex.duration = 0.45f;
+            ModelLibrary.PlayAt("impact", position, Mathf.Clamp01(size / 5f), 0.55f);
 
             // Debris chunks
             for (int i = 0; i < 6; i++)

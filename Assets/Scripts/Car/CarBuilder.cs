@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using RacingGame.Core;
 using RacingGame.Weapons;
@@ -5,15 +6,18 @@ using RacingGame.Weapons;
 namespace RacingGame.Car
 {
     /// <summary>
-    /// Builds a combat car out of primitives (placeholder art). Later, replace the
-    /// visual part with a real 3D model prefab - the physics/components stay the same.
+    /// Builds a combat car: physics + gameplay components, and the 3D model
+    /// (Kenney .glb vehicle from Resources/Models, or a primitive fallback).
     /// </summary>
     public static class CarBuilder
     {
+        /// <summary>Kenney trucks are 1.5m x 2.8m; scale them to fit our 1.9m x 3.8m physics box.</summary>
+        const float ModelScale = 1.3f;
+
         static PhysicsMaterial carPhysicsMaterial;
 
-        public static CarController Create(string name, Color paint, Vector3 position, Quaternion rotation,
-            Transform parent, bool isPlayer)
+        public static CarController Create(string name, Color paint, string modelName, Vector3 position,
+            Quaternion rotation, Transform parent, bool isPlayer)
         {
             var root = new GameObject(name);
             root.transform.SetParent(parent, false);
@@ -45,63 +49,114 @@ namespace RacingGame.Car
             // ----- Visuals -----
             var body = new GameObject("Body");
             body.transform.SetParent(root.transform, false);
-            var t = body.transform;
-            var dark = new Color(0.08f, 0.08f, 0.1f);
-            var metal = new Color(0.55f, 0.55f, 0.6f);
 
-            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0f, 0.6f, 0f), new Vector3(1.8f, 0.5f, 3.7f), paint);
-            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0f, 0.75f, 1.3f), new Vector3(1.6f, 0.25f, 1.0f), paint * 0.8f);
-            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0f, 1.05f, -0.3f), new Vector3(1.4f, 0.45f, 1.6f), dark);
-            // Spoiler
-            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0f, 1.25f, -1.7f), new Vector3(1.9f, 0.08f, 0.45f), paint);
-            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(-0.6f, 1.0f, -1.7f), new Vector3(0.08f, 0.45f, 0.3f), dark);
-            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0.6f, 1.0f, -1.7f), new Vector3(0.08f, 0.45f, 0.3f), dark);
-            // Roof cannon
-            MaterialFactory.Visual(PrimitiveType.Cylinder, t, new Vector3(0f, 1.35f, 0.2f), new Vector3(0.22f, 0.6f, 0.22f), metal,
-                Quaternion.Euler(90f, 0f, 0f));
-            // Headlights
-            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(-0.6f, 0.65f, 1.86f), new Vector3(0.35f, 0.15f, 0.05f), new Color(1f, 0.95f, 0.6f));
-            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0.6f, 0.65f, 1.86f), new Vector3(0.35f, 0.15f, 0.05f), new Color(1f, 0.95f, 0.6f));
-            // Player marker
+            if (!BuildModelVisual(body.transform, modelName, controller))
+                BuildPrimitiveVisual(body.transform, paint, controller);
+
+            // Roof cannon (weapon) and player marker sit on top of either visual.
+            float roof = 1.75f;
+            MaterialFactory.Visual(PrimitiveType.Cylinder, body.transform, new Vector3(0f, roof, -0.2f),
+                new Vector3(0.2f, 0.55f, 0.2f), new Color(0.3f, 0.3f, 0.35f), Quaternion.Euler(90f, 0f, 0f));
             if (isPlayer)
-                MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0f, 2.3f, 0f), new Vector3(0.5f, 0.5f, 0.5f),
-                    new Color(0.2f, 1f, 0.3f), Quaternion.Euler(45f, 0f, 45f));
-
-            // Wheels: pivot (steering) -> mesh (spinning)
-            var steerPivots = new Transform[2];
-            var wheels = new Transform[4];
-            Vector3[] wheelPos =
-            {
-                new Vector3(-0.95f, 0.38f, 1.25f), new Vector3(0.95f, 0.38f, 1.25f),
-                new Vector3(-0.95f, 0.38f, -1.25f), new Vector3(0.95f, 0.38f, -1.25f),
-            };
-            for (int i = 0; i < 4; i++)
-            {
-                var pivot = new GameObject("WheelPivot" + i).transform;
-                pivot.SetParent(t, false);
-                pivot.localPosition = wheelPos[i];
-                var holder = new GameObject("Axle").transform;
-                holder.SetParent(pivot, false);
-                holder.localRotation = Quaternion.Euler(0f, 0f, 90f);
-                var wheel = MaterialFactory.Visual(PrimitiveType.Cylinder, holder, Vector3.zero, new Vector3(0.76f, 0.2f, 0.76f), dark);
-                wheels[i] = wheel.transform;
-                if (i < 2) steerPivots[i] = pivot;
-            }
-
-            var flame = MaterialFactory.Visual(PrimitiveType.Sphere, t, new Vector3(0f, 0.6f, -2.2f), new Vector3(0.5f, 0.5f, 1.2f),
-                new Color(0.3f, 0.7f, 1f));
-            controller.SetVisuals(steerPivots, wheels, flame);
+                MaterialFactory.Visual(PrimitiveType.Cube, body.transform, new Vector3(0f, roof + 1.2f, 0f),
+                    new Vector3(0.5f, 0.5f, 0.5f), new Color(0.2f, 1f, 0.3f), Quaternion.Euler(45f, 0f, 45f));
 
             var health = root.AddComponent<CarHealth>();
             health.VisualRoot = body;
             root.AddComponent<RacerProgress>();
             root.AddComponent<WeaponSystem>();
+            root.AddComponent<CarAudio>();
             var ai = root.AddComponent<AICarInput>();   // player cars get one too: it drives after the finish line
 
             if (isPlayer) controller.InputSource = root.AddComponent<PlayerCarInput>();
             else controller.InputSource = ai;
 
             return controller;
+        }
+
+        /// <summary>
+        /// Uses a Kenney vehicle model. Expects children named "body" and "wheel-*"
+        /// with each wheel's pivot at its centre.
+        /// </summary>
+        static bool BuildModelVisual(Transform parent, string modelName, CarController controller)
+        {
+            if (string.IsNullOrEmpty(modelName)) return false;
+            var model = ModelLibrary.Instantiate(modelName, parent);
+            if (model == null) return false;
+
+            model.transform.localScale = Vector3.one * ModelScale;
+
+            var wheelNodes = new List<Transform>();
+            foreach (var t in model.GetComponentsInChildren<Transform>())
+                if (t != model.transform && t.name.StartsWith("wheel")) wheelNodes.Add(t);
+
+            // Make sure the model faces +Z (front wheels in front), whatever the importer's axis convention.
+            float frontZ = 0f;
+            foreach (var w in wheelNodes)
+                if (w.name.Contains("front")) frontZ += model.transform.InverseTransformPoint(w.position).z;
+            if (frontZ < 0f) model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+
+            // Wrap each wheel: steering pivot (Y rotation) -> wheel (spins around X).
+            var steer = new List<Transform>();
+            var spin = new List<Transform>();
+            foreach (var w in wheelNodes)
+            {
+                var pivot = new GameObject(w.name + "-pivot").transform;
+                pivot.SetParent(w.parent, false);
+                pivot.localPosition = w.localPosition;
+                pivot.localRotation = Quaternion.identity;
+                pivot.localScale = Vector3.one;
+                w.SetParent(pivot, true);
+
+                spin.Add(w);
+                bool isFront = parent.InverseTransformPoint(w.position).z > 0f;
+                if (isFront) steer.Add(pivot);
+            }
+
+            controller.SetVisuals(steer.ToArray(), spin.ToArray(), CreateBoostFlame(parent));
+            return true;
+        }
+
+        /// <summary>Placeholder car made of primitives (used if the models can't be loaded).</summary>
+        static void BuildPrimitiveVisual(Transform t, Color paint, CarController controller)
+        {
+            var dark = new Color(0.08f, 0.08f, 0.1f);
+
+            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0f, 0.6f, 0f), new Vector3(1.8f, 0.5f, 3.7f), paint);
+            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0f, 0.75f, 1.3f), new Vector3(1.6f, 0.25f, 1.0f), paint * 0.8f);
+            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0f, 1.05f, -0.3f), new Vector3(1.4f, 0.45f, 1.6f), dark);
+            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0f, 1.25f, -1.7f), new Vector3(1.9f, 0.08f, 0.45f), paint);
+            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(-0.6f, 0.65f, 1.86f), new Vector3(0.35f, 0.15f, 0.05f), new Color(1f, 0.95f, 0.6f));
+            MaterialFactory.Visual(PrimitiveType.Cube, t, new Vector3(0.6f, 0.65f, 1.86f), new Vector3(0.35f, 0.15f, 0.05f), new Color(1f, 0.95f, 0.6f));
+
+            // Wheels: pivot (steering) -> spinner (rotates around X) -> cylinder mesh
+            var steerPivots = new Transform[2];
+            var wheels = new Transform[4];
+            Vector3[] wheelPos =
+            {
+                new Vector3(-0.95f, 0.39f, 1.25f), new Vector3(0.95f, 0.39f, 1.25f),
+                new Vector3(-0.95f, 0.39f, -1.25f), new Vector3(0.95f, 0.39f, -1.25f),
+            };
+            for (int i = 0; i < 4; i++)
+            {
+                var pivot = new GameObject("WheelPivot" + i).transform;
+                pivot.SetParent(t, false);
+                pivot.localPosition = wheelPos[i];
+                var spinner = new GameObject("Wheel").transform;
+                spinner.SetParent(pivot, false);
+                MaterialFactory.Visual(PrimitiveType.Cylinder, spinner, Vector3.zero, new Vector3(0.78f, 0.2f, 0.78f), dark,
+                    Quaternion.Euler(0f, 0f, 90f));
+                wheels[i] = spinner;
+                if (i < 2) steerPivots[i] = pivot;
+            }
+
+            controller.SetVisuals(steerPivots, wheels, CreateBoostFlame(t));
+        }
+
+        static GameObject CreateBoostFlame(Transform parent)
+        {
+            return MaterialFactory.Visual(PrimitiveType.Sphere, parent, new Vector3(0f, 0.6f, -2.2f),
+                new Vector3(0.5f, 0.5f, 1.2f), new Color(0.3f, 0.7f, 1f));
         }
     }
 }

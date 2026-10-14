@@ -5,9 +5,11 @@ armed cars, missiles, mines, nitro, money, alien-planet tracks.
 
 Built with **Unity 6 + C#**.
 
-## Status: v0.1 playable prototype
+## Status: v0.2 — real 3D models & sound
 
-Everything is generated from code (placeholder art from primitives), so you can open the project and press **Play** right away.
+Low-poly 3D trucks, finish arch, forests and pit tents (Kenney, CC0), engine/skid/crash sounds.
+The track itself is generated from code, so you can open the project and press **Play** right away.
+If the 3D models can't load, the game falls back to placeholder block cars automatically.
 
 | Feature | Status |
 |---|---|
@@ -22,7 +24,9 @@ Everything is generated from code (placeholder art from primitives), so you can 
 | Isometric camera (classic) + chase camera | ✅ |
 | Touch controls (auto-accelerate) + keyboard | ✅ |
 | Garage / shop / upgrades | ⏳ next |
-| Real 3D car & track models, music, SFX, announcer | ⏳ |
+| Real 3D car models, finish arch, forest scenery (Kenney) | ✅ |
+| Engine / skid / crash / explosion sounds | ✅ |
+| Music & announcer | ⏳ |
 | Championship / multiple tracks / planets | ⏳ |
 | Multiplayer | ⏳ |
 
@@ -32,6 +36,8 @@ Everything is generated from code (placeholder art from primitives), so you can 
 2. Unity Hub → **Add → Add project from disk** → select this folder.
    (If Hub asks about a different editor version, pick any Unity 6 version.)
 3. If Unity asks to enable the new Input System backends, click **Yes** (the code supports both input systems).
+   The project uses the **glTFast** package (`com.unity.cloud.gltfast`) to import the `.glb` 3D models; Unity installs it automatically.
+   If it reports a package version error, open **Window → Package Manager → + → Add package by name…** and enter `com.unity.cloud.gltfast`.
 4. Menu **Racing Game → Create Race Scene**, then press **Play**.
    *(Pressing Play in any empty scene also works — the race builds itself.)*
 
@@ -59,16 +65,20 @@ In the editor, press **TOUCH: ON** in the top-right to preview the phone control
 
 ```
 Assets/Scripts/
-  Core/       GameBootstrap (auto-start), InputBridge, MaterialFactory, Explosion
+  Core/       GameBootstrap (auto-start), InputBridge, ModelLibrary (models+audio), MaterialFactory, Explosion
   Track/      TrackBuilder (procedural track), TrackPath (centerline/progress), Pickup
   Car/        CarController (physics), CarHealth, RacerProgress (laps),
-              PlayerCarInput (keyboard+touch), AICarInput, CarBuilder
+              PlayerCarInput (keyboard+touch), AICarInput, CarBuilder, CarAudio
   Weapons/    WeaponSystem, Missile, Mine
   Race/       RaceManager (countdown, laps, standings, prize money)
   CameraRig/  RaceCamera (isometric / chase)
   UI/         RaceHUD
   Editor/     RacingGameMenu (scene creation tools)
 ```
+
+3D models live in `Assets/Resources/Models` and sounds in `Assets/Resources/Audio` (see [CREDITS.md](CREDITS.md)).
+To use your own car model, drop a `.glb` there with children named `body` and `wheel-front-left`, `wheel-front-right`,
+`wheel-back-left`, `wheel-back-right` (pivot at each wheel's centre), and pass its name to `CarBuilder.Create`.
 
 Tuning lives in public fields (e.g. `CarController.maxSpeed`, `WeaponSystem.missilesPerLap`,
 `RaceManager.totalLaps`) and track layouts in `TrackBuilder.DefaultLayout`.
