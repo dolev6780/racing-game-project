@@ -1,5 +1,6 @@
 using UnityEngine;
 using RacingGame.Car;
+using RacingGame.Progress;
 
 namespace RacingGame.Weapons
 {
@@ -54,6 +55,7 @@ namespace RacingGame.Weapons
             if (Missiles <= 0 || Time.time < nextFireTime) return;
             Missiles--;
             nextFireTime = Time.time + fireCooldown;
+            if (controller.IsPlayer) Stats.Add(Stat.MissilesFired);
 
             Vector3 forward = transform.forward;
             Vector3 dir = forward;
@@ -82,6 +84,7 @@ namespace RacingGame.Weapons
         {
             if (Mines <= 0) return;
             Mines--;
+            if (controller.IsPlayer) Stats.Add(Stat.MinesDropped);
             Mine.Spawn(transform.position - transform.forward * 2.8f + Vector3.up * 0.15f, mineDamage, health);
         }
 
@@ -89,6 +92,7 @@ namespace RacingGame.Weapons
         {
             if (Boosts <= 0 || controller.IsBoosting) return;
             Boosts--;
+            if (controller.IsPlayer) Stats.Add(Stat.NitrosUsed);
             controller.StartBoost(boostDuration);
         }
     }

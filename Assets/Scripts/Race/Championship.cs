@@ -68,6 +68,8 @@ namespace RacingGame.Race
         /// <summary>Highest league index the player may enter.</summary>
         public static int Unlocked => Mathf.Clamp(PlayerPrefs.GetInt("champ_unlocked", 0), 0, Leagues.Count - 1);
         public static bool IsWon(int league) => PlayerPrefs.GetInt("champ_won_" + league, 0) == 1;
+        /// <summary>Best season finish in a league (0 = never completed). Drives the trophy color.</summary>
+        public static int BestFinish(int league) => PlayerPrefs.GetInt("champ_best_" + league, 0);
 
         /// <summary>League of the season in progress, or -1.</summary>
         public static int ActiveLeague => PlayerPrefs.GetInt("champ_active", -1);
@@ -195,6 +197,9 @@ namespace RacingGame.Race
             int bonus = SeasonBonus(league, position);
             Wallet.Money += bonus;
 
+            int best = BestFinish(league);
+            if (best == 0 || position < best) PlayerPrefs.SetInt("champ_best_" + league, position);
+
             bool unlockedNext = false;
             if (position == 1)
             {
@@ -207,6 +212,7 @@ namespace RacingGame.Race
             }
             ClearSeason();
             PlayerPrefs.Save();
+            Progress.Achievements.MarkDirty();
             return (position, bonus, unlockedNext);
         }
 

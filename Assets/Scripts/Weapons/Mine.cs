@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using RacingGame.Car;
 using RacingGame.Core;
+using RacingGame.Progress;
 
 namespace RacingGame.Weapons
 {
@@ -71,6 +72,7 @@ namespace RacingGame.Weapons
                 if (hp == owner && age < OwnerSafeTime) continue;
 
                 hp.TakeDamage(damage, owner);
+                if (owner != null && hp != owner && owner.Controller.IsPlayer) Stats.Add(Stat.MineHits);
                 var rb = hp.Controller.Body;
                 if (!rb.isKinematic) rb.AddForce(Vector3.up * 7f, ForceMode.VelocityChange);
                 Explosion.Spawn(transform.position, 4f, new Color(1f, 0.4f, 0.1f));

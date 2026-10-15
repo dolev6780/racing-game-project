@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using RacingGame.CameraRig;
 using RacingGame.Core;
 using RacingGame.Garage;
+using RacingGame.Progress;
 using RacingGame.Race;
 using RacingGame.Track;
 
@@ -23,7 +24,7 @@ namespace RacingGame.UI
         public static MenuScreen PendingScreen = MenuScreen.Home;
 
         Canvas canvas;
-        GameObject home, setup, garage, shade, championship;
+        GameObject home, setup, garage, shade, championship, trophies;
         bool garageFromChampionship;
         Text bankText;
 
@@ -126,6 +127,7 @@ namespace RacingGame.UI
             if (home) Destroy(home);
             if (garage) Destroy(garage);
             if (championship) Destroy(championship);
+            if (trophies) Destroy(trophies);
         }
 
         void HomeCamera()
@@ -148,24 +150,26 @@ namespace RacingGame.UI
             home.AddComponent<FadeIn>();
 
             var left = new Vector2(0f, 0.5f);
-            UIKit.Label(root, GameTitle, 130, UIKit.Accent, left, left, new Vector2(110f, 300f), new Vector2(1200f, 170f),
+            UIKit.Label(root, GameTitle, 130, UIKit.Accent, left, left, new Vector2(110f, 330f), new Vector2(1200f, 170f),
                 TextAnchor.MiddleLeft, true);
-            UIKit.Label(root, "COMBAT RACING", 46, UIKit.TextMain, left, left, new Vector2(118f, 200f), new Vector2(1000f, 60f),
+            UIKit.Label(root, "COMBAT RACING", 46, UIKit.TextMain, left, left, new Vector2(118f, 232f), new Vector2(1000f, 60f),
                 TextAnchor.MiddleLeft);
 
             // Hot stripe under the title
-            var stripe = UIKit.Rect(root, "Stripe", left, left, new Vector2(116f, 160f), new Vector2(420f, 10f));
+            var stripe = UIKit.Rect(root, "Stripe", left, left, new Vector2(116f, 194f), new Vector2(420f, 10f));
             UIKit.Image(stripe, UIKit.RoundedSmall, UIKit.AccentHot);
 
-            var btnSize = new Vector2(560f, 100f);
+            var btnSize = new Vector2(560f, 90f);
             string champLabel = Championship.HasActiveSeason ? "CONTINUE SEASON" : "CHAMPIONSHIP";
-            UIKit.Button(root, champLabel, left, left, new Vector2(110f, 50f), btnSize, ShowChampionship,
+            UIKit.Button(root, champLabel, left, left, new Vector2(110f, 100f), btnSize, ShowChampionship,
                 UIKit.Accent, new Color(0.1f, 0.1f, 0.12f), 48);
-            UIKit.Button(root, "QUICK RACE", left, left, new Vector2(110f, -64f), btnSize, ShowSetup, fontSize: 44);
-            UIKit.Button(root, "GARAGE", left, left, new Vector2(110f, -178f), btnSize, () => OpenGarage(false), fontSize: 44);
-            UIKit.Button(root, "SETTINGS", left, left, new Vector2(110f, -292f), btnSize, ShowSettings, fontSize: 44);
+            UIKit.Button(root, "QUICK RACE", left, left, new Vector2(110f, -4f), btnSize, ShowSetup, fontSize: 44);
+            UIKit.Button(root, "GARAGE", left, left, new Vector2(110f, -108f), btnSize, () => OpenGarage(false), fontSize: 44);
+            UIKit.Button(root, $"TROPHIES  {Achievements.UnlockedCount}/{Achievements.All.Count}", left, left,
+                new Vector2(110f, -212f), btnSize, ShowTrophies, fontSize: 40);
+            UIKit.Button(root, "SETTINGS", left, left, new Vector2(110f, -316f), btnSize, ShowSettings, fontSize: 44);
             if (Application.platform != RuntimePlatform.IPhonePlayer)
-                UIKit.Button(root, "QUIT", left, left, new Vector2(110f, -406f), btnSize, Quit, fontSize: 44);
+                UIKit.Button(root, "QUIT", left, left, new Vector2(110f, -420f), btnSize, Quit, fontSize: 44);
 
             UIKit.Label(root, "3D art & sounds: Kenney (CC0)", 26, UIKit.TextDim, new Vector2(1f, 0f), new Vector2(1f, 0f),
                 new Vector2(-40f, 24f), new Vector2(700f, 40f), TextAnchor.LowerRight);
@@ -179,6 +183,16 @@ namespace RacingGame.UI
             championship = new GameObject("Championship", typeof(RectTransform));
             championship.transform.SetParent(canvas.transform, false);
             championship.AddComponent<ChampionshipScreen>().Init(this);
+        }
+
+        void ShowTrophies()
+        {
+            ClearScreens();
+            HomeCamera();
+            RefreshBank();
+            trophies = new GameObject("TrophyRoom", typeof(RectTransform));
+            trophies.transform.SetParent(canvas.transform, false);
+            trophies.AddComponent<TrophyRoom>().Init(this);
         }
 
         void ShowSetup()

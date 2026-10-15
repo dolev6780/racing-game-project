@@ -277,6 +277,32 @@ namespace RacingGame.UI
                 () => Change(1), fontSize: 36);
         }
 
+        // ---------- Icons ----------
+
+        public static readonly Color Gold = new Color(1f, 0.8f, 0.2f);
+        public static readonly Color Silver = new Color(0.8f, 0.84f, 0.9f);
+        public static readonly Color Bronze = new Color(0.85f, 0.5f, 0.25f);
+
+        /// <summary>Draws a trophy cup (bowl, handles, stem, base) filling the parent rect.</summary>
+        public static void TrophyIcon(RectTransform parent, Color color)
+        {
+            var root = Stretch(parent, "Trophy");
+            // Normalised layout inside the parent (fractions of its size).
+            void Part(string name, Sprite sprite, float x, float y, float w, float h)
+            {
+                var rt = Stretch(root, name);
+                rt.anchorMin = new Vector2(x - w * 0.5f, y - h * 0.5f);
+                rt.anchorMax = new Vector2(x + w * 0.5f, y + h * 0.5f);
+                Image(rt, sprite, color);
+            }
+            Part("HandleL", Ring, 0.27f, 0.66f, 0.26f, 0.26f);
+            Part("HandleR", Ring, 0.73f, 0.66f, 0.26f, 0.26f);
+            Part("Bowl", Circle, 0.5f, 0.62f, 0.5f, 0.5f);
+            Part("Rim", RoundedSmall, 0.5f, 0.84f, 0.56f, 0.08f);
+            Part("Stem", RoundedSmall, 0.5f, 0.32f, 0.1f, 0.2f);
+            Part("Base", RoundedSmall, 0.5f, 0.17f, 0.46f, 0.1f);
+        }
+
         // ---------- Formatting ----------
 
         public static string Ordinal(int n)

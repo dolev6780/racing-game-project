@@ -18,7 +18,7 @@ namespace RacingGame.UI
         Canvas canvas;
 
         // Top-left card
-        Text posText, posTotal, lapText, timeText;
+        Text posText, posTotal, lapText, timeText, bestText;
         // Standings
         readonly List<(Image bg, Image bar, Text text)> rows = new List<(Image, Image, Text)>();
         // Speedometer
@@ -74,9 +74,20 @@ namespace RacingGame.UI
             BuildCenter(root);
 
             CarHealth.Wrecked += OnWrecked;
+            race.PlayerLapCompleted += OnLap;
         }
 
-        void OnDestroy() => CarHealth.Wrecked -= OnWrecked;
+        void OnDestroy()
+        {
+            CarHealth.Wrecked -= OnWrecked;
+            if (race != null) race.PlayerLapCompleted -= OnLap;
+        }
+
+        void OnLap(float time, bool record)
+        {
+            if (record) AddFeed($"NEW LAP RECORD!  {UIKit.Time(time)}", UIKit.Good);
+            else AddFeed($"LAP  {UIKit.Time(time)}", UIKit.TextMain);
+        }
 
         // ---------- Build ----------
 
@@ -89,10 +100,10 @@ namespace RacingGame.UI
         void BuildTopLeft(Transform root)
         {
             var card = UIKit.Panel(root, "PositionCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, -30f),
-                new Vector2(470f, 190f)).rectTransform;
+                new Vector2(470f, 220f)).rectTransform;
 
             var accent = UIKit.Rect(card, "Accent", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(14f, 0f),
-                new Vector2(10f, 150f));
+                new Vector2(10f, 180f));
             UIKit.Image(accent, UIKit.RoundedSmall, UIKit.Accent);
 
             posText = UIKit.Label(card, "1", 130, UIKit.TextMain, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
@@ -105,7 +116,9 @@ namespace RacingGame.UI
             lapText = UIKit.Label(card, "1/4", 70, UIKit.Accent, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -54f),
                 new Vector2(220f, 80f), TextAnchor.MiddleRight, true);
             timeText = UIKit.Label(card, "0:00.00", 34, UIKit.TextMain, new Vector2(1f, 0f), new Vector2(1f, 0f),
-                new Vector2(-30f, 16f), new Vector2(220f, 44f), TextAnchor.MiddleRight);
+                new Vector2(-30f, 44f), new Vector2(220f, 44f), TextAnchor.MiddleRight);
+            bestText = UIKit.Label(card, "", 22, UIKit.TextDim, new Vector2(1f, 0f), new Vector2(1f, 0f),
+                new Vector2(-30f, 12f), new Vector2(300f, 30f), TextAnchor.MiddleRight);
         }
 
         void BuildTopCenter(Transform root)
@@ -266,6 +279,8 @@ namespace RacingGame.UI
             int lap = Mathf.Clamp(player.Progress.Lap, 1, race.totalLaps);
             lapText.text = $"{lap}/{race.totalLaps}";
             timeText.text = UIKit.Time(race.RaceTime);
+            float best = race.BestLapTime;
+            bestText.text = best > 0f ? "BEST LAP " + UIKit.Time(best) : "";
         }
 
         void UpdateStandings()

@@ -5,8 +5,9 @@ armed cars, missiles, mines, nitro, money, alien-planet tracks.
 
 Built with **Unity 6 + C#**.
 
-## Status: v0.5 — championship & 4 tracks
+## Status: v0.6 — trophies & achievements
 
+Trophy Room with league cups, 26 achievements (with cash rewards), career stats and lap records.
 Championship mode: 4 leagues x 4 races with points, season standings and unlocks; 4 themed tracks.
 Garage with 5 vehicles to buy and 5 upgrade types (4 levels each), shown in a 3D showroom.
 Main menu with 3D backdrop, race setup (laps / opponents / difficulty), settings, pause menu,
@@ -25,6 +26,9 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | Laps, positions, wrong-way, countdown, results | ✅ |
 | 4 tracks: Green Valley, Desert Canyon, Frost Peak, Alien Wastes (own colors, fog, scenery) | ✅ |
 | Championship: 4 leagues, points (10-7-5-3-2-1), season standings, win bonus, unlock next league | ✅ |
+| 26 achievements with cash rewards + unlock pop-ups | ✅ |
+| Trophy Room: league cups (gold/silver/bronze), achievement progress, career stats, best laps | ✅ |
+| Lap timing, personal best laps per track, "NEW LAP RECORD" alerts | ✅ |
 | Money: prize by place + kills + pickups (saved) | ✅ |
 | Armor & money pickups on track | ✅ |
 | Isometric camera (classic) + chase camera | ✅ |
@@ -88,11 +92,12 @@ Assets/Scripts/
   Track/      TrackLibrary (layouts + themes), TrackBuilder (procedural track), TrackPath (centerline/progress), Pickup
   Car/        CarController (physics), CarHealth, RacerProgress (laps),
               PlayerCarInput (keyboard+touch), AICarInput, CarBuilder, CarAudio
+  Progress/   Stats, Records (best laps), Achievements
   Garage/     VehicleCatalog, PlayerGarage (owned/selected/upgrades), Wallet
   Weapons/    WeaponSystem, Missile, Mine
   Race/       RaceManager (countdown, laps, standings, pause, prize money), RaceRequest, RaceConfig, Championship
   CameraRig/  RaceCamera (isometric / chase), MenuCamera (orbit)
-  UI/         UIKit (code-built uGUI), MainMenu, ChampionshipScreen, GarageScreen, SettingsPanel, RaceHUD, TouchControlsView
+  UI/         UIKit (code-built uGUI), MainMenu, ChampionshipScreen, GarageScreen, TrophyRoom, AchievementToast, SettingsPanel, RaceHUD, TouchControlsView
   Editor/     RacingGameMenu (scene creation tools)
 ```
 
@@ -112,6 +117,12 @@ To use your own car model, drop a `.glb` there with children named `body` and `w
 | Riot Masters | 5 | x5 | $20,000 | top speed of an upgraded car |
 
 Leagues and AI strength: `Assets/Scripts/Race/Championship.cs`. Tracks and themes: `Assets/Scripts/Track/TrackLibrary.cs`.
+
+### Achievements & trophies
+Defined in `Assets/Scripts/Progress/Achievements.cs` (stats in `Stats.cs`). Each pays a cash reward when unlocked.
+Categories: Racing (wins, streaks, comebacks, top speed, every track), Combat (wrecks, rampage, missiles, mines, nitro),
+Career (pickups, upgrades, vehicles, savings) and Championship (win each league).
+League cups in the Trophy Room are gold / silver / bronze for your best season finish in that league.
 
 ### Garage & economy
 Vehicles, prices and upgrade effects are defined in `Assets/Scripts/Garage/Garage.cs` (`VehicleCatalog`).

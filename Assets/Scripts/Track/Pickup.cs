@@ -1,6 +1,7 @@
 using UnityEngine;
 using RacingGame.Car;
 using RacingGame.Core;
+using RacingGame.Progress;
 
 namespace RacingGame.Track
 {
@@ -54,7 +55,11 @@ namespace RacingGame.Track
                 var hp = overlap[i].GetComponentInParent<CarHealth>();
                 if (hp == null || hp.IsWrecked) continue;
 
-                if (type == PickupType.Money) hp.Controller.MoneyCollected += MoneyValue;
+                if (type == PickupType.Money)
+                {
+                    hp.Controller.MoneyCollected += MoneyValue;
+                    if (hp.Controller.IsPlayer) Stats.Add(Stat.MoneyPickups);
+                }
                 else hp.Repair(40f);
 
                 hiddenUntil = Time.time + RespawnTime;

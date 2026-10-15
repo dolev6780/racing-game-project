@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using RacingGame.Car;
+using RacingGame.Progress;
 using RacingGame.Weapons;
 
 namespace RacingGame.Garage
@@ -132,7 +133,7 @@ namespace RacingGame.Garage
         public static int Money
         {
             get => PlayerPrefs.GetInt(Key, 0);
-            set { PlayerPrefs.SetInt(Key, Mathf.Max(0, value)); PlayerPrefs.Save(); }
+            set { PlayerPrefs.SetInt(Key, Mathf.Max(0, value)); PlayerPrefs.Save(); Achievements.MarkDirty(); }
         }
 
         public static bool TrySpend(int amount)
@@ -168,6 +169,7 @@ namespace RacingGame.Garage
         {
             if (Owns(v) || !Wallet.TrySpend(v.Price)) return false;
             PlayerPrefs.SetInt("garage_own_" + v.Id, 1);
+            Stats.Add(Stat.VehiclesBought);
             Select(v);
             return true;
         }
@@ -180,6 +182,7 @@ namespace RacingGame.Garage
             int price = VehicleCatalog.UpgradePrice(t, Level(v, t));
             if (price < 0 || !Wallet.TrySpend(price)) return false;
             PlayerPrefs.SetInt($"garage_upg_{v.Id}_{t}", Level(v, t) + 1);
+            Stats.Add(Stat.UpgradesBought);
             PlayerPrefs.Save();
             return true;
         }

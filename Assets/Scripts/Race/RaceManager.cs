@@ -4,6 +4,7 @@ using UnityEngine;
 using RacingGame.Car;
 using RacingGame.Core;
 using RacingGame.Garage;
+using RacingGame.Progress;
 using RacingGame.CameraRig;
 using RacingGame.Track;
 using RacingGame.UI;
@@ -61,6 +62,15 @@ namespace RacingGame.Race
         public RaceRequest Request { get; private set; }
         /// <summary>Championship points the player earned in this race (-1 if not a championship race).</summary>
         public int ChampionshipPoints { get; private set; } = -1;
+
+        // Player's per-race tracking (records & achievements)
+        public float LastLapTime { get; private set; }
+        public float BestLapTime => Records.BestLap(Request.Track.Name);
+        /// <summary>(lap time, is new record) - raised when the player completes a lap.</summary>
+        public event System.Action<float, bool> PlayerLapCompleted;
+        float playerLapStart = -1f;
+        bool playerWasLast;
+        int playerTimesWrecked;
 
         /// <summary>Opponent names in grid order (championship standings use the same roster).</summary>
         public static string OpponentName(int i) => Opponents[i % Opponents.Length].name;
@@ -159,6 +169,7 @@ namespace RacingGame.Race
                 {
                     PlayerGarage.ApplyTo(car, PlayerGarage.Stats(playerVehicle));
                     Player = racer;
+                    racer.Progress.NewLap += OnPlayerLap;
                 }
 
                 Racers.Add(racer);
@@ -215,12 +226,32 @@ namespace RacingGame.Race
                 case RaceState.Finished:
                     RaceTime += Time.deltaTime;
                     CheckFinishers();
+                    TrackPlayer();
                     break;
             }
 
             UpdateStandings();
 
             if (State == RaceState.Finished && InputBridge.WasPressedThisFrame(GameKey.Restart)) Restart();
+        }
+
+        void TrackPlayer()
+        {
+            if (Player.Finished) return;
+            Stats.SetMax(Stat.TopSpeedKmh, Mathf.RoundToInt(Player.Car.SpeedKmh));
+            if (RaceTime > 3f && PositionOf(Player) == Racers.Count && Racers.Count > 1) playerWasLast = true;
+        }
+
+        void OnPlayerLap(RacerProgress progress, int lap)
+        {
+            if (Player == null || Player.Finished) return;
+            if (lap >= 2 && playerLapStart >= 0f)
+            {
+                LastLapTime = RaceTime - playerLapStart;
+                bool record = Records.SubmitLap(Request.Track.Name, LastLapTime);
+                PlayerLapCompleted?.Invoke(LastLapTime, record);
+            }
+            playerLapStart = RaceTime;
         }
 
         public void SetPaused(bool paused)
@@ -257,6 +288,7 @@ namespace RacingGame.Race
             EarnedKills = player.Kills * KillBonus;
             EarnedPickups = player.Car.MoneyCollected;
             TotalMoney += EarnedThisRace;
+            RecordCareer(player);
 
             if (Request.IsChampionship)
             {
@@ -265,6 +297,30 @@ namespace RacingGame.Race
                 var order = Standings.Select(r => r.Name).ToList();
                 ChampionshipPoints = Championship.RecordRace(Request.ChampionshipRace, order);
             }
+        }
+
+        /// <summary>Lifetime stats, records and race achievements when the player finishes.</summary>
+        void RecordCareer(Racer player)
+        {
+            int place = player.FinishPlace;
+            Stats.Add(Stat.Races);
+            Stats.Add(Stat.MoneyEarned, EarnedThisRace);
+            Stats.SetBit(Stat.TracksRaced, Mathf.Max(0, TrackLibrary.Tracks.IndexOf(Request.Track)));
+            if (place <= 3) Stats.Add(Stat.Podiums);
+            if (place == 1)
+            {
+                Stats.Add(Stat.Wins);
+                Stats.Add(Stat.WinStreak);
+                Stats.SetMax(Stat.BestWinStreak, Stats.Get(Stat.WinStreak));
+            }
+            else Stats.Set(Stat.WinStreak, 0);
+
+            Records.SubmitRace(Request.Track.Name, totalLaps, player.FinishTime);
+
+            if (player.Kills >= 3) Achievements.Unlock("rampage");
+            if (place == 1 && playerWasLast) Achievements.Unlock("comeback");
+            if (place == 1 && playerTimesWrecked == 0) Achievements.Unlock("flawless");
+            PlayerPrefs.Save();
         }
 
         void UpdateStandings()
@@ -282,9 +338,18 @@ namespace RacingGame.Race
 
         void OnCarWrecked(CarHealth victim, CarHealth attacker)
         {
+            if (Player != null && victim == Player.Health && !Player.Finished)
+            {
+                playerTimesWrecked++;
+                Stats.Add(Stat.TimesWrecked);
+            }
             if (attacker == null || attacker == victim) return;
             var r = RacerFor(attacker);
-            if (r != null && !r.Finished) r.Kills++;
+            if (r != null && !r.Finished)
+            {
+                r.Kills++;
+                if (r.IsPlayer) Stats.Add(Stat.Wrecks);
+            }
         }
 
         public void Restart()

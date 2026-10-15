@@ -49,6 +49,7 @@ namespace RacingGame.EditorTools
         static void ResetProgress()
         {
             PlayerPrefs.DeleteAll();
+            RacingGame.Progress.Stats.ClearCache();
             Debug.Log("Saved money and settings reset.");
         }
     }
