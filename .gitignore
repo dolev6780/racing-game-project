@@ -34,3 +34,6 @@ Thumbs.db
 *.ipa
 *.unitypackage
 crashlytics-build.properties
+
+# Compile check work folder
+Tools/CompileCheck/.work/

@@ -78,6 +78,15 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 
 In the editor, turn on **Settings → TOUCH CONTROLS** to preview the phone controls (use the mouse as your finger).
 
+## Compile check (no Unity needed)
+
+`Tools/CompileCheck/check.sh` compiles every script against Unity's API using the .NET SDK
+(old Input Manager, new Input System, and editor scripts). Run it before committing to catch compile errors:
+
+```
+Tools/CompileCheck/check.sh      # prints PASS/FAIL per pass, with any errors
+```
+
 ## Building for phones
 
 - **Android:** File → Build Profiles → Android → Switch Platform → Build (APK) or Build And Run with your phone connected (USB debugging on).
