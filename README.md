@@ -87,6 +87,31 @@ In the editor, turn on **Settings → TOUCH CONTROLS** to preview the phone cont
 Tools/CompileCheck/check.sh      # prints PASS/FAIL per pass, with any errors
 ```
 
+## Automated tests (Unity)
+
+`Assets/Tests/PlayMode/GameSmokeTests.cs` starts the real game in play mode and checks that:
+models/sounds/fonts load, all 4 tracks build, the main menu starts, a full race runs to the finish
+(every car drives, results screen appears, back to menu works) and a championship race records points.
+Any exception or error log fails the test.
+
+- **In the editor:** Window → General → Test Runner → PlayMode → Run All.
+  (Like playing, this changes your saved money/stats.)
+- **On GitHub (automatic):** `.github/workflows/ci.yml` runs on every push:
+  1. **Compile check** — always, no license needed.
+  2. **Unity play mode tests** and 3. **Android APK build** — need your Unity license as repository secrets:
+
+  | Secret | Value |
+  |---|---|
+  | `UNITY_EMAIL` | your Unity account email |
+  | `UNITY_PASSWORD` | your Unity account password |
+  | `UNITY_LICENSE` | full contents of your license file `Unity_lic.ulf` |
+
+  Get `Unity_lic.ulf` by signing into Unity Hub on your computer and activating a free Personal license, then open:
+  Windows `C:\ProgramData\Unity\Unity_lic.ulf`, macOS `/Library/Application Support/Unity/Unity_lic.ulf`,
+  Linux `~/.local/share/unity3d/Unity/Unity_lic.ulf`.
+  Add the secrets in GitHub: repo **Settings → Secrets and variables → Actions → New repository secret**.
+  The APK appears under the workflow run's **Artifacts** (download, unzip, install on Android).
+
 ## Building for phones
 
 - **Android:** File → Build Profiles → Android → Switch Platform → Build (APK) or Build And Run with your phone connected (USB debugging on).

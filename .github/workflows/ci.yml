@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast check, no Unity license needed: compiles every script against Unity's API.
+  compile-check:
+    name: Compile check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: Tools/CompileCheck/check.sh
+
+  # Runs the play mode tests inside the real Unity editor (needs the Unity license secrets).
+  unity-tests:
+    name: Unity play mode tests
+    needs: compile-check
+    runs-on: ubuntu-latest
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+    steps:
+      - name: Skip notice
+        if: env.UNITY_LICENSE == ''
+        run: echo "::warning::Unity tests skipped - add UNITY_LICENSE, UNITY_EMAIL and UNITY_PASSWORD repository secrets (see README)."
+      - uses: actions/checkout@v4
+        if: env.UNITY_LICENSE != ''
+      - uses: actions/cache@v4
+        if: env.UNITY_LICENSE != ''
+        with:
+          path: Library
+          key: Library-tests-${{ hashFiles('Packages/**', 'ProjectSettings/**') }}
+          restore-keys: Library-tests-
+      - uses: game-ci/unity-test-runner@v4
+        if: env.UNITY_LICENSE != ''
+        id: tests
+        with:
+          testMode: playmode
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: Unity test results
+      - uses: actions/upload-artifact@v4
+        if: always() && env.UNITY_LICENSE != ''
+        with:
+          name: unity-test-results
+          path: ${{ steps.tests.outputs.artifactsPath }}
+
+  # Builds an Android APK you can download from the run page and install on a phone.
+  android-build:
+    name: Android build
+    needs: compile-check
+    runs-on: ubuntu-latest
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+    steps:
+      - name: Skip notice
+        if: env.UNITY_LICENSE == ''
+        run: echo "::warning::Android build skipped - add the Unity license secrets (see README)."
+      - name: Free disk space (Android image is large)
+        if: env.UNITY_LICENSE != ''
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: false
+      - uses: actions/checkout@v4
+        if: env.UNITY_LICENSE != ''
+      - uses: actions/cache@v4
+        if: env.UNITY_LICENSE != ''
+        with:
+          path: Library
+          key: Library-android-${{ hashFiles('Packages/**', 'ProjectSettings/**') }}
+          restore-keys: Library-android-
+      - uses: game-ci/unity-builder@v4
+        if: env.UNITY_LICENSE != ''
+        with:
+          targetPlatform: Android
+          buildName: RacingGame
+      - uses: actions/upload-artifact@v4
+        if: env.UNITY_LICENSE != ''
+        with:
+          name: RacingGame-Android-apk
+          path: build/Android

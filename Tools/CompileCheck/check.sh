@@ -7,6 +7,7 @@
 #   legacy      - old Input Manager
 #   inputsystem - new Input System (ENABLE_INPUT_SYSTEM, using Stubs/InputSystemStubs.cs)
 #   editor      - editor scripts too (UNITY_EDITOR, using Stubs/EditorStubs.cs)
+#   tests       - play mode tests in Assets/Tests (NUnit from NuGet, Stubs/TestToolsStubs.cs)
 # The project files in Assets/ are never modified. Exit code is non-zero if any pass fails.
 #
 # Usage: Tools/CompileCheck/check.sh
@@ -25,8 +26,9 @@ fetch() { # id version dir
 }
 fetch unityengine.modules 2021.3.33 modules
 fetch unity3d.unityengine.ui 2020.3.21 ui
+fetch nunit 3.13.3 nunit
 
-rm -rf "$WORK/src" && cp -r "$ROOT/Assets/Scripts" "$WORK/src"
+rm -rf "$WORK/src" && cp -r "$ROOT/Assets/Scripts" "$WORK/src" && cp -r "$ROOT/Assets/Tests" "$WORK/src/_Tests"
 find "$WORK/src" -name "*.cs" -exec sed -i \
   -e 's/\.linearVelocity/.velocity/g' \
   -e 's/linearDamping/drag/g' \
@@ -40,9 +42,14 @@ for f in "$REF"/modules/lib/netstandard2.0/*.dll "$REF"/ui/lib/UnityEngine.UI.dl
 done
 
 status=0
-for pass in legacy inputsystem editor; do
-  case $pass in legacy) DEF="";; inputsystem) DEF="ENABLE_INPUT_SYSTEM";; editor) DEF="UNITY_EDITOR;ENABLE_INPUT_SYSTEM";; esac
-  EXCLUDE='Exclude="../src/Editor/**"'; [ $pass = editor ] && EXCLUDE=""
+for pass in legacy inputsystem editor tests; do
+  case $pass in
+    legacy) DEF=""; EXCLUDE='Exclude="../src/Editor/**;../src/_Tests/**"';;
+    inputsystem) DEF="ENABLE_INPUT_SYSTEM"; EXCLUDE='Exclude="../src/Editor/**;../src/_Tests/**"';;
+    editor) DEF="UNITY_EDITOR;ENABLE_INPUT_SYSTEM"; EXCLUDE='Exclude="../src/_Tests/**"';;
+    tests) DEF="UNITY_INCLUDE_TESTS;ENABLE_INPUT_SYSTEM"; EXCLUDE='Exclude="../src/Editor/**"';;
+  esac
+  EXTRA=""; [ $pass = tests ] && EXTRA="<Reference Include=\"nunit.framework\"><HintPath>$REF/nunit/lib/netstandard2.0/nunit.framework.dll</HintPath></Reference>"
   mkdir -p "$WORK/$pass"
   cat > "$WORK/$pass/Check.csproj" <<PROJ
 <Project Sdk="Microsoft.NET.Sdk">
@@ -57,7 +64,7 @@ for pass in legacy inputsystem editor; do
     <Compile Include="../src/**/*.cs" $EXCLUDE />
     <Compile Include="$HERE/Stubs/*.cs" />
   </ItemGroup>
-  <ItemGroup>$REFS</ItemGroup>
+  <ItemGroup>$REFS$EXTRA</ItemGroup>
 </Project>
 PROJ
   out=$(dotnet build "$WORK/$pass/Check.csproj" -nologo -v q -clp:NoSummary 2>&1)
