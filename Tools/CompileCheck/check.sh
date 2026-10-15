@@ -19,9 +19,14 @@ REF="$WORK/refs"
 mkdir -p "$REF"
 
 fetch() { # id version dir
-  if [ ! -d "$REF/$3" ]; then
+  if [ ! -f "$REF/$3/.done" ]; then
+    rm -rf "$REF/$3"
     curl -sfL -m 300 -o "$REF/$3.nupkg" "https://api.nuget.org/v3-flatcontainer/$1/$2/$1.$2.nupkg" || { echo "download failed: $1"; exit 2; }
-    mkdir -p "$REF/$3" && (cd "$REF/$3" && unzip -qo "../$3.nupkg")
+    mkdir -p "$REF/$3"
+    # nupkg files are zip archives; use Python so no unzip tool is required
+    python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$REF/$3.nupkg" "$REF/$3" \
+      || { echo "extract failed: $1"; exit 2; }
+    touch "$REF/$3/.done"
   fi
 }
 fetch unityengine.modules 2021.3.33 modules
@@ -36,6 +41,12 @@ find "$WORK/src" -name "*.cs" -exec sed -i \
   -e 's/PhysicsMaterialCombine/PhysicMaterialCombine/g' \
   -e 's/\bPhysicsMaterial\b/PhysicMaterial/g' {} +
 
+shopt -s nullglob
+MODULES=("$REF"/modules/lib/netstandard2.0/*.dll)
+if [ ${#MODULES[@]} -lt 20 ] || [ ! -f "$REF/ui/lib/UnityEngine.UI.dll" ]; then
+  echo "Unity reference assemblies missing (found ${#MODULES[@]} modules) - delete $WORK and retry"; exit 2
+fi
+echo "Using ${#MODULES[@]} Unity modules, .NET SDK $(dotnet --version)"
 REFS=""
 for f in "$REF"/modules/lib/netstandard2.0/*.dll "$REF"/ui/lib/UnityEngine.UI.dll; do
   REFS="$REFS<Reference Include=\"$(basename "$f" .dll)\"><HintPath>$f</HintPath></Reference>"
@@ -68,7 +79,7 @@ for pass in legacy inputsystem editor tests; do
 </Project>
 PROJ
   out=$(dotnet build "$WORK/$pass/Check.csproj" -nologo -v q -clp:NoSummary 2>&1)
-  errors=$(echo "$out" | grep -E "error|warning CS" | sed -E 's|.*/src/|Assets/Scripts/|; s| \[.*||' | sort -u)
-  if [ -z "$errors" ]; then echo "PASS  $pass"; else echo "FAIL  $pass"; echo "$errors"; status=1; fi
+  errors=$(echo "$out" | grep -E "error|warning CS|warning MSB" | sed -E 's|.*/src/|Assets/Scripts/|; s| \[.*||' | sort -u)
+  if [ -z "$errors" ]; then echo "PASS  $pass"; else echo "FAIL  $pass"; echo "$errors" | head -40; status=1; fi
 done
 exit $status
