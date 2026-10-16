@@ -199,7 +199,7 @@ namespace RacingGame.Race
             if (camListener) camListener.enabled = false;
             Player.Car.gameObject.AddComponent<AudioListener>();
 
-            RaceCamera.Isometric = RaceConfig.IsometricCamera;
+            RaceCamera.Mode = RaceConfig.Camera;
             var rig = cam.GetComponent<RaceCamera>();
             if (rig == null) rig = cam.gameObject.AddComponent<RaceCamera>();
             rig.enabled = true;

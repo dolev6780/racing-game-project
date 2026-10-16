@@ -11,7 +11,6 @@ namespace RacingGame.UI
     {
         static readonly string[] SteeringNames = { "JOYSTICK", "TILT", "BUTTONS" };
         static readonly string[] OnOff = { "OFF", "ON" };
-        static readonly string[] CameraNames = { "ISOMETRIC", "CHASE" };
 
         public static GameObject Build(Transform parent, Action onBack)
         {
@@ -32,10 +31,10 @@ namespace RacingGame.UI
             UIKit.OptionRow(panel, "INVERT TILT", y, w, OnOff, PlayerCarInput.InvertTilt ? 1 : 0,
                 i => PlayerCarInput.InvertTilt = i == 1);
             y -= 100f;
-            UIKit.OptionRow(panel, "CAMERA", y, w, CameraNames, RaceConfig.IsometricCamera ? 0 : 1, i =>
+            UIKit.OptionRow(panel, "CAMERA", y, w, RaceCamera.ModeNames, (int)RaceConfig.Camera, i =>
             {
-                RaceConfig.IsometricCamera = i == 0;
-                RaceCamera.Isometric = i == 0;
+                RaceConfig.Camera = (CameraMode)i;
+                RaceCamera.Mode = (CameraMode)i;
             });
             y -= 100f;
 

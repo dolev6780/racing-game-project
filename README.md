@@ -33,7 +33,7 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | Custom shaders: toon/cel + outline, cartoon sky, boost pad, rainbow item box, spark particles | ✅ |
 | Rainbow "?" item boxes (random missile / mine / nitro / armor / cash) | ✅ |
 | Boost pads, drift sparks (blue → orange → purple) and mini-turbo | ✅ |
-| Close chase camera with speed/boost FOV kick (isometric still available) | ✅ |
+| Cameras: Top Down (default, turns with the car), Chase (speed/boost FOV kick), Isometric | ✅ |
 | Money: prize by place + kills + pickups (saved) | ✅ |
 | Armor & money pickups on track | ✅ |
 | Isometric camera (classic) + chase camera | ✅ |
@@ -71,7 +71,7 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | Fire missile | Space / J | `FIRE` |
 | Drop mine | E / K | `MINE` |
 | Nitro | Left Shift / L | `NITRO` |
-| Switch camera | C | `CAM` button |
+| Switch camera (Top Down / Chase / Isometric) | C | `CAM` button |
 | Pause | Esc / P | `II` button (top centre) |
 | Restart race | R (after finish) | `RACE AGAIN` / pause menu |
 
