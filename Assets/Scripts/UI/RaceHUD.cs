@@ -75,12 +75,29 @@ namespace RacingGame.UI
 
             CarHealth.Wrecked += OnWrecked;
             race.PlayerLapCompleted += OnLap;
+            RacingGame.Track.Pickup.Collected += OnItem;
+            player.Car.MiniTurbo += OnMiniTurbo;
+        }
+
+        void OnItem(CarController car, string label)
+        {
+            if (car == player.Car) AddFeed(label, UIKit.Accent);
+        }
+
+        static readonly string[] TurboNames = { "", "MINI-TURBO!", "SUPER MINI-TURBO!", "ULTRA MINI-TURBO!" };
+        static readonly Color[] TurboColors = { Color.white, new Color(0.4f, 0.7f, 1f), new Color(1f, 0.6f, 0.15f), new Color(0.85f, 0.4f, 1f) };
+
+        void OnMiniTurbo(int tier)
+        {
+            AddFeed(TurboNames[Mathf.Clamp(tier, 1, 3)], TurboColors[Mathf.Clamp(tier, 1, 3)]);
         }
 
         void OnDestroy()
         {
             CarHealth.Wrecked -= OnWrecked;
+            RacingGame.Track.Pickup.Collected -= OnItem;
             if (race != null) race.PlayerLapCompleted -= OnLap;
+            if (player != null && player.Car != null) player.Car.MiniTurbo -= OnMiniTurbo;
         }
 
         void OnLap(float time, bool record)
@@ -275,6 +292,7 @@ namespace RacingGame.UI
         {
             int pos = race.PositionOf(player);
             posText.text = $"{pos}<size=56>{UIKit.OrdinalSuffix(pos)}</size>";
+            posText.color = pos == 1 ? UIKit.Gold : pos == 2 ? UIKit.Silver : pos == 3 ? UIKit.Bronze : UIKit.TextMain;
             posTotal.text = "/" + race.Racers.Count;
             int lap = Mathf.Clamp(player.Progress.Lap, 1, race.totalLaps);
             lapText.text = $"{lap}/{race.totalLaps}";

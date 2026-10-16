@@ -14,7 +14,15 @@ namespace RacingGame.Core
         static readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
         static bool warned;
 
+        /// <summary>Instantiates a model with cartoon shading; vehicles get a thicker outline than props.</summary>
         public static GameObject Instantiate(string name, Transform parent)
+        {
+            var go = InstantiateRaw(name, parent);
+            if (go != null) ToonStyle.Apply(go, name.StartsWith("vehicle") ? ToonStyle.ModelOutline : ToonStyle.PropOutline);
+            return go;
+        }
+
+        static GameObject InstantiateRaw(string name, Transform parent)
         {
             if (!models.TryGetValue(name, out var prefab))
             {

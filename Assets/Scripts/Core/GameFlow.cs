@@ -45,8 +45,13 @@ namespace RacingGame.Core
             RenderSettings.fog = true;
             RenderSettings.fogColor = theme.Fog;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 120f;
-            RenderSettings.fogEndDistance = 320f;
+            RenderSettings.fogStartDistance = 140f;
+            RenderSettings.fogEndDistance = 420f;
+            QualitySettings.shadowDistance = 90f;   // crisper shadows near the karts
+
+            // Cartoon sky (falls back to a flat colour if the shader is unavailable).
+            var skyMat = ToonStyle.Sky(theme.SkyTop, theme.SkyHorizon, theme.SkyBottom);
+            RenderSettings.skybox = skyMat;
 
             Light sun = null;
             foreach (var l in Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
@@ -56,14 +61,20 @@ namespace RacingGame.Core
             {
                 sun = new GameObject("Sun").AddComponent<Light>();
                 sun.type = LightType.Directional;
-                sun.intensity = 1.2f;
+                sun.intensity = 1.25f;
                 sun.shadows = LightShadows.Soft;
                 sun.transform.rotation = Quaternion.Euler(55f, -35f, 0f);
             }
             sun.color = theme.Sun;
 
             var cam = Camera.main;
-            if (cam != null) cam.backgroundColor = theme.Fog;
+            if (cam != null) ApplySky(cam);
+        }
+
+        static void ApplySky(Camera cam)
+        {
+            cam.backgroundColor = RenderSettings.fogColor;
+            cam.clearFlags = RenderSettings.skybox != null ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
         }
 
         /// <summary>The main camera (created once, outside the mode roots).</summary>
@@ -75,9 +86,8 @@ namespace RacingGame.Core
                 var go = new GameObject("Main Camera") { tag = "MainCamera" };
                 cam = go.AddComponent<Camera>();
             }
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = RenderSettings.fogColor;
-            cam.farClipPlane = 400f;
+            ApplySky(cam);
+            cam.farClipPlane = 600f;
             return cam;
         }
     }

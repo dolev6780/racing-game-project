@@ -51,7 +51,9 @@ namespace RacingGame.Track
             BuildWalls(root.transform, path, +1);
             BuildStartLine(root.transform, path);
             BuildScenery(root.transform, path);
-            BuildPickups(root.transform, path);
+            BuildHills(root.transform, path);
+            BuildItemBoxes(root.transform, path);
+            BuildBoostPads(root.transform, path);
             return path;
         }
 
@@ -118,7 +120,14 @@ namespace RacingGame.Track
             ground.transform.SetParent(parent, false);
             ground.transform.position = new Vector3(bounds.center.x, -0.5f, bounds.center.z);
             ground.transform.localScale = new Vector3(bounds.size.x + 300f, 1f, bounds.size.z + 300f);
-            ground.GetComponent<Renderer>().sharedMaterial = MaterialFactory.Get(GroundColor);
+            // Mowed-lawn stripes like a kart circuit (tiling ~12m per stripe pair).
+            var groundMat = ToonStyle.CreateToon(Color.white, 0f, ToonStyle.Stripes(GroundColor));
+            if (groundMat != null)
+            {
+                groundMat.mainTextureScale = new Vector2(ground.transform.localScale.x / 12f, 1f);
+                ground.GetComponent<Renderer>().sharedMaterial = groundMat;
+            }
+            else ground.GetComponent<Renderer>().sharedMaterial = MaterialFactory.Get(GroundColor);
         }
 
         static void BuildRoad(Transform parent, TrackPath path)
@@ -159,7 +168,9 @@ namespace RacingGame.Track
             var road = new GameObject("Road");
             road.transform.SetParent(parent, false);
             road.AddComponent<MeshFilter>().sharedMesh = mesh;
-            road.AddComponent<MeshRenderer>().sharedMaterial = MaterialFactory.Get(RoadColor);
+            var roadMat = ToonStyle.CreateToon(Color.white, 0f, ToonStyle.Asphalt(RoadColor));
+            if (roadMat != null) roadMat.SetFloat("_SpecStrength", 0f);
+            road.AddComponent<MeshRenderer>().sharedMaterial = roadMat != null ? roadMat : MaterialFactory.Get(RoadColor);
         }
 
         /// <summary>Red/white curbs on both road edges plus a yellow edge line, like the Kenney kit.</summary>
@@ -349,19 +360,88 @@ namespace RacingGame.Track
             return placed > 0;
         }
 
-        static void BuildPickups(Transform parent, TrackPath path)
+        /// <summary>Big soft hills on the horizon, kart-racer style.</summary>
+        static void BuildHills(Transform parent, TrackPath path)
         {
-            var root = new GameObject("Pickups");
+            var root = new GameObject("Hills");
             root.transform.SetParent(parent, false);
-            int count = 8;
+            var bounds = new Bounds(path.Point(0), Vector3.zero);
+            for (int i = 0; i < path.Count; i++) bounds.Encapsulate(path.Point(i));
+            var rng = new System.Random(99);
+            float radius = Mathf.Max(bounds.extents.x, bounds.extents.z) + 110f;
+            int count = 16;
             for (int k = 0; k < count; k++)
             {
-                float d = path.Length * (k + 0.5f) / count;
-                Vector3 pos = path.PointAtDistance(d, out Vector3 dir);
+                float ang = (k + (float)rng.NextDouble() * 0.5f) / count * Mathf.PI * 2f;
+                float r = radius + (float)rng.NextDouble() * 60f;
+                var pos = bounds.center + new Vector3(Mathf.Cos(ang) * r, 0f, Mathf.Sin(ang) * r);
+                float w = 60f + (float)rng.NextDouble() * 70f, h = 18f + (float)rng.NextDouble() * 30f;
+                var shade = Color.Lerp(GroundColor, Color.white, (float)rng.NextDouble() * 0.15f) * (0.85f + (float)rng.NextDouble() * 0.15f);
+                shade.a = 1f;
+                MaterialFactory.Visual(PrimitiveType.Sphere, root.transform, new Vector3(pos.x, -h * 0.25f, pos.z),
+                    new Vector3(w, h, w * 0.8f), shade, Quaternion.Euler(0f, (float)rng.NextDouble() * 360f, 0f));
+            }
+        }
+
+        /// <summary>Rows of rainbow "?" item boxes across the road at three points of the lap.</summary>
+        static void BuildItemBoxes(Transform parent, TrackPath path)
+        {
+            var root = new GameObject("ItemBoxes");
+            root.transform.SetParent(parent, false);
+            float[] spots = { 0.22f, 0.55f, 0.82f };
+            foreach (float f in spots)
+            {
+                Vector3 center = path.PointAtDistance(path.Length * f, out Vector3 dir);
                 Vector3 right = Vector3.Cross(Vector3.up, dir).normalized;
-                float lateral = ((k % 3) - 1) * path.RoadWidth * 0.28f;
-                var type = k % 2 == 0 ? PickupType.Money : PickupType.Armor;
-                Pickup.Create(root.transform, pos + right * lateral + Vector3.up * 1f, type);
+                for (int i = 0; i < 4; i++)
+                {
+                    float lateral = (i - 1.5f) * path.RoadWidth * 0.22f;
+                    Pickup.Create(root.transform, center + right * lateral + Vector3.up * 1.1f, PickupType.ItemBox);
+                }
+            }
+        }
+
+        /// <summary>Boost pads on the straightest parts of the track.</summary>
+        static void BuildBoostPads(Transform parent, TrackPath path)
+        {
+            var root = new GameObject("BoostPads");
+            root.transform.SetParent(parent, false);
+
+            // Score every sample by how straight the next ~40m are, then take the best spots spread apart.
+            int n = path.Count;
+            var scores = new float[n];
+            for (int i = 0; i < n; i++)
+                scores[i] = Vector3.Angle(path.Direction(i), path.Direction(i + 14));
+
+            var chosen = new System.Collections.Generic.List<int>();
+            int minGap = n / 4;
+            for (int pick = 0; pick < 3; pick++)
+            {
+                int best = -1;
+                for (int i = 0; i < n; i++)
+                {
+                    float along = path.DistanceAtIndex(i);
+                    if (along < 40f || along > path.Length - 25f) continue;   // keep the start straight clear
+                    bool farEnough = true;
+                    foreach (int c in chosen)
+                    {
+                        int d = Mathf.Abs(c - i);
+                        if (Mathf.Min(d, n - d) < minGap) { farEnough = false; break; }
+                    }
+                    if (!farEnough) continue;
+                    if (best < 0 || scores[i] < scores[best]) best = i;
+                }
+                if (best < 0 || scores[best] > 12f) break;
+                chosen.Add(best);
+            }
+
+            int lane = 0;
+            foreach (int i in chosen)
+            {
+                Vector3 dir = path.Direction(i);
+                Vector3 right = Vector3.Cross(Vector3.up, dir).normalized;
+                float lateral = (lane++ % 3 - 1) * path.RoadWidth * 0.25f;
+                BoostPad.Create(root.transform, path.Point(i) + right * lateral, dir);
             }
         }
 

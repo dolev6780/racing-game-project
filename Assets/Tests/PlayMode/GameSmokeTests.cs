@@ -53,6 +53,8 @@ namespace RacingGame.Tests
                 Assert.IsNotNull(Resources.Load<AudioClip>("Audio/" + c), $"Sound '{c}' did not load");
             Assert.IsNotNull(Resources.Load<Font>("Fonts/RussoOne"), "Title font missing");
             Assert.IsNotNull(Resources.Load<Font>("Fonts/RubikBold"), "Body font missing");
+            foreach (var sh in new[] { "Toon", "SkyGradient", "BoostPad", "ItemBox", "Sparks" })
+                Assert.IsNotNull(Resources.Load<Shader>("Shaders/" + sh), $"Shader '{sh}' did not load");
         }
 
         [UnityTest]

@@ -47,6 +47,16 @@ namespace RacingGame.Car
         public float LateralSpeed { get; private set; }
         public float SpeedKmh => Mathf.Abs(ForwardSpeed) * 3.6f;
         public bool IsBoosting => boostTimer > 0f;
+
+        /// <summary>Drift charge: 0 = none, 1 = blue, 2 = orange, 3 = purple sparks.</summary>
+        public int DriftTier { get; private set; }
+        public bool IsDrifting { get; private set; }
+        /// <summary>Raised when a drift is released with a mini-turbo (argument = tier 1..3).</summary>
+        public event System.Action<int> MiniTurbo;
+
+        static readonly float[] DriftTierTimes = { 0.6f, 1.4f, 2.4f };
+        static readonly float[] MiniTurboTimes = { 0.4f, 0.7f, 1.0f };
+        float driftTime, driftGrace;
         public bool IsGrounded { get; private set; }
         public Rigidbody Body { get; private set; }
 
@@ -135,6 +145,8 @@ namespace RacingGame.Car
             float lateral = Vector3.Dot(velocity, right);
             Body.AddForce(-right * lateral * Mathf.Clamp01(grip * dt), ForceMode.VelocityChange);
 
+            UpdateDrift(fwdSpeed, lateral, input.Steer, dt);
+
             // --- Steering ---
             float speedFactor = Mathf.Clamp01(Mathf.Abs(fwdSpeed) / 8f);
             float direction = fwdSpeed >= -0.1f ? 1f : -1f;
@@ -142,6 +154,39 @@ namespace RacingGame.Car
             Vector3 av = Body.angularVelocity;
             av.y = yawRate;
             Body.angularVelocity = av;
+        }
+
+        /// <summary>
+        /// Kart-style drifting: sliding hard through a corner charges sparks (blue, orange, purple);
+        /// releasing the drift gives a mini-turbo whose length depends on the charge.
+        /// </summary>
+        void UpdateDrift(float fwdSpeed, float lateral, float steer, float dt)
+        {
+            bool sliding = fwdSpeed > 12f && Mathf.Abs(steer) > 0.6f && Mathf.Abs(lateral) > 4f;
+            if (sliding)
+            {
+                driftGrace = 0.15f;
+                driftTime += dt;
+            }
+            else if (driftGrace > 0f)
+            {
+                driftGrace -= dt;   // brief tolerance so a wobble doesn't cancel the drift
+            }
+            else if (driftTime > 0f)
+            {
+                if (DriftTier > 0)
+                {
+                    StartBoost(MiniTurboTimes[DriftTier - 1]);
+                    MiniTurbo?.Invoke(DriftTier);
+                }
+                driftTime = 0f;
+            }
+
+            IsDrifting = driftTime > 0f;
+            int tier = 0;
+            for (int i = 0; i < DriftTierTimes.Length; i++)
+                if (driftTime >= DriftTierTimes[i]) tier = i + 1;
+            DriftTier = tier;
         }
 
         public void StartBoost(float duration)
@@ -160,6 +205,9 @@ namespace RacingGame.Car
             Body.rotation = rotation;
             transform.SetPositionAndRotation(position, rotation);
             boostTimer = 0f;
+            driftTime = 0f;
+            DriftTier = 0;
+            IsDrifting = false;
         }
 
         void UpdateVisuals()

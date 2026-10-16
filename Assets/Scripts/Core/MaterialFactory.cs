@@ -4,8 +4,8 @@ using UnityEngine;
 namespace RacingGame.Core
 {
     /// <summary>
-    /// Creates colored materials from the default primitive material, so it works with
-    /// both the Built-in render pipeline and URP without needing Shader.Find.
+    /// Creates colored materials: toon-shaded (RacingGame/Toon) when available, otherwise
+    /// a copy of the default primitive material so it works in any render pipeline.
     /// </summary>
     public static class MaterialFactory
     {
@@ -23,7 +23,8 @@ namespace RacingGame.Core
                 Object.DestroyImmediate(temp);
             }
 
-            mat = new Material(baseMaterial) { color = color };
+            // Cartoon shading when the toon shader is available, Unity's default material otherwise.
+            mat = ToonStyle.CreateToon(color) ?? new Material(baseMaterial) { color = color };
             cache[color] = mat;
             return mat;
         }

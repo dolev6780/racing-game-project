@@ -47,7 +47,7 @@ namespace RacingGame.Race
 
         public static bool IsometricCamera
         {
-            get => PlayerPrefs.GetInt("cfg_camIso", 1) == 1;
+            get => PlayerPrefs.GetInt("cfg_camIso", 0) == 1;
             set => PlayerPrefs.SetInt("cfg_camIso", value ? 1 : 0);
         }
     }

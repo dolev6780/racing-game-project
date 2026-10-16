@@ -10,7 +10,7 @@ namespace RacingGame.CameraRig
     /// </summary>
     public class RaceCamera : MonoBehaviour
     {
-        public static bool Isometric = true;
+        public static bool Isometric = false;   // chase cam by default; classic isometric via CAM button
 
         [Header("Isometric")]
         public Vector3 isoAngles = new Vector3(50f, 45f, 0f);
@@ -19,9 +19,11 @@ namespace RacingGame.CameraRig
         public float lookAhead = 0.4f;
 
         [Header("Chase")]
-        public float chaseDistance = 9f;
-        public float chaseHeight = 3.8f;
-        public float chaseFov = 60f;
+        public float chaseDistance = 6.8f;     // close behind the kart, kart-racer style
+        public float chaseHeight = 2.7f;
+        public float chaseFov = 62f;
+        public float speedFovBonus = 8f;       // wider view at top speed
+        public float boostFovBonus = 12f;      // extra "whoosh" while boosting
 
         public float smoothing = 6f;
 
@@ -55,7 +57,16 @@ namespace RacingGame.CameraRig
             float k = 1f - Mathf.Exp(-smoothing * Time.deltaTime);
             transform.position = Vector3.Lerp(transform.position, pos, k);
             transform.rotation = Quaternion.Slerp(transform.rotation, rot, k);
-            if (cam) cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, Isometric ? isoFov : chaseFov, k);
+            if (cam)
+            {
+                float fov = isoFov;
+                if (!Isometric)
+                {
+                    float speed01 = target.maxSpeed > 0f ? Mathf.Clamp01(Mathf.Abs(target.ForwardSpeed) / target.maxSpeed) : 0f;
+                    fov = chaseFov + speed01 * speedFovBonus + (target.IsBoosting ? boostFovBonus : 0f);
+                }
+                cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, fov, 1f - Mathf.Exp(-4f * Time.deltaTime));
+            }
         }
 
         void ComputeDesired(out Vector3 position, out Quaternion rotation)

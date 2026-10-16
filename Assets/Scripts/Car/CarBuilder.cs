@@ -66,6 +66,7 @@ namespace RacingGame.Car
             root.AddComponent<RacerProgress>();
             root.AddComponent<WeaponSystem>();
             root.AddComponent<CarAudio>();
+            root.AddComponent<DriftSparks>();
             var ai = root.AddComponent<AICarInput>();   // player cars get one too: it drives after the finish line
 
             if (isPlayer) controller.InputSource = root.AddComponent<PlayerCarInput>();

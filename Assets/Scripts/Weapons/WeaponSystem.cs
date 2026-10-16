@@ -50,6 +50,14 @@ namespace RacingGame.Weapons
             if (input.Boost) UseBoost();
         }
 
+        /// <summary>Extra ammo from item boxes (can go a little above the per-lap amount).</summary>
+        public void AddAmmo(int missiles, int mines, int boosts)
+        {
+            Missiles = Mathf.Min(Missiles + missiles, missilesPerLap + 2);
+            Mines = Mathf.Min(Mines + mines, minesPerLap + 2);
+            Boosts = Mathf.Min(Boosts + boosts, boostsPerLap + 2);
+        }
+
         public void FireMissile()
         {
             if (Missiles <= 0 || Time.time < nextFireTime) return;

@@ -5,8 +5,9 @@ armed cars, missiles, mines, nitro, money, alien-planet tracks.
 
 Built with **Unity 6 + C#**.
 
-## Status: v0.6 — trophies & achievements
+## Status: v0.7 — kart-racer graphics & shaders
 
+Cartoon look inspired by kart racers: custom toon/outline shaders, cartoon sky, item boxes, boost pads, drift sparks + mini-turbo.
 Trophy Room with league cups, 26 achievements (with cash rewards), career stats and lap records.
 Championship mode: 4 leagues x 4 races with points, season standings and unlocks; 4 themed tracks.
 Garage with 5 vehicles to buy and 5 upgrade types (4 levels each), shown in a 3D showroom.
@@ -29,6 +30,10 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | 26 achievements with cash rewards + unlock pop-ups | ✅ |
 | Trophy Room: league cups (gold/silver/bronze), achievement progress, career stats, best laps | ✅ |
 | Lap timing, personal best laps per track, "NEW LAP RECORD" alerts | ✅ |
+| Custom shaders: toon/cel + outline, cartoon sky, boost pad, rainbow item box, spark particles | ✅ |
+| Rainbow "?" item boxes (random missile / mine / nitro / armor / cash) | ✅ |
+| Boost pads, drift sparks (blue → orange → purple) and mini-turbo | ✅ |
+| Close chase camera with speed/boost FOV kick (isometric still available) | ✅ |
 | Money: prize by place + kills + pickups (saved) | ✅ |
 | Armor & money pickups on track | ✅ |
 | Isometric camera (classic) + chase camera | ✅ |
@@ -151,6 +156,23 @@ To use your own car model, drop a `.glb` there with children named `body` and `w
 | Riot Masters | 5 | x5 | $20,000 | top speed of an upgraded car |
 
 Leagues and AI strength: `Assets/Scripts/Race/Championship.cs`. Tracks and themes: `Assets/Scripts/Track/TrackLibrary.cs`.
+
+### Graphics & shaders
+Custom shaders live in `Assets/Resources/Shaders` (built-in render pipeline):
+
+| Shader | Used for |
+|---|---|
+| `RacingGame/Toon` | Everything solid: banded cel lighting with blue-tinted shadows, crisp highlight, rim light, optional outline (`_OutlineWidth`) |
+| `RacingGame/SkyGradient` | Procedural skybox: gradient, glowing sun, drifting cartoon clouds |
+| `RacingGame/BoostPad` | Scrolling glowing chevrons |
+| `RacingGame/ItemBox` | Rainbow see-through "?" boxes with fresnel shimmer |
+| `RacingGame/Sparks` | Additive glow for drift sparks and boost flames |
+
+`Core/ToonStyle.cs` builds the materials (and the striped-grass / asphalt textures) at runtime;
+if a shader is missing the game falls back to Unity's default material.
+
+**Drifting:** steer hard at speed to slide; keep it up and the sparks go blue → orange → purple.
+Straighten out to release a mini-turbo (longer for higher tiers).
 
 ### Achievements & trophies
 Defined in `Assets/Scripts/Progress/Achievements.cs` (stats in `Stats.cs`). Each pays a cash reward when unlocked.
