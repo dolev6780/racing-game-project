@@ -34,6 +34,10 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | Rainbow "?" item boxes (random missile / mine / nitro / armor / cash) | ✅ |
 | Boost pads, drift sparks (blue → orange → purple) and mini-turbo | ✅ |
 | Cameras: Top Down (default, turns with the car), Chase (speed/boost FOV kick), Isometric | ✅ |
+| Minimap with live racer dots | ✅ |
+| Start lights (red, red, red, GREEN) with synthesized beeps; lap chime; overtake blip | ✅ |
+| Game feel: speed lines on boost, camera shake on hits/explosions, skid marks while drifting | ✅ |
+| Closer races: AI rubber-banding (behind = up to +7% speed, far ahead = -5%) | ✅ |
 | Money: prize by place + kills + pickups (saved) | ✅ |
 | Armor & money pickups on track | ✅ |
 | Isometric camera (classic) + chase camera | ✅ |

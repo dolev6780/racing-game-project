@@ -9,8 +9,12 @@ namespace RacingGame.Core
         float duration;
         float age;
 
+        /// <summary>(position, size) - lets the camera shake when something blows up nearby.</summary>
+        public static event System.Action<Vector3, float> Exploded;
+
         public static void Spawn(Vector3 position, float size, Color color)
         {
+            Exploded?.Invoke(position, size);
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             DestroyImmediate(go.GetComponent<Collider>());
             go.name = "Explosion";

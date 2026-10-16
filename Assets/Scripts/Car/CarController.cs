@@ -21,6 +21,8 @@ namespace RacingGame.Car
         public float coastDeceleration = 5f;
         [Tooltip("Upgrades / AI skill multiply top speed.")]
         public float speedMultiplier = 1f;
+        [Tooltip("Set by the race manager to keep races close (AI only).")]
+        public float catchUpMultiplier = 1f;
 
         [Header("Handling")]
         public float turnSpeed = 130f;        // deg/s at full lock
@@ -120,7 +122,7 @@ namespace RacingGame.Car
             float throttle = input.Throttle;
             float boost = IsBoosting ? boostMultiplier : 1f;
             if (IsBoosting) throttle = 1f;
-            float topSpeed = maxSpeed * speedMultiplier * boost;
+            float topSpeed = maxSpeed * speedMultiplier * catchUpMultiplier * boost;
 
             // --- Longitudinal ---
             float deltaV = 0f;

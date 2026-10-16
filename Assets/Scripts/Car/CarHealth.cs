@@ -20,6 +20,8 @@ namespace RacingGame.Car
 
         /// <summary>(victim, attacker) - attacker may be null.</summary>
         public static event Action<CarHealth, CarHealth> Wrecked;
+        /// <summary>(victim, damage amount) - raised on every hit that lands.</summary>
+        public static event Action<CarHealth, float> Damaged;
 
         public CarController Controller { get; private set; }
         public GameObject VisualRoot { get; set; }
@@ -38,6 +40,7 @@ namespace RacingGame.Car
         {
             if (IsWrecked || IsInvulnerable || amount <= 0f) return;
             Armor -= amount;
+            Damaged?.Invoke(this, amount);
             if (Armor <= 0f)
             {
                 Armor = 0f;

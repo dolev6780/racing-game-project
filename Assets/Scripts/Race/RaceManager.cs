@@ -227,12 +227,29 @@ namespace RacingGame.Race
                     RaceTime += Time.deltaTime;
                     CheckFinishers();
                     TrackPlayer();
+                    UpdateCatchUp();
                     break;
             }
 
             UpdateStandings();
 
             if (State == RaceState.Finished && InputBridge.WasPressedThisFrame(GameKey.Restart)) Restart();
+        }
+
+        /// <summary>
+        /// Rubber-banding for closer races: AI far behind the player gets up to +7% top speed,
+        /// AI far ahead up to -5%. Finished cars and the player are unaffected.
+        /// </summary>
+        void UpdateCatchUp()
+        {
+            float playerProgress = Player.Progress.TotalProgress;
+            foreach (var r in Racers)
+            {
+                if (r.IsPlayer || r.Finished || Player.Finished) { r.Car.catchUpMultiplier = 1f; continue; }
+                float gap = playerProgress - r.Progress.TotalProgress;   // + = AI behind the player
+                float f = Mathf.Clamp(gap / 150f, -1f, 1f);
+                r.Car.catchUpMultiplier = 1f + (f > 0f ? 0.07f * f : 0.05f * f);
+            }
         }
 
         void TrackPlayer()

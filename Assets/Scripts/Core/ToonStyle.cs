@@ -13,9 +13,9 @@ namespace RacingGame.Core
         public const float ModelOutline = 1.1f;    // outline width for vehicles
         public const float PropOutline = 0.7f;     // outline width for scenery models
 
-        static Shader toon, sky, boostPad, itemBox, sparks;
+        static Shader toon, sky, boostPad, itemBox, sparks, skid;
         static bool loaded;
-        static Material kenneyMaterial, kenneyMaterialNoOutline, skyMaterial, boostPadMaterial, itemBoxMaterial, sparksMaterial;
+        static Material kenneyMaterial, kenneyMaterialNoOutline, skyMaterial, boostPadMaterial, itemBoxMaterial, sparksMaterial, skidMaterial;
         static readonly Dictionary<string, Texture2D> textures = new Dictionary<string, Texture2D>();
 
         static void Load()
@@ -27,6 +27,7 @@ namespace RacingGame.Core
             boostPad = Supported(Resources.Load<Shader>("Shaders/BoostPad"));
             itemBox = Supported(Resources.Load<Shader>("Shaders/ItemBox"));
             sparks = Supported(Resources.Load<Shader>("Shaders/Sparks"));
+            skid = Supported(Resources.Load<Shader>("Shaders/Skid"));
         }
 
         static Shader Supported(Shader s) => s != null && s.isSupported ? s : null;
@@ -101,6 +102,14 @@ namespace RacingGame.Core
             if (sparks == null) return null;
             if (sparksMaterial == null) sparksMaterial = new Material(sparks) { name = "Sparks" };
             return sparksMaterial;
+        }
+
+        public static Material Skid()
+        {
+            Load();
+            if (skid == null) return null;
+            if (skidMaterial == null) skidMaterial = new Material(skid) { name = "SkidMarks" };
+            return skidMaterial;
         }
 
         // ---------- Procedural textures ----------

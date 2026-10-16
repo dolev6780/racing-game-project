@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using RacingGame.Car;
+using RacingGame.Core;
 using RacingGame.CameraRig;
 using RacingGame.Race;
 
@@ -33,6 +34,11 @@ namespace RacingGame.UI
         Text countdownText;
         Punch countdownPunch;
         GameObject trackBanner;
+        GameObject lights;
+        Image[] lamps;
+        Image speedLines;
+        Punch posPunch;
+        int lastPos = -1;
         int lastCountdown = -1;
         float goTimer;
         GameObject warningRoot;
@@ -64,11 +70,13 @@ namespace RacingGame.UI
             var root = canvas.transform;
 
             BuildDamageFlash(root);
+            BuildSpeedLines(root);
             touchView = new GameObject("TouchControls", typeof(RectTransform)).AddComponent<TouchControlsView>();
             touchView.Init(root, canvas, player);
             BuildTopLeft(root);
             BuildTopCenter(root);
             BuildStandings(root);
+            new GameObject("MinimapView", typeof(RectTransform)).AddComponent<Minimap>().Init(race, root);
             BuildSpeedometer(root);
             BuildAmmo(root);
             BuildCenter(root);
@@ -102,6 +110,7 @@ namespace RacingGame.UI
 
         void OnLap(float time, bool record)
         {
+            SoundFX.LapChime();
             if (record) AddFeed($"NEW LAP RECORD!  {UIKit.Time(time)}", UIKit.Good);
             else AddFeed($"LAP  {UIKit.Time(time)}", UIKit.TextMain);
         }
@@ -112,6 +121,13 @@ namespace RacingGame.UI
         {
             var rt = UIKit.Stretch(root, "DamageFlash");
             damageFlash = UIKit.Image(rt, UIKit.Vignette, new Color(1f, 0.1f, 0.05f, 0f));
+        }
+
+        void BuildSpeedLines(Transform root)
+        {
+            var rt = UIKit.Rect(root, "SpeedLines", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
+                new Vector2(2600f, 2600f));
+            speedLines = UIKit.Image(rt, UIKit.SpeedLines, new Color(1f, 1f, 1f, 0f));
         }
 
         void BuildTopLeft(Transform root)
@@ -125,6 +141,7 @@ namespace RacingGame.UI
 
             posText = UIKit.Label(card, "1", 130, UIKit.TextMain, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
                 new Vector2(40f, 6f), new Vector2(220f, 160f), TextAnchor.MiddleLeft, true);
+            posPunch = posText.gameObject.AddComponent<Punch>();
             posTotal = UIKit.Label(card, "/6", 40, UIKit.TextDim, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
                 new Vector2(40f, -58f), new Vector2(220f, 50f), TextAnchor.MiddleLeft, true);
 
@@ -163,7 +180,7 @@ namespace RacingGame.UI
         {
             int n = race.Racers.Count;
             const float rowH = 50f;
-            var panel = UIKit.Panel(root, "Standings", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -30f),
+            var panel = UIKit.Panel(root, "Standings", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -370f),
                 new Vector2(380f, n * rowH + 24f)).rectTransform;
 
             for (int i = 0; i < n; i++)
@@ -247,16 +264,28 @@ namespace RacingGame.UI
         void BuildCenter(Transform root)
         {
             var center = new Vector2(0.5f, 0.5f);
-            var cd = UIKit.Rect(root, "Countdown", center, center, new Vector2(0f, 120f), new Vector2(800f, 320f));
+            var cd = UIKit.Rect(root, "Countdown", center, center, new Vector2(0f, 20f), new Vector2(800f, 320f));
             countdownText = UIKit.Label(cd, "", 260, UIKit.TextMain, TextAnchor.MiddleCenter, true);
             countdownPunch = cd.gameObject.AddComponent<Punch>();
+
+            // Start lights: three lamps turn red one by one, then all go green.
+            var housing = UIKit.Panel(root, "StartLights", center, center, new Vector2(0f, 210f), new Vector2(430f, 150f),
+                new Color(0.05f, 0.05f, 0.07f, 0.92f));
+            lights = housing.gameObject;
+            lamps = new Image[3];
+            for (int i = 0; i < 3; i++)
+            {
+                var lamp = UIKit.Rect(housing.transform, "Lamp" + i, center, center, new Vector2((i - 1) * 135f, 0f),
+                    new Vector2(112f, 112f));
+                lamps[i] = UIKit.Image(lamp, UIKit.Circle, new Color(0.25f, 0.08f, 0.08f));
+            }
 
             // Track / event banner shown during the countdown
             var req = race.Request;
             string evt = req.IsChampionship
                 ? $"{req.Label}  -  RACE {req.ChampionshipRace + 1}/{Championship.Active?.Tracks.Length ?? 1}"
                 : $"QUICK RACE  -  {req.Label}";
-            var banner = UIKit.Panel(root, "TrackBanner", center, center, new Vector2(0f, 330f), new Vector2(900f, 140f));
+            var banner = UIKit.Panel(root, "TrackBanner", center, center, new Vector2(0f, 380f), new Vector2(900f, 140f));
             trackBanner = banner.gameObject;
             UIKit.Label(banner.transform, req.Track.Name, 64, UIKit.Accent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0f, -8f), new Vector2(880f, 80f), TextAnchor.MiddleCenter, true);
@@ -280,6 +309,7 @@ namespace RacingGame.UI
             UpdateSpeedometer();
             UpdateAmmo();
             UpdateCountdown();
+            UpdateSpeedLines();
             UpdateWarnings();
             UpdateDamageFlash();
             UpdateFeed();
@@ -291,6 +321,12 @@ namespace RacingGame.UI
         void UpdateTopLeft()
         {
             int pos = race.PositionOf(player);
+            if (lastPos > 0 && pos != lastPos && race.State == RaceState.Racing)
+            {
+                posPunch.Play(pos < lastPos ? 1.5f : 1.2f);
+                if (pos < lastPos) SoundFX.Overtake();
+            }
+            lastPos = pos;
             posText.text = $"{pos}<size=56>{UIKit.OrdinalSuffix(pos)}</size>";
             posText.color = pos == 1 ? UIKit.Gold : pos == 2 ? UIKit.Silver : pos == 3 ? UIKit.Bronze : UIKit.TextMain;
             posTotal.text = "/" + race.Racers.Count;
@@ -354,35 +390,64 @@ namespace RacingGame.UI
             }
         }
 
+        static readonly Color LampOff = new Color(0.25f, 0.08f, 0.08f);
+        static readonly Color LampRed = new Color(1f, 0.15f, 0.1f);
+        static readonly Color LampGreen = new Color(0.25f, 1f, 0.35f);
+
         void UpdateCountdown()
         {
             if (race.State == RaceState.Countdown)
             {
-                int n = Mathf.CeilToInt(race.Countdown);
+                // 3 -> one red lamp, 2 -> two, 1 -> three.
+                int n = Mathf.Clamp(Mathf.CeilToInt(race.Countdown), 1, 3);
                 if (n != lastCountdown)
                 {
                     lastCountdown = n;
-                    countdownText.text = n.ToString();
-                    countdownText.color = UIKit.TextMain;
-                    countdownPunch.Play();
+                    for (int i = 0; i < lamps.Length; i++) lamps[i].color = i < 4 - n ? LampRed : LampOff;
+                    SoundFX.CountdownBeep();
                 }
                 goTimer = 1.2f;
+                return;
             }
-            if (trackBanner.activeSelf && race.State != RaceState.Countdown) trackBanner.SetActive(false);
-            else if (goTimer > 0f)
+
+            if (trackBanner.activeSelf) trackBanner.SetActive(false);
+            if (goTimer <= 0f) return;
+
+            if (lastCountdown != 0)
             {
-                if (lastCountdown != 0)
-                {
-                    lastCountdown = 0;
-                    countdownText.text = "GO!";
-                    countdownText.color = UIKit.Accent;
-                    countdownPunch.Play(2f);
-                }
-                goTimer -= Time.deltaTime;
-                var c = countdownText.color;
-                c.a = Mathf.Clamp01(goTimer / 0.4f);
-                countdownText.color = c;
-                if (goTimer <= 0f) countdownText.text = "";
+                lastCountdown = 0;
+                foreach (var lamp in lamps) lamp.color = LampGreen;
+                countdownText.text = "GO!";
+                countdownText.color = UIKit.Accent;
+                countdownPunch.Play(2f);
+                SoundFX.GoBeep();
+            }
+            goTimer -= Time.deltaTime;
+            var c = countdownText.color;
+            c.a = Mathf.Clamp01(goTimer / 0.4f);
+            countdownText.color = c;
+            if (goTimer <= 0f)
+            {
+                countdownText.text = "";
+                lights.SetActive(false);
+            }
+        }
+
+        void UpdateSpeedLines()
+        {
+            var car = player.Car;
+            float speed01 = Mathf.Clamp01(Mathf.Abs(car.ForwardSpeed) / Mathf.Max(car.maxSpeed, 1f));
+            float target = race.State != RaceState.Racing ? 0f
+                : car.IsBoosting ? 0.55f
+                : Mathf.Clamp01((speed01 - 0.85f) / 0.15f) * 0.18f;
+            var col = speedLines.color;
+            col.a = Mathf.MoveTowards(col.a, target, Time.deltaTime * 3f);
+            speedLines.color = col;
+            if (col.a > 0.01f)
+            {
+                // Flicker: small random spin and scale each frame.
+                speedLines.rectTransform.localEulerAngles = new Vector3(0f, 0f, Random.Range(-4f, 4f));
+                speedLines.rectTransform.localScale = Vector3.one * Random.Range(1f, 1.06f);
             }
         }
 

@@ -121,6 +121,35 @@ namespace RacingGame.UI
             return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
         }
 
+        static Sprite speedLines;
+        /// <summary>Radial streaks for the "going fast" overlay (transparent centre).</summary>
+        public static Sprite SpeedLines => speedLines ? speedLines : speedLines = MakeSpeedLines(512);
+
+        static Sprite MakeSpeedLines(int size)
+        {
+            var tex = NewTexture(size);
+            var px = new Color32[size * size];
+            float c = size * 0.5f;
+            const int streaks = 96;
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = (x - c) / c, dy = (y - c) / c;
+                float r = Mathf.Sqrt(dx * dx + dy * dy);
+                float ang = (Mathf.Atan2(dy, dx) / (Mathf.PI * 2f) + 0.5f) * streaks;
+                int id = Mathf.FloorToInt(ang);
+                float h = Mathf.Abs(Mathf.Sin(id * 12.9898f) * 43758.5453f) % 1f;   // per-streak random
+                float across = Mathf.Abs(ang - id - 0.5f) * 2f;                     // 0 at streak centre
+                float width = 0.15f + h * 0.25f;
+                float line = h > 0.45f ? Mathf.Clamp01((width - across) / 0.08f) : 0f;
+                float radial = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.45f + h * 0.2f, 1.1f, r));
+                px[y * size + x] = new Color32(255, 255, 255, (byte)(line * radial * 255));
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+        }
+
         static Texture2D NewTexture(int size) =>
             new Texture2D(size, size, TextureFormat.RGBA32, false)
             {

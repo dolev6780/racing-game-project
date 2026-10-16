@@ -41,10 +41,38 @@ namespace RacingGame.CameraRig
 
         CarController target;
         Camera cam;
+        float trauma;   // 0..1, decays over time; shake = trauma^2
         Vector3 smoothedLookAhead;
         float smoothedYaw;
 
         void Awake() => cam = GetComponent<Camera>();
+
+        void OnEnable()
+        {
+            CarHealth.Damaged += OnDamaged;
+            Explosion.Exploded += OnExploded;
+        }
+
+        void OnDisable()
+        {
+            CarHealth.Damaged -= OnDamaged;
+            Explosion.Exploded -= OnExploded;
+        }
+
+        /// <summary>Adds screen shake (0..1).</summary>
+        public void Shake(float amount) => trauma = Mathf.Clamp01(trauma + amount);
+
+        void OnDamaged(CarHealth victim, float amount)
+        {
+            if (target != null && victim.Controller == target) Shake(Mathf.Clamp(amount / 40f, 0.15f, 0.7f));
+        }
+
+        void OnExploded(Vector3 position, float size)
+        {
+            if (target == null) return;
+            float dist = Vector3.Distance(position, target.transform.position);
+            if (dist < 30f) Shake(size * 0.06f * (1f - dist / 30f));
+        }
 
         public void SetTarget(CarController car)
         {
@@ -76,6 +104,18 @@ namespace RacingGame.CameraRig
             float k = 1f - Mathf.Exp(-smoothing * Time.deltaTime);
             transform.position = Vector3.Lerp(transform.position, pos, k);
             transform.rotation = Quaternion.Slerp(transform.rotation, rot, k);
+
+            // Screen shake (smooth Perlin noise, scaled by trauma squared).
+            if (trauma > 0f)
+            {
+                float s = trauma * trauma;
+                float t = Time.time * 25f;
+                transform.position += transform.right * ((Mathf.PerlinNoise(t, 0f) - 0.5f) * 1.2f * s)
+                                    + transform.up * ((Mathf.PerlinNoise(0f, t) - 0.5f) * 1.2f * s);
+                transform.rotation *= Quaternion.Euler(0f, 0f, (Mathf.PerlinNoise(t, t) - 0.5f) * 6f * s);
+                trauma = Mathf.Max(0f, trauma - Time.deltaTime * 1.5f);
+            }
+
             if (cam) cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, DesiredFov(), 1f - Mathf.Exp(-4f * Time.deltaTime));
         }
 
