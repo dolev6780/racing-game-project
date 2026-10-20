@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:riot_racers/data/vehicles.dart';
 import 'package:riot_racers/game/controls.dart';
+import 'package:riot_racers/sim/car.dart';
 import 'package:riot_racers/sim/race.dart';
 import 'package:riot_racers/sim/track.dart';
 
@@ -129,5 +130,18 @@ void main() {
       final steer = PlayerControls.aimSteer(car, -1, 0.3);
       expect(steer.abs(), lessThan(0.35), reason: 'car should have turned to face the stick direction');
     });
+  });
+
+  test('coins are placed, collected, speed the car up and are lost on a wreck', () {
+    final race = simulate(tracks.first, laps: 1);
+    expect(race.coins.length, greaterThan(20));
+    final collected = race.cars.map((c) => c.coins).fold(0, (a, b) => a + b);
+    expect(collected, greaterThan(0), reason: 'cars driving the racing line should pick up coins');
+    final car = race.player;
+    car.coins = Car.maxCoins;
+    final before = car.armor;
+    race.damage(car, before + 1, null);
+    expect(car.wrecked, isTrue);
+    expect(car.coins, Car.maxCoins ~/ 2);
   });
 }

@@ -10,7 +10,7 @@ import 'track.dart';
 
 enum RaceState { countdown, racing, finished }
 
-enum RaceEventType { explosion, hit, wreck, pickup, lap, miniTurbo, boostPad, missileFired, mineDropped, mineHit, nitro, finish }
+enum RaceEventType { explosion, hit, wreck, pickup, lap, miniTurbo, boostPad, missileFired, mineDropped, mineHit, nitro, finish, coin }
 
 /// Something that happened this frame, for effects, sounds and the HUD.
 class RaceEvent {
@@ -109,6 +109,14 @@ class ItemBox {
   ItemBox(this.position);
 }
 
+/// Spinning gold coin on the racing line; respawns a while after being collected.
+class Coin {
+  static const double respawn = 10, radius = 1.9;
+  final Vector2 position;
+  double hiddenFor = 0;
+  Coin(this.position);
+}
+
 class BoostPad {
   static const double length = 7, width = 4.5;
   final Vector2 position, direction;
@@ -119,7 +127,7 @@ class BoostPad {
 class Race {
   static const double step = 1 / 60;
   static const List<int> prizeMoney = [1000, 600, 350, 150, 75, 0];
-  static const int killBonus = 100, pickupMoney = 100;
+  static const int killBonus = 100, pickupMoney = 100, coinMoney = 10;
   static const List<(String, Color)> opponentRoster = [
     ('Rip Torque', Color(0xFFE6332B)),
     ('Vixen', Color(0xFF9959E6)),
@@ -139,6 +147,7 @@ class Race {
   final List<Missile> missiles = [];
   final List<Mine> mines = [];
   final List<ItemBox> itemBoxes = [];
+  final List<Coin> coins = [];
   final List<BoostPad> boostPads = [];
   final List<RaceEvent> events = [];
 
@@ -244,6 +253,19 @@ class Race {
     for (int k = 0; k < chosen.length; k++) {
       final i = chosen[k];
       boostPads.add(BoostPad(path.point(i) + path.right(i) * ((k % 3 - 1) * TrackPath.roadWidth * 0.25), path.direction(i)));
+    }
+    // Lines of five coins, alternating sides of the road, away from the item box rows and the grid.
+    int line = 0;
+    for (double f = 0.1; f < 0.97; f += 0.11) {
+      if (const [0.22, 0.55, 0.82].any((b) => (f - b).abs() < 0.04)) continue;
+      final lateral = (line++ % 3 - 1) * TrackPath.roadWidth * 0.25;
+      for (int k = 0; k < 5; k++) {
+        final dir = Vector2.zero();
+        final c = path.pointAtDistance(path.length * f + k * 2.6, dir);
+        final p = c + Vector2(-dir.y, dir.x) * lateral;
+        if (boostPads.any((b) => b.position.distanceTo(p) < BoostPad.length)) continue;
+        coins.add(Coin(p));
+      }
     }
   }
 
@@ -402,6 +424,7 @@ class Race {
     c.wrecked = true;
     c.respawnTimer = 2;
     c.timesWrecked++;
+    c.coins ~/= 2; // wrecks cost half your coins
     c.velocity.setZero();
     if (attacker != null && !identical(attacker, c) && !attacker.finished) attacker.kills++;
     events.add(RaceEvent(RaceEventType.explosion, c.position.clone(), car: c, value: 6));
@@ -483,7 +506,25 @@ class Race {
 
   void _explode(Vector2 pos, double size) => events.add(RaceEvent(RaceEventType.explosion, pos.clone(), value: size));
 
+  void _updateCoins(double dt) {
+    for (final coin in coins) {
+      if (coin.hiddenFor > 0) {
+        coin.hiddenFor -= dt;
+        continue;
+      }
+      for (final c in cars) {
+        if (c.wrecked || c.position.distanceTo(coin.position) > Coin.radius) continue;
+        coin.hiddenFor = Coin.respawn;
+        if (c.coins < Car.maxCoins) c.coins++;
+        c.money += coinMoney;
+        events.add(RaceEvent(RaceEventType.coin, coin.position.clone(), car: c, value: c.coins.toDouble()));
+        break;
+      }
+    }
+  }
+
   void _updateItems(double dt) {
+    _updateCoins(dt);
     for (final box in itemBoxes) {
       if (box.hiddenFor > 0) {
         box.hiddenFor -= dt;

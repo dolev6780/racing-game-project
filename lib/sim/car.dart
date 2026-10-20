@@ -72,6 +72,9 @@ class Car {
   int finishPlace = 0;
   double finishTime = 0;
   int kills = 0, money = 0, timesWrecked = 0;
+  /// Coins picked up on the track: each one adds 1% top speed (up to [maxCoins]).
+  int coins = 0;
+  static const int maxCoins = 10;
   bool wasLast = false;
 
   // AI tuning (unused for the player)
@@ -136,7 +139,7 @@ class Car {
     double throttle = input.throttle;
     final boost = boosting ? boostMultiplier : 1.0;
     if (boosting) throttle = 1;
-    final topSpeed = maxSpeed * speedMultiplier * catchUp * boost;
+    final topSpeed = maxSpeed * speedMultiplier * catchUp * boost * (1 + coins * 0.01);
 
     // Longitudinal
     double dv = 0;

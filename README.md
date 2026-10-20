@@ -1,6 +1,6 @@
 # Riot Racers (Flutter + Flame) 🏁🎸
 
-**2.5D isometric combat racing** for **Android, iOS and the web** — a modern take on
+**2.5D isometric kart combat racing** for **Android, iOS and the web** — a modern take on
 *Rock n' Roll Racing*, seen from above and from the side at the same time. Built with **Flutter 3.47 + Flame 1.38**.
 
 ▶️ **Play in the browser:** https://dolev6780.github.io/racing-game-project/ (republished automatically on every push to `flutter-flame`)
@@ -17,9 +17,10 @@ cartoon outlines, soft shadows, drifting cloud shadows and 3D particles.
 | 4 tracks | Green Valley, Desert Canyon, Frost Peak, Alien Wastes (own colours & scenery) |
 | Arcade physics | grip, drifting, **drift sparks + mini-turbo** (blue → orange → purple), boost |
 | Combat | missiles (aim assist), mines, nitro, armor, wrecks & respawn, ramming damage |
-| Track items | rainbow **"?" item boxes** (random missile/mine/nitro/armor/cash), **boost pads** |
+| Kart-racer look | go-karts with round tyres and big-helmeted drivers, checkered lawn, flowers, chevron signs on bends, pennant flags at the start |
+| Track items | glossy rainbow **"?" item boxes** (random missile/mine/nitro/armor/cash), **boost pads**, spinning **coins** (+1% top speed each, up to 10; a wreck costs half) |
 | 5 AI opponents | racing line, corner braking, weapons, stuck recovery, rubber-banding |
-| HUD | position (gold/silver/bronze), laps, time, best lap, speedometer, armor, **minimap**, standings, kill feed, start lights, speed lines, damage flash |
+| HUD | position (gold/silver/bronze), laps, time, best lap, coins, speedometer, armor, **minimap**, standings, kill feed, start lights, speed lines, damage flash |
 | Camera | fixed **isometric** angle like the original, follows with look-ahead, zooms out with speed, screen shake (close / wide) |
 | Garage | 5 vehicles (incl. Hellcat bike) × 5 upgrades × 4 levels |
 | Championship | 4 leagues × 4 races, points 10-7-5-3-2-1, unlock the next league |

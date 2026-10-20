@@ -177,6 +177,9 @@ class RaceGame extends FlameGame with KeyboardEvents {
           if (mine) Profile.addStat(Stat.mineHits);
         case RaceEventType.nitro:
           if (mine) Profile.addStat(Stat.nitrosUsed);
+        case RaceEventType.coin:
+          _effects.sparks(e.position, const Color(0xFFFFD84A), 6);
+          if (mine) audio.play('blip.wav', 0.35);
         case RaceEventType.mineDropped:
           break;
         case RaceEventType.finish:

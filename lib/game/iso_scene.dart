@@ -71,6 +71,8 @@ class IsoScene extends Component {
     _buildWalls();
     _buildScenery();
     _buildArch();
+    _buildChevrons();
+    _buildFlags();
     _question = TextPainter(
       text: const TextSpan(text: '?', style: TextStyle(fontFamily: 'RussoOne', fontSize: 14, color: Color(0xFFFFFFFF), height: 1)),
       textDirection: TextDirection.ltr,
@@ -135,11 +137,17 @@ class IsoScene extends Component {
         final tile = Rect.fromLTWH(tx, ty, tileSize, tileSize);
         final recorder = PictureRecorder();
         final c = Canvas(recorder);
-        c.clipRect(tile);
-        c.drawRect(tile, groundPaint);
-        for (double x = (tx / 16).floorToDouble() * 16; x < tile.right; x += 16) {
-          c.drawRect(Rect.fromLTWH(x, ty, 8, tileSize), stripe);
+        // Tiles overlap a hair so anti-aliased edges never leave seams.
+        c.clipRect(tile.inflate(0.08));
+        c.drawRect(tile.inflate(0.08), groundPaint);
+        // Mowed-lawn checkerboard, then flowers / pebbles (the road is painted over them).
+        const cell = 8.0;
+        for (double y = ty; y < tile.bottom; y += cell) {
+          for (double x = tx; x < tile.right; x += cell) {
+            if (((x / cell).round() + (y / cell).round()).isEven) c.drawRect(Rect.fromLTWH(x, y, cell, cell), stripe);
+          }
         }
+        _drawGroundDecor(c, tile);
         final segs = [for (int i = 0; i < path.count; i++) if (segBounds[i].overlaps(tile)) i];
         if (segs.isNotEmpty) {
           final verge = Path(), road = Path(), sheen = Path(), dashes = Path(), red = Path(), white = Path(), line = Path();
@@ -164,6 +172,41 @@ class IsoScene extends Component {
           if (segs.contains(0) || segs.contains(path.count - 1)) _drawStartLine(c);
         }
         _ground.add(_GroundTile(tile, recorder.endRecording()));
+      }
+    }
+  }
+
+  static const List<Color> _petals = [Color(0xFFFFFFFF), Color(0xFFFFE14D), Color(0xFFFF6FA8), Color(0xFFFF5A4D), Color(0xFFB98CFF)];
+
+  void _drawGroundDecor(Canvas c, Rect tile) {
+    final rng = math.Random((tile.left * 7919 + tile.top * 104729).round());
+    final paint = Paint();
+    if (theme.forest) {
+      for (int k = 0; k < 10; k++) {
+        final x = tile.left + rng.nextDouble() * tileSize, y = tile.top + rng.nextDouble() * tileSize;
+        final petal = _petals[rng.nextInt(_petals.length)];
+        paint.color = petal;
+        for (int p = 0; p < 4; p++) {
+          final ang = p * math.pi / 2 + 0.4;
+          c.drawCircle(Offset(x + math.cos(ang) * 0.32, y + math.sin(ang) * 0.32), 0.3, paint);
+        }
+        paint.color = petal == _petals[1] ? const Color(0xFFFF8A1F) : const Color(0xFFFFD21F);
+        c.drawCircle(Offset(x, y), 0.2, paint);
+      }
+      // Darker grass tufts.
+      paint.color = Ink.shade(theme.ground, 0.82);
+      for (int k = 0; k < 8; k++) {
+        final x = tile.left + rng.nextDouble() * tileSize, y = tile.top + rng.nextDouble() * tileSize;
+        c.drawOval(Rect.fromCenter(center: Offset(x, y), width: 1.4, height: 0.9), paint);
+      }
+    } else {
+      // Pebbles and sparkles in the theme colours.
+      for (int k = 0; k < 12; k++) {
+        final x = tile.left + rng.nextDouble() * tileSize, y = tile.top + rng.nextDouble() * tileSize;
+        final sparkle = rng.nextDouble() < theme.crystalChance;
+        paint.color = sparkle ? theme.crystal.withValues(alpha: 0.75) : Ink.shade(theme.ground, 0.84);
+        final r = sparkle ? 0.22 : 0.3 + rng.nextDouble() * 0.5;
+        c.drawOval(Rect.fromCenter(center: Offset(x, y), width: r * 2.2, height: r * 1.6), paint);
       }
     }
   }
@@ -242,6 +285,69 @@ class IsoScene extends Component {
     }
   }
 
+  /// Yellow chevron boards on the outside of sharp corners, arrows pointing the way round.
+  void _buildChevrons() {
+    final n = path.count;
+    int lastPlaced = -1000;
+    for (int i = 0; i < n; i++) {
+      if (i - lastPlaced < 14) continue;
+      final d1 = path.direction(i - 3), d2 = path.direction(i + 3);
+      final turn = math.acos(d1.dot(d2).clamp(-1.0, 1.0));
+      if (turn < 0.55) continue;
+      lastPlaced = i;
+      final cross = d1.x * d2.y - d1.y * d2.x; // > 0: right-hand bend
+      final side = cross > 0 ? -1.0 : 1.0; // outside of the bend
+      final d = path.direction(i), r = path.right(i);
+      final center = path.point(i) + r * (side * (half + 2.3));
+      final ang = math.atan2(d.x, -d.y);
+      final inward = r * -side; // the face the drivers see
+      _statics.add(_Static(center.x, center.y, (c) {
+        IsoPainter.shadow(c, center + vm.Vector2(0.6, 0.4), 3.2, 0.9, alpha: 0.2);
+        for (final k in const [-2.4, 2.4]) {
+          IsoPainter.box(c, center + d * k, ang, 0.12, 0.12, 0, 1.0, const Color(0xFF5A5F70), outlined: false);
+        }
+        IsoPainter.box(c, center, ang, 0.12, 3.0, 1.0, 2.6, const Color(0xFFFFD21F), sideColor: const Color(0xFFFFD21F));
+        // Arrows on whichever long face the camera sees.
+        final faceN = inward.dot(Iso.toViewer) >= 0 ? inward : -inward;
+        final base = center + faceN * 0.13;
+        Offset fp(double u, double v) => Iso.projectV(base + d * u, v);
+        final arrow = Paint()..color = const Color(0xFF1C1C26);
+        for (final u0 in const [-1.8, -0.4, 1.0]) {
+          c.drawPath(
+              Path()
+                ..addPolygon([
+                  fp(u0, 2.35), fp(u0 + 0.5, 2.35), fp(u0 + 1.0, 1.8), fp(u0 + 0.5, 1.25), fp(u0, 1.25), fp(u0 + 0.5, 1.8),
+                ], true),
+              arrow);
+        }
+      }));
+    }
+  }
+
+  /// Festive pennant poles along the start straight.
+  void _buildFlags() {
+    const colors = [Color(0xFFFF3B3B), Color(0xFFFFD21F), Color(0xFF3BA8FF), Color(0xFF4CD964), Color(0xFFFF7AD9)];
+    int k = 0;
+    for (int i = -10; i <= 10; i += 3) {
+      if (i.abs() < 2) continue; // keep the arch clear
+      final idx = (i + path.count) % path.count;
+      for (final side in const [-1.0, 1.0]) {
+        final base = path.point(idx) + path.right(idx) * (side * (half + 2.6));
+        final d = path.direction(idx);
+        final color = colors[k++ % colors.length];
+        _statics.add(_Static(base.x, base.y, (c) {
+          IsoPainter.shadow(c, base + vm.Vector2(0.3, 0.2), 0.4, 0.4, alpha: 0.25);
+          IsoPainter.box(c, base, 0, 0.07, 0.07, 0, 4.2, const Color(0xFFE8E8F0), outlined: false);
+          final tip = base - d * 1.9;
+          final flag = Path()..addPolygon([Iso.projectV(base, 4.2), Iso.projectV(tip, 3.8), Iso.projectV(base, 3.3)], true);
+          c.drawPath(flag, Paint()..color = color);
+          c.drawPath(flag, IsoPainter.outline);
+          c.drawCircle(Iso.projectV(base, 4.25), 0.14, Paint()..color = Ink.gold);
+        }));
+      }
+    }
+  }
+
   void _buildArch() {
     final p0 = path.point(0), d = path.direction(0), r = path.right(0);
     final ang = math.atan2(d.x, -d.y);
@@ -297,6 +403,11 @@ class IsoScene extends Component {
       if (car.invulnerable > 0 && (_t * 10).floor().isEven) continue;
       final steer = _steer[car] ?? 0;
       sprites.add(_Sprite(car.position.x, car.position.y, (c) => CarPainter.paint(c, car, steer, _t)));
+    }
+    for (final coin in race.coins) {
+      if (coin.hiddenFor > 0) continue;
+      final dx = coin.position.x - f.x, dy = coin.position.y - f.y;
+      if (dx * dx + dy * dy < r2) sprites.add(_Sprite(coin.position.x, coin.position.y, (c) => _drawCoin(c, coin)));
     }
     for (final box in race.itemBoxes) {
       if (box.hiddenFor <= 0) sprites.add(_Sprite(box.position.x, box.position.y, (c) => _drawItemBox(c, box)));
@@ -354,22 +465,43 @@ class IsoScene extends Component {
 
   void _drawItemBox(Canvas c, ItemBox box) {
     final bob = 0.35 * math.sin(_t * 3 + box.position.x);
-    final z0 = 0.9 + bob, z1 = z0 + 1.5;
+    final z0 = 1.0 + bob, z1 = z0 + 1.6;
     IsoPainter.shadow(c, box.position, 1.2, 1.2, alpha: 0.22);
     final hue = (_t * 0.35 + box.position.x * 0.02) % 1.0;
-    final color = Ink.hsv(hue, 0.6, 1);
-    IsoPainter.box(c, box.position, _t * 1.4 + box.position.y, 0.75, 0.75, z0, z1, color,
-        topColor: Ink.hsv(hue + 0.12, 0.45, 1));
-    // Glow + "?" floating above the top face.
-    final top = Iso.projectV(box.position, z1 + 0.05);
-    c.drawCircle(top, 1.3, Paint()
-      ..color = color.withValues(alpha: 0.25)
+    final color = Ink.hsv(hue, 0.55, 1);
+    final spin = _t * 1.4 + box.position.y;
+    final center = Iso.projectV(box.position, (z0 + z1) / 2);
+    // Soft glow, translucent rainbow cube, a big "?" inside, and a glossy highlight.
+    c.drawCircle(center, 1.6, Paint()
+      ..color = color.withValues(alpha: 0.22)
       ..blendMode = BlendMode.plus);
+    IsoPainter.box(c, box.position, spin, 0.8, 0.8, z0, z1, color.withValues(alpha: 0.55),
+        topColor: Ink.hsv(hue + 0.15, 0.4, 1).withValues(alpha: 0.6));
     c.save();
-    c.translate(top.dx, top.dy - 0.2);
-    c.scale(0.08);
+    c.translate(center.dx, center.dy);
+    c.scale(0.1);
     _question.paint(c, Offset(-_question.width / 2, -_question.height / 2));
     c.restore();
+    final hl = Iso.projectV(box.position, z1 - 0.35) + const Offset(-0.45, 0);
+    c.drawOval(Rect.fromCenter(center: hl, width: 0.5, height: 0.22), Paint()..color = const Color(0xCCFFFFFF));
+  }
+
+  /// Upright spinning gold coin.
+  void _drawCoin(Canvas c, Coin coin) {
+    final bob = 0.15 * math.sin(_t * 4 + coin.position.x);
+    IsoPainter.shadow(c, coin.position, 0.55, 0.55, alpha: 0.25);
+    final o = Iso.projectV(coin.position, 1.0 + bob);
+    final spin = math.cos(_t * 5 + coin.position.y * 0.7);
+    final w = 1.2 * spin.abs() + 0.12, h = 1.2;
+    final rect = Rect.fromCenter(center: o, width: w, height: h);
+    c.drawOval(rect.inflate(0.06), Paint()..color = const Color(0xFF8A5A00));
+    c.drawOval(rect, Paint()..color = const Color(0xFFFFC21F));
+    c.drawOval(Rect.fromCenter(center: o, width: w * 0.62, height: h * 0.62), Paint()..color = const Color(0xFFFFE066));
+    if (spin.abs() > 0.35) {
+      c.drawRect(Rect.fromCenter(center: o, width: w * 0.12, height: h * 0.36), Paint()..color = const Color(0xFFE09A00));
+    }
+    c.drawOval(Rect.fromCenter(center: o + Offset(-w * 0.18, -h * 0.22), width: w * 0.22, height: h * 0.16),
+        Paint()..color = const Color(0xDDFFFFFF));
   }
 
   void _drawMissile(Canvas c, Missile m) {

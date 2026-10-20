@@ -198,6 +198,20 @@ class _RaceScreenState extends State<RaceScreen> with SingleTickerProviderStateM
           Text('$lap/${race.laps}', style: title(34, AppColors.accent)),
           Text(formatTime(race.raceTime), style: body(18)),
           if (best > 0) Text('BEST ${formatTime(best)}', style: body(12, AppColors.dim)),
+          const SizedBox(height: 4),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFC21F),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF8A5A00), width: 2.5),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text('x ${player.coins}', style: title(20, player.coins >= Car.maxCoins ? AppColors.gold : Colors.white)),
+          ]),
         ]),
       ]),
     );
