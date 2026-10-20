@@ -63,3 +63,27 @@ jobs:
         with:
           name: RiotRacers-web
           path: build/web
+
+  pages:
+    name: Publish web game (GitHub Pages)
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/flutter-flame'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+      - run: flutter pub get
+      - run: flutter build web --release --no-web-resources-cdn --base-href /${{ github.event.repository.name }}/
+      - run: touch build/web/.nojekyll
+      - uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          publish_branch: gh-pages
+          force_orphan: true

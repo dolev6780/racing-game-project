@@ -3,6 +3,8 @@
 **2.5D isometric combat racing** for **Android, iOS and the web** — a modern take on
 *Rock n' Roll Racing*, seen from above and from the side at the same time. Built with **Flutter 3.47 + Flame 1.38**.
 
+▶️ **Play in the browser:** https://dolev6780.github.io/racing-game-project/ (republished automatically on every push to `flutter-flame`)
+
 This is the Flutter/Flame version of the Unity prototype in
 [racing-game-project](https://github.com/dolev6780/racing-game-project) — same tracks, cars, weapons,
 garage, championship and achievements — rendered in **2.5D**: an isometric ground plane plus real 3D shapes
