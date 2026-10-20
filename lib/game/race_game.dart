@@ -59,7 +59,7 @@ class RaceGame extends FlameGame with KeyboardEvents {
   @override
   Future<void> onLoad() async {
     _effects = EffectsLayer(race);
-    world.addAll([_effects, IsoScene(race, _effects, () => _focus)]);
+    world.addAll([_effects, IsoScene(race, _effects, () => _focus, _viewRadius)]);
     camera.viewfinder.anchor = Anchor.center;
     _focus.setFrom(race.player.position);
     _snapCamera();
@@ -209,6 +209,13 @@ class RaceGame extends FlameGame with KeyboardEvents {
   /// Metres visible across the shorter screen side.
   double get _viewMeters => Profile.camera == CameraView.close ? 34 : 46;
   double get _baseZoom => math.max(1, math.min(size.x, size.y) / _viewMeters);
+
+  /// World distance from the focus to the farthest screen corner (the ground is squashed on screen).
+  double _viewRadius() {
+    final z = camera.viewfinder.zoom;
+    final hw = size.x / 2 / z + 1.5, hh = size.y / 2 / z / Iso.squash + 1.5;
+    return math.sqrt(hw * hw + hh * hh);
+  }
 
   void _snapCamera() {
     final o = Iso.projectV(_focus);

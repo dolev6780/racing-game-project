@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flame/components.dart';
@@ -93,7 +94,7 @@ class EffectsLayer extends Component {
       p.size += p.grow * step;
     }
     _particles.removeWhere((p) => p.life <= 0);
-    if (_particles.length > 900) _particles.removeRange(0, _particles.length - 900);
+    if (_particles.length > 350) _particles.removeRange(0, _particles.length - 350);
     for (final b in _blasts) {
       b.age += step;
     }
@@ -102,7 +103,7 @@ class EffectsLayer extends Component {
       s.age += step;
     }
     _skids.removeWhere((s) => s.age > 5);
-    if (_skids.length > 1500) _skids.removeRange(0, _skids.length - 1500);
+    if (_skids.length > 800) _skids.removeRange(0, _skids.length - 800);
   }
 
   void _emitForCar(Car c, double dt) {
@@ -145,24 +146,37 @@ class EffectsLayer extends Component {
     }
   }
 
+  static const int _skidShades = 5;
+  final Paint _skidPaint = Paint()
+    ..strokeWidth = 0.32
+    ..strokeCap = StrokeCap.round;
+
   /// Skid marks: called by the scene inside the ground-plane transform (world metres).
-  void renderGround(Canvas c) {
-    final paint = Paint()
-      ..strokeWidth = 0.32
-      ..strokeCap = StrokeCap.round;
+  /// Batched into a few draw calls by fade level.
+  void renderGround(Canvas c, Rect view) {
+    if (_skids.isEmpty) return;
+    final buckets = List.generate(_skidShades, (_) => <double>[]);
     for (final s in _skids) {
-      paint.color = Color.fromRGBO(20, 20, 26, 0.45 * (1 - s.age / 5));
-      c.drawLine(Offset(s.x1, s.y1), Offset(s.x2, s.y2), paint);
+      if (!view.contains(Offset(s.x1, s.y1))) continue;
+      final k = (s.age / 5 * _skidShades).floor().clamp(0, _skidShades - 1);
+      buckets[k].addAll([s.x1, s.y1, s.x2, s.y2]);
+    }
+    for (int k = 0; k < _skidShades; k++) {
+      if (buckets[k].isEmpty) continue;
+      _skidPaint.color = Color.fromRGBO(20, 20, 26, 0.45 * (1 - (k + 0.5) / _skidShades));
+      c.drawRawPoints(PointMode.lines, Float32List.fromList(buckets[k]), _skidPaint);
     }
   }
 
+  final Paint _addPaint = Paint()..blendMode = BlendMode.plus;
+  final Paint _normalPaint = Paint();
+
   /// Particles and explosions in iso space (drawn by the scene above everything).
-  void renderTop(Canvas c) {
-    final add = Paint()..blendMode = BlendMode.plus;
-    final normal = Paint();
+  void renderTop(Canvas c, Rect view) {
     for (final p in _particles) {
+      if (!view.contains(Offset(p.x, p.y))) continue;
       final t = (p.life / p.maxLife).clamp(0.0, 1.0);
-      final paint = p.additive ? add : normal;
+      final paint = p.additive ? _addPaint : _normalPaint;
       paint.color = p.color.withValues(alpha: p.color.a * t);
       c.drawCircle(Iso.project(p.x, p.y, p.z), p.size * (p.additive ? (0.5 + 0.5 * t) : 1), paint);
     }

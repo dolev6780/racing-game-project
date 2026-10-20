@@ -10,7 +10,9 @@ enum Stat {
   nitrosUsed, moneyPickups, moneyEarned, topSpeedKmh, tracksRaced, upgradesBought, vehiclesBought,
 }
 
-enum SteeringMode { joystick, buttons }
+/// Touch steering: [arrows] = left/right buttons that turn the car; [stick] = point the stick
+/// where you want to go on screen and the car turns that way.
+enum SteeringMode { arrows, stick }
 
 /// Isometric camera zoom.
 enum CameraView { close, wide }
@@ -77,8 +79,8 @@ class Profile {
   static CarStats statsFor(VehicleDef v) => computeStats(v, levels(v));
 
   // ---------- Settings ----------
-  static SteeringMode get steering => SteeringMode.values[_int('steering', 0).clamp(0, SteeringMode.values.length - 1)];
-  static set steering(SteeringMode m) => _setInt('steering', m.index);
+  static SteeringMode get steering => SteeringMode.values[_int('touchSteering', 0).clamp(0, SteeringMode.values.length - 1)];
+  static set steering(SteeringMode m) => _setInt('touchSteering', m.index);
   static CameraView get camera => CameraView.values[_int('camera', 0).clamp(0, CameraView.values.length - 1)];
   static set camera(CameraView c) => _setInt('camera', c.index);
   static double get volume => _prefs.getDouble('volume') ?? 0.8;

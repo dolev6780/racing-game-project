@@ -18,7 +18,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Riot Racers - top-down combat racing built with Flutter + Flame.">
+  <meta name="description" content="Riot Racers - 2.5D combat racing built with Flutter + Flame.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -41,6 +41,17 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <script>
+    // Phones report 3x pixel density; rendering the game at that resolution is far too slow in a
+    // browser. Cap it so the game stays smooth (the UI is still sharp enough at 1.5x).
+    (function () {
+      var native = window.devicePixelRatio || 1;
+      var capped = Math.min(native, 1.5);
+      try {
+        Object.defineProperty(window, 'devicePixelRatio', { get: function () { return capped; }, configurable: true });
+      } catch (e) {}
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

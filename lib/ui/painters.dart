@@ -78,9 +78,7 @@ class GaugePainter extends CustomPainter {
     final r = size.shortestSide / 2;
     canvas.drawCircle(c, r, Paint()..color = const Color(0x990D0F1A));
     if (boosting) {
-      canvas.drawCircle(c, r * 1.15, Paint()
-        ..color = AppColors.nitro.withValues(alpha: 0.35)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18));
+      canvas.drawCircle(c, r * 1.12, Paint()..color = AppColors.nitro.withValues(alpha: 0.3));
     }
     final rect = Rect.fromCircle(center: c, radius: r * 0.82);
     const start = math.pi * 0.75, sweep = math.pi * 1.5;

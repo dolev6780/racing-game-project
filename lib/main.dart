@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import 'data/achievements.dart';
@@ -21,7 +22,24 @@ Future<void> main() async {
   Achievements.init();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  if (Uri.base.queryParameters['perf'] == '1') _logFrameTimes();
   runApp(const RiotRacersApp());
+}
+
+/// Dev aid (?perf=1): prints the average build and raster time per frame every 120 frames.
+void _logFrameTimes() {
+  int n = 0, build = 0, raster = 0;
+  SchedulerBinding.instance.addTimingsCallback((timings) {
+    for (final t in timings) {
+      n++;
+      build += t.buildDuration.inMicroseconds;
+      raster += t.rasterDuration.inMicroseconds;
+    }
+    if (n >= 120) {
+      debugPrint('PERF build ${(build / n / 1000).toStringAsFixed(2)} ms  raster ${(raster / n / 1000).toStringAsFixed(2)} ms');
+      n = build = raster = 0;
+    }
+  });
 }
 
 class RiotRacersApp extends StatelessWidget {

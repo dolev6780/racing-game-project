@@ -67,7 +67,8 @@ class _RaceScreenState extends State<RaceScreen> with SingleTickerProviderStateM
     if (!mounted) return;
     _frame++;
     if (!_paused) _updateHudState(dt);
-    setState(() {});
+    // The HUD only needs ~30 updates a second; the game itself still renders every frame.
+    if (_frame.isEven || _paused) setState(() {});
   }
 
   void _updateHudState(double dt) {
@@ -111,18 +112,11 @@ class _RaceScreenState extends State<RaceScreen> with SingleTickerProviderStateM
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(children: [
-        GameWidget(game: game, autofocus: true),
-        IgnorePointer(
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: RadialGradient(radius: 1.0, colors: [Color(0x00000000), Color(0x40000010)], stops: [0.6, 1]),
-            ),
-          ),
-        ),
-        IgnorePointer(child: _damageFlash()),
-        IgnorePointer(child: _speedLines()),
-        if (Profile.showTouch && _result == null && !_paused) TouchControls(controls: game.controls, car: player),
+        RepaintBoundary(child: GameWidget(game: game, autofocus: true)),
+        if (_flash > 0.01) IgnorePointer(child: _damageFlash()),
+        if (_speedLinesAlpha > 0) IgnorePointer(child: _speedLines()),
         IgnorePointer(child: _hud()),
+        if (Profile.showTouch && _result == null && !_paused) TouchControls(controls: game.controls, car: player),
         Positioned(
           top: 12,
           left: 0,
@@ -146,20 +140,34 @@ class _RaceScreenState extends State<RaceScreen> with SingleTickerProviderStateM
   // ---------- HUD ----------
 
   Widget _hud() {
+    // Phones (touch controls or a short screen): smaller panels and no standings list,
+    // so nothing covers the driving buttons.
+    final compact = Profile.showTouch || MediaQuery.sizeOf(context).height < 500;
+    final scale = compact ? 0.72 : 1.0;
     return Stack(children: [
-      Positioned(left: 16, top: 16, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _positionCard(),
-        const SizedBox(height: 10),
-        _speedometer(),
-      ])),
-      Positioned(right: 16, top: 16, child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        GamePanel(
-          padding: const EdgeInsets.all(8),
-          child: SizedBox(width: 170, height: 170, child: CustomPaint(painter: MinimapPainter(race))),
-        ),
-        const SizedBox(height: 8),
-        _standings(),
-      ])),
+      Positioned(left: 12, top: 12, child: Transform.scale(
+        scale: scale,
+        alignment: Alignment.topLeft,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _positionCard(),
+          const SizedBox(height: 10),
+          _speedometer(),
+        ]),
+      )),
+      Positioned(right: 12, top: 12, child: Transform.scale(
+        scale: scale,
+        alignment: Alignment.topRight,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          GamePanel(
+            padding: const EdgeInsets.all(8),
+            child: SizedBox(width: 170, height: 170, child: CustomPaint(painter: MinimapPainter(race))),
+          ),
+          if (!compact) ...[
+            const SizedBox(height: 8),
+            _standings(),
+          ],
+        ]),
+      )),
       if (!Profile.showTouch) Positioned(left: 16, bottom: 16, child: _ammo()),
       Positioned(left: 0, right: 0, top: 90, child: _feed()),
       Center(child: _centerMessages()),
@@ -364,11 +372,12 @@ class _RaceScreenState extends State<RaceScreen> with SingleTickerProviderStateM
         ),
       );
 
-  Widget _speedLines() {
+  double get _speedLinesAlpha {
     final speed01 = (player.forwardSpeed.abs() / player.maxSpeed).clamp(0.0, 1.0);
-    final alpha = race.state != RaceState.racing ? 0.0 : player.boosting ? 0.45 : ((speed01 - 0.85) / 0.15).clamp(0.0, 1.0) * 0.15;
-    return CustomPaint(size: Size.infinite, painter: SpeedLinesPainter(alpha, _frame));
+    return race.state != RaceState.racing ? 0.0 : player.boosting ? 0.45 : ((speed01 - 0.85) / 0.15).clamp(0.0, 1.0) * 0.15;
   }
+
+  Widget _speedLines() => CustomPaint(size: Size.infinite, painter: SpeedLinesPainter(_speedLinesAlpha, _frame));
 
   // ---------- Pause & results ----------
 

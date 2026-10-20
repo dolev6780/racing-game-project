@@ -19,6 +19,30 @@ class _Sprite {
   _Sprite(this.x, this.y, this.draw);
 }
 
+/// A static object recorded once into a picture (replaying it is much cheaper than rebuilding paths).
+class _Static {
+  final double x, y;
+  final void Function(Canvas c) _record;
+  Picture? _picture;
+  _Static(this.x, this.y, this._record);
+
+  Picture get picture {
+    if (_picture == null) {
+      final recorder = PictureRecorder();
+      _record(Canvas(recorder));
+      _picture = recorder.endRecording();
+    }
+    return _picture!;
+  }
+}
+
+/// A square piece of the ground plane, recorded into its own picture so only visible pieces are drawn.
+class _GroundTile {
+  final Rect rect;
+  final Picture picture;
+  _GroundTile(this.rect, this.picture);
+}
+
 /// Renders the whole race in 2.5D isometric view:
 /// 1) ground plane (grass, road, curbs, pads, skid marks), 2) depth-sorted 3D objects
 /// (walls, scenery, finish arch, cars, items, missiles), 3) particles and explosions on top.
@@ -26,23 +50,24 @@ class IsoScene extends Component {
   final Race race;
   final EffectsLayer effects;
   final vm.Vector2 Function() focus; // world point the camera looks at (for culling)
-  late final Picture _ground;
-  final List<_Sprite> _statics = [];
+  final double Function() viewRadius; // world metres from the focus that can be on screen
+  final List<_GroundTile> _ground = [];
+  final List<_Static> _statics = [];
   final Map<Car, double> _steer = {};
   double _t = 0;
   late final TextPainter _question;
 
   static const double half = TrackPath.roadWidth / 2;
-  static const double cullRadius = 78;
+  static const double tileSize = 40;
 
-  IsoScene(this.race, this.effects, this.focus) : super(priority: 0);
+  IsoScene(this.race, this.effects, this.focus, this.viewRadius) : super(priority: 0);
 
   TrackPath get path => race.path;
   TrackTheme get theme => race.setup.track.theme;
 
   @override
   Future<void> onLoad() async {
-    _ground = _buildGround();
+    _buildGround();
     _buildWalls();
     _buildScenery();
     _buildArch();
@@ -80,9 +105,7 @@ class IsoScene extends Component {
 
   // ---------- ground (drawn once into a picture, in world metres) ----------
 
-  Picture _buildGround() {
-    final recorder = PictureRecorder();
-    final c = Canvas(recorder);
+  void _buildGround() {
     double minX = double.infinity, minY = double.infinity, maxX = -double.infinity, maxY = -double.infinity;
     for (final p in path.points) {
       minX = math.min(minX, p.x);
@@ -91,39 +114,61 @@ class IsoScene extends Component {
       maxY = math.max(maxY, p.y);
     }
     final b = Rect.fromLTRB(minX, minY, maxX, maxY).inflate(220);
-    c.drawRect(b, Paint()..color = theme.ground);
     final light = theme.ground.computeLuminance() > 0.6;
+    final groundPaint = Paint()..color = theme.ground;
     final stripe = Paint()..color = Ink.shade(theme.ground, light ? 0.97 : 0.93);
-    for (double x = b.left; x < b.right; x += 16) {
-      c.drawRect(Rect.fromLTWH(x, b.top, 8, b.height), stripe);
-    }
+    final vergePaint = Paint()..color = Ink.shade(theme.ground, 0.75);
+    final roadPaint = Paint()..color = theme.road;
+    final sheenPaint = Paint()..color = Ink.shade(theme.road, 1.08);
+    final dashPaint = Paint()..color = const Color(0x66FFFFFF);
+    final whitePaint = Paint()..color = Ink.curbWhite;
+    final redPaint = Paint()..color = Ink.curbRed;
+    final linePaint = Paint()..color = Ink.edgeYellow;
 
-    // Dark verge under the road edges for depth.
-    final verge = Path(), road = Path(), dashes = Path(), red = Path(), white = Path(), line = Path();
-    for (int i = 0; i < path.count; i++) {
-      verge.addPath(_band(i, -half - 1.6, half + 1.6), Offset.zero);
-      road.addPath(_band(i, -half - 0.05, half + 0.05), Offset.zero);
-      if (i % 4 == 0) dashes.addPath(_band(i, -0.15, 0.15), Offset.zero);
-      final curb = i.isEven ? red : white;
-      curb.addPath(_band(i, half - 1.1, half), Offset.zero);
-      curb.addPath(_band(i, -half, -half + 1.1), Offset.zero);
-      line.addPath(_band(i, half - 1.6, half - 1.35), Offset.zero);
-      line.addPath(_band(i, -half + 1.35, -half + 1.6), Offset.zero);
-    }
-    c.drawPath(verge, Paint()..color = Ink.shade(theme.ground, 0.75));
-    c.drawPath(road, Paint()..color = theme.road);
-    // Subtle asphalt sheen down the middle.
-    final sheen = Path();
-    for (int i = 0; i < path.count; i++) {
-      sheen.addPath(_band(i, -half * 0.55, half * 0.55), Offset.zero);
-    }
-    c.drawPath(sheen, Paint()..color = Ink.shade(theme.road, 1.08));
-    c.drawPath(dashes, Paint()..color = const Color(0x66FFFFFF));
-    c.drawPath(white, Paint()..color = Ink.curbWhite);
-    c.drawPath(red, Paint()..color = Ink.curbRed);
-    c.drawPath(line, Paint()..color = Ink.edgeYellow);
+    // Bounds of every road segment (with verge) so each tile only records what touches it.
+    final segBounds = [
+      for (int i = 0; i < path.count; i++) _band(i, -half - 1.6, half + 1.6).getBounds(),
+    ];
 
-    // Checkered start line.
+    for (double ty = (b.top / tileSize).floorToDouble() * tileSize; ty < b.bottom; ty += tileSize) {
+      for (double tx = (b.left / tileSize).floorToDouble() * tileSize; tx < b.right; tx += tileSize) {
+        final tile = Rect.fromLTWH(tx, ty, tileSize, tileSize);
+        final recorder = PictureRecorder();
+        final c = Canvas(recorder);
+        c.clipRect(tile);
+        c.drawRect(tile, groundPaint);
+        for (double x = (tx / 16).floorToDouble() * 16; x < tile.right; x += 16) {
+          c.drawRect(Rect.fromLTWH(x, ty, 8, tileSize), stripe);
+        }
+        final segs = [for (int i = 0; i < path.count; i++) if (segBounds[i].overlaps(tile)) i];
+        if (segs.isNotEmpty) {
+          final verge = Path(), road = Path(), sheen = Path(), dashes = Path(), red = Path(), white = Path(), line = Path();
+          for (final i in segs) {
+            verge.addPath(_band(i, -half - 1.6, half + 1.6), Offset.zero);
+            road.addPath(_band(i, -half - 0.05, half + 0.05), Offset.zero);
+            sheen.addPath(_band(i, -half * 0.55, half * 0.55), Offset.zero);
+            if (i % 4 == 0) dashes.addPath(_band(i, -0.15, 0.15), Offset.zero);
+            final curb = i.isEven ? red : white;
+            curb.addPath(_band(i, half - 1.1, half), Offset.zero);
+            curb.addPath(_band(i, -half, -half + 1.1), Offset.zero);
+            line.addPath(_band(i, half - 1.6, half - 1.35), Offset.zero);
+            line.addPath(_band(i, -half + 1.35, -half + 1.6), Offset.zero);
+          }
+          c.drawPath(verge, vergePaint);
+          c.drawPath(road, roadPaint);
+          c.drawPath(sheen, sheenPaint);
+          c.drawPath(dashes, dashPaint);
+          c.drawPath(white, whitePaint);
+          c.drawPath(red, redPaint);
+          c.drawPath(line, linePaint);
+          if (segs.contains(0) || segs.contains(path.count - 1)) _drawStartLine(c);
+        }
+        _ground.add(_GroundTile(tile, recorder.endRecording()));
+      }
+    }
+  }
+
+  void _drawStartLine(Canvas c) {
     final p0 = path.point(0), d = path.direction(0), r = path.right(0);
     const tiles = 10, tile = TrackPath.roadWidth / tiles;
     for (int row = 0; row < 2; row++) {
@@ -136,7 +181,6 @@ class IsoScene extends Component {
             Paint()..color = (i + row).isEven ? const Color(0xFFFFFFFF) : const Color(0xFF111111));
       }
     }
-    return recorder.endRecording();
   }
 
   // ---------- static 3D objects ----------
@@ -148,7 +192,7 @@ class IsoScene extends Component {
         final fp = [_edge(i, inner), _edge(i + 1, inner), _edge(i + 1, outer), _edge(i, outer)];
         final mid = (fp[0] + fp[2]) * 0.5;
         final color = (i ~/ 2).isEven ? theme.wallA : theme.wallB;
-        _statics.add(_Sprite(mid.x, mid.y, (c) => IsoPainter.prism(c, fp, 0, 1.1, color)));
+        _statics.add(_Static(mid.x, mid.y, (c) => IsoPainter.prism(c, fp, 0, 1.1, color)));
       }
     }
   }
@@ -169,7 +213,7 @@ class IsoScene extends Component {
       if (theme.forest) {
         final leaf = Color.lerp(const Color(0xFF2E8F3A), const Color(0xFF5CC447), rng.nextDouble())!;
         final h = 1.0 + rng.nextDouble() * 0.8;
-        _statics.add(_Sprite(pos.x, pos.y, (c) {
+        _statics.add(_Static(pos.x, pos.y, (c) {
           IsoPainter.shadow(c, pos + vm.Vector2(0.8, 0.4), size * 1.1, size * 1.1);
           IsoPainter.box(c, pos, 0.6, 0.22, 0.22, 0, h + size * 0.6, const Color(0xFF7A4B2A));
           IsoPainter.ball(c, pos, h + size * 0.9, size, leaf);
@@ -178,7 +222,7 @@ class IsoScene extends Component {
       } else if (rng.nextDouble() < theme.crystalChance) {
         final ang = rng.nextDouble() * math.pi;
         final hgt = size * (1.6 + rng.nextDouble());
-        _statics.add(_Sprite(pos.x, pos.y, (c) {
+        _statics.add(_Static(pos.x, pos.y, (c) {
           final o = Iso.projectV(pos);
           c.drawOval(Rect.fromCenter(center: o, width: size * 3, height: size * 3 * Iso.squash),
               Paint()..color = theme.crystal.withValues(alpha: 0.25));
@@ -189,7 +233,7 @@ class IsoScene extends Component {
       } else {
         final ang = rng.nextDouble() * math.pi;
         final h1 = size * (0.5 + rng.nextDouble() * 0.4);
-        _statics.add(_Sprite(pos.x, pos.y, (c) {
+        _statics.add(_Static(pos.x, pos.y, (c) {
           IsoPainter.shadow(c, pos + vm.Vector2(0.5, 0.3), size * 1.1, size * 0.9);
           IsoPainter.box(c, pos, ang, size * 0.9, size * 0.75, 0, h1, theme.rock);
           IsoPainter.box(c, pos + vm.Vector2(-0.2, -0.15), ang + 0.4, size * 0.55, size * 0.5, h1, h1 + size * 0.4, Ink.shade(theme.rock, 1.1));
@@ -204,10 +248,10 @@ class IsoScene extends Component {
     const w = half + 2.0;
     for (final s in const [-1.0, 1.0]) {
       final pillar = p0 + r * (s * w);
-      _statics.add(_Sprite(pillar.x, pillar.y, (c) => IsoPainter.box(c, pillar, ang, 0.55, 0.55, 0, 6.2, const Color(0xFF3A3F55))));
+      _statics.add(_Static(pillar.x, pillar.y, (c) => IsoPainter.box(c, pillar, ang, 0.55, 0.55, 0, 6.2, const Color(0xFF3A3F55))));
     }
     // Banner across the top, checkered.
-    _statics.add(_Sprite(p0.x + d.x * 0.01, p0.y + d.y * 0.01, (c) {
+    _statics.add(_Static(p0.x + d.x * 0.01, p0.y + d.y * 0.01, (c) {
       const segs = 8;
       for (int k = 0; k < segs; k++) {
         final t0 = -w + (2 * w) * k / segs, t1 = -w + (2 * w) * (k + 1) / segs;
@@ -225,14 +269,17 @@ class IsoScene extends Component {
     final f = focus();
 
     // 1) Ground plane.
+    final radius = viewRadius();
+    final view = Rect.fromCircle(center: Offset(f.x, f.y), radius: radius);
     c.save();
     c.transform(Iso.groundMatrix);
-    c.drawPicture(_ground);
+    for (final t in _ground) {
+      if (t.rect.overlaps(view)) c.drawPicture(t.picture);
+    }
     for (final pad in race.boostPads) {
       _drawPad(c, pad);
     }
-    effects.renderGround(c);
-    _drawCloudShadows(c, f);
+    effects.renderGround(c, view);
     c.restore();
     for (final m in race.mines) {
       _drawMineBase(c, m);
@@ -240,10 +287,10 @@ class IsoScene extends Component {
 
     // 2) Depth-sorted 3D objects near the camera.
     final sprites = <_Sprite>[];
-    const r2 = cullRadius * cullRadius;
+    final r2 = (radius + 8) * (radius + 8); // + margin for tall objects poking into view
     for (final s in _statics) {
       final dx = s.x - f.x, dy = s.y - f.y;
-      if (dx * dx + dy * dy < r2) sprites.add(s);
+      if (dx * dx + dy * dy < r2) sprites.add(_Sprite(s.x, s.y, (c) => c.drawPicture(s.picture)));
     }
     for (final car in race.cars) {
       if (car.wrecked) continue;
@@ -266,22 +313,7 @@ class IsoScene extends Component {
     }
 
     // 3) Particles and explosions.
-    effects.renderTop(c);
-  }
-
-  /// Big soft shadows of (unseen) clouds drifting across the ground.
-  void _drawCloudShadows(Canvas c, vm.Vector2 f) {
-    final rng = math.Random(42);
-    for (int k = 0; k < 7; k++) {
-      final baseX = rng.nextDouble() * 400 - 200, baseY = rng.nextDouble() * 400 - 200;
-      final r = 22 + rng.nextDouble() * 20;
-      // Drift diagonally and wrap around a 400m tile centred on the camera.
-      var x = (baseX + _t * 3.2) % 400, y = (baseY + _t * 1.6) % 400;
-      x = f.x + ((x - f.x + 200) % 400) - 200;
-      y = f.y + ((y - f.y + 200) % 400) - 200;
-      c.drawCircle(Offset(x, y), r, Paint()
-        ..shader = Gradient.radial(Offset(x, y), r, const [Color(0x22000020), Color(0x00000020)]));
-    }
+    effects.renderTop(c, view);
   }
 
   void _drawPad(Canvas c, BoostPad pad) {

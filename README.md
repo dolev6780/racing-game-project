@@ -24,7 +24,7 @@ cartoon outlines, soft shadows, drifting cloud shadows and 3D particles.
 | Garage | 5 vehicles (incl. Hellcat bike) × 5 upgrades × 4 levels |
 | Championship | 4 leagues × 4 races, points 10-7-5-3-2-1, unlock the next league |
 | Trophies | 26 achievements with cash rewards, league cups, career stats, best laps |
-| Controls | keyboard, or touch: floating joystick / buttons + FIRE, MINE, NITRO, BRAKE |
+| Controls | keyboard, or touch: ◀ ▶ steering (or a point-where-to-go stick) + GAS, REVERSE, FIRE, MINE, NITRO |
 | Sound | engine pitch follows speed, impacts, start beeps, lap chime |
 
 ## Run it
@@ -46,7 +46,12 @@ cartoon outlines, soft shadows, drifting cloud shadows and 3D particles.
 | Camera zoom (close / wide) | C |
 | Pause | Esc / P |
 
-Touch controls appear automatically on phones and tablets (toggle in Settings).
+Touch controls appear automatically on phones and tablets (toggle in Settings). Left thumb steers,
+right thumb holds **GAS** (or **REV** to brake and back up). Settings → STEERING switches between
+**ARROWS** (◀ ▶ turn the car) and **STICK** (point the stick where you want to go on screen and the car
+turns that way, which suits the angled camera).
+
+The web build caps the pixel density at 1.5x so phones stay smooth; `?perf=1` in the URL logs frame times.
 
 ## Tests
 ```

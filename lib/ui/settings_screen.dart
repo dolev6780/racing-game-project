@@ -31,7 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   OptionRow(
                     label: 'STEERING',
-                    options: const ['JOYSTICK', 'BUTTONS'],
+                    options: const ['ARROWS', 'STICK'],
                     index: Profile.steering.index,
                     onChanged: (i) => setState(() => Profile.steering = SteeringMode.values[i]),
                   ),

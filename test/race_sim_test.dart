@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:riot_racers/data/vehicles.dart';
+import 'package:riot_racers/game/controls.dart';
 import 'package:riot_racers/sim/race.dart';
 import 'package:riot_racers/sim/track.dart';
 
@@ -81,5 +82,52 @@ void main() {
     expect(maxed.armor, greaterThan(stock.armor));
     expect(maxed.missiles, greaterThan(stock.missiles));
     expect(upgradePrice(UpgradeType.engine, maxUpgradeLevel), -1);
+  });
+
+  group('player controls', () {
+    Race playerRace(PlayerControls controls) =>
+        Race(setupFor(tracks.first), seed: 1, playerDriver: PlayerDriver(controls));
+
+    void run(Race race, double seconds) {
+      for (double t = 0; t < seconds; t += 1 / 60) {
+        race.update(1 / 60);
+      }
+    }
+
+    test('GAS drives forward, REVERSE backs up', () {
+      final controls = PlayerControls();
+      final race = playerRace(controls);
+      run(race, 3.2); // countdown
+      controls.touchGas = true;
+      run(race, 1.5);
+      expect(race.player.forwardSpeed, greaterThan(8));
+      controls
+        ..touchGas = false
+        ..touchReverse = true;
+      run(race, 4);
+      expect(race.player.forwardSpeed, lessThan(-2));
+    });
+
+    test('stick steering turns toward the screen direction', () {
+      final car = playerRace(PlayerControls()).player;
+      car.angle = 0; // facing world-up, which is up-right on the isometric screen
+      expect(PlayerControls.aimSteer(car, 0.707, -0.396).abs(), lessThan(0.05));
+      expect(PlayerControls.aimSteer(car, 1, 0.4), greaterThan(0.5)); // screen right/down: turn right
+      expect(PlayerControls.aimSteer(car, -1, -0.2), lessThan(-0.5)); // screen left: turn left
+    });
+
+    test('holding the stick in one direction makes the car drive that way', () {
+      final controls = PlayerControls();
+      final race = playerRace(controls);
+      run(race, 3.2);
+      final car = race.player;
+      // Point toward the car's current screen heading rotated a bit, with gas held.
+      controls
+        ..touchGas = true
+        ..touchAim = (x: -1, y: 0.3);
+      run(race, 2.5);
+      final steer = PlayerControls.aimSteer(car, -1, 0.3);
+      expect(steer.abs(), lessThan(0.35), reason: 'car should have turned to face the stick direction');
+    });
   });
 }
