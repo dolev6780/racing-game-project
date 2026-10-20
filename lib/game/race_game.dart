@@ -13,11 +13,10 @@ import '../data/career.dart';
 import '../data/profile.dart';
 import '../sim/race.dart';
 import 'audio.dart';
-import 'car_view.dart';
 import 'controls.dart';
 import 'effects_layer.dart';
-import 'entities_layer.dart';
-import 'track_layer.dart';
+import 'iso.dart';
+import 'iso_scene.dart';
 
 class FeedItem {
   final String text;
@@ -40,13 +39,12 @@ class RaceGame extends FlameGame with KeyboardEvents {
 
   final List<FeedItem> feed = [];
   double clock = 0;
-  double _trauma = 0, _yaw = 0, _zoomFactor = 1;
+  double _trauma = 0, _zoomFactor = 1;
+  final vm.Vector2 _focus = vm.Vector2.zero(); // world point the camera looks at
   double _playerLapStart = -1, _topSpeed = 0;
   bool _recorded = false;
   CareerResult? result;
 
-  /// Metres visible across the shorter screen side.
-  static const double viewMeters = 44;
 
   /// [autopilot]: the AI drives the player's car (testing/demo); results and stats work normally.
   RaceGame(this.setup, {this.onFinished, this.onPauseKey, this.attract = false, bool autopilot = false, int seed = 0}) {
@@ -61,15 +59,9 @@ class RaceGame extends FlameGame with KeyboardEvents {
   @override
   Future<void> onLoad() async {
     _effects = EffectsLayer(race);
-    world.addAll([
-      TrackLayer(race.path, setup.track.theme),
-      _effects,
-      EntitiesLayer(race),
-      for (final c in race.cars) CarView(c),
-      EffectsOverlay(_effects),
-    ]);
+    world.addAll([_effects, IsoScene(race, _effects, () => _focus)]);
     camera.viewfinder.anchor = Anchor.center;
-    _yaw = race.player.angle;
+    _focus.setFrom(race.player.position);
     _snapCamera();
     if (!attract) {
       // Never block the race on audio: some browsers/devices only allow sound after a tap,
@@ -99,7 +91,7 @@ class RaceGame extends FlameGame with KeyboardEvents {
       onPauseKey?.call();
       return KeyEventResult.handled;
     }
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.keyC) {
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.keyC) { // zoom close / wide
       Profile.camera = CameraView.values[(Profile.camera.index + 1) % CameraView.values.length];
     }
     controls.onKey(event);
@@ -212,44 +204,37 @@ class RaceGame extends FlameGame with KeyboardEvents {
 
   void _shake(double amount) => _trauma = (_trauma + amount).clamp(0.0, 1.0);
 
-  // ---------- Camera ----------
+  // ---------- Camera (fixed isometric angle, Rock n' Roll Racing style) ----------
 
-  double get _baseZoom => math.max(1, math.min(size.x, size.y) / viewMeters);
+  /// Metres visible across the shorter screen side.
+  double get _viewMeters => Profile.camera == CameraView.close ? 34 : 46;
+  double get _baseZoom => math.max(1, math.min(size.x, size.y) / _viewMeters);
 
   void _snapCamera() {
-    final p = race.player;
-    camera.viewfinder.position = p.position.clone();
+    final o = Iso.projectV(_focus);
+    camera.viewfinder.position = Vector2(o.dx, o.dy);
     camera.viewfinder.zoom = _baseZoom;
-    camera.viewfinder.angle = Profile.camera == CameraView.topDown ? p.angle : 0;
+    camera.viewfinder.angle = 0;
   }
 
   void _updateCamera(double dt) {
     final p = race.player;
-    final headingUp = Profile.camera == CameraView.topDown;
-    // Smooth heading so small steering doesn't jitter the view.
-    var diff = p.angle - _yaw;
-    diff = (diff + math.pi) % (2 * math.pi) - math.pi;
-    _yaw += diff * (1 - math.exp(-3 * dt));
-    final targetAngle = headingUp ? _yaw : 0.0;
-    var a = targetAngle - camera.viewfinder.angle;
-    a = (a + math.pi) % (2 * math.pi) - math.pi;
-    camera.viewfinder.angle += a * (1 - math.exp(-6 * dt));
+    // Look ahead in the direction of travel.
+    final target = p.position + p.velocity * 0.32;
+    _focus.add((target - _focus) * (1 - math.exp(-5 * dt)));
+    final o = Iso.projectV(_focus);
+    camera.viewfinder.position = Vector2(o.dx, o.dy);
 
-    // Look ahead so the car sits in the lower part of the screen; zoom out with speed.
     final speed01 = (p.forwardSpeed.abs() / p.maxSpeed).clamp(0.0, 1.5);
-    final lookDir = headingUp ? vm.Vector2(math.sin(_yaw), -math.cos(_yaw)) : p.velocity / math.max(p.maxSpeed, 1) * 0.6;
-    final target = p.position + lookDir * (headingUp ? 9 + speed01 * 4 : 10);
-    final k = 1 - math.exp(-6 * dt);
-    camera.viewfinder.position += (target - camera.viewfinder.position) * k;
-
-    final zf = 1 / (1 + speed01 * 0.18 + (p.boosting ? 0.08 : 0));
+    final zf = 1 / (1 + speed01 * 0.12 + (p.boosting ? 0.06 : 0));
     _zoomFactor += (zf - _zoomFactor) * (1 - math.exp(-2.5 * dt));
     camera.viewfinder.zoom = _baseZoom * _zoomFactor;
 
+    camera.viewfinder.angle = 0;
     if (_trauma > 0) {
       final s = _trauma * _trauma;
-      camera.viewfinder.position += vm.Vector2(math.sin(clock * 47) * s * 0.8, math.cos(clock * 53) * s * 0.8);
-      camera.viewfinder.angle += math.sin(clock * 37) * s * 0.03;
+      camera.viewfinder.position += Vector2(math.sin(clock * 47) * s * 0.8, math.cos(clock * 53) * s * 0.8);
+      camera.viewfinder.angle = math.sin(clock * 37) * s * 0.02;
       _trauma = math.max(0, _trauma - dt * 1.5);
     }
   }

@@ -36,8 +36,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: (i) => setState(() => Profile.steering = SteeringMode.values[i]),
                   ),
                   OptionRow(
-                    label: 'CAMERA',
-                    options: const ['TURNS WITH CAR', 'NORTH UP'],
+                    label: 'CAMERA ZOOM',
+                    options: const ['CLOSE', 'WIDE'],
                     index: Profile.camera.index,
                     onChanged: (i) => setState(() => Profile.camera = CameraView.values[i]),
                   ),

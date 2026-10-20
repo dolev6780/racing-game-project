@@ -59,7 +59,7 @@ class AiDriver implements Driver {
     }
 
     // Weapons (not in the first seconds after the start, so the grid isn't a massacre).
-    if (race.raceTime < 4) return;
+    if (race.raceTime < 6) return;
     if (t > _nextFire && _findCar(car, 40, 0, 12)) {
       out.fire = true;
       _nextFire = t + _lerp(3, 0.8, car.aggression) + race.rng.nextDouble();

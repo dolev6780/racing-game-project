@@ -112,6 +112,13 @@ class _RaceScreenState extends State<RaceScreen> with SingleTickerProviderStateM
       backgroundColor: Colors.black,
       body: Stack(children: [
         GameWidget(game: game, autofocus: true),
+        IgnorePointer(
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(radius: 1.0, colors: [Color(0x00000000), Color(0x40000010)], stops: [0.6, 1]),
+            ),
+          ),
+        ),
         IgnorePointer(child: _damageFlash()),
         IgnorePointer(child: _speedLines()),
         if (Profile.showTouch && _result == null && !_paused) TouchControls(controls: game.controls, car: player),
@@ -124,7 +131,7 @@ class _RaceScreenState extends State<RaceScreen> with SingleTickerProviderStateM
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               GameButton('II', width: 64, height: 64, fontSize: 26, onPressed: _togglePause),
               const SizedBox(width: 10),
-              GameButton(Profile.camera == CameraView.topDown ? 'CAM: TURN' : 'CAM: NORTH', width: 150, height: 52, fontSize: 18,
+              GameButton(Profile.camera == CameraView.close ? 'VIEW: CLOSE' : 'VIEW: WIDE', width: 150, height: 52, fontSize: 18,
                   onPressed: () => setState(() =>
                       Profile.camera = CameraView.values[(Profile.camera.index + 1) % CameraView.values.length])),
             ]),

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../game/iso.dart';
 import '../sim/race.dart';
 import 'theme.dart';
 
@@ -12,19 +13,23 @@ class MinimapPainter extends CustomPainter {
 
   MinimapPainter(this.race, {super.repaint}) {
     double minX = double.infinity, minY = double.infinity, maxX = -double.infinity, maxY = -double.infinity;
+    // Same isometric angle as the game view, so the map matches what you see.
     for (final p in race.path.points) {
-      minX = math.min(minX, p.x);
-      minY = math.min(minY, p.y);
-      maxX = math.max(maxX, p.x);
-      maxY = math.max(maxY, p.y);
+      final o = Iso.project(p.x, p.y);
+      minX = math.min(minX, o.dx);
+      minY = math.min(minY, o.dy);
+      maxX = math.max(maxX, o.dx);
+      maxY = math.max(maxY, o.dy);
     }
     final span = math.max(maxX - minX, maxY - minY) + 20;
     final c = Offset((minX + maxX) / 2, (minY + maxY) / 2);
     _bounds = Rect.fromCenter(center: c, width: span, height: span);
   }
 
-  Offset _map(double x, double y, Size s) =>
-      Offset((x - _bounds.left) / _bounds.width * s.width, (y - _bounds.top) / _bounds.height * s.height);
+  Offset _map(double x, double y, Size s) {
+    final o = Iso.project(x, y);
+    return Offset((o.dx - _bounds.left) / _bounds.width * s.width, (o.dy - _bounds.top) / _bounds.height * s.height);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {

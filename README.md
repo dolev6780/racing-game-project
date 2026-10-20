@@ -1,11 +1,13 @@
 # Riot Racers (Flutter + Flame) 🏁🎸
 
-Top-down **combat racing** for **Android, iOS and the web**, inspired by *Rock n' Roll Racing*
-with kart-racer touches. Built with **Flutter 3.47 + Flame 1.38**.
+**2.5D isometric combat racing** for **Android, iOS and the web** — a modern take on
+*Rock n' Roll Racing*, seen from above and from the side at the same time. Built with **Flutter 3.47 + Flame 1.38**.
 
 This is the Flutter/Flame version of the Unity prototype in
 [racing-game-project](https://github.com/dolev6780/racing-game-project) — same tracks, cars, weapons,
-garage, championship and achievements, but in 2D (Flame is a 2D engine), drawn in a cartoon style.
+garage, championship and achievements — rendered in **2.5D**: an isometric ground plane plus real 3D shapes
+(cars, walls, trees, rocks, crystals, item boxes, finish arch) projected and depth-sorted, with per-face lighting,
+cartoon outlines, soft shadows, drifting cloud shadows and 3D particles.
 
 ## Features
 | | |
@@ -16,7 +18,7 @@ garage, championship and achievements, but in 2D (Flame is a 2D engine), drawn i
 | Track items | rainbow **"?" item boxes** (random missile/mine/nitro/armor/cash), **boost pads** |
 | 5 AI opponents | racing line, corner braking, weapons, stuck recovery, rubber-banding |
 | HUD | position (gold/silver/bronze), laps, time, best lap, speedometer, armor, **minimap**, standings, kill feed, start lights, speed lines, damage flash |
-| Camera | top-down, **turns with your car** (or north-up), zooms out with speed, screen shake |
+| Camera | fixed **isometric** angle like the original, follows with look-ahead, zooms out with speed, screen shake (close / wide) |
 | Garage | 5 vehicles (incl. Hellcat bike) × 5 upgrades × 4 levels |
 | Championship | 4 leagues × 4 races, points 10-7-5-3-2-1, unlock the next league |
 | Trophies | 26 achievements with cash rewards, league cups, career stats, best laps |
@@ -39,7 +41,7 @@ garage, championship and achievements, but in 2D (Flame is a 2D engine), drawn i
 | Fire missile | Space / J |
 | Drop mine | E / K |
 | Nitro | Shift / L |
-| Camera (turning / north-up) | C |
+| Camera zoom (close / wide) | C |
 | Pause | Esc / P |
 
 Touch controls appear automatically on phones and tablets (toggle in Settings).
@@ -61,7 +63,8 @@ No secrets or licenses needed.
 ```
 lib/
   sim/    track.dart (layouts, path math)  car.dart (physics, drift)  ai.dart  race.dart (weapons, items, laps, standings)
-  game/   race_game.dart (Flame game, camera, events, audio)  track_layer / car_view / entities_layer / effects_layer
+  game/   race_game.dart (Flame game, camera, events, audio)  iso.dart (projection + 3D prism drawing)
+          iso_scene.dart (ground, walls, scenery, items, depth sorting)  car_view.dart (3D block cars)  effects_layer.dart
   data/   vehicles, championship, achievements, profile (saved progress), career (post-race bookkeeping)
   ui/     menu (live AI race background), quick race, garage, championship, trophies, settings,
           race_screen (HUD, pause, results), touch_controls, painters (minimap, gauge, speed lines)

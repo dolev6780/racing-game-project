@@ -1,139 +1,116 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:flame/components.dart';
+import 'package:vector_math/vector_math.dart';
 
 import '../data/vehicles.dart';
 import '../sim/car.dart';
+import 'iso.dart';
 import 'palette.dart';
 
-/// Cartoon top-down car: shadow, outline, turning front wheels, cabin, spoiler, roof cannon, boost flames.
-class CarView extends Component {
-  final Car car;
-  double _time = 0;
-  double _steerVis = 0;
+/// 2.5D combat car built from shaded 3D blocks (chassis, cabin, wheels, spoiler, roof cannon).
+class CarPainter {
+  static const Color glass = Color(0xFF2B3550);
+  static const Color metal = Color(0xFF555A66);
 
-  CarView(this.car) : super(priority: 20);
+  /// [steer] -1..1 for front wheel angle, [time] for flame flicker.
+  static void paint(Canvas c, Car car, double steer, double time, {bool showShadow = true}) {
+    final pos = car.position, a = car.angle;
+    final f = Vector2(math.sin(a), -math.cos(a)), r = Vector2(math.cos(a), math.sin(a));
+    Vector2 at(double x, double y) => pos + r * x + f * y; // car frame: x right, y forward
 
-  static final Paint _outline = Paint()
-    ..color = Ink.outline
-    ..style = PaintingStyle.stroke
-    ..strokeWidth = 0.12
-    ..strokeJoin = StrokeJoin.round;
-
-  @override
-  void update(double dt) {
-    _time += dt;
-    _steerVis += (car.input.steer - _steerVis) * math.min(1, dt * 12);
-  }
-
-  @override
-  void render(Canvas canvas) {
-    final c = canvas;
-    if (car.wrecked) return;
-    if (car.invulnerable > 0 && (_time * 10).floor().isEven) return; // blink after respawn
-
-    final pos = Offset(car.position.x, car.position.y);
-
-    // Ground shadow (not rotated with the car, so the light direction stays fixed).
-    c.save();
-    c.translate(pos.dx + 0.35, pos.dy + 0.5);
-    c.rotate(car.angle);
-    c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-1.05, -1.95, 2.1, 3.9), const Radius.circular(0.6)),
-        Paint()..color = Ink.shadow);
-    c.restore();
-
-    c.save();
-    c.translate(pos.dx, pos.dy);
-
+    if (showShadow) {
+      final o = Iso.projectV(pos);
+      c.save();
+      c.translate(o.dx + 0.25, o.dy + 0.2);
+      c.drawOval(Rect.fromCenter(center: Offset.zero, width: 4.4, height: 4.4 * Iso.squash), Paint()..color = const Color(0x55000000));
+      c.restore();
+    }
     if (car.isPlayer) {
-      c.drawCircle(Offset.zero, 2.6, Paint()
-        ..color = Ink.gold.withValues(alpha: 0.55)
+      final o = Iso.projectV(pos);
+      c.drawOval(Rect.fromCenter(center: o, width: 5.6, height: 5.6 * Iso.squash), Paint()
+        ..color = Ink.gold.withValues(alpha: 0.7)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.25);
+        ..strokeWidth = 0.2);
     }
 
-    c.rotate(car.angle);
-    if (car.boosting) _drawFlames(c);
-    if (car.body == BodyStyle.bike) {
-      _drawBike(c);
+    final parts = <(double, void Function())>[];
+    void part(Vector2 center, void Function() draw, [double bias = 0]) => parts.add((Iso.depth(center.x, center.y) + bias, draw));
+
+    final bike = car.body == BodyStyle.bike;
+    final color = car.color;
+    final wheelAngle = a + steer * 0.45;
+
+    if (bike) {
+      part(at(0, 1.3), () => IsoPainter.box(c, at(0, 1.3), wheelAngle, 0.2, 0.48, 0, 0.95, Ink.tyre));
+      part(at(0, -1.25), () => IsoPainter.box(c, at(0, -1.25), a, 0.22, 0.5, 0, 1.0, Ink.tyre));
+      part(at(0, 0), () {
+        IsoPainter.box(c, at(0, 0.05), a, 0.42, 1.25, 0.35, 0.95, color);
+        IsoPainter.box(c, at(0, 0.75), a, 0.3, 0.25, 0.95, 1.25, metal);
+        IsoPainter.ball(c, at(0, -0.15), 1.75, 0.48, const Color(0xFF2A2F40));
+      }, 0.01);
     } else {
-      _drawTruck(c);
+      // Wheels: far ones drawn before the body, near ones after (they stick out).
+      for (final (x, y, front) in const [(-0.98, 1.2, true), (0.98, 1.2, true), (-0.98, -1.2, false), (0.98, -1.2, false)]) {
+        final w = at(x, y);
+        final ang = front ? wheelAngle : a;
+        final nearSide = (w - pos).dot(Iso.toViewer) > 0;
+        part(w, () {
+          IsoPainter.box(c, w, ang, 0.24, 0.42, 0, 0.78, const Color(0xFF2E2E38), topColor: const Color(0xFF4A4A57));
+          // Hubcap on the outer side.
+          final hub = w + Vector2(math.cos(ang), math.sin(ang)) * (x.sign * 0.25);
+          c.drawCircle(Iso.projectV(hub, 0.39), 0.17, Paint()..color = const Color(0xFFB8BCC8));
+        },
+            nearSide ? 5 : -5);
+      }
+      part(pos, () {
+        // Chassis with a slightly lower hood, and a racing stripe.
+        IsoPainter.box(c, at(0, -0.15), a, 0.9, 1.7, 0.28, 0.95, color);
+        IsoPainter.box(c, at(0, 1.55), a, 0.86, 0.35, 0.28, 0.8, color);
+        IsoPainter.decal(c, [at(-0.18, 1.5), at(0.18, 1.5), at(0.18, -1.8), at(-0.18, -1.8)], 0.955, const Color(0xCCFFFFFF));
+        // Headlights.
+        IsoPainter.box(c, at(-0.55, 1.88), a, 0.18, 0.04, 0.55, 0.72, const Color(0xFFFFF2A8), outlined: false);
+        IsoPainter.box(c, at(0.55, 1.88), a, 0.18, 0.04, 0.55, 0.72, const Color(0xFFFFF2A8), outlined: false);
+      });
+      // Upper parts sorted among themselves.
+      final upper = <(double, void Function())>[
+        (Iso.depth(at(0, -0.3).x, at(0, -0.3).y), () => IsoPainter.box(c, at(0, -0.3), a, 0.72, 0.85, 0.95, 1.55, color,
+            sideColor: glass, topColor: Ink.shade(color, 1.05))),
+        (Iso.depth(at(0, -1.75).x, at(0, -1.75).y), () {
+          IsoPainter.box(c, at(-0.7, -1.7), a, 0.06, 0.1, 0.95, 1.35, metal, outlined: false);
+          IsoPainter.box(c, at(0.7, -1.7), a, 0.06, 0.1, 0.95, 1.35, metal, outlined: false);
+          IsoPainter.box(c, at(0, -1.75), a, 1.02, 0.2, 1.35, 1.48, Ink.shade(color, 0.85));
+        }),
+        (Iso.depth(at(0, 0.45).x, at(0, 0.45).y) + 0.01, () => IsoPainter.box(c, at(0, 0.45), a, 0.13, 0.7, 1.55, 1.78, metal)),
+      ]..sort((p, q) => p.$1.compareTo(q.$1));
+      part(pos, () {
+        for (final u in upper) {
+          u.$2();
+        }
+      }, 0.5);
     }
-    c.restore();
+
+    if (car.boosting) {
+      part(at(0, -2.2), () => _flame(c, at(0, -1.95), f, time), -0.3);
+    }
+
+    parts.sort((p, q) => p.$1.compareTo(q.$1));
+    for (final p in parts) {
+      p.$2();
+    }
   }
 
-  void _wheel(Canvas c, double x, double y, double w, double h, double steer) {
-    c.save();
-    c.translate(x, y);
-    c.rotate(steer);
-    final r = RRect.fromRectAndRadius(Rect.fromCenter(center: Offset.zero, width: w, height: h), const Radius.circular(0.15));
-    c.drawRRect(r, Paint()..color = Ink.tyre);
-    c.drawRRect(r, _outline);
-    c.restore();
-  }
-
-  void _drawTruck(Canvas c) {
-    final steer = _steerVis * 0.45;
-    _wheel(c, -0.95, -1.15, 0.45, 0.85, steer);
-    _wheel(c, 0.95, -1.15, 0.45, 0.85, steer);
-    _wheel(c, -0.95, 1.2, 0.5, 0.9, 0);
-    _wheel(c, 0.95, 1.2, 0.5, 0.9, 0);
-
-    final body = RRect.fromRectAndRadius(const Rect.fromLTWH(-0.9, -1.85, 1.8, 3.7), const Radius.circular(0.55));
-    c.drawRRect(body, Paint()..color = car.color);
-    // Side shading for volume.
-    c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(0.35, -1.6, 0.5, 3.2), const Radius.circular(0.3)),
-        Paint()..color = Ink.shade(car.color, 0.82));
-    // Hood highlight.
-    c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-0.6, -1.65, 0.7, 0.8), const Radius.circular(0.25)),
-        Paint()..color = Color.lerp(car.color, const Color(0xFFFFFFFF), 0.35)!);
-    // Cabin glass.
-    c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-0.7, -0.55, 1.4, 1.5), const Radius.circular(0.35)),
-        Paint()..color = Ink.glass);
-    c.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-0.55, -0.45, 0.45, 0.6), const Radius.circular(0.15)),
-        Paint()..color = const Color(0x55FFFFFF));
-    c.drawRRect(body, _outline);
-    // Spoiler.
-    final spoiler = RRect.fromRectAndRadius(const Rect.fromLTWH(-1.05, 1.55, 2.1, 0.38), const Radius.circular(0.12));
-    c.drawRRect(spoiler, Paint()..color = Ink.shade(car.color, 0.7));
-    c.drawRRect(spoiler, _outline);
-    // Roof cannon pointing forward.
-    final cannon = RRect.fromRectAndRadius(const Rect.fromLTWH(-0.16, -1.05, 0.32, 1.25), const Radius.circular(0.1));
-    c.drawRRect(cannon, Paint()..color = const Color(0xFF4A4F5C));
-    c.drawRRect(cannon, _outline);
-    // Headlights.
-    final light = Paint()..color = const Color(0xFFFFF2A8);
-    c.drawCircle(const Offset(-0.55, -1.72), 0.16, light);
-    c.drawCircle(const Offset(0.55, -1.72), 0.16, light);
-  }
-
-  void _drawBike(Canvas c) {
-    _wheel(c, 0, -1.3, 0.38, 0.95, _steerVis * 0.45);
-    _wheel(c, 0, 1.25, 0.42, 1.0, 0);
-    final body = RRect.fromRectAndRadius(const Rect.fromLTWH(-0.45, -1.2, 0.9, 2.5), const Radius.circular(0.4));
-    c.drawRRect(body, Paint()..color = car.color);
-    c.drawRRect(body, _outline);
-    // Rider helmet.
-    c.drawCircle(const Offset(0, 0.15), 0.42, Paint()..color = const Color(0xFF222633));
-    c.drawCircle(const Offset(-0.12, 0.02), 0.13, Paint()..color = const Color(0x66FFFFFF));
-    c.drawCircle(const Offset(0, 0.15), 0.42, _outline);
-  }
-
-  void _drawFlames(Canvas c) {
-    final flicker = 0.7 + 0.3 * math.sin(_time * 40);
-    final len = 1.4 + flicker;
+  static void _flame(Canvas c, Vector2 base, Vector2 forward, double time) {
+    final len = 1.5 + 0.5 * math.sin(time * 40);
+    final tip = base - forward * len;
+    final side = Vector2(-forward.y, forward.x) * 0.45;
     final outer = Path()
-      ..moveTo(-0.55, 1.85)
-      ..lineTo(0, 1.85 + len)
-      ..lineTo(0.55, 1.85)
-      ..close();
-    c.drawPath(outer, Paint()..color = const Color(0xFFFF7A1A));
+      ..addPolygon([Iso.projectV(base + side, 0.62), Iso.projectV(tip, 0.62), Iso.projectV(base - side, 0.62)], true);
+    c.drawPath(outer, Paint()
+      ..color = const Color(0xFFFF7A1A)
+      ..blendMode = BlendMode.plus);
     final inner = Path()
-      ..moveTo(-0.28, 1.85)
-      ..lineTo(0, 1.85 + len * 0.6)
-      ..lineTo(0.28, 1.85)
-      ..close();
+      ..addPolygon([Iso.projectV(base + side * 0.5, 0.62), Iso.projectV(base - forward * len * 0.6, 0.62), Iso.projectV(base - side * 0.5, 0.62)], true);
     c.drawPath(inner, Paint()..color = const Color(0xFFFFF0A0));
   }
 }

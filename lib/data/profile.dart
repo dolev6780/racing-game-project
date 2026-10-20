@@ -12,7 +12,8 @@ enum Stat {
 
 enum SteeringMode { joystick, buttons }
 
-enum CameraView { topDown, northUp }
+/// Isometric camera zoom.
+enum CameraView { close, wide }
 
 /// Saved player data (money, garage, settings, stats, records, championship, achievements).
 /// Backed by SharedPreferences; call [Profile.load] once at startup.

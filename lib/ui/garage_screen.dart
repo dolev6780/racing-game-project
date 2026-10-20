@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart' show Vector2;
 import '../data/profile.dart';
 import '../data/vehicles.dart';
 import '../game/car_view.dart';
+import '../game/iso.dart';
 import '../sim/car.dart';
 import 'theme.dart';
 
@@ -54,11 +55,16 @@ class _PreviewPainter extends CustomPainter {
       stats: computeStats(v, const [0, 0, 0, 0, 0]), position: Vector2.zero(), angle: t * 0.6,
     );
     canvas.save();
-    canvas.translate(size.width / 2, size.height / 2);
-    final scale = size.shortestSide / 6;
+    canvas.translate(size.width / 2, size.height * 0.58);
+    final scale = size.shortestSide / 6.5;
     canvas.scale(scale);
-    canvas.drawCircle(Offset.zero, 2.7, Paint()..color = const Color(0x22FFFFFF));
-    CarView(car).render(canvas);
+    // Turntable.
+    canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: 6.4, height: 6.4 * Iso.squash), Paint()..color = const Color(0x33FFFFFF));
+    canvas.drawOval(Rect.fromCenter(center: Offset.zero, width: 6.4, height: 6.4 * Iso.squash), Paint()
+      ..color = const Color(0x55FFFFFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.08);
+    CarPainter.paint(canvas, car, 0, t);
     canvas.restore();
   }
 
