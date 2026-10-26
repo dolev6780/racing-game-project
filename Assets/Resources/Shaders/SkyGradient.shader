@@ -16,6 +16,104 @@ Shader "RacingGame/SkyGradient"
         _CloudSpeed ("Cloud Speed", Float) = 0.01
     }
 
+    // ---------- Universal Render Pipeline ----------
+    SubShader
+    {
+        Tags { "Queue"="Background" "RenderType"="Background" "PreviewType"="Skybox" "RenderPipeline"="UniversalPipeline" }
+        Cull Off
+        ZWrite Off
+
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            CBUFFER_START(UnityPerMaterial)
+                half4 _TopColor, _HorizonColor, _BottomColor, _SunColor, _CloudColor, _CloudShade;
+                half _SunSize, _CloudCover, _CloudScale, _CloudSpeed;
+            CBUFFER_END
+
+            struct Attributes { float4 positionOS : POSITION; };
+            struct Varyings { float4 positionCS : SV_POSITION; float3 dir : TEXCOORD0; };
+
+            Varyings vert (Attributes v)
+            {
+                Varyings o;
+                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.dir = v.positionOS.xyz;
+                return o;
+            }
+
+            float hash (float2 p)
+            {
+                p = frac(p * float2(123.34, 456.21));
+                p += dot(p, p + 45.32);
+                return frac(p.x * p.y);
+            }
+
+            float noise (float2 p)
+            {
+                float2 i = floor(p);
+                float2 f = frac(p);
+                float2 u = f * f * (3.0 - 2.0 * f);
+                float a = hash(i);
+                float b = hash(i + float2(1, 0));
+                float c = hash(i + float2(0, 1));
+                float d = hash(i + float2(1, 1));
+                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
+            }
+
+            float fbm (float2 p)
+            {
+                float v = 0.0;
+                float a = 0.5;
+                for (int k = 0; k < 4; k++)
+                {
+                    v += a * noise(p);
+                    p *= 2.03;
+                    a *= 0.5;
+                }
+                return v;
+            }
+
+            half4 frag (Varyings i) : SV_Target
+            {
+                float3 d = normalize(i.dir);
+                float h = d.y;
+
+                float3 col = h >= 0.0
+                    ? lerp(_HorizonColor.rgb, _TopColor.rgb, pow(saturate(h), 0.55))
+                    : lerp(_HorizonColor.rgb, _BottomColor.rgb, pow(saturate(-h), 0.4));
+
+                // Sun disc with a soft glow (URP: main light direction).
+                float3 sunDir = normalize(_MainLightPosition.xyz);
+                float s = dot(d, sunDir);
+                float disc = smoothstep(1.0 - _SunSize, 1.0 - _SunSize * 0.85, s);
+                float glow = pow(saturate(s), 64.0) * 0.6;
+                col += _SunColor.rgb * (disc + glow);
+
+                // Cartoon clouds: noise projected onto a dome, thresholded for crisp edges.
+                if (h > 0.0)
+                {
+                    float2 uv = d.xz / (h + 0.18) * _CloudScale;
+                    uv += _Time.y * _CloudSpeed * float2(1.0, 0.4);
+                    float n = fbm(uv);
+                    float edge = 1.0 - _CloudCover;
+                    float cloud = smoothstep(edge, edge + 0.06, n);
+                    float shade = smoothstep(edge + 0.04, edge + 0.2, fbm(uv + 0.15));
+                    float3 cloudCol = lerp(_CloudShade.rgb, _CloudColor.rgb, shade);
+                    float fade = saturate(h * 6.0);
+                    col = lerp(col, cloudCol, cloud * fade);
+                }
+                return half4(col, 1);
+            }
+            ENDHLSL
+        }
+    }
+
+    // ---------- Built-in render pipeline (fallback) ----------
     SubShader
     {
         Tags { "Queue"="Background" "RenderType"="Background" "PreviewType"="Skybox" }

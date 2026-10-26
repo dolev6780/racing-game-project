@@ -17,12 +17,45 @@ namespace RacingGame.Core
 
     /// <summary>
     /// Thin wrapper so the game works with the new Input System, the legacy Input Manager, or both.
-    /// Screen positions use Unity's convention: origin at bottom-left.
+    /// Keyboard everywhere; gamepads with the Input System. Screen positions: origin at bottom-left.
     /// </summary>
     public static class InputBridge
     {
         static readonly List<TouchPointer> touchBuffer = new List<TouchPointer>(10);
         const int MouseId = -1;
+        const float StickDeadZone = 0.15f;
+
+        /// <summary>Steering from keyboard and gamepad, -1 (left) .. 1 (right).</summary>
+        public static float SteerAxis()
+        {
+            float steer = 0f;
+            if (IsHeld(GameKey.Left)) steer -= 1f;
+            if (IsHeld(GameKey.Right)) steer += 1f;
+#if ENABLE_INPUT_SYSTEM
+            var pad = Gamepad.current;
+            if (pad != null)
+            {
+                float x = pad.leftStick.x.ReadValue();
+                if (Mathf.Abs(x) > StickDeadZone) steer += Mathf.Sign(x) * Mathf.InverseLerp(StickDeadZone, 1f, Mathf.Abs(x));
+                if (pad.dpad.left.isPressed) steer -= 1f;
+                if (pad.dpad.right.isPressed) steer += 1f;
+            }
+#endif
+            return Mathf.Clamp(steer, -1f, 1f);
+        }
+
+        /// <summary>Gas (+) and brake/reverse (-) from keyboard and gamepad triggers.</summary>
+        public static float ThrottleAxis()
+        {
+            float throttle = 0f;
+            if (IsHeld(GameKey.Up)) throttle += 1f;
+            if (IsHeld(GameKey.Down)) throttle -= 1f;
+#if ENABLE_INPUT_SYSTEM
+            var pad = Gamepad.current;
+            if (pad != null) throttle += pad.rightTrigger.ReadValue() - pad.leftTrigger.ReadValue();
+#endif
+            return Mathf.Clamp(throttle, -1f, 1f);
+        }
 
         public static bool IsHeld(GameKey key)
         {
@@ -62,6 +95,18 @@ namespace RacingGame.Core
         public static bool WasPressedThisFrame(GameKey key)
         {
 #if ENABLE_INPUT_SYSTEM
+            var pad = Gamepad.current;
+            if (pad != null)
+            {
+                switch (key)
+                {
+                    case GameKey.Fire: if (pad.buttonSouth.wasPressedThisFrame) return true; break;
+                    case GameKey.Mine: if (pad.buttonEast.wasPressedThisFrame) return true; break;
+                    case GameKey.Boost: if (pad.buttonWest.wasPressedThisFrame) return true; break;
+                    case GameKey.Camera: if (pad.buttonNorth.wasPressedThisFrame) return true; break;
+                    case GameKey.Pause: if (pad.startButton.wasPressedThisFrame) return true; break;
+                }
+            }
             var kb = Keyboard.current;
             if (kb == null) return false;
             switch (key)

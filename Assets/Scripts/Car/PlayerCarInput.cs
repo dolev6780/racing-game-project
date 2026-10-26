@@ -1,20 +1,28 @@
 using UnityEngine;
+using RacingGame.CameraRig;
 using RacingGame.Core;
 
 namespace RacingGame.Car
 {
-    public enum SteeringMode { Joystick, Tilt, Buttons }
+    /// <summary>
+    /// How the left thumb steers on a phone:
+    /// Arrows - big left/right buttons turn the kart;
+    /// Stick  - point where you want to go on screen, the kart turns toward it (reversing too);
+    /// Tilt   - rotate the phone like a steering wheel (auto-gas).
+    /// </summary>
+    public enum SteeringMode { Arrows, Stick, Tilt }
 
     /// <summary>
     /// Player controls.
-    /// Keyboard: WASD/arrows, Space=fire, E/K=mine, Shift/L=nitro.
-    /// Phone: auto-accelerate + steering by floating joystick, tilt or buttons, plus action buttons.
+    /// Keyboard: WASD/arrows, Space=fire, E/K=mine, Shift/L=nitro. Gamepad: left stick, triggers, A/B/X.
+    /// Phone: left thumb steers (arrows, stick or tilt), right thumb holds GAS or REV, with FIRE/MINE/NITRO above.
+    /// Every finger is tracked separately, so thumbs can slide between buttons and press several at once.
     /// </summary>
     public class PlayerCarInput : MonoBehaviour, ICarInputSource
     {
         // ---------- Settings (saved) ----------
 
-        /// <summary>Show touch controls. On by default on phones; toggle from the HUD in the editor.</summary>
+        /// <summary>Show touch controls. On by default on phones; toggle in Settings in the editor.</summary>
         public static bool ShowTouchControls
         {
             get => showTouch ?? (showTouch = Application.isMobilePlatform).Value;
@@ -24,8 +32,8 @@ namespace RacingGame.Car
 
         public static SteeringMode Steering
         {
-            get => (SteeringMode)PlayerPrefs.GetInt("steering", (int)SteeringMode.Joystick);
-            set { PlayerPrefs.SetInt("steering", (int)value); PlayerPrefs.Save(); }
+            get => (SteeringMode)Mathf.Clamp(PlayerPrefs.GetInt("touchSteering", (int)SteeringMode.Arrows), 0, 2);
+            set { PlayerPrefs.SetInt("touchSteering", (int)value); PlayerPrefs.Save(); calibrateRequested = true; }
         }
 
         public static bool InvertTilt
@@ -37,33 +45,22 @@ namespace RacingGame.Car
         /// <summary>Phone rotation (degrees) for full steering lock.</summary>
         public static float TiltMaxAngle = 25f;
 
-        public static void CycleSteering()
-        {
-            var next = (SteeringMode)(((int)Steering + 1) % 3);
-            if (next == SteeringMode.Tilt && !InputBridge.HasTiltSensor && !Application.isEditor)
-                next = SteeringMode.Buttons;
-            Steering = next;
-            calibrateRequested = true;
-        }
-
         public static void RequestTiltCalibration() => calibrateRequested = true;
 
         // ---------- Buttons ----------
 
-        public enum Btn { Left, Right, Brake, Fire, Mine, Boost, Count }
+        public enum Btn { Left, Right, Gas, Reverse, Fire, Mine, Boost, Count }
 
         readonly Rect[] rects = new Rect[(int)Btn.Count];
         readonly bool[] held = new bool[(int)Btn.Count];
         readonly bool[] heldLastFrame = new bool[(int)Btn.Count];
 
-        // ---------- Joystick ----------
+        // ---------- Stick ----------
 
         const int NoPointer = int.MinValue;
-        int joyPointer = NoPointer;
-        Vector2 joyOrigin;      // GUI coordinates (top-left origin)
-        Vector2 joyKnob;
-        float joyRadius;
-        float joySteer, joyY;
+        int stickPointer = NoPointer;
+        Vector2 stickOrigin;     // GUI coordinates (top-left origin)
+        Vector2 stickKnob;
 
         // ---------- Tilt ----------
 
@@ -71,46 +68,52 @@ namespace RacingGame.Car
         float tiltNeutral;
         float tiltSteer;
 
-        // ---------- State for the touch-controls view (GUI pixel coords, top-left origin) ----------
+        CarController car;
+
+        // ---------- Layout (GUI pixels, top-left origin), shared with TouchControlsView ----------
+
+        float Unit => Mathf.Min(Screen.height * 0.2f, Screen.width * 0.11f);
+        float Margin => Unit * 0.22f;
 
         public Rect ButtonRect(Btn b) { LayoutButtons(); return rects[(int)b]; }
         public bool IsHeld(Btn b) => held[(int)b];
-        public bool JoystickActive => joyPointer != NoPointer;
-        public Vector2 JoystickOrigin => joyOrigin;
-        public Vector2 JoystickKnob => joyKnob;
-        public float JoystickRadius => Screen.height * 0.11f;
+        public bool StickActive => stickPointer != NoPointer;
+        public Vector2 StickOrigin => StickActive ? stickOrigin : StickHome;
+        public Vector2 StickKnob => StickActive ? stickKnob : StickHome;
+        public float StickRadius => Unit * 0.95f;
+        Vector2 StickHome => new Vector2(Margin + Unit * 1.25f, Screen.height - Margin - Unit * 1.25f);
         public float TiltSteer => tiltSteer;
+
+        void Awake()
+        {
+            calibrateRequested = true;   // re-centre tilt every race
+            car = GetComponent<CarController>();
+        }
+
+        void Update()
+        {
+            // Keep tilt calibrated to how the player is holding the phone before the race starts.
+            if (ShowTouchControls && Steering == SteeringMode.Tilt) UpdateTilt();
+        }
 
         public CarInputState ReadInput()
         {
             UpdateTouches();
 
             var s = new CarInputState();
-            float steer = 0f, throttle = 0f;
-            if (InputBridge.IsHeld(GameKey.Left)) steer -= 1f;
-            if (InputBridge.IsHeld(GameKey.Right)) steer += 1f;
-            if (InputBridge.IsHeld(GameKey.Up)) throttle += 1f;
-            if (InputBridge.IsHeld(GameKey.Down)) throttle -= 1f;
+            float steer = InputBridge.SteerAxis(), throttle = InputBridge.ThrottleAxis();
 
             if (ShowTouchControls)
             {
-                switch (Steering)
-                {
-                    case SteeringMode.Buttons:
-                        if (held[(int)Btn.Left]) steer -= 1f;
-                        if (held[(int)Btn.Right]) steer += 1f;
-                        break;
-                    case SteeringMode.Joystick:
-                        steer += joySteer;
-                        break;
-                    case SteeringMode.Tilt:
-                        steer += UpdateTilt();
-                        break;
-                }
+                if (held[(int)Btn.Left]) steer -= 1f;
+                if (held[(int)Btn.Right]) steer += 1f;
+                if (Steering == SteeringMode.Stick && StickActive) steer += StickSteer();
+                if (Steering == SteeringMode.Tilt) steer += UpdateTilt();
 
-                // Mobile: auto-accelerate; brake button or pulling the joystick down reverses.
-                bool brake = held[(int)Btn.Brake] || (Steering == SteeringMode.Joystick && joyY > 0.7f);
-                throttle = brake ? -1f : 1f;
+                if (held[(int)Btn.Gas]) throttle += 1f;
+                if (held[(int)Btn.Reverse]) throttle -= 1f;
+                // Tilt needs both hands on the phone: drive automatically unless reversing.
+                if (Steering == SteeringMode.Tilt && !held[(int)Btn.Reverse]) throttle = Mathf.Max(throttle, 1f);
             }
 
             s.Steer = Mathf.Clamp(steer, -1f, 1f);
@@ -121,15 +124,35 @@ namespace RacingGame.Car
             return s;
         }
 
-        void Awake() => calibrateRequested = true;   // re-centre tilt every race
+        bool Pressed(Btn b) => held[(int)b] && !heldLastFrame[(int)b];
 
-        void Update()
+        /// <summary>
+        /// Stick steering. With the isometric camera the stick points where the kart should go on screen:
+        /// the kart turns toward that direction (and backs toward it when reversing).
+        /// With the chase camera it simply steers left/right.
+        /// </summary>
+        float StickSteer()
         {
-            // Keep tilt calibrated to how the player is holding the phone before the race starts.
-            if (ShowTouchControls && Steering == SteeringMode.Tilt) UpdateTilt();
+            Vector2 d = (stickKnob - stickOrigin) / StickRadius;   // GUI: y grows downward
+            if (d.magnitude < 0.25f) return 0f;
+            if (!RaceCamera.IsIsometric || car == null)
+                return Mathf.Clamp(d.x, -1f, 1f);
+
+            Vector3 target = RaceCamera.ScreenToGroundDirection(new Vector2(d.x, -d.y));
+            return AimSteer(car.transform.forward, target, car.ForwardSpeed < -0.1f);
         }
 
-        bool Pressed(Btn b) => held[(int)b] && !heldLastFrame[(int)b];
+        /// <summary>Steering (-1..1) that turns a kart facing <paramref name="forward"/> toward a ground direction.</summary>
+        public static float AimSteer(Vector3 forward, Vector3 targetDir, bool reversing)
+        {
+            forward.y = 0f;
+            targetDir.y = 0f;
+            if (forward.sqrMagnitude < 1e-6f || targetDir.sqrMagnitude < 1e-6f) return 0f;
+            if (reversing) targetDir = -targetDir;   // back the tail toward it
+            float diff = Vector3.SignedAngle(forward, targetDir, Vector3.up) * Mathf.Deg2Rad;
+            if (reversing) diff = -diff;             // steering is mirrored when moving backwards
+            return Mathf.Clamp(diff * 2.2f, -1f, 1f);
+        }
 
         void UpdateTouches()
         {
@@ -138,71 +161,57 @@ namespace RacingGame.Car
                 heldLastFrame[i] = held[i];
                 held[i] = false;
             }
-            if (!ShowTouchControls) { joyPointer = NoPointer; joySteer = 0f; return; }
+            if (!ShowTouchControls) { stickPointer = NoPointer; return; }
 
             LayoutButtons();
             var pointers = InputBridge.GetPointers();
-            bool joyStillDown = false;
+            bool stickStillDown = false;
+            float slack = Margin * 0.4f;   // hit areas a bit larger than the drawn buttons
 
             foreach (var p in pointers)
             {
                 // Touch positions are bottom-left origin; GUI rects are top-left.
                 var gui = new Vector2(p.Position.x, Screen.height - p.Position.y);
 
-                if (p.Id == joyPointer)
+                if (p.Id == stickPointer)
                 {
-                    joyStillDown = true;
-                    UpdateJoystick(gui);
+                    stickStillDown = true;
+                    MoveStick(gui);
                     continue;
                 }
 
                 bool onButton = false;
                 for (int i = 0; i < rects.Length; i++)
                 {
-                    if (rects[i].width > 0f && rects[i].Contains(gui))
+                    var r = rects[i];
+                    if (r.width <= 0f) continue;
+                    if (new Rect(r.x - slack, r.y - slack, r.width + slack * 2f, r.height + slack * 2f).Contains(gui))
                     {
                         held[i] = true;
                         onButton = true;
+                        break;
                     }
                 }
 
-                // A new finger on the left part of the screen grabs the floating joystick.
-                if (!onButton && joyPointer == NoPointer && Steering == SteeringMode.Joystick && InJoystickZone(gui))
+                // A new finger on the left part of the screen grabs the floating stick.
+                if (!onButton && stickPointer == NoPointer && Steering == SteeringMode.Stick && gui.x < Screen.width * 0.45f)
                 {
-                    joyPointer = p.Id;
-                    joyOrigin = gui;
-                    joyStillDown = true;
-                    UpdateJoystick(gui);
+                    stickPointer = p.Id;
+                    stickOrigin = gui;
+                    stickKnob = gui;
+                    stickStillDown = true;
                 }
             }
 
-            if (!joyStillDown)
-            {
-                joyPointer = NoPointer;
-                joySteer = 0f;
-                joyY = 0f;
-            }
+            if (!stickStillDown) stickPointer = NoPointer;
         }
 
-        bool InJoystickZone(Vector2 gui) =>
-            gui.x < Screen.width * 0.45f && gui.y > Screen.height * 0.3f;
-
-        void UpdateJoystick(Vector2 gui)
+        void MoveStick(Vector2 gui)
         {
-            joyRadius = Screen.height * 0.11f;
-            Vector2 delta = gui - joyOrigin;
-            // If the finger drags past the edge, the base follows it (floating joystick).
-            if (delta.magnitude > joyRadius)
-            {
-                joyOrigin = gui - delta.normalized * joyRadius;
-                delta = gui - joyOrigin;
-            }
-            joyKnob = joyOrigin + delta;
-
-            float x = delta.x / joyRadius;
-            const float deadZone = 0.12f;
-            joySteer = Mathf.Abs(x) < deadZone ? 0f : Mathf.Sign(x) * Mathf.InverseLerp(deadZone, 1f, Mathf.Abs(x));
-            joyY = delta.y / joyRadius;   // positive = finger pulled down (GUI y grows downward)
+            stickKnob = gui;
+            // Past the rim, the base follows the finger so steering never "runs out".
+            Vector2 delta = stickKnob - stickOrigin;
+            if (delta.magnitude > StickRadius) stickOrigin = stickKnob - delta.normalized * StickRadius;
         }
 
         /// <summary>Steering from rotating the phone like a steering wheel (landscape).</summary>
@@ -228,16 +237,16 @@ namespace RacingGame.Car
             return tiltSteer;
         }
 
+        /// <summary>Landscape phone layout, sized from the screen so it fits any device.</summary>
         void LayoutButtons()
         {
             float w = Screen.width, h = Screen.height;
-            float u = h * 0.17f;          // button size
-            float m = h * 0.03f;          // margin
+            float u = Unit, m = Margin, gap = m * 0.6f;
 
-            if (Steering == SteeringMode.Buttons)
+            if (Steering == SteeringMode.Arrows)
             {
-                rects[(int)Btn.Left] = new Rect(m, h - m - u, u * 1.1f, u);
-                rects[(int)Btn.Right] = new Rect(m * 2f + u * 1.1f, h - m - u, u * 1.1f, u);
+                rects[(int)Btn.Left] = new Rect(m, h - m - u * 1.3f, u * 1.2f, u * 1.3f);
+                rects[(int)Btn.Right] = new Rect(m + u * 1.2f + gap, h - m - u * 1.3f, u * 1.2f, u * 1.3f);
             }
             else
             {
@@ -245,11 +254,14 @@ namespace RacingGame.Car
                 rects[(int)Btn.Right] = Rect.zero;
             }
 
-            float big = u * 1.3f;
-            rects[(int)Btn.Fire] = new Rect(w - m - big, h - m - big, big, big);
-            rects[(int)Btn.Mine] = new Rect(w - m * 2f - big - u, h - m - u, u, u);
-            rects[(int)Btn.Brake] = new Rect(w - m * 3f - big - u * 2f, h - m - u, u, u);
-            rects[(int)Btn.Boost] = new Rect(w - m - big + (big - u) * 0.5f, h - m * 2f - big - u, u, u);
+            var gas = new Rect(w - m - u * 1.15f, h - m - u * 1.7f, u * 1.15f, u * 1.7f);
+            var rev = new Rect(gas.xMin - gap - u * 1.05f, h - m - u * 1.15f, u * 1.05f, u * 1.15f);
+            float a = u * 0.9f;
+            rects[(int)Btn.Gas] = gas;
+            rects[(int)Btn.Reverse] = rev;
+            rects[(int)Btn.Fire] = new Rect(gas.center.x - a * 0.5f, gas.yMin - gap - a, a, a);
+            rects[(int)Btn.Mine] = new Rect(rev.center.x - a * 0.5f, rev.yMin - gap - a, a, a);
+            rects[(int)Btn.Boost] = new Rect(rev.center.x - a * 1.5f - gap, rev.yMin - gap - a, a, a);
         }
     }
 }

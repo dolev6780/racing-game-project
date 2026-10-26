@@ -5,7 +5,15 @@ armed cars, missiles, mines, nitro, money, alien-planet tracks.
 
 Built with **Unity 6 + C#**.
 
-## Status: v0.7 — kart-racer graphics & shaders
+## Status: v2 Phase 1 — URP, isometric camera, new phone controls
+
+v2 work follows the spec ("Riot Racers (Unity) — Game Specification v2"). Phase 1:
+the project now runs on the **Universal Render Pipeline (URP)** (set up automatically on first open),
+the default camera is a fixed **isometric 3/4 view** (Close / Wide, plus Chase), phone controls use
+**◀ ▶ buttons or a point-where-to-go stick, GAS and REV pedals**, gamepads work, the HUD goes compact on phones,
+and render resolution adapts to keep phones near 60 fps.
+
+### v0.7 — kart-racer graphics & shaders
 
 Cartoon look inspired by kart racers: custom toon/outline shaders, cartoon sky, item boxes, boost pads, drift sparks + mini-turbo.
 Trophy Room with league cups, 26 achievements (with cash rewards), career stats and lap records.
@@ -33,16 +41,16 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | Custom shaders: toon/cel + outline, cartoon sky, boost pad, rainbow item box, spark particles | ✅ |
 | Rainbow "?" item boxes (random missile / mine / nitro / armor / cash) | ✅ |
 | Boost pads, drift sparks (blue → orange → purple) and mini-turbo | ✅ |
-| Cameras: Top Down (default, turns with the car), Chase (speed/boost FOV kick), Isometric | ✅ |
+| Cameras: Isometric Close (default) / Wide (fixed 3/4 view, look-ahead, speed zoom), Chase | ✅ |
 | Minimap with live racer dots | ✅ |
 | Start lights (red, red, red, GREEN) with synthesized beeps; lap chime; overtake blip | ✅ |
 | Game feel: speed lines on boost, camera shake on hits/explosions, skid marks while drifting | ✅ |
 | Closer races: AI rubber-banding (behind = up to +7% speed, far ahead = -5%) | ✅ |
 | Money: prize by place + kills + pickups (saved) | ✅ |
 | Armor & money pickups on track | ✅ |
-| Isometric camera (classic) + chase camera | ✅ |
-| Touch controls (auto-accelerate) + keyboard | ✅ |
-| Phone steering: floating joystick / tilt / buttons | ✅ |
+| Universal Render Pipeline, adaptive render scale for 60 fps on phones | ✅ |
+| Touch controls (GAS / REV pedals), keyboard, gamepad | ✅ |
+| Phone steering: arrows / point-where-to-go stick / tilt (auto-gas) | ✅ |
 | Main menu: race setup, settings, bank | ✅ |
 | HUD: position, laps, speedometer, armor, standings, kill feed, damage flash | ✅ |
 | Pause menu & results screen with prize breakdown | ✅ |
@@ -62,7 +70,9 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 3. If Unity asks to enable the new Input System backends, click **Yes** (the code supports both input systems).
    The project uses the **glTFast** package (`com.unity.cloud.gltfast`) to import the `.glb` 3D models; Unity installs it automatically.
    If it reports a package version error, open **Window → Package Manager → + → Add package by name…** and enter `com.unity.cloud.gltfast`.
-4. Menu **Racing Game → Create Game Scene (Main Menu)**, then press **Play**.
+4. On first open the project switches itself to **URP** (it creates `Assets/Settings/RacingGame_URP.asset`;
+   commit the new files under `Assets/Settings`). If anything looks pink, use **Racing Game → Set Up URP**.
+5. Menu **Racing Game → Create Game Scene (Main Menu)**, then press **Play**.
    *(Pressing Play in any empty scene also works — the menu builds itself.)*
    For quick testing, **Racing Game → Create Quick Race Scene (dev)** skips the menu.
 
@@ -70,20 +80,21 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 
 | Action | Keyboard | Touch |
 |---|---|---|
-| Steer | A/D or ←/→ | Joystick (drag on left side), Tilt, or `<` `>` buttons |
-| Gas / Brake | W/S or ↑/↓ | auto-gas, `BRAKE` button (or pull joystick down) |
-| Fire missile | Space / J | `FIRE` |
-| Drop mine | E / K | `MINE` |
-| Nitro | Left Shift / L | `NITRO` |
-| Switch camera (Top Down / Chase / Isometric) | C | `CAM` button |
-| Pause | Esc / P | `II` button (top centre) |
+| Steer | A/D or ←/→ (gamepad: left stick) | `<` `>` buttons, the stick, or tilt |
+| Gas / Brake & reverse | W/S or ↑/↓ (gamepad: right / left trigger) | `GAS` / `REV` pedals (tilt: auto-gas) |
+| Fire missile | Space / J (gamepad: A) | `FIRE` |
+| Drop mine | E / K (gamepad: B) | `MINE` |
+| Nitro | Left Shift / L (gamepad: X) | `NITRO` |
+| Switch camera (Close / Wide / Chase) | C (gamepad: Y) | `VIEW` button |
+| Pause | Esc / P (gamepad: Start) | `II` button (top centre) |
 | Restart race | R (after finish) | `RACE AGAIN` / pause menu |
 
 **Phone steering modes** — choose in **Settings** (main menu or pause menu); your choice is saved:
-- **STICK** (default): put your thumb anywhere on the left side of the screen and drag left/right. The joystick appears where you touch.
-- **TILT**: turn the phone like a steering wheel. Tilt is centred on how you hold the phone when the race starts;
-  set **INVERT TILT** in Settings if left/right feel reversed.
-- **BTNS**: classic `<` `>` buttons.
+- **ARROWS** (default): big `<` `>` buttons for the left thumb; the right thumb holds `GAS` or `REV`.
+- **STICK**: touch anywhere on the left side and point where you want to go on screen; the kart turns that way
+  (with REV held it backs toward it). With the chase camera the stick steers left/right.
+- **TILT**: turn the phone like a steering wheel; the kart accelerates by itself, `REV` brakes and reverses.
+  Tilt is centred on how you hold the phone when the race starts; set **INVERT TILT** if left/right feel reversed.
 
 In the editor, turn on **Settings → TOUCH CONTROLS** to preview the phone controls (use the mouse as your finger).
 
@@ -123,7 +134,8 @@ Any exception or error log fails the test.
 
 ## Building for phones
 
-- **Android:** File → Build Profiles → Android → Switch Platform → Build (APK) or Build And Run with your phone connected (USB debugging on).
+- **Android:** menu **Racing Game → Build Android APK** (sets up URP and the scene, builds a 64-bit APK to `build/Android/`),
+  or File → Build Profiles → Android → Switch Platform → Build / Build And Run with your phone connected (USB debugging on).
 - **iOS:** Requires a Mac with Xcode. File → Build Profiles → iOS → Build, then open the generated Xcode project and run it on your device.
 - Recommended Player settings: Default Orientation = *Landscape Left* / Auto Rotation (landscape only).
 
@@ -162,7 +174,8 @@ To use your own car model, drop a `.glb` there with children named `body` and `w
 Leagues and AI strength: `Assets/Scripts/Race/Championship.cs`. Tracks and themes: `Assets/Scripts/Track/TrackLibrary.cs`.
 
 ### Graphics & shaders
-Custom shaders live in `Assets/Resources/Shaders` (built-in render pipeline):
+Custom shaders live in `Assets/Resources/Shaders`. Each has a **URP** SubShader (used now) and the original
+built-in-pipeline SubShader as a fallback:
 
 | Shader | Used for |
 |---|---|
@@ -171,6 +184,7 @@ Custom shaders live in `Assets/Resources/Shaders` (built-in render pipeline):
 | `RacingGame/BoostPad` | Scrolling glowing chevrons |
 | `RacingGame/ItemBox` | Rainbow see-through "?" boxes with fresnel shimmer |
 | `RacingGame/Sparks` | Additive glow for drift sparks and boost flames |
+| `RacingGame/Skid` | Transparent skid marks on the road |
 
 `Core/ToonStyle.cs` builds the materials (and the striped-grass / asphalt textures) at runtime;
 if a shader is missing the game falls back to Unity's default material.

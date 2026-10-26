@@ -45,11 +45,11 @@ namespace RacingGame.Race
             set { PlayerPrefs.SetFloat("cfg_volume", value); AudioListener.volume = value; }
         }
 
-        /// <summary>Camera view for races (top down by default).</summary>
+        /// <summary>Camera view for races (isometric close by default).</summary>
         public static CameraRig.CameraMode Camera
         {
-            get => (CameraRig.CameraMode)Mathf.Clamp(PlayerPrefs.GetInt("cfg_camMode", 0), 0, 2);
-            set => PlayerPrefs.SetInt("cfg_camMode", (int)value);
+            get => (CameraRig.CameraMode)Mathf.Clamp(PlayerPrefs.GetInt("cfg_camera", 0), 0, 2);
+            set => PlayerPrefs.SetInt("cfg_camera", (int)value);
         }
     }
 }

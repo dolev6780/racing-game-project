@@ -2,7 +2,10 @@
 #if ENABLE_INPUT_SYSTEM
 namespace UnityEngine.InputSystem.Controls
 {
-    public class ButtonControl { public bool isPressed => false; public bool wasPressedThisFrame => false; }
+    public class AxisControl { public float ReadValue() => 0f; }
+    public class ButtonControl : AxisControl { public bool isPressed => false; public bool wasPressedThisFrame => false; }
+    public class StickControl : Vector2Control { public AxisControl x = new AxisControl(), y = new AxisControl(); }
+    public class DpadControl : Vector2Control { public ButtonControl up, down, left, right; }
     public class Vector2Control { public UnityEngine.Vector2 ReadValue() => default; }
     public class Vector3Control { public UnityEngine.Vector3 ReadValue() => default; }
     public class IntegerControl { public int ReadValue() => 0; }
@@ -23,6 +26,13 @@ namespace UnityEngine.InputSystem
         public static Keyboard current;
         public ButtonControl wKey, aKey, sKey, dKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey,
             spaceKey, jKey, kKey, eKey, lKey, cKey, rKey, pKey, leftShiftKey, escapeKey;
+    }
+    public class Gamepad : InputDevice
+    {
+        public static Gamepad current;
+        public StickControl leftStick, rightStick;
+        public DpadControl dpad;
+        public ButtonControl leftTrigger, rightTrigger, buttonSouth, buttonEast, buttonWest, buttonNorth, startButton;
     }
     public class Mouse : InputDevice { public static Mouse current; public ButtonControl leftButton; public Vector2Control position; }
     public class Touchscreen : InputDevice { public static Touchscreen current; public ReadOnlyArray<TouchControl> touches; }

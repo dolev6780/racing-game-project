@@ -2,6 +2,7 @@ using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using RacingGame.CameraRig;
 using RacingGame.Car;
 using RacingGame.Core;
 using RacingGame.Garage;
@@ -53,8 +54,67 @@ namespace RacingGame.Tests
                 Assert.IsNotNull(Resources.Load<AudioClip>("Audio/" + c), $"Sound '{c}' did not load");
             Assert.IsNotNull(Resources.Load<Font>("Fonts/RussoOne"), "Title font missing");
             Assert.IsNotNull(Resources.Load<Font>("Fonts/RubikBold"), "Body font missing");
-            foreach (var sh in new[] { "Toon", "SkyGradient", "BoostPad", "ItemBox", "Sparks" })
+            foreach (var sh in new[] { "Toon", "SkyGradient", "BoostPad", "ItemBox", "Sparks", "Skid" })
                 Assert.IsNotNull(Resources.Load<Shader>("Shaders/" + sh), $"Shader '{sh}' did not load");
+        }
+
+        [Test]
+        public void UniversalRenderPipelineIsActive()
+        {
+            var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
+            Assert.IsNotNull(pipeline, "No render pipeline asset assigned - run Racing Game > Set Up URP");
+            StringAssert.Contains("Universal", pipeline.GetType().Name);
+            foreach (var sh in new[] { "Toon", "SkyGradient", "BoostPad", "ItemBox", "Sparks", "Skid" })
+                Assert.IsTrue(Resources.Load<Shader>("Shaders/" + sh).isSupported, $"Shader '{sh}' is not supported under URP");
+        }
+
+        // ---------- Camera and controls ----------
+
+        [Test]
+        public void StickPointsWhereTheKartShouldGo()
+        {
+            // Screen-up on the isometric view is the camera's flat forward direction.
+            Vector3 up = RaceCamera.ScreenToGroundDirection(Vector2.up);
+            Assert.Less(Vector3.Angle(up, Quaternion.Euler(0f, RaceCamera.IsoYaw, 0f) * Vector3.forward), 0.5f);
+
+            Vector3 facing = Vector3.forward;
+            Assert.AreEqual(0f, PlayerCarInput.AimSteer(facing, facing, false), 0.01f, "Already facing the target");
+            Assert.Greater(PlayerCarInput.AimSteer(facing, Vector3.right, false), 0.5f, "Target to the right turns right");
+            Assert.Less(PlayerCarInput.AimSteer(facing, Vector3.left, false), -0.5f, "Target to the left turns left");
+            // Reversing toward a target behind: tail already points there, so no steering.
+            Assert.AreEqual(0f, PlayerCarInput.AimSteer(facing, Vector3.back, true), 0.01f);
+        }
+
+        [UnityTest]
+        public IEnumerator IsometricCameraKeepsThePlayerInView()
+        {
+            var saved = RaceConfig.Camera;
+            RaceConfig.Camera = CameraMode.Close;
+            try
+            {
+                RaceRequest.Current = new RaceRequest { Track = TrackLibrary.Get(1), Laps = 1, Opponents = 3 };
+                GameFlow.StartRace();
+                yield return Frames(5);
+                var race = RaceManager.Instance;
+                race.Player.Car.InputSource = race.Player.Car.GetComponent<AICarInput>();
+                Time.timeScale = 3f;
+                var cam = Camera.main;
+                float end = Time.time + 20f;
+                while (Time.time < end)
+                {
+                    Assert.Less(Quaternion.Angle(cam.transform.rotation, Quaternion.Euler(RaceCamera.IsoPitch, RaceCamera.IsoYaw, 0f)), 6f,
+                        "Isometric camera must not turn with the kart");
+                    Vector3 vp = cam.WorldToViewportPoint(race.Player.Car.transform.position);
+                    Assert.IsTrue(vp.z > 0f && vp.x > 0.1f && vp.x < 0.9f && vp.y > 0.1f && vp.y < 0.9f,
+                        $"Player left the view (viewport {vp})");
+                    yield return null;
+                }
+            }
+            finally
+            {
+                Time.timeScale = 1f;
+                RaceConfig.Camera = saved;
+            }
         }
 
         [UnityTest]

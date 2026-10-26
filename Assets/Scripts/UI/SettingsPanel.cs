@@ -9,7 +9,7 @@ namespace RacingGame.UI
     /// <summary>Settings screen, shared by the main menu and the pause menu.</summary>
     public static class SettingsPanel
     {
-        static readonly string[] SteeringNames = { "JOYSTICK", "TILT", "BUTTONS" };
+        static readonly string[] SteeringNames = { "ARROWS", "STICK", "TILT" };
         static readonly string[] OnOff = { "OFF", "ON" };
 
         public static GameObject Build(Transform parent, Action onBack)
@@ -31,7 +31,7 @@ namespace RacingGame.UI
             UIKit.OptionRow(panel, "INVERT TILT", y, w, OnOff, PlayerCarInput.InvertTilt ? 1 : 0,
                 i => PlayerCarInput.InvertTilt = i == 1);
             y -= 100f;
-            UIKit.OptionRow(panel, "CAMERA", y, w, RaceCamera.ModeNames, (int)RaceConfig.Camera, i =>
+            UIKit.OptionRow(panel, "CAMERA VIEW", y, w, RaceCamera.ModeNames, (int)RaceConfig.Camera, i =>
             {
                 RaceConfig.Camera = (CameraMode)i;
                 RaceCamera.Mode = (CameraMode)i;

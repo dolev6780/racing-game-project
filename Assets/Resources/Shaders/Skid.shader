@@ -6,6 +6,48 @@ Shader "RacingGame/Skid"
         _Color ("Color", Color) = (0.08,0.08,0.1,0.55)
     }
 
+    // ---------- Universal Render Pipeline ----------
+    SubShader
+    {
+        Tags { "Queue"="Transparent-10" "RenderType"="Transparent" "IgnoreProjector"="True" "RenderPipeline"="UniversalPipeline" }
+        Blend SrcAlpha OneMinusSrcAlpha
+        ZWrite Off
+        Cull Off
+        Offset -2, -2
+
+        Pass
+        {
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_fog
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            CBUFFER_START(UnityPerMaterial)
+                half4 _Color;
+            CBUFFER_END
+
+            struct Attributes { float4 positionOS : POSITION; half4 color : COLOR; };
+            struct Varyings { float4 positionCS : SV_POSITION; half4 color : COLOR; float fogFactor : TEXCOORD0; };
+
+            Varyings vert (Attributes v)
+            {
+                Varyings o;
+                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.color = v.color * _Color;
+                o.fogFactor = ComputeFogFactor(o.positionCS.z);
+                return o;
+            }
+
+            half4 frag (Varyings i) : SV_Target
+            {
+                return half4(MixFog(i.color.rgb, i.fogFactor), i.color.a);
+            }
+            ENDHLSL
+        }
+    }
+
+    // ---------- Built-in render pipeline (fallback) ----------
     SubShader
     {
         Tags { "Queue"="Transparent-10" "RenderType"="Transparent" "IgnoreProjector"="True" }

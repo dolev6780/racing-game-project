@@ -59,6 +59,10 @@ namespace RacingGame.UI
         float resultsRefresh;
 
         TouchControlsView touchView;
+        Text camLabel;
+        // Phone layout: smaller panels and no standings list so nothing covers the touch controls.
+        RectTransform positionCard, standingsPanel, minimapPanel, speedometer, armorBar;
+        bool compactApplied, compact;
 
         void Start()
         {
@@ -76,7 +80,9 @@ namespace RacingGame.UI
             BuildTopLeft(root);
             BuildTopCenter(root);
             BuildStandings(root);
-            new GameObject("MinimapView", typeof(RectTransform)).AddComponent<Minimap>().Init(race, root);
+            var minimap = new GameObject("MinimapView", typeof(RectTransform)).AddComponent<Minimap>();
+            minimap.Init(race, root);
+            minimapPanel = minimap.Panel;
             BuildSpeedometer(root);
             BuildAmmo(root);
             BuildCenter(root);
@@ -134,6 +140,7 @@ namespace RacingGame.UI
         {
             var card = UIKit.Panel(root, "PositionCard", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(30f, -30f),
                 new Vector2(470f, 220f)).rectTransform;
+            positionCard = card;
 
             var accent = UIKit.Rect(card, "Accent", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(14f, 0f),
                 new Vector2(10f, 180f));
@@ -163,9 +170,10 @@ namespace RacingGame.UI
             pause.GetComponent<Image>().sprite = UIKit.Circle;
             pause.GetComponent<Image>().type = Image.Type.Simple;
 
-            var cam = UIKit.Button(root, "CAM", top, top, new Vector2(150f, -42f), new Vector2(150f, 86f),
-                RaceCamera.Toggle, fontSize: 34);
+            var cam = UIKit.Button(root, "VIEW", top, top, new Vector2(190f, -42f), new Vector2(230f, 86f),
+                RaceCamera.Toggle, fontSize: 30);
             cam.GetComponent<Image>().color = UIKit.PanelDark;
+            camLabel = cam.GetComponentInChildren<Text>();
 
             finalLapBanner = UIKit.Panel(root, "FinalLap", top, top, new Vector2(0f, -170f), new Vector2(520f, 100f),
                 UIKit.AccentHot).gameObject;
@@ -182,6 +190,7 @@ namespace RacingGame.UI
             const float rowH = 50f;
             var panel = UIKit.Panel(root, "Standings", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -370f),
                 new Vector2(380f, n * rowH + 24f)).rectTransform;
+            standingsPanel = panel;
 
             for (int i = 0; i < n; i++)
             {
@@ -201,6 +210,7 @@ namespace RacingGame.UI
         {
             var bottom = new Vector2(0.5f, 0f);
             var gauge = UIKit.Rect(root, "Speedometer", bottom, bottom, new Vector2(0f, 70f), new Vector2(300f, 300f));
+            speedometer = gauge;
             UIKit.Image(gauge, UIKit.Circle, new Color(0.05f, 0.06f, 0.1f, 0.6f));
 
             var glowRt = UIKit.Rect(gauge, "Glow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(420f, 420f));
@@ -217,6 +227,7 @@ namespace RacingGame.UI
 
             // Armor bar under the gauge
             var armorBg = UIKit.Rect(root, "Armor", bottom, bottom, new Vector2(0f, 26f), new Vector2(340f, 30f));
+            armorBar = armorBg;
             UIKit.Image(armorBg, UIKit.RoundedSmall, new Color(0f, 0f, 0f, 0.55f));
             armorFill = UIKit.Stretch(armorBg, "Fill");
             armorFill.offsetMin = new Vector2(4f, 4f);
@@ -304,6 +315,7 @@ namespace RacingGame.UI
         {
             if (race == null || player == null) return;
 
+            UpdateLayout();
             UpdateTopLeft();
             UpdateStandings();
             UpdateSpeedometer();
@@ -316,6 +328,23 @@ namespace RacingGame.UI
 
             if (race.State == RaceState.Finished && resultsRoot == null) ShowResults();
             if (resultsRoot != null) UpdateResults();
+        }
+
+        /// <summary>Compact HUD while touch controls are shown (phones), full HUD otherwise.</summary>
+        void UpdateLayout()
+        {
+            if (camLabel != null) camLabel.text = "VIEW: " + RaceCamera.ModeNames[(int)RaceCamera.Mode];
+            bool want = PlayerCarInput.ShowTouchControls;
+            if (compactApplied && want == compact) return;
+            compactApplied = true;
+            compact = want;
+            float s = compact ? 0.78f : 1f;
+            foreach (var rt in new[] { positionCard, minimapPanel, speedometer, armorBar })
+                if (rt != null) rt.localScale = new Vector3(s, s, 1f);
+            if (standingsPanel != null) standingsPanel.gameObject.SetActive(!compact);
+            // Between the steering buttons and the pedals, low on the screen.
+            if (speedometer != null) speedometer.anchoredPosition = new Vector2(0f, compact ? 40f : 70f);
+            if (armorBar != null) armorBar.anchoredPosition = new Vector2(0f, compact ? 14f : 26f);
         }
 
         void UpdateTopLeft()

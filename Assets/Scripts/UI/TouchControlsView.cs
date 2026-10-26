@@ -7,8 +7,8 @@ using Btn = RacingGame.Car.PlayerCarInput.Btn;
 namespace RacingGame.UI
 {
     /// <summary>
-    /// Draws the phone controls (action buttons with ammo badges, floating joystick, tilt meter).
-    /// The input logic lives in PlayerCarInput; this only mirrors its layout and state.
+    /// Draws the phone controls (arrow buttons or floating stick, GAS/REV pedals, action buttons with
+    /// ammo badges, tilt meter). The input logic lives in PlayerCarInput; this only mirrors its layout and state.
     /// </summary>
     public class TouchControlsView : MonoBehaviour
     {
@@ -28,8 +28,8 @@ namespace RacingGame.UI
         RectTransform root;
         readonly ButtonView[] buttons = new ButtonView[(int)Btn.Count];
 
-        RectTransform joyBase, joyKnob;
-        Image joyBaseImage, joyKnobImage;
+        RectTransform stickBase, stickKnob;
+        Image stickBaseImage, stickKnobImage;
         RectTransform tiltBar, tiltKnob;
 
         public void Init(Transform parent, Canvas parentCanvas, Racer playerRacer)
@@ -46,18 +46,19 @@ namespace RacingGame.UI
 
             AddButton(Btn.Left, "<", UIKit.ButtonDark, false, false);
             AddButton(Btn.Right, ">", UIKit.ButtonDark, false, false);
-            AddButton(Btn.Brake, "BRAKE", new Color(0.3f, 0.32f, 0.38f), false, false);
+            AddButton(Btn.Gas, "GAS", new Color(0.18f, 0.7f, 0.29f), false, false);
+            AddButton(Btn.Reverse, "REV", new Color(0.85f, 0.28f, 0.23f), false, false);
             AddButton(Btn.Mine, "MINE", new Color(0.35f, 0.36f, 0.42f), true, true);
             AddButton(Btn.Boost, "NITRO", UIKit.Nitro, true, true);
             AddButton(Btn.Fire, "FIRE", UIKit.AccentHot, true, true);
 
-            // Joystick
-            joyBase = Node("JoyBase", new Vector2(0.5f, 0.5f));
-            joyBaseImage = UIKit.Image(joyBase, UIKit.Circle, new Color(1f, 1f, 1f, 0.15f));
-            var ring = UIKit.Stretch(joyBase, "Ring");
+            // Floating stick ("point where you want to go")
+            stickBase = Node("StickBase", new Vector2(0.5f, 0.5f));
+            stickBaseImage = UIKit.Image(stickBase, UIKit.Circle, new Color(1f, 1f, 1f, 0.15f));
+            var ring = UIKit.Stretch(stickBase, "Ring");
             UIKit.Image(ring, UIKit.Ring, new Color(1f, 1f, 1f, 0.45f));
-            joyKnob = Node("JoyKnob", new Vector2(0.5f, 0.5f));
-            joyKnobImage = UIKit.Image(joyKnob, UIKit.Circle, UIKit.Accent);
+            stickKnob = Node("StickKnob", new Vector2(0.5f, 0.5f));
+            stickKnobImage = UIKit.Image(stickKnob, UIKit.Circle, UIKit.Accent);
 
             // Tilt meter
             tiltBar = UIKit.Rect(root, "TiltBar", new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(60f, 60f), new Vector2(460f, 26f));
@@ -121,34 +122,33 @@ namespace RacingGame.UI
                 int ammo = Ammo(b.Id);
                 bool empty = ammo == 0;
                 var c = b.Color;
-                c.a = held ? 1f : empty ? 0.3f : 0.75f;
+                c.a = held ? 1f : empty ? 0.3f : 0.7f;
                 b.Image.color = held ? Color.Lerp(c, Color.white, 0.25f) : c;
-                float target = held ? 0.9f : 1f;
+                float target = held ? 0.92f : 1f;
                 float s = Mathf.Lerp(b.Rect.localScale.x, target, 1f - Mathf.Exp(-25f * Time.unscaledDeltaTime));
                 b.Rect.localScale = new Vector3(s, s, 1f);
 
                 if (b.Badge != null) b.Badge.text = ammo.ToString();
             }
 
-            // Joystick
-            bool joy = mode == SteeringMode.Joystick;
-            joyBase.gameObject.SetActive(joy);
-            joyKnob.gameObject.SetActive(joy);
-            if (joy)
+            // Stick
+            bool stick = mode == SteeringMode.Stick;
+            stickBase.gameObject.SetActive(stick);
+            stickKnob.gameObject.SetActive(stick);
+            if (stick)
             {
-                bool active = input.JoystickActive;
-                Vector2 origin = active ? input.JoystickOrigin : new Vector2(Screen.width * 0.14f, Screen.height * 0.75f);
-                Vector2 knob = active ? input.JoystickKnob : origin;
-                float radius = input.JoystickRadius;
+                bool active = input.StickActive;
+                Vector2 origin = input.StickOrigin, knob = input.StickKnob;
+                float radius = input.StickRadius;
 
-                joyBase.anchoredPosition = new Vector2(origin.x / sf, -origin.y / sf);
-                joyBase.sizeDelta = Vector2.one * (radius * 2f / sf);
-                joyKnob.anchoredPosition = new Vector2(knob.x / sf, -knob.y / sf);
-                joyKnob.sizeDelta = Vector2.one * (radius * 0.9f / sf);
-                joyBaseImage.color = new Color(1f, 1f, 1f, active ? 0.2f : 0.1f);
+                stickBase.anchoredPosition = new Vector2(origin.x / sf, -origin.y / sf);
+                stickBase.sizeDelta = Vector2.one * (radius * 2f / sf);
+                stickKnob.anchoredPosition = new Vector2(knob.x / sf, -knob.y / sf);
+                stickKnob.sizeDelta = Vector2.one * (radius * 0.84f / sf);
+                stickBaseImage.color = new Color(1f, 1f, 1f, active ? 0.18f : 0.08f);
                 var kc = UIKit.Accent;
                 kc.a = active ? 0.95f : 0.4f;
-                joyKnobImage.color = kc;
+                stickKnobImage.color = kc;
             }
 
             // Tilt meter

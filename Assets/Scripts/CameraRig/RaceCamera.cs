@@ -4,31 +4,29 @@ using RacingGame.Core;
 
 namespace RacingGame.CameraRig
 {
-    public enum CameraMode { TopDown, Chase, Isometric }
+    public enum CameraMode { Close, Wide, Chase }
 
     /// <summary>
-    /// Three views, switched with C or the CAM button:
-    /// TopDown   - high above the car looking down, turning with the car (left on screen = your left),
-    /// Chase     - close behind the kart, kart-racer style,
-    /// Isometric - classic fixed-angle view (Rock n' Roll Racing style).
+    /// Race camera, switched with C or the VIEW button:
+    /// Close / Wide - fixed 3/4 isometric view (modern Rock n' Roll Racing): high, rotated 45 degrees,
+    ///                never turning with the kart, looking ahead along its velocity, zooming out with speed;
+    /// Chase        - close behind the kart, kart-racer style.
     /// </summary>
     public class RaceCamera : MonoBehaviour
     {
-        public static CameraMode Mode = CameraMode.TopDown;
-        public static readonly string[] ModeNames = { "TOP DOWN", "CHASE", "ISOMETRIC" };
+        public static CameraMode Mode = CameraMode.Close;
+        public static readonly string[] ModeNames = { "CLOSE", "WIDE", "CHASE" };
 
-        [Header("Top down")]
-        public float topHeight = 34f;
-        public float topPitch = 72f;           // 90 = straight down; a little less shows what's ahead
-        public float topLookAhead = 9f;        // keep the car in the lower part of the screen
-        public float topFov = 50f;
-        public float topYawSmoothing = 3f;
+        /// <summary>Fixed view angles of the isometric camera (also used to orient the minimap and stick steering).</summary>
+        public const float IsoPitch = 35f, IsoYaw = 45f;
 
         [Header("Isometric")]
-        public Vector3 isoAngles = new Vector3(50f, 45f, 0f);
-        public float isoDistance = 60f;
-        public float isoFov = 32f;
-        public float lookAhead = 0.4f;
+        public float isoFov = 25f;             // narrow lens: reads as isometric but keeps depth
+        public float closeMeters = 34f;        // metres visible from top to bottom of the screen
+        public float wideMeters = 46f;
+        public float lookAhead = 0.32f;        // seconds of velocity to look ahead
+        public float followSharpness = 5f;
+        public float speedZoomOut = 0.2f;      // up to +20% view at top speed / boost
 
         [Header("Chase")]
         public float chaseDistance = 6.8f;
@@ -36,14 +34,15 @@ namespace RacingGame.CameraRig
         public float chaseFov = 62f;
         public float speedFovBonus = 8f;       // wider view at top speed
         public float boostFovBonus = 12f;      // extra "whoosh" while boosting
-
-        public float smoothing = 6f;
+        public float chaseSmoothing = 6f;
 
         CarController target;
         Camera cam;
         float trauma;   // 0..1, decays over time; shake = trauma^2
-        Vector3 smoothedLookAhead;
-        float smoothedYaw;
+        Vector3 focus;  // world point the isometric camera looks at
+        float zoom = 1f;
+
+        public static bool IsIsometric => Mode != CameraMode.Chase;
 
         void Awake() => cam = GetComponent<Camera>();
 
@@ -77,7 +76,8 @@ namespace RacingGame.CameraRig
         public void SetTarget(CarController car)
         {
             target = car;
-            if (target != null) smoothedYaw = target.transform.eulerAngles.y;
+            if (target != null) focus = target.transform.position;
+            zoom = 1f;
             Snap();
         }
 
@@ -91,8 +91,9 @@ namespace RacingGame.CameraRig
         void Snap()
         {
             if (target == null) return;
-            ComputeDesired(out Vector3 pos, out Quaternion rot);
+            ComputeDesired(out Vector3 pos, out Quaternion rot, out float fov, 1f);
             transform.SetPositionAndRotation(pos, rot);
+            if (cam) cam.fieldOfView = fov;
         }
 
         void LateUpdate()
@@ -100,74 +101,82 @@ namespace RacingGame.CameraRig
             if (target == null) return;
             if (InputBridge.WasPressedThisFrame(GameKey.Camera)) Toggle();
 
-            ComputeDesired(out Vector3 pos, out Quaternion rot);
-            float k = 1f - Mathf.Exp(-smoothing * Time.deltaTime);
-            transform.position = Vector3.Lerp(transform.position, pos, k);
-            transform.rotation = Quaternion.Slerp(transform.rotation, rot, k);
+            float dt = Time.deltaTime;
+            ComputeDesired(out Vector3 pos, out Quaternion rot, out float fov, dt);
+            if (IsIsometric)
+            {
+                // The focus is already smoothed; the camera rigidly follows it at a fixed angle.
+                transform.SetPositionAndRotation(pos, rot);
+                if (cam) cam.fieldOfView = fov;
+            }
+            else
+            {
+                float k = 1f - Mathf.Exp(-chaseSmoothing * dt);
+                transform.position = Vector3.Lerp(transform.position, pos, k);
+                transform.rotation = Quaternion.Slerp(transform.rotation, rot, k);
+                if (cam) cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, fov, 1f - Mathf.Exp(-4f * dt));
+            }
 
             // Screen shake (smooth Perlin noise, scaled by trauma squared).
             if (trauma > 0f)
             {
                 float s = trauma * trauma;
                 float t = Time.time * 25f;
-                transform.position += transform.right * ((Mathf.PerlinNoise(t, 0f) - 0.5f) * 1.2f * s)
-                                    + transform.up * ((Mathf.PerlinNoise(0f, t) - 0.5f) * 1.2f * s);
-                transform.rotation *= Quaternion.Euler(0f, 0f, (Mathf.PerlinNoise(t, t) - 0.5f) * 6f * s);
-                trauma = Mathf.Max(0f, trauma - Time.deltaTime * 1.5f);
-            }
-
-            if (cam) cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, DesiredFov(), 1f - Mathf.Exp(-4f * Time.deltaTime));
-        }
-
-        float DesiredFov()
-        {
-            float speed01 = target.maxSpeed > 0f ? Mathf.Clamp01(Mathf.Abs(target.ForwardSpeed) / target.maxSpeed) : 0f;
-            switch (Mode)
-            {
-                case CameraMode.Chase:
-                    return chaseFov + speed01 * speedFovBonus + (target.IsBoosting ? boostFovBonus : 0f);
-                case CameraMode.TopDown:
-                    return topFov + speed01 * 4f + (target.IsBoosting ? 6f : 0f);
-                default:
-                    return isoFov;
+                float amp = IsIsometric ? 1.6f : 1.2f;
+                transform.position += transform.right * ((Mathf.PerlinNoise(t, 0f) - 0.5f) * amp * s)
+                                    + transform.up * ((Mathf.PerlinNoise(0f, t) - 0.5f) * amp * s);
+                transform.rotation *= Quaternion.Euler(0f, 0f, (Mathf.PerlinNoise(t, t) - 0.5f) * 4f * s);
+                trauma = Mathf.Max(0f, trauma - dt * 1.5f);
             }
         }
 
-        void ComputeDesired(out Vector3 position, out Quaternion rotation)
+        float Speed01 => target.maxSpeed > 0f ? Mathf.Clamp(Mathf.Abs(target.ForwardSpeed) / target.maxSpeed, 0f, 1.5f) : 0f;
+
+        void ComputeDesired(out Vector3 position, out Quaternion rotation, out float fov, float dt)
         {
             Vector3 carPos = target.transform.position;
-            switch (Mode)
+            if (IsIsometric)
             {
-                case CameraMode.TopDown:
-                {
-                    // Follow the car's heading smoothly so the view doesn't jitter on small steering.
-                    float yaw = target.transform.eulerAngles.y;
-                    smoothedYaw = Mathf.LerpAngle(smoothedYaw, yaw, 1f - Mathf.Exp(-topYawSmoothing * Time.deltaTime));
-                    rotation = Quaternion.Euler(topPitch, smoothedYaw, 0f);
-                    Vector3 flatForward = Quaternion.Euler(0f, smoothedYaw, 0f) * Vector3.forward;
-                    Vector3 focus = carPos + flatForward * topLookAhead;
-                    float distance = topHeight / Mathf.Sin(topPitch * Mathf.Deg2Rad);
-                    position = focus - rotation * Vector3.forward * distance;
-                    break;
-                }
-                case CameraMode.Isometric:
-                {
-                    Vector3 vel = target.Body != null ? target.Body.linearVelocity : Vector3.zero;
-                    vel.y = 0f;
-                    Vector3 ahead = Vector3.ClampMagnitude(vel * lookAhead, 14f);
-                    smoothedLookAhead = Vector3.Lerp(smoothedLookAhead, ahead, 1f - Mathf.Exp(-2f * Time.deltaTime));
-                    rotation = Quaternion.Euler(isoAngles);
-                    position = carPos + smoothedLookAhead - rotation * Vector3.forward * isoDistance;
-                    break;
-                }
-                default:
-                {
-                    Vector3 fwd = target.transform.forward;
-                    position = carPos - fwd * chaseDistance + Vector3.up * chaseHeight;
-                    rotation = Quaternion.LookRotation(carPos + fwd * 5f + Vector3.up * 1f - position);
-                    break;
-                }
+                // Look ahead along the velocity, eased.
+                Vector3 vel = target.Body != null ? target.Body.linearVelocity : Vector3.zero;
+                vel.y = 0f;
+                Vector3 aim = carPos + Vector3.ClampMagnitude(vel * lookAhead, 14f);
+                // Snap after a teleport (respawn) instead of sweeping across the track.
+                bool jump = (aim - focus).sqrMagnitude > 40f * 40f;
+                focus = dt >= 1f || jump ? aim : Vector3.Lerp(focus, aim, 1f - Mathf.Exp(-followSharpness * dt));
+
+                // Zoom out a little with speed and boost.
+                float z = 1f + Mathf.Min(speedZoomOut, Speed01 * speedZoomOut * 0.6f + (target.IsBoosting ? speedZoomOut * 0.4f : 0f));
+                zoom = dt >= 1f ? z : Mathf.Lerp(zoom, z, 1f - Mathf.Exp(-2.5f * dt));
+
+                float meters = Mode == CameraMode.Wide ? wideMeters : closeMeters;
+                // Distance at which the lens shows `meters` across the screen height.
+                float distance = meters * zoom / (2f * Mathf.Tan(isoFov * 0.5f * Mathf.Deg2Rad));
+                rotation = Quaternion.Euler(IsoPitch, IsoYaw, 0f);
+                position = focus - rotation * Vector3.forward * distance;
+                fov = isoFov;
             }
+            else
+            {
+                Vector3 fwd = target.transform.forward;
+                position = carPos - fwd * chaseDistance + Vector3.up * chaseHeight;
+                rotation = Quaternion.LookRotation(carPos + fwd * 5f + Vector3.up * 1f - position);
+                fov = chaseFov + Mathf.Clamp01(Speed01) * speedFovBonus + (target.IsBoosting ? boostFovBonus : 0f);
+            }
+        }
+
+        /// <summary>
+        /// Turns a direction on the screen (x right, y up) into a flat world direction on the ground,
+        /// as seen by the isometric camera. Used by stick steering ("point where you want to go").
+        /// </summary>
+        public static Vector3 ScreenToGroundDirection(Vector2 screenDir)
+        {
+            var rot = Quaternion.Euler(0f, IsoYaw, 0f);
+            Vector3 right = rot * Vector3.right, forward = rot * Vector3.forward;
+            // Ground depth is squashed by sin(pitch) on screen, so stretch the vertical part back.
+            float depth = screenDir.y / Mathf.Sin(IsoPitch * Mathf.Deg2Rad);
+            Vector3 d = right * screenDir.x + forward * depth;
+            return d.sqrMagnitude > 1e-6f ? d.normalized : Vector3.zero;
         }
     }
 }

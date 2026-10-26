@@ -45,9 +45,10 @@ namespace RacingGame.Core
             RenderSettings.fog = true;
             RenderSettings.fogColor = theme.Fog;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 140f;
-            RenderSettings.fogEndDistance = 420f;
-            QualitySettings.shadowDistance = 90f;   // crisper shadows near the karts
+            // The isometric camera sits ~80-130 m from the kart: keep fog for the far horizon only.
+            RenderSettings.fogStartDistance = 220f;
+            RenderSettings.fogEndDistance = 650f;
+            // Shadow distance and quality come from the URP asset (Assets/Settings/RacingGame_URP.asset).
 
             // Cartoon sky (falls back to a flat colour if the shader is unavailable).
             var skyMat = ToonStyle.Sky(theme.SkyTop, theme.SkyHorizon, theme.SkyBottom);

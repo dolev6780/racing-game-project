@@ -2,7 +2,9 @@
     "name": "RacingGame.Editor",
     "rootNamespace": "RacingGame.EditorTools",
     "references": [
-        "RacingGame"
+        "RacingGame",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [
         "Editor"

@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -91,6 +90,8 @@ jobs:
         with:
           targetPlatform: Android
           buildName: RacingGame
+          # Sets up URP and the game scene, then builds a 64-bit (IL2CPP, ARM64) APK.
+          buildMethod: RacingGame.EditorTools.BuildScript.BuildAndroid
       - uses: actions/upload-artifact@v4
         if: env.UNITY_LICENSE != ''
         with:

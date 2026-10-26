@@ -21,6 +21,7 @@ namespace RacingGame.Core
             Screen.autorotateToLandscapeLeft = true;
             Screen.autorotateToLandscapeRight = true;
             AudioListener.volume = RaceConfig.Volume;
+            PerformanceGovernor.Install();
 
             if (Object.FindAnyObjectByType<RaceManager>() != null) return;
             if (Object.FindAnyObjectByType<MainMenu>() != null) return;

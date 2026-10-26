@@ -28,6 +28,22 @@ namespace RacingGame.EditorTools
             Debug.Log("Quick race scene created at " + QuickRaceScenePath + ". Press Play to race without the menu.");
         }
 
+        /// <summary>
+        /// Makes sure the game scene exists and is the first scene in the build (no prompts, safe in batch mode).
+        /// Returns its path.
+        /// </summary>
+        public static string EnsureGameScene()
+        {
+            if (!System.IO.File.Exists(GameScenePath))
+            {
+                System.IO.Directory.CreateDirectory("Assets/Scenes");
+                var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                EditorSceneManager.SaveScene(scene, GameScenePath);
+            }
+            AddToBuild(GameScenePath, first: true);
+            return GameScenePath;
+        }
+
         static bool CreateScene(string path, System.Action populate)
         {
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return false;

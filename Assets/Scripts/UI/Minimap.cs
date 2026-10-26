@@ -5,7 +5,10 @@ using RacingGame.Race;
 
 namespace RacingGame.UI
 {
-    /// <summary>Corner track map (north-up) with a coloured dot for every racer; the player's dot is larger.</summary>
+    /// <summary>
+    /// Corner track map with a coloured dot for every racer (the player's dot is larger).
+    /// Drawn at the isometric camera's angle (rotated 45 degrees and squashed) so it matches the view.
+    /// </summary>
     public class Minimap : MonoBehaviour
     {
         const float MapSize = 290f;
@@ -13,27 +16,37 @@ namespace RacingGame.UI
 
         RaceManager race;
         readonly List<(Racer racer, RectTransform dot)> dots = new List<(Racer, RectTransform)>();
-        Vector2 worldMin;
-        float worldSpan;
+        Vector2 mapMin;
+        float mapSpan;
+        Vector3 axisRight, axisUp;   // world directions that point right / up on the map
+        float squash;
+
+        public RectTransform Panel { get; private set; }
 
         public void Init(RaceManager owner, Transform parent)
         {
             race = owner;
             var panel = UIKit.Panel(parent, "Minimap", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-30f, -30f),
                 new Vector2(MapSize + 30f, MapSize + 30f)).rectTransform;
+            Panel = panel;
             transform.SetParent(panel, false);
 
-            // World bounds of the track (square, so the map keeps its proportions).
+            var view = Quaternion.Euler(0f, RacingGame.CameraRig.RaceCamera.IsoYaw, 0f);
+            axisRight = view * Vector3.right;
+            axisUp = view * Vector3.forward;
+            squash = Mathf.Sin(RacingGame.CameraRig.RaceCamera.IsoPitch * Mathf.Deg2Rad);
+
+            // Bounds of the projected track (square, so the map keeps its proportions).
             var path = race.Path;
             Vector2 min = new Vector2(float.MaxValue, float.MaxValue), max = new Vector2(float.MinValue, float.MinValue);
             for (int i = 0; i < path.Count; i++)
             {
-                var p = path.Point(i);
-                min = Vector2.Min(min, new Vector2(p.x, p.z));
-                max = Vector2.Max(max, new Vector2(p.x, p.z));
+                var p = Project(path.Point(i));
+                min = Vector2.Min(min, p);
+                max = Vector2.Max(max, p);
             }
-            worldSpan = Mathf.Max(max.x - min.x, max.y - min.y) + 30f;
-            worldMin = (min + max) * 0.5f - Vector2.one * worldSpan * 0.5f;
+            mapSpan = Mathf.Max(max.x - min.x, max.y - min.y) + 30f;
+            mapMin = (min + max) * 0.5f - Vector2.one * mapSpan * 0.5f;
 
             var mapRt = UIKit.Rect(panel, "Track", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
                 new Vector2(MapSize, MapSize));
@@ -58,11 +71,13 @@ namespace RacingGame.UI
             dots.Add((r, dot));
         }
 
+        /// <summary>World position to the map plane (the camera's view of the ground).</summary>
+        Vector2 Project(Vector3 world) => new Vector2(Vector3.Dot(world, axisRight), Vector3.Dot(world, axisUp) * squash);
+
         Vector2 ToMap(Vector3 world)
         {
-            float u = (world.x - worldMin.x) / worldSpan - 0.5f;
-            float v = (world.z - worldMin.y) / worldSpan - 0.5f;
-            return new Vector2(u, v) * MapSize;
+            Vector2 p = (Project(world) - mapMin) / mapSpan - new Vector2(0.5f, 0.5f);
+            return p * MapSize;
         }
 
         Texture2D DrawTrack()
@@ -85,8 +100,7 @@ namespace RacingGame.UI
             return tex;
         }
 
-        Vector2 ToTex(Vector3 world) =>
-            new Vector2((world.x - worldMin.x) / worldSpan * TexSize, (world.z - worldMin.y) / worldSpan * TexSize);
+        Vector2 ToTex(Vector3 world) => (Project(world) - mapMin) / mapSpan * TexSize;
 
         static void Stamp(Color32[] px, Vector2 c, float radius, Color32 color)
         {
