@@ -18,12 +18,12 @@ class TrophiesScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
             child: Row(children: [
-              Text('TROPHY ROOM', style: title(44, AppColors.accent)),
+              Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text('TROPHY ROOM', style: title(44, AppColors.accent)))),
               const Spacer(),
               Text('${Achievements.unlockedCount} / ${Achievements.all.length} ACHIEVEMENTS', style: title(20)),
             ]),
           ),
-          _cabinet(),
+          FittedBox(fit: BoxFit.scaleDown, child: _cabinet()),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),

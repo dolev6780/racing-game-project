@@ -48,7 +48,9 @@ class _MenuScreenState extends State<MenuScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final wide = MediaQuery.of(context).size.width > 700;
+    final size = MediaQuery.sizeOf(context);
+    final wide = size.width > 700;
+    final short = size.height < 520; // phones in landscape
     return Scaffold(
       body: Stack(children: [
         IgnorePointer(child: GameWidget(game: _attract)),
@@ -59,32 +61,63 @@ class _MenuScreenState extends State<MenuScreen> {
         ),
         SafeArea(
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: wide ? 60 : 24, vertical: 20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [const Spacer(), BankChip(Profile.money)]),
-              const Spacer(),
-              Text(gameTitle, style: title(wide ? 84 : 56, AppColors.accent)),
-              Text('COMBAT RACING', style: body(wide ? 26 : 20)),
-              Container(margin: const EdgeInsets.only(top: 8, bottom: 22), width: 260, height: 6, color: AppColors.hot),
-              GameButton.primary(Championship.hasActiveSeason ? 'CONTINUE SEASON' : 'CHAMPIONSHIP',
-                  width: 340, onPressed: () => _open(const ChampionshipScreen())),
-              const SizedBox(height: 10),
-              GameButton('QUICK RACE', width: 340, onPressed: () => _open(const QuickRaceScreen())),
-              const SizedBox(height: 10),
-              GameButton('GARAGE', width: 340, onPressed: () => _open(const GarageScreen())),
-              const SizedBox(height: 10),
-              GameButton('TROPHIES  ${Achievements.unlockedCount}/${Achievements.all.length}',
-                  width: 340, onPressed: () => _open(const TrophiesScreen())),
-              const SizedBox(height: 10),
-              GameButton('SETTINGS', width: 340, onPressed: () => _open(const SettingsScreen())),
-              const Spacer(),
-              Text('Built with Flutter + Flame  -  sounds: Kenney (CC0)', style: body(12, AppColors.dim)),
-            ]),
+            padding: EdgeInsets.symmetric(horizontal: wide ? 60 : 24, vertical: short ? 12 : 20),
+            child: short ? _phoneLayout() : _tallLayout(wide),
           ),
         ),
       ]),
     );
   }
+
+  List<Widget> _buttons(double width, double height, double fontSize, double gap) => [
+        GameButton.primary(Championship.hasActiveSeason ? 'CONTINUE SEASON' : 'CHAMPIONSHIP',
+            width: width, height: height, fontSize: fontSize, onPressed: () => _open(const ChampionshipScreen())),
+        SizedBox(height: gap),
+        GameButton('QUICK RACE', width: width, height: height, fontSize: fontSize, onPressed: () => _open(const QuickRaceScreen())),
+        SizedBox(height: gap),
+        GameButton('GARAGE', width: width, height: height, fontSize: fontSize, onPressed: () => _open(const GarageScreen())),
+        SizedBox(height: gap),
+        GameButton('TROPHIES  ${Achievements.unlockedCount}/${Achievements.all.length}',
+            width: width, height: height, fontSize: fontSize, onPressed: () => _open(const TrophiesScreen())),
+        SizedBox(height: gap),
+        GameButton('SETTINGS', width: width, height: height, fontSize: fontSize, onPressed: () => _open(const SettingsScreen())),
+      ];
+
+  Widget _tallLayout(bool wide) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [const Spacer(), BankChip(Profile.money)]),
+        const Spacer(),
+        Text(gameTitle, style: title(wide ? 84 : 56, AppColors.accent)),
+        Text('COMBAT RACING', style: body(wide ? 26 : 20)),
+        Container(margin: const EdgeInsets.only(top: 8, bottom: 22), width: 260, height: 6, color: AppColors.hot),
+        ..._buttons(340, 64, 26, 10),
+        const Spacer(),
+        Text('Built with Flutter + Flame  -  sounds: Kenney (CC0)', style: body(12, AppColors.dim)),
+      ]);
+
+  /// Landscape phone: title on the left, a compact column of buttons on the right.
+  Widget _phoneLayout() => Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Spacer(),
+            FittedBox(fit: BoxFit.scaleDown, child: Text(gameTitle, style: title(60, AppColors.accent))),
+            Text('COMBAT RACING', style: body(18)),
+            Container(margin: const EdgeInsets.only(top: 8), width: 200, height: 5, color: AppColors.hot),
+            const Spacer(),
+            Text('Built with Flutter + Flame  -  sounds: Kenney (CC0)', style: body(11, AppColors.dim)),
+          ]),
+        ),
+        const SizedBox(width: 16),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerRight,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+            BankChip(Profile.money),
+            const SizedBox(height: 10),
+            ..._buttons(300, 50, 22, 8),
+          ]),
+        ),
+      ]);
+
 }
 
 /// Track, laps, opponents and difficulty for a single race.

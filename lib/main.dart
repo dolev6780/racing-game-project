@@ -16,14 +16,92 @@ import 'ui/settings_screen.dart';
 import 'ui/theme.dart';
 import 'ui/trophies_screen.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Profile.load();
-  Achievements.init();
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
-  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-  if (Uri.base.queryParameters['perf'] == '1') _logFrameTimes();
-  runApp(const RiotRacersApp());
+/// Last unexpected error, shown on screen (a black screen tells nobody anything).
+final ValueNotifier<String?> lastError = ValueNotifier(null);
+
+void reportError(Object error) {
+  final text = '$error';
+  debugPrint('ERROR: $text');
+  lastError.value = text.length > 400 ? '${text.substring(0, 400)}...' : text;
+}
+
+void main() {
+  runZonedGuarded(() {
+    WidgetsFlutterBinding.ensureInitialized();
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      reportError(details.exceptionAsString());
+    };
+    ErrorWidget.builder = (details) => _ErrorPanel(details.exceptionAsString());
+    if (Uri.base.queryParameters['perf'] == '1') _logFrameTimes();
+    // Show something immediately; load saved data behind a loading screen.
+    runApp(const _Boot());
+  }, (error, stack) => reportError(error));
+}
+
+/// Loading screen while saved progress loads, then the game.
+class _Boot extends StatefulWidget {
+  const _Boot();
+
+  @override
+  State<_Boot> createState() => _BootState();
+}
+
+class _BootState extends State<_Boot> {
+  bool _ready = false;
+  String? _failed;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      await Profile.load();
+      Achievements.init();
+      await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      if (mounted) setState(() => _ready = true);
+    } catch (e) {
+      reportError(e);
+      if (mounted) setState(() => _failed = '$e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_ready) return const RiotRacersApp();
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: ColoredBox(
+        color: AppColors.dark,
+        child: Center(
+          child: Text(_failed == null ? 'LOADING...' : 'Could not start: $_failed',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontFamily: 'RussoOne', fontSize: 28, color: AppColors.accent, decoration: TextDecoration.none)),
+        ),
+      ),
+    );
+  }
+}
+
+/// Replaces the grey box Flutter shows for a broken widget in release builds.
+class _ErrorPanel extends StatelessWidget {
+  final String message;
+  const _ErrorPanel(this.message);
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+        color: const Color(0xFF3A0D12),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Text(message,
+              textDirection: TextDirection.ltr,
+              style: const TextStyle(fontSize: 12, color: Colors.white, decoration: TextDecoration.none)),
+        ),
+      );
 }
 
 /// Dev aid (?perf=1): prints the average build and raster time per frame every 120 frames.
@@ -52,7 +130,7 @@ class RiotRacersApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(brightness: Brightness.dark, fontFamily: 'Rubik', colorSchemeSeed: AppColors.accent),
       home: _startScreen(),
-      builder: (context, child) => Stack(children: [child!, const AchievementToast()]),
+      builder: (context, child) => Stack(children: [child!, const AchievementToast(), const _ErrorBanner()]),
     );
   }
 
@@ -172,4 +250,29 @@ class _AchievementToastState extends State<AchievementToast> {
       ),
     );
   }
+}
+
+/// Small banner with the last unexpected error (tap to hide), so problems on a phone can be reported.
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner();
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<String?>(
+        valueListenable: lastError,
+        builder: (context, error, _) => error == null
+            ? const SizedBox.shrink()
+            : Positioned(
+                left: 8,
+                right: 8,
+                bottom: 8,
+                child: GestureDetector(
+                  onTap: () => lastError.value = null,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: const Color(0xE63A0D12), borderRadius: BorderRadius.circular(8)),
+                    child: Text('Error: $error  (tap to hide)', style: const TextStyle(fontSize: 12, color: Colors.white)),
+                  ),
+                ),
+              ),
+      );
 }

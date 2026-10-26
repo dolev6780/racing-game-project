@@ -38,6 +38,13 @@ class _ChampionshipScreenState extends State<ChampionshipScreen> {
     );
   }
 
+  bool get _short => MediaQuery.sizeOf(context).height < 520;
+
+  /// Tall screens: the middle part fills the space. Short screens (phones): the page scrolls instead.
+  Widget _fill(Widget child) => _short ? child : Expanded(child: child);
+  Widget _page(List<Widget> children) =>
+      _short ? SingleChildScrollView(child: Column(children: children)) : Column(children: children);
+
   Widget _header(String text) => Padding(
         padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
         child: Align(alignment: Alignment.centerLeft, child: Text(text, style: title(46, AppColors.accent))),
@@ -46,7 +53,7 @@ class _ChampionshipScreenState extends State<ChampionshipScreen> {
   // ---------- Leagues ----------
 
   Widget _leagues() {
-    return Column(children: [
+    return _page([
       _header('CHAMPIONSHIP'),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -56,8 +63,8 @@ class _ChampionshipScreenState extends State<ChampionshipScreen> {
               style: body(16, AppColors.dim)),
         ),
       ),
-      Expanded(
-        child: Center(
+      _fill(
+        Center(
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.all(16),
@@ -159,11 +166,11 @@ class _ChampionshipScreenState extends State<ChampionshipScreen> {
         ]),
       ),
     );
-    return Column(children: [
+    return _page([
       _header(l.name),
       Text('RACE ${next + 1} OF ${l.tracks.length}', style: title(20)),
-      Expanded(
-        child: Center(
+      _fill(
+        Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(12),
             child: Wrap(spacing: 20, runSpacing: 20, alignment: WrapAlignment.center, children: [
