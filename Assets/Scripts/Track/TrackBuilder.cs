@@ -50,6 +50,8 @@ namespace RacingGame.Track
             BuildWalls(root.transform, path, -1);
             BuildWalls(root.transform, path, +1);
             BuildStartLine(root.transform, path);
+            BuildChevrons(root.transform, path);
+            BuildFlags(root.transform, path);
             BuildScenery(root.transform, path);
             BuildHills(root.transform, path);
             BuildItemBoxes(root.transform, path);
@@ -120,11 +122,13 @@ namespace RacingGame.Track
             ground.transform.SetParent(parent, false);
             ground.transform.position = new Vector3(bounds.center.x, -0.5f, bounds.center.z);
             ground.transform.localScale = new Vector3(bounds.size.x + 300f, 1f, bounds.size.z + 300f);
-            // Mowed-lawn stripes like a kart circuit (tiling ~12m per stripe pair).
-            var groundMat = ToonStyle.CreateToon(Color.white, 0f, ToonStyle.Stripes(GroundColor));
+            // Mowed-lawn checkerboard with flowers (pebbles and sparkles off-planet); the texture covers 32 m.
+            var lawn = ToonStyle.Lawn(GroundColor, theme.Forest, theme.Crystal, theme.CrystalChance);
+            var groundMat = ToonStyle.CreateToon(Color.white, 0f, lawn);
             if (groundMat != null)
             {
-                groundMat.mainTextureScale = new Vector2(ground.transform.localScale.x / 12f, 1f);
+                groundMat.SetFloat("_SpecStrength", 0f);
+                groundMat.mainTextureScale = new Vector2(ground.transform.localScale.x / 32f, ground.transform.localScale.z / 32f);
                 ground.GetComponent<Renderer>().sharedMaterial = groundMat;
             }
             else ground.GetComponent<Renderer>().sharedMaterial = MaterialFactory.Get(GroundColor);
@@ -276,6 +280,92 @@ namespace RacingGame.Track
             MaterialFactory.Visual(PrimitiveType.Cube, root.transform, p + right * w + Vector3.up * h * 0.5f, new Vector3(0.6f, h, 0.6f), gray);
             MaterialFactory.Visual(PrimitiveType.Cube, root.transform, p + Vector3.up * h, new Vector3(w * 2f + 0.6f, 1.2f, 0.6f),
                 new Color(1f, 0.75f, 0.1f), Quaternion.LookRotation(dir));
+        }
+
+        /// <summary>Yellow chevron boards on the outside of sharp bends, arrows pointing the way round.</summary>
+        static void BuildChevrons(Transform parent, TrackPath path)
+        {
+            var mat = ToonStyle.Chevron();
+            if (mat == null) return;
+            var root = new GameObject("ChevronSigns");
+            root.transform.SetParent(parent, false);
+            var post = new Color(0.35f, 0.37f, 0.44f);
+            var yellow = new Color(1f, 0.82f, 0.12f);
+            int last = -1000;
+            for (int i = 0; i < path.Count; i++)
+            {
+                if (i - last < 14) continue;
+                Vector3 d1 = path.Direction(i - 3), d2 = path.Direction(i + 3);
+                float turn = Vector3.SignedAngle(d1, d2, Vector3.up);   // > 0: right-hand bend
+                if (Mathf.Abs(turn) < 31f) continue;
+                last = i;
+
+                Vector3 d = path.Direction(i), right = path.Right(i);
+                float side = turn > 0f ? -1f : 1f;                      // outside of the bend
+                Vector3 center = path.Point(i) + right * side * (path.RoadWidth * 0.5f + 2.3f);
+                var rot = Quaternion.LookRotation(d);
+                foreach (float k in new[] { -2.4f, 2.4f })
+                    MaterialFactory.Visual(PrimitiveType.Cylinder, root.transform, center + d * k + Vector3.up * 0.5f,
+                        new Vector3(0.2f, 0.5f, 0.2f), post);
+                MaterialFactory.Visual(PrimitiveType.Cube, root.transform, center + Vector3.up * 1.8f,
+                    new Vector3(0.24f, 1.6f, 6f), yellow, rot, ToonStyle.PropOutline);
+
+                // Arrow faces on both sides of the board, both pointing in the direction of travel.
+                foreach (float s in new[] { -1f, 1f })
+                {
+                    Vector3 normal = right * s;
+                    var face = MaterialFactory.Visual(PrimitiveType.Quad, root.transform,
+                        center + Vector3.up * 1.8f + normal * 0.13f, new Vector3(5.8f, 1.45f, 1f), yellow,
+                        Quaternion.LookRotation(-normal, Vector3.up));
+                    face.GetComponent<Renderer>().sharedMaterial = mat;
+                    if (Vector3.Dot(face.transform.right, d) < 0f)
+                    {
+                        var sc = face.transform.localScale;
+                        face.transform.localScale = new Vector3(-sc.x, sc.y, sc.z);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Pennant flags on poles along the start straight.</summary>
+        static void BuildFlags(Transform parent, TrackPath path)
+        {
+            var root = new GameObject("Flags");
+            root.transform.SetParent(parent, false);
+            Color[] colors =
+            {
+                new Color(1f, 0.23f, 0.23f), new Color(1f, 0.82f, 0.12f), new Color(0.23f, 0.66f, 1f),
+                new Color(0.3f, 0.85f, 0.39f), new Color(1f, 0.48f, 0.85f),
+            };
+            int k = 0;
+            for (int i = -10; i <= 10; i += 3)
+            {
+                if (Mathf.Abs(i) < 2) continue;   // keep the finish arch clear
+                int idx = (i + path.Count) % path.Count;
+                Vector3 d = path.Direction(idx);
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    Vector3 basePos = path.Point(idx) + path.Right(idx) * side * (path.RoadWidth * 0.5f + 2.6f);
+                    var color = colors[k++ % colors.Length];
+                    MaterialFactory.Visual(PrimitiveType.Cylinder, root.transform, basePos + Vector3.up * 2.1f,
+                        new Vector3(0.12f, 2.1f, 0.12f), new Color(0.92f, 0.92f, 0.96f));
+                    MaterialFactory.Visual(PrimitiveType.Sphere, root.transform, basePos + Vector3.up * 4.25f,
+                        Vector3.one * 0.26f, new Color(1f, 0.8f, 0.2f));
+
+                    // Triangular pennant streaming backwards, visible from both sides.
+                    Vector3 top = basePos + Vector3.up * 4.15f, bottom = basePos + Vector3.up * 3.3f;
+                    Vector3 tip = basePos - d * 1.9f + Vector3.up * 3.75f;
+                    var mesh = new Mesh { name = "Pennant" };
+                    mesh.vertices = new[] { top, bottom, tip, top, bottom, tip };
+                    mesh.triangles = new[] { 0, 1, 2, 3, 5, 4 };
+                    mesh.RecalculateNormals();
+                    mesh.RecalculateBounds();
+                    var flag = new GameObject("Pennant");
+                    flag.transform.SetParent(root.transform, false);
+                    flag.AddComponent<MeshFilter>().sharedMesh = mesh;
+                    flag.AddComponent<MeshRenderer>().sharedMaterial = MaterialFactory.Get(color);
+                }
+            }
         }
 
         static void BuildScenery(Transform parent, TrackPath path)

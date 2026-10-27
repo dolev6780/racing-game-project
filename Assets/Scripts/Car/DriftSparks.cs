@@ -29,7 +29,7 @@ namespace RacingGame.Car
 
             left = Create("SparksL", new Vector3(-0.95f, 0.15f, -1.3f), Quaternion.Euler(-25f, 200f, 0f), mat, 0.25f);
             right = Create("SparksR", new Vector3(0.95f, 0.15f, -1.3f), Quaternion.Euler(-25f, 160f, 0f), mat, 0.25f);
-            exhaust = Create("Exhaust", new Vector3(0f, 0.6f, -2f), Quaternion.Euler(0f, 180f, 0f), mat, 0.45f);
+            exhaust = Create("Exhaust", new Vector3(0f, 0.8f, -1.9f), Quaternion.Euler(0f, 180f, 0f), mat, 0.45f);   // behind the kart's twin exhausts
             car.MiniTurbo += OnMiniTurbo;
         }
 

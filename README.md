@@ -13,6 +13,13 @@ the default camera is a fixed **isometric 3/4 view** (Close / Wide, plus Chase),
 **◀ ▶ buttons or a point-where-to-go stick, GAS and REV pedals**, gamepads work, the HUD goes compact on phones,
 and render resolution adapts to keep phones near 60 fps.
 
+**Phase 2 (branch `v2-phase2`) — karts and look:** every four-wheeled vehicle is now a go-kart built from
+toon-shaded shapes (round tyres with white rims and team-coloured hubs, side pods, nose and bumper, twin exhausts
+with twin boost flames, and a driver with a big helmet and visor), in races, the menu and the garage.
+Tracks get a checkered mowed lawn with flowers (pebbles and sparkles on other planets), yellow chevron boards
+on the outside of sharp bends, and pennant flags along the start straight. Badly damaged karts smoke
+(new `RacingGame/Smoke` shader).
+
 ### v0.7 — kart-racer graphics & shaders
 
 Cartoon look inspired by kart racers: custom toon/outline shaders, cartoon sky, item boxes, boost pads, drift sparks + mini-turbo.
@@ -185,6 +192,7 @@ built-in-pipeline SubShader as a fallback:
 | `RacingGame/ItemBox` | Rainbow see-through "?" boxes with fresnel shimmer |
 | `RacingGame/Sparks` | Additive glow for drift sparks and boost flames |
 | `RacingGame/Skid` | Transparent skid marks on the road |
+| `RacingGame/Smoke` | Soft alpha-blended smoke puffs from damaged karts |
 
 `Core/ToonStyle.cs` builds the materials (and the striped-grass / asphalt textures) at runtime;
 if a shader is missing the game falls back to Unity's default material.

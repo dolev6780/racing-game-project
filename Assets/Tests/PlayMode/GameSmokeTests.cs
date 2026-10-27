@@ -86,6 +86,25 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator KartsHaveDriversWheelsAndSmoke()
+        {
+            RaceRequest.Current = new RaceRequest { Track = TrackLibrary.Get(0), Laps = 1, Opponents = 3 };
+            GameFlow.StartRace();
+            yield return Frames(5);
+            foreach (var r in RaceManager.Instance.Racers)
+            {
+                if (r.IsPlayer && !KartBuilder.IsKart(PlayerGarage.Selected.Model)) continue;   // the bike has no kart body
+                var car = r.Car;
+                int pivots = 0;
+                foreach (var t in car.GetComponentsInChildren<Transform>())
+                    if (t.name.StartsWith("WheelPivot")) pivots++;
+                Assert.AreEqual(4, pivots, $"{r.Name} should be a four-wheeled kart");
+                Assert.IsNotNull(car.transform.Find("Body/BoostFlames"), $"{r.Name} has no exhaust flames");
+                Assert.IsNotNull(car.GetComponent<DamageSmoke>(), $"{r.Name} has no damage smoke");
+            }
+        }
+
+        [UnityTest]
         public IEnumerator IsometricCameraKeepsThePlayerInView()
         {
             var saved = RaceConfig.Camera;
@@ -126,6 +145,9 @@ namespace RacingGame.Tests
                 var path = TrackBuilder.Build(root.transform, def);
                 Assert.Greater(path.Length, 400f, $"{def.Name} is suspiciously short");
                 Assert.Greater(path.Count, 100, $"{def.Name} has too few samples");
+                var track = root.transform.Find("Track");
+                Assert.GreaterOrEqual(track.Find("ChevronSigns").childCount, 4 * 5, $"{def.Name}: expected chevron signs on its sharp bends");
+                Assert.Greater(track.Find("Flags").childCount, 0, $"{def.Name}: no flags at the start");
                 yield return null;
                 Object.Destroy(root);
                 yield return null;

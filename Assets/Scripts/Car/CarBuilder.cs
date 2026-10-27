@@ -6,8 +6,8 @@ using RacingGame.Weapons;
 namespace RacingGame.Car
 {
     /// <summary>
-    /// Builds a combat car: physics + gameplay components, and the 3D model
-    /// (Kenney .glb vehicle from Resources/Models, or a primitive fallback).
+    /// Builds a combat car: physics + gameplay components, and the 3D visual: a go-kart with a driver
+    /// (KartBuilder) for four-wheeled vehicles, the Kenney .glb model for the bike, or a primitive fallback.
     /// </summary>
     public static class CarBuilder
     {
@@ -50,15 +50,25 @@ namespace RacingGame.Car
             var body = new GameObject("Body");
             body.transform.SetParent(root.transform, false);
 
-            if (!BuildModelVisual(body.transform, modelName, controller))
+            bool kart = KartBuilder.IsKart(modelName);
+            if (kart)
+            {
+                var parts = KartBuilder.Build(body.transform, paint);
+                controller.SetVisuals(parts.SteerPivots, parts.Wheels, parts.BoostFlames);
+            }
+            else if (!BuildModelVisual(body.transform, modelName, controller))
                 BuildPrimitiveVisual(body.transform, paint, controller);
 
-            // Roof cannon (weapon) and player marker sit on top of either visual.
-            float roof = 1.75f;
-            MaterialFactory.Visual(PrimitiveType.Cylinder, body.transform, new Vector3(0f, roof, -0.2f),
-                new Vector3(0.2f, 0.55f, 0.2f), new Color(0.3f, 0.3f, 0.35f), Quaternion.Euler(90f, 0f, 0f));
+            // Weapon: a short cannon on the kart's nose (on the roof of other vehicles), and the player marker on top.
+            var gunmetal = new Color(0.3f, 0.3f, 0.35f);
+            if (kart)
+                MaterialFactory.Visual(PrimitiveType.Cylinder, body.transform, new Vector3(0f, 0.8f, 1.35f),
+                    new Vector3(0.16f, 0.4f, 0.16f), gunmetal, Quaternion.Euler(90f, 0f, 0f), ToonStyle.ModelOutline);
+            else
+                MaterialFactory.Visual(PrimitiveType.Cylinder, body.transform, new Vector3(0f, 1.75f, -0.2f),
+                    new Vector3(0.2f, 0.55f, 0.2f), gunmetal, Quaternion.Euler(90f, 0f, 0f));
             if (isPlayer)
-                MaterialFactory.Visual(PrimitiveType.Cube, body.transform, new Vector3(0f, roof + 1.2f, 0f),
+                MaterialFactory.Visual(PrimitiveType.Cube, body.transform, new Vector3(0f, 2.95f, 0f),
                     new Vector3(0.5f, 0.5f, 0.5f), new Color(0.2f, 1f, 0.3f), Quaternion.Euler(45f, 0f, 45f));
 
             var health = root.AddComponent<CarHealth>();
@@ -67,6 +77,7 @@ namespace RacingGame.Car
             root.AddComponent<WeaponSystem>();
             root.AddComponent<CarAudio>();
             root.AddComponent<DriftSparks>();
+            root.AddComponent<DamageSmoke>();
             root.AddComponent<SkidMarks>();
             var ai = root.AddComponent<AICarInput>();   // player cars get one too: it drives after the finish line
 

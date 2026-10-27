@@ -10,11 +10,12 @@ namespace RacingGame.Core
     public static class MaterialFactory
     {
         static Material baseMaterial;
-        static readonly Dictionary<Color, Material> cache = new Dictionary<Color, Material>();
+        static readonly Dictionary<(Color, float), Material> cache = new Dictionary<(Color, float), Material>();
 
-        public static Material Get(Color color)
+        /// <summary>Shared material of a colour; <paramref name="outline"/> &gt; 0 adds a cartoon outline.</summary>
+        public static Material Get(Color color, float outline = 0f)
         {
-            if (cache.TryGetValue(color, out var mat) && mat != null) return mat;
+            if (cache.TryGetValue((color, outline), out var mat) && mat != null) return mat;
 
             if (baseMaterial == null)
             {
@@ -24,14 +25,14 @@ namespace RacingGame.Core
             }
 
             // Cartoon shading when the toon shader is available, Unity's default material otherwise.
-            mat = ToonStyle.CreateToon(color) ?? new Material(baseMaterial) { color = color };
-            cache[color] = mat;
+            mat = ToonStyle.CreateToon(color, outline) ?? new Material(baseMaterial) { color = color };
+            cache[(color, outline)] = mat;
             return mat;
         }
 
         /// <summary>Creates a primitive without collider, colored, parented.</summary>
         public static GameObject Visual(PrimitiveType type, Transform parent, Vector3 localPos,
-            Vector3 localScale, Color color, Quaternion? localRot = null)
+            Vector3 localScale, Color color, Quaternion? localRot = null, float outline = 0f)
         {
             var go = GameObject.CreatePrimitive(type);
             Object.DestroyImmediate(go.GetComponent<Collider>());
@@ -39,7 +40,7 @@ namespace RacingGame.Core
             go.transform.localPosition = localPos;
             go.transform.localRotation = localRot ?? Quaternion.identity;
             go.transform.localScale = localScale;
-            go.GetComponent<Renderer>().sharedMaterial = Get(color);
+            go.GetComponent<Renderer>().sharedMaterial = Get(color, outline);
             return go;
         }
     }

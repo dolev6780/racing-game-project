@@ -58,8 +58,8 @@ namespace RacingGame.UI
             showcasePos = start + dir * 6f;
             showcaseRot = Quaternion.LookRotation(dir) * Quaternion.Euler(0f, -25f, 0f);
             ShowcaseVehicle(PlayerGarage.Selected);
-            PlaceTruck("vehicle-truck-red", start - dir * 1f - right * 4f, Quaternion.LookRotation(dir) * Quaternion.Euler(0f, 15f, 0f));
-            PlaceTruck("vehicle-truck-purple", start - dir * 2f + right * 4.5f, Quaternion.LookRotation(dir) * Quaternion.Euler(0f, -10f, 0f));
+            PlaceKart(new Color(0.9f, 0.2f, 0.15f), start - dir * 1f - right * 4f, Quaternion.LookRotation(dir) * Quaternion.Euler(0f, 15f, 0f));
+            PlaceKart(new Color(0.6f, 0.35f, 0.9f), start - dir * 2f + right * 4.5f, Quaternion.LookRotation(dir) * Quaternion.Euler(0f, -10f, 0f));
 
             var cam = GameFlow.GetCamera();
             var raceCam = cam.GetComponent<RaceCamera>();
@@ -82,10 +82,11 @@ namespace RacingGame.UI
             if (showcase != null && showcaseModel == v.Model) return;
             if (showcase) Destroy(showcase);
             showcaseModel = v.Model;
-            showcase = ModelLibrary.Instantiate(v.Model, transform);
+            bool kart = RacingGame.Car.KartBuilder.IsKart(v.Model);
+            showcase = kart ? RacingGame.Car.KartBuilder.BuildDisplay(transform, v.Color) : ModelLibrary.Instantiate(v.Model, transform);
             if (showcase == null) return;
             showcase.transform.SetPositionAndRotation(showcasePos, showcaseRot);
-            showcase.transform.localScale = Vector3.one * 1.3f;
+            showcase.transform.localScale = Vector3.one * (kart ? 1f : 1.3f);   // karts are built at race size
         }
 
         public void RefreshBank()
@@ -93,12 +94,10 @@ namespace RacingGame.UI
             if (bankText) bankText.text = UIKit.Money(Wallet.Money);
         }
 
-        void PlaceTruck(string model, Vector3 pos, Quaternion rot)
+        void PlaceKart(Color paint, Vector3 pos, Quaternion rot)
         {
-            var go = ModelLibrary.Instantiate(model, transform);
-            if (go == null) return;
+            var go = RacingGame.Car.KartBuilder.BuildDisplay(transform, paint);
             go.transform.SetPositionAndRotation(pos, rot);
-            go.transform.localScale = Vector3.one * 1.3f;
         }
 
         // ---------- UI ----------
