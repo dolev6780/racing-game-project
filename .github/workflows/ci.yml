@@ -60,9 +60,12 @@ jobs:
           path: ${{ steps.tests.outputs.artifactsPath }}
 
   # Builds an Android APK you can download from the run page and install on a phone.
+  # Runs after the tests: a personal Unity license can't be activated by two jobs at the same time.
+  # Still builds when a test fails, so there is always an APK to try.
   android-build:
     name: Android build
-    needs: compile-check
+    needs: [compile-check, unity-tests]
+    if: always() && needs.compile-check.result == 'success'
     runs-on: ubuntu-latest
     env:
       UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
