@@ -64,7 +64,9 @@ namespace RacingGame.Weapons
         {
             if (victim != null && !victim.IsWrecked)
             {
+                bool blocked = victim.HasShield;
                 victim.TakeDamage(damage, owner);
+                if (!blocked) victim.Controller.LoseCoins(2);   // a missile hit knocks 2 coins loose
                 var rb = victim.Controller.Body;
                 if (!rb.isKinematic)
                     rb.AddForce(direction * 6f + Vector3.up * 3f, ForceMode.VelocityChange);

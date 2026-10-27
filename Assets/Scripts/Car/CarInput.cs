@@ -8,6 +8,9 @@ namespace RacingGame.Car
         public bool Fire;
         public bool Mine;
         public bool Boost;
+        public bool Item;        // use the special item (oil slick / shield / shockwave)
+        public bool Drift;       // held: loosen grip to slide into a drift
+        public bool Trick;       // pressed while airborne off a ramp: trick, then a boost on landing
     }
 
     /// <summary>Anything that can drive a car: the player, an AI, later a network peer.</summary>

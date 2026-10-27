@@ -30,6 +30,7 @@ namespace RacingGame.Core
         {
             Time.timeScale = 1f;
             Mine.ClearAll();
+            OilSlick.ClearAll();
             var race = Object.FindAnyObjectByType<RaceManager>();
             if (race) Object.Destroy(race.gameObject);
             var menu = Object.FindAnyObjectByType<MainMenu>();

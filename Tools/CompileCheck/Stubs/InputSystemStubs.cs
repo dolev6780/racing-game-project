@@ -25,14 +25,14 @@ namespace UnityEngine.InputSystem
     {
         public static Keyboard current;
         public ButtonControl wKey, aKey, sKey, dKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey,
-            spaceKey, jKey, kKey, eKey, lKey, cKey, rKey, pKey, leftShiftKey, escapeKey;
+            spaceKey, jKey, kKey, eKey, lKey, cKey, rKey, pKey, qKey, leftShiftKey, escapeKey, leftCtrlKey, rightCtrlKey;
     }
     public class Gamepad : InputDevice
     {
         public static Gamepad current;
         public StickControl leftStick, rightStick;
         public DpadControl dpad;
-        public ButtonControl leftTrigger, rightTrigger, buttonSouth, buttonEast, buttonWest, buttonNorth, startButton;
+        public ButtonControl leftTrigger, rightTrigger, leftShoulder, rightShoulder, buttonSouth, buttonEast, buttonWest, buttonNorth, startButton;
     }
     public class Mouse : InputDevice { public static Mouse current; public ButtonControl leftButton; public Vector2Control position; }
     public class Touchscreen : InputDevice { public static Touchscreen current; public ReadOnlyArray<TouchControl> touches; }

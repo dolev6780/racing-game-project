@@ -32,6 +32,27 @@ namespace RacingGame.Car
         [Header("Boost")]
         public float boostMultiplier = 1.5f;
 
+        [Header("Drift button")]
+        [Tooltip("Grip multiplier while the drift button is held at speed.")]
+        public float driftButtonGrip = 0.3f;
+
+        /// <summary>Coins carried: each adds 1% top speed (up to MaxCoins).</summary>
+        public const int MaxCoins = 10;
+        public int Coins { get; private set; }
+        /// <summary>Set by RacerProgress when the car is off the road (top speed 60%).</summary>
+        public bool OffRoad { get; set; }
+        public const float OffRoadSpeedFactor = 0.6f;
+        /// <summary>Grip used in the last physics step (lower while drifting with the button).</summary>
+        public float CurrentGrip { get; private set; }
+        public bool IsSpinning => Time.time < spinUntil;
+        public bool IsAirborne => airTime > 0.12f;
+        /// <summary>Longest time in the air during the last jump (seconds).</summary>
+        public float LastAirTime { get; private set; }
+        /// <summary>Raised when a ramp trick is started / landed (landing gives a boost).</summary>
+        public event System.Action TrickStarted, TrickLanded;
+        /// <summary>Raised when an oil slick spins the car out.</summary>
+        public event System.Action SpunOut;
+
         public string DisplayName { get; set; }
         public Color PaintColor { get; set; }
         public bool IsPlayer { get; set; }
@@ -63,6 +84,11 @@ namespace RacingGame.Car
         public Rigidbody Body { get; private set; }
 
         float boostTimer;
+        float spinUntil;
+        float airTime;
+        bool trickRequested, trickActive;
+        float trickSpin;
+        Transform visualBody;
         Transform[] steerPivots = new Transform[0];
         Transform[] wheelMeshes = new Transform[0];
         GameObject boostFlame;
@@ -77,6 +103,7 @@ namespace RacingGame.Car
             Body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             Body.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
             Body.centerOfMass = new Vector3(0f, 0.3f, 0f);
+            CurrentGrip = grip;
         }
 
         void OnEnable() => All.Add(this);
@@ -86,6 +113,7 @@ namespace RacingGame.Car
         {
             steerPivots = frontSteerPivots;
             wheelMeshes = wheels;
+            visualBody = transform.Find("Body");
             boostFlame = flame;
             if (boostFlame) boostFlame.SetActive(false);
         }
@@ -94,6 +122,8 @@ namespace RacingGame.Car
         {
             bool paused = Time.timeScale <= 0f;
             CurrentInput = InputActive && !paused && InputSource != null ? InputSource.ReadInput() : default;
+            // Latched here so a tap between physics steps isn't lost.
+            if (CurrentInput.Trick && !IsGrounded && !trickActive) trickRequested = true;
             UpdateVisuals();
         }
 
@@ -116,13 +146,53 @@ namespace RacingGame.Car
 
             // Extra gravity keeps the car planted.
             Body.AddForce(Vector3.down * 12f, ForceMode.Acceleration);
-            if (!IsGrounded) return;
+            if (!IsGrounded)
+            {
+                // Airborne (off a ramp): a trick now pays a boost on landing.
+                airTime += dt;
+                LastAirTime = Mathf.Max(LastAirTime, airTime);
+                if (trickRequested && !trickActive && airTime > 0.08f)
+                {
+                    trickActive = true;
+                    trickSpin = 0f;
+                    TrickStarted?.Invoke();
+                }
+                trickRequested = false;
+                return;
+            }
+            if (airTime > 0f)
+            {
+                if (trickActive)
+                {
+                    StartBoost(0.9f);
+                    TrickLanded?.Invoke();
+                }
+                if (airTime > 0.12f) LastAirTime = airTime;
+                airTime = 0f;
+                trickActive = false;
+                trickRequested = false;
+            }
+
+            if (IsSpinning)
+            {
+                // Spun out on oil: no control, the kart twirls and scrubs off speed.
+                Vector3 flat = Body.linearVelocity;
+                Body.AddForce(-new Vector3(flat.x, 0f, flat.z) * Mathf.Clamp01(1.6f * dt), ForceMode.VelocityChange);
+                Vector3 spin = Body.angularVelocity;
+                spin.y = 10f;
+                Body.angularVelocity = spin;
+                IsDrifting = false;
+                DriftTier = 0;
+                driftTime = 0f;
+                return;
+            }
 
             var input = CurrentInput;
             float throttle = input.Throttle;
             float boost = IsBoosting ? boostMultiplier : 1f;
             if (IsBoosting) throttle = 1f;
-            float topSpeed = maxSpeed * speedMultiplier * catchUpMultiplier * boost;
+            float topSpeed = maxSpeed * speedMultiplier * catchUpMultiplier * boost
+                             * (1f + Coins * 0.01f) * (OffRoad ? OffRoadSpeedFactor : 1f);
 
             // --- Longitudinal ---
             float deltaV = 0f;
@@ -145,9 +215,12 @@ namespace RacingGame.Car
 
             // --- Lateral grip (kills sideways sliding; lower grip = more drift) ---
             float lateral = Vector3.Dot(velocity, right);
-            Body.AddForce(-right * lateral * Mathf.Clamp01(grip * dt), ForceMode.VelocityChange);
+            // Holding the drift button at speed loosens the grip so the kart slides into a drift.
+            bool driftHeld = input.Drift && fwdSpeed > 12f;
+            CurrentGrip = driftHeld ? grip * driftButtonGrip : grip;
+            Body.AddForce(-right * lateral * Mathf.Clamp01(CurrentGrip * dt), ForceMode.VelocityChange);
 
-            UpdateDrift(fwdSpeed, lateral, input.Steer, dt);
+            UpdateDrift(fwdSpeed, lateral, input.Steer, driftHeld, dt);
 
             // --- Steering ---
             float speedFactor = Mathf.Clamp01(Mathf.Abs(fwdSpeed) / 8f);
@@ -162,9 +235,11 @@ namespace RacingGame.Car
         /// Kart-style drifting: sliding hard through a corner charges sparks (blue, orange, purple);
         /// releasing the drift gives a mini-turbo whose length depends on the charge.
         /// </summary>
-        void UpdateDrift(float fwdSpeed, float lateral, float steer, float dt)
+        void UpdateDrift(float fwdSpeed, float lateral, float steer, bool driftHeld, float dt)
         {
             bool sliding = fwdSpeed > 12f && Mathf.Abs(steer) > 0.6f && Mathf.Abs(lateral) > 4f;
+            // With the drift button, a gentler steer and slide is enough.
+            if (driftHeld && Mathf.Abs(steer) > 0.3f && Mathf.Abs(lateral) > 2f) sliding = true;
             if (sliding)
             {
                 driftGrace = 0.15f;
@@ -196,6 +271,17 @@ namespace RacingGame.Car
             boostTimer = Mathf.Max(boostTimer, duration);
         }
 
+        public void AddCoin() => Coins = Mathf.Min(MaxCoins, Coins + 1);
+        public void LoseCoins(int count) => Coins = Mathf.Max(0, Coins - count);
+        public void HalveCoins() => Coins /= 2;
+
+        /// <summary>Oil slick: lose control and twirl for a moment.</summary>
+        public void SpinOut(float duration)
+        {
+            spinUntil = Mathf.Max(spinUntil, Time.time + duration);
+            SpunOut?.Invoke();
+        }
+
         public void ResetTo(Vector3 position, Quaternion rotation)
         {
             if (!Body.isKinematic)
@@ -210,10 +296,21 @@ namespace RacingGame.Car
             driftTime = 0f;
             DriftTier = 0;
             IsDrifting = false;
+            spinUntil = 0f;
+            airTime = 0f;
+            trickActive = trickRequested = false;
         }
 
         void UpdateVisuals()
         {
+            // Ramp trick: one barrel roll of the kart body while in the air.
+            if (visualBody)
+            {
+                if (trickActive) trickSpin = Mathf.Min(360f, trickSpin + 900f * Time.deltaTime);
+                else trickSpin = 0f;
+                visualBody.localRotation = Quaternion.Euler(0f, 0f, trickSpin);
+            }
+
             float steerAngle = CurrentInput.Steer * 28f;
             foreach (var pivot in steerPivots)
                 if (pivot) pivot.localRotation = Quaternion.Euler(0f, steerAngle, 0f);

@@ -19,7 +19,7 @@ namespace RacingGame.UI
         Canvas canvas;
 
         // Top-left card
-        Text posText, posTotal, lapText, timeText, bestText;
+        Text posText, posTotal, lapText, timeText, bestText, coinText, itemText;
         // Standings
         readonly List<(Image bg, Image bar, Text text)> rows = new List<(Image, Image, Text)>();
         // Speedometer
@@ -91,6 +91,17 @@ namespace RacingGame.UI
             race.PlayerLapCompleted += OnLap;
             RacingGame.Track.Pickup.Collected += OnItem;
             player.Car.MiniTurbo += OnMiniTurbo;
+            player.Car.TrickLanded += OnTrick;
+            player.Car.SpunOut += OnSpunOut;
+            CarHealth.ShieldBlocked += OnShieldBlocked;
+        }
+
+        void OnTrick() => AddFeed("TRICK BOOST!", UIKit.Nitro);
+        void OnSpunOut() => AddFeed("SPUN OUT ON OIL!", UIKit.Bad);
+
+        void OnShieldBlocked(CarHealth hp)
+        {
+            if (hp == player.Health) AddFeed("SHIELD BLOCKED A HIT!", UIKit.Nitro);
         }
 
         void OnItem(CarController car, string label)
@@ -111,7 +122,13 @@ namespace RacingGame.UI
             CarHealth.Wrecked -= OnWrecked;
             RacingGame.Track.Pickup.Collected -= OnItem;
             if (race != null) race.PlayerLapCompleted -= OnLap;
-            if (player != null && player.Car != null) player.Car.MiniTurbo -= OnMiniTurbo;
+            if (player != null && player.Car != null)
+            {
+                player.Car.MiniTurbo -= OnMiniTurbo;
+                player.Car.TrickLanded -= OnTrick;
+                player.Car.SpunOut -= OnSpunOut;
+            }
+            CarHealth.ShieldBlocked -= OnShieldBlocked;
         }
 
         void OnLap(float time, bool record)
@@ -160,6 +177,8 @@ namespace RacingGame.UI
                 new Vector2(-30f, 44f), new Vector2(220f, 44f), TextAnchor.MiddleRight);
             bestText = UIKit.Label(card, "", 22, UIKit.TextDim, new Vector2(1f, 0f), new Vector2(1f, 0f),
                 new Vector2(-30f, 12f), new Vector2(300f, 30f), TextAnchor.MiddleRight);
+            coinText = UIKit.Label(card, "", 24, UIKit.Gold, new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(40f, 10f), new Vector2(200f, 32f), TextAnchor.MiddleLeft, true);
         }
 
         void BuildTopCenter(Transform root)
@@ -252,7 +271,7 @@ namespace RacingGame.UI
         void BuildAmmo(Transform root)
         {
             var origin = new Vector2(0f, 0f);
-            var panel = UIKit.Panel(root, "Ammo", origin, origin, new Vector2(30f, 30f), new Vector2(500f, 210f));
+            var panel = UIKit.Panel(root, "Ammo", origin, origin, new Vector2(30f, 30f), new Vector2(500f, 270f));
             ammoRoot = panel.gameObject;
             string[] names = { "MISSILES", "MINES", "NITRO" };
             Color[] colors = { UIKit.AccentHot, new Color(0.85f, 0.85f, 0.9f), UIKit.Nitro };
@@ -270,6 +289,10 @@ namespace RacingGame.UI
                 }
                 ammoPips.Add(pips);
             }
+            UIKit.Label(panel.transform, "ITEM (Q)", 30, UIKit.TextMain, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(26f, -204f), new Vector2(200f, 50f), TextAnchor.MiddleLeft);
+            itemText = UIKit.Label(panel.transform, "-", 30, UIKit.Accent, new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(220f, -204f), new Vector2(260f, 50f), TextAnchor.MiddleLeft, true);
         }
 
         void BuildCenter(Transform root)
@@ -364,6 +387,9 @@ namespace RacingGame.UI
             timeText.text = UIKit.Time(race.RaceTime);
             float best = race.BestLapTime;
             bestText.text = best > 0f ? "BEST LAP " + UIKit.Time(best) : "";
+            int coins = player.Car.Coins;
+            coinText.text = $"COINS {coins}/{CarController.MaxCoins}";
+            coinText.color = coins >= CarController.MaxCoins ? UIKit.Good : UIKit.Gold;
         }
 
         void UpdateStandings()
@@ -406,6 +432,7 @@ namespace RacingGame.UI
             SetPips(ammoPips[0], w.Missiles, w.missilesPerLap);
             SetPips(ammoPips[1], w.Mines, w.minesPerLap);
             SetPips(ammoPips[2], w.Boosts, w.boostsPerLap);
+            itemText.text = w.Special == RacingGame.Weapons.SpecialItem.None ? "-" : RacingGame.Weapons.WeaponSystem.ItemLabel(w.Special);
         }
 
         static void SetPips(Image[] pips, int have, int max)

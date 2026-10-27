@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using RacingGame.Car;
 using RacingGame.Race;
+using RacingGame.Weapons;
 using Btn = RacingGame.Car.PlayerCarInput.Btn;
 
 namespace RacingGame.UI
@@ -20,6 +21,7 @@ namespace RacingGame.UI
             public Color Color;
             public Text Badge;
             public GameObject BadgeRoot;
+            public Text Label;
         }
 
         Canvas canvas;
@@ -51,6 +53,8 @@ namespace RacingGame.UI
             AddButton(Btn.Mine, "MINE", new Color(0.35f, 0.36f, 0.42f), true, true);
             AddButton(Btn.Boost, "NITRO", UIKit.Nitro, true, true);
             AddButton(Btn.Fire, "FIRE", UIKit.AccentHot, true, true);
+            AddButton(Btn.Item, "ITEM", new Color(0.62f, 0.36f, 0.95f), true, false);
+            AddButton(Btn.Drift, "DRIFT", new Color(0.25f, 0.55f, 0.95f), true, false);
 
             // Floating stick ("point where you want to go")
             stickBase = Node("StickBase", new Vector2(0.5f, 0.5f));
@@ -81,9 +85,9 @@ namespace RacingGame.UI
             var img = UIKit.Image(rt, round ? UIKit.Circle : UIKit.Rounded, color);
             var inner = UIKit.Stretch(rt, "Ring");
             UIKit.Image(inner, round ? UIKit.Ring : null, new Color(1f, 1f, 1f, round ? 0.35f : 0f));
-            UIKit.Label(rt, label, label.Length > 2 ? 32 : 56, UIKit.TextMain, TextAnchor.MiddleCenter, true);
+            var text = UIKit.Label(rt, label, label.Length > 2 ? 32 : 56, UIKit.TextMain, TextAnchor.MiddleCenter, true);
 
-            var view = new ButtonView { Id = id, Rect = rt, Image = img, Color = color };
+            var view = new ButtonView { Id = id, Rect = rt, Image = img, Color = color, Label = text };
             if (badge)
             {
                 var b = UIKit.Rect(rt, "Badge", new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), new Vector2(-14f, -14f),
@@ -121,6 +125,12 @@ namespace RacingGame.UI
                 bool held = input.IsHeld(b.Id);
                 int ammo = Ammo(b.Id);
                 bool empty = ammo == 0;
+                if (b.Id == Btn.Item)
+                {
+                    var item = player.Weapons.Special;
+                    b.Label.text = WeaponSystem.ItemLabel(item);
+                    empty = item == SpecialItem.None;
+                }
                 var c = b.Color;
                 c.a = held ? 1f : empty ? 0.3f : 0.7f;
                 b.Image.color = held ? Color.Lerp(c, Color.white, 0.25f) : c;

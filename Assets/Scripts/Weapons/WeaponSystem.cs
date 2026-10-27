@@ -4,6 +4,9 @@ using RacingGame.Progress;
 
 namespace RacingGame.Weapons
 {
+    /// <summary>Special items from item boxes; one can be held at a time and used with the ITEM button.</summary>
+    public enum SpecialItem { None, OilSlick, Shield, Shockwave }
+
     /// <summary>
     /// Rock n' Roll Racing style ammo: a fixed number of missiles, mines and nitros
     /// that refill every lap. Upgrade these numbers in the future garage/shop.
@@ -22,6 +25,14 @@ namespace RacingGame.Weapons
         public int Missiles { get; private set; }
         public int Mines { get; private set; }
         public int Boosts { get; private set; }
+        public SpecialItem Special { get; private set; }
+
+        public const float ShieldSeconds = 6f;
+        public const float ShockwaveRadius = 8f, ShockwaveDamage = 30f;
+
+        /// <summary>Short label for HUD buttons.</summary>
+        public static string ItemLabel(SpecialItem item) =>
+            item == SpecialItem.OilSlick ? "OIL" : item == SpecialItem.Shield ? "SHIELD" : item == SpecialItem.Shockwave ? "SHOCK" : "ITEM";
 
         CarController controller;
         CarHealth health;
@@ -48,6 +59,34 @@ namespace RacingGame.Weapons
             if (input.Fire) FireMissile();
             if (input.Mine) DropMine();
             if (input.Boost) UseBoost();
+            if (input.Item) UseSpecial();
+        }
+
+        /// <summary>Puts an item in the slot; false if one is already held.</summary>
+        public bool GiveSpecial(SpecialItem item)
+        {
+            if (Special != SpecialItem.None || item == SpecialItem.None) return false;
+            Special = item;
+            return true;
+        }
+
+        public void UseSpecial()
+        {
+            var item = Special;
+            if (item == SpecialItem.None) return;
+            Special = SpecialItem.None;
+            switch (item)
+            {
+                case SpecialItem.OilSlick:
+                    OilSlick.Spawn(transform.position - transform.forward * 3f + Vector3.up * 0.05f, health);
+                    break;
+                case SpecialItem.Shield:
+                    health.ActivateShield(ShieldSeconds);
+                    break;
+                case SpecialItem.Shockwave:
+                    Shockwave.Fire(transform.position, ShockwaveRadius, ShockwaveDamage, health);
+                    break;
+            }
         }
 
         /// <summary>Extra ammo from item boxes (can go a little above the per-lap amount).</summary>

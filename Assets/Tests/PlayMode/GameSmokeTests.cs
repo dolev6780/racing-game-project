@@ -10,6 +10,7 @@ using RacingGame.Progress;
 using RacingGame.Race;
 using RacingGame.Track;
 using RacingGame.UI;
+using RacingGame.Weapons;
 
 namespace RacingGame.Tests
 {
@@ -104,6 +105,202 @@ namespace RacingGame.Tests
             }
         }
 
+
+        // ---------- Phase 3: items, coins, ramps, drifting, off-road, AI ----------
+
+        class ScriptedInput : ICarInputSource
+        {
+            public CarInputState State;
+            public CarInputState ReadInput() => State;
+        }
+
+        static IEnumerator StartRace(int track, int opponents)
+        {
+            RaceRequest.Current = new RaceRequest { Track = TrackLibrary.Get(track), Laps = 1, Opponents = opponents };
+            GameFlow.StartRace();
+            yield return Frames(5);
+        }
+
+        static IEnumerator WaitForGreenLight(RaceManager race)
+        {
+            float end = Time.time + 6f;
+            while (race.State != RaceState.Racing && Time.time < end) yield return null;
+            Assert.AreEqual(RaceState.Racing, race.State, "Race did not start");
+        }
+
+        static Racer Opponent(RaceManager race, int n)
+        {
+            foreach (var r in race.Racers)
+                if (!r.IsPlayer && n-- == 0) return r;
+            return null;
+        }
+
+        [UnityTest]
+        public IEnumerator CoinsAddSpeedAndAreLostOnHitsAndWrecks()
+        {
+            yield return StartRace(0, 3);
+            var race = RaceManager.Instance;
+            var car = race.Player.Car;
+            for (int i = 0; i < 12; i++) car.AddCoin();
+            Assert.AreEqual(CarController.MaxCoins, car.Coins, "Coins should cap at the maximum");
+            car.LoseCoins(2);
+            Assert.AreEqual(CarController.MaxCoins - 2, car.Coins);
+            race.Player.Health.TakeDamage(10000f, null);
+            yield return Frames(2);
+            Assert.AreEqual((CarController.MaxCoins - 2) / 2, car.Coins, "A wreck should cost half the coins");
+        }
+
+        [UnityTest]
+        public IEnumerator CoinPickupGivesACoinAndRespawnsLater()
+        {
+            yield return StartRace(0, 3);
+            var car = RaceManager.Instance.Player.Car;
+            Assert.Greater(Coin.All.Count, 20, "Track has no coins");
+            var coin = Coin.All[0];
+            coin.transform.position = car.transform.position + Vector3.up;
+            yield return Frames(3);
+            Assert.AreEqual(1, car.Coins, "Driving through a coin should collect it");
+            Assert.IsFalse(coin.Available, "A collected coin should disappear until it respawns");
+        }
+
+        [Test]
+        public void ItemBoxOddsFavourKartsAtTheBack()
+        {
+            int frontStrong = 0, backStrong = 0, frontShock = 0;
+            for (int i = 0; i < 1000; i++)
+            {
+                float roll = (i + 0.5f) / 1000f;
+                var front = Pickup.RollItem(0f, roll);
+                var back = Pickup.RollItem(1f, roll);
+                if (front == ItemReward.Shield || front == ItemReward.Shockwave) frontStrong++;
+                if (back == ItemReward.Shield || back == ItemReward.Shockwave) backStrong++;
+                if (front == ItemReward.Shockwave) frontShock++;
+            }
+            Assert.AreEqual(0, frontShock, "The leader never gets a shockwave");
+            Assert.Greater(backStrong, frontStrong * 3, "Last place should get shields and shockwaves far more often");
+        }
+
+        [UnityTest]
+        public IEnumerator SpecialItemSlotHoldsOneItem()
+        {
+            yield return StartRace(0, 3);
+            var weapons = RaceManager.Instance.Player.Weapons;
+            Assert.IsTrue(weapons.GiveSpecial(SpecialItem.Shield));
+            Assert.IsFalse(weapons.GiveSpecial(SpecialItem.OilSlick), "The slot holds one item at a time");
+            weapons.UseSpecial();
+            Assert.AreEqual(SpecialItem.None, weapons.Special);
+            Assert.IsTrue(RaceManager.Instance.Player.Health.HasShield, "Using a shield item should raise the shield");
+        }
+
+        [UnityTest]
+        public IEnumerator ShieldBlocksOneHit()
+        {
+            yield return StartRace(0, 3);
+            var hp = RaceManager.Instance.Player.Health;
+            hp.ActivateShield(WeaponSystem.ShieldSeconds);
+            float armor = hp.Armor;
+            hp.TakeDamage(30f, null);
+            Assert.AreEqual(armor, hp.Armor, "The shield should absorb the hit");
+            Assert.IsFalse(hp.HasShield, "The shield pops after one hit");
+            hp.TakeDamage(30f, null);
+            Assert.Less(hp.Armor, armor, "Without the shield the next hit lands");
+        }
+
+        [UnityTest]
+        public IEnumerator OilSlickSpinsOutAKart()
+        {
+            yield return StartRace(0, 3);
+            var victim = Opponent(RaceManager.Instance, 0).Car;
+            OilSlick.Spawn(victim.transform.position, null);
+            for (int i = 0; i < 4; i++) yield return new WaitForFixedUpdate();
+            Assert.IsTrue(victim.IsSpinning, "Driving onto oil should spin the kart out");
+        }
+
+        [UnityTest]
+        public IEnumerator ShockwaveHitsKartsInRangeOnly()
+        {
+            yield return StartRace(0, 3);
+            var race = RaceManager.Instance;
+            var me = race.Player.Car;
+            var near = Opponent(race, 0);
+            var far = Opponent(race, 1);
+            near.Car.ResetTo(me.transform.position + me.transform.right * 4f, me.transform.rotation);
+            far.Car.ResetTo(me.transform.position + me.transform.forward * 40f, me.transform.rotation);
+            yield return new WaitForFixedUpdate();
+            float nearArmor = near.Health.Armor, farArmor = far.Health.Armor;
+            Shockwave.Fire(me.transform.position, WeaponSystem.ShockwaveRadius, WeaponSystem.ShockwaveDamage, race.Player.Health);
+            Assert.Less(near.Health.Armor, nearArmor, "A kart within range should be hit");
+            Assert.AreEqual(farArmor, far.Health.Armor, "A kart out of range should not be hit");
+        }
+
+        [UnityTest]
+        public IEnumerator DriftButtonLoosensGrip()
+        {
+            yield return StartRace(1, 1);
+            var race = RaceManager.Instance;
+            yield return WaitForGreenLight(race);
+            var car = race.Player.Car;
+            car.InputSource = new ScriptedInput { State = new CarInputState { Throttle = 1f, Steer = 0.4f, Drift = true } };
+            Assert.AreEqual(car.grip, car.CurrentGrip, "Full grip before the drift button does anything");
+            float lowest = car.grip;
+            bool fast = false;
+            float end = Time.time + 4f;
+            while (Time.time < end)
+            {
+                yield return new WaitForFixedUpdate();
+                if (car.ForwardSpeed < 13f) continue;   // the drift button only works at speed
+                fast = true;
+                lowest = Mathf.Min(lowest, car.CurrentGrip);
+            }
+            Assert.IsTrue(fast, "The kart never got up to drifting speed");
+            Assert.Less(lowest, car.grip * 0.5f, "Holding drift at speed should loosen the grip");
+        }
+
+        [UnityTest]
+        public IEnumerator RampLaunchesKartsAndTricksBoost()
+        {
+            yield return StartRace(0, 1);
+            var race = RaceManager.Instance;
+            yield return WaitForGreenLight(race);
+            var ramp = Object.FindAnyObjectByType<Ramp>();
+            Assert.IsNotNull(ramp, "Track has no ramp");
+            var car = race.Player.Car;
+            bool landed = false;
+            car.TrickLanded += () => landed = true;
+            car.InputSource = new ScriptedInput { State = new CarInputState { Throttle = 1f, Trick = true } };
+            car.ResetTo(ramp.Foot - ramp.Direction * 14f + Vector3.up * 0.1f, Quaternion.LookRotation(ramp.Direction));
+            car.Body.linearVelocity = ramp.Direction * 26f;
+            float end = Time.time + 3f;
+            while (Time.time < end && !landed) yield return null;
+            Assert.Greater(car.LastAirTime, 0.25f, "The ramp should launch the kart into the air");
+            Assert.IsTrue(landed, "A trick in the air should land with a boost");
+        }
+
+        [UnityTest]
+        public IEnumerator OffRoadIsDetected()
+        {
+            yield return StartRace(0, 1);
+            var race = RaceManager.Instance;
+            var car = race.Player.Car;
+            int i = race.Player.Progress.CurrentIndex;
+            car.ResetTo(race.Path.Point(i) + race.Path.Right(i) * 25f + Vector3.up * 0.3f, car.transform.rotation);
+            yield return Frames(3);
+            Assert.IsTrue(car.OffRoad, "25 m from the centre line is off the road");
+            car.ResetTo(race.Path.Point(i) + Vector3.up * 0.3f, car.transform.rotation);
+            yield return Frames(3);
+            Assert.IsFalse(car.OffRoad, "On the centre line is on the road");
+        }
+
+        [UnityTest]
+        public IEnumerator AiDriversHaveMixedPersonalities()
+        {
+            yield return StartRace(0, 5);
+            var seen = new System.Collections.Generic.HashSet<AiPersonality>();
+            foreach (var r in RaceManager.Instance.Racers)
+                if (!r.IsPlayer) seen.Add(r.Car.GetComponent<AICarInput>().personality);
+            Assert.GreaterOrEqual(seen.Count, 3, "Expected aggressive, defensive and collector drivers");
+        }
+
         [UnityTest]
         public IEnumerator IsometricCameraKeepsThePlayerInView()
         {
@@ -148,6 +345,8 @@ namespace RacingGame.Tests
                 var track = root.transform.Find("Track");
                 Assert.GreaterOrEqual(track.Find("ChevronSigns").childCount, 4 * 5, $"{def.Name}: expected chevron signs on its sharp bends");
                 Assert.Greater(track.Find("Flags").childCount, 0, $"{def.Name}: no flags at the start");
+                Assert.AreEqual(1, track.Find("Ramps").childCount, $"{def.Name}: expected one ramp");
+                Assert.Greater(track.Find("Coins").childCount, 20, $"{def.Name}: too few coins");
                 yield return null;
                 Object.Destroy(root);
                 yield return null;

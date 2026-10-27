@@ -19,7 +19,7 @@ namespace RacingGame.UI
             root.gameObject.AddComponent<FadeIn>();
 
             var panel = UIKit.Panel(root, "Panel", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(980f, 820f)).rectTransform;
+                new Vector2(980f, 960f)).rectTransform;
             UIKit.Label(panel, "SETTINGS", 64, UIKit.Accent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0f, -30f), new Vector2(900f, 90f), TextAnchor.MiddleCenter, true);
 
@@ -30,6 +30,9 @@ namespace RacingGame.UI
             y -= 100f;
             UIKit.OptionRow(panel, "INVERT TILT", y, w, OnOff, PlayerCarInput.InvertTilt ? 1 : 0,
                 i => PlayerCarInput.InvertTilt = i == 1);
+            y -= 100f;
+            UIKit.OptionRow(panel, "DRIFT BUTTON", y, w, OnOff, PlayerCarInput.DriftButton ? 1 : 0,
+                i => PlayerCarInput.DriftButton = i == 1);
             y -= 100f;
             UIKit.OptionRow(panel, "CAMERA VIEW", y, w, RaceCamera.ModeNames, (int)RaceConfig.Camera, i =>
             {

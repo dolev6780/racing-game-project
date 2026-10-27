@@ -56,6 +56,8 @@ namespace RacingGame.Track
             BuildHills(root.transform, path);
             BuildItemBoxes(root.transform, path);
             BuildBoostPads(root.transform, path);
+            BuildRamp(root.transform, path);
+            BuildCoins(root.transform, path);
             return path;
         }
 
@@ -473,13 +475,85 @@ namespace RacingGame.Track
             }
         }
 
+        static readonly float[] ItemBoxSpots = { 0.22f, 0.55f, 0.82f };
+
+        /// <summary>Things already on the road that ramps and coins must keep clear of.</summary>
+        static System.Collections.Generic.List<Vector3> Obstacles(Transform trackRoot)
+        {
+            var list = new System.Collections.Generic.List<Vector3>();
+            foreach (var name in new[] { "BoostPads", "ItemBoxes", "Ramps" })
+            {
+                var group = trackRoot.Find(name);
+                if (group == null) continue;
+                foreach (Transform child in group) list.Add(child.position);
+            }
+            return list;
+        }
+
+        static bool Clear(System.Collections.Generic.List<Vector3> obstacles, Vector3 p, float distance)
+        {
+            foreach (var o in obstacles)
+            {
+                Vector3 d = o - p;
+                d.y = 0f;
+                if (d.sqrMagnitude < distance * distance) return false;
+            }
+            return true;
+        }
+
+        /// <summary>One ramp in the right-hand lane of the straightest clear stretch (away from the start).</summary>
+        static void BuildRamp(Transform parent, TrackPath path)
+        {
+            var root = new GameObject("Ramps");
+            root.transform.SetParent(parent, false);
+            var obstacles = Obstacles(parent);
+            int best = -1;
+            float bestScore = float.MaxValue;
+            for (int i = 0; i < path.Count; i++)
+            {
+                float along = path.DistanceAtIndex(i);
+                if (along < path.Length * 0.25f || along > path.Length * 0.9f) continue;
+                // Straight before (run-up) and after (landing).
+                float score = Vector3.Angle(path.Direction(i - 6), path.Direction(i)) + Vector3.Angle(path.Direction(i), path.Direction(i + 10));
+                if (score >= bestScore || !Clear(obstacles, path.Point(i), 30f)) continue;
+                bestScore = score;
+                best = i;
+            }
+            if (best < 0) return;
+            Vector3 dir = path.Direction(best);
+            Vector3 right = Vector3.Cross(Vector3.up, dir).normalized;
+            Ramp.Create(root.transform, path.Point(best) + right * (path.RoadWidth * 0.25f), dir);
+        }
+
+        /// <summary>Lines of five coins along the lap, alternating lanes, clear of item boxes, pads and the ramp.</summary>
+        static void BuildCoins(Transform parent, TrackPath path)
+        {
+            var root = new GameObject("Coins");
+            root.transform.SetParent(parent, false);
+            var obstacles = Obstacles(parent);
+            int line = 0;
+            for (float f = 0.1f; f < 0.97f; f += 0.11f)
+            {
+                bool nearBoxes = false;
+                foreach (float b in ItemBoxSpots) if (Mathf.Abs(f - b) < 0.04f) nearBoxes = true;
+                if (nearBoxes) continue;
+                float lateral = (line++ % 3 - 1) * path.RoadWidth * 0.25f;
+                for (int k = 0; k < 5; k++)
+                {
+                    Vector3 c = path.PointAtDistance(path.Length * f + k * 2.6f, out Vector3 dir);
+                    Vector3 p = c + Vector3.Cross(Vector3.up, dir).normalized * lateral;
+                    if (!Clear(obstacles, p, 8f)) continue;
+                    Coin.Create(root.transform, p + Vector3.up * 1f);
+                }
+            }
+        }
+
         /// <summary>Rows of rainbow "?" item boxes across the road at three points of the lap.</summary>
         static void BuildItemBoxes(Transform parent, TrackPath path)
         {
             var root = new GameObject("ItemBoxes");
             root.transform.SetParent(parent, false);
-            float[] spots = { 0.22f, 0.55f, 0.82f };
-            foreach (float f in spots)
+            foreach (float f in ItemBoxSpots)
             {
                 Vector3 center = path.PointAtDistance(path.Length * f, out Vector3 dir);
                 Vector3 right = Vector3.Cross(Vector3.up, dir).normalized;

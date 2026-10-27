@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 
 namespace RacingGame.Core
 {
-    public enum GameKey { Up, Down, Left, Right, Fire, Mine, Boost, Camera, Restart, Pause }
+    public enum GameKey { Up, Down, Left, Right, Fire, Mine, Boost, Camera, Restart, Pause, Drift, Item }
 
     /// <summary>A finger on the screen (or the mouse, id -1). Position origin is bottom-left.</summary>
     public struct TouchPointer
@@ -73,6 +73,9 @@ namespace RacingGame.Core
                 case GameKey.Boost: return kb.leftShiftKey.isPressed || kb.lKey.isPressed;
                 case GameKey.Camera: return kb.cKey.isPressed;
                 case GameKey.Restart: return kb.rKey.isPressed;
+                case GameKey.Drift:
+                    return kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed
+                        || (Gamepad.current != null && Gamepad.current.rightShoulder.isPressed);
             }
             return false;
 #else
@@ -87,6 +90,7 @@ namespace RacingGame.Core
                 case GameKey.Boost: return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.L);
                 case GameKey.Camera: return Input.GetKey(KeyCode.C);
                 case GameKey.Restart: return Input.GetKey(KeyCode.R);
+                case GameKey.Drift: return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
             }
             return false;
 #endif
@@ -105,6 +109,8 @@ namespace RacingGame.Core
                     case GameKey.Boost: if (pad.buttonWest.wasPressedThisFrame) return true; break;
                     case GameKey.Camera: if (pad.buttonNorth.wasPressedThisFrame) return true; break;
                     case GameKey.Pause: if (pad.startButton.wasPressedThisFrame) return true; break;
+                    case GameKey.Item: if (pad.leftShoulder.wasPressedThisFrame) return true; break;
+                    case GameKey.Drift: if (pad.rightShoulder.wasPressedThisFrame) return true; break;
                 }
             }
             var kb = Keyboard.current;
@@ -117,6 +123,8 @@ namespace RacingGame.Core
                 case GameKey.Camera: return kb.cKey.wasPressedThisFrame;
                 case GameKey.Restart: return kb.rKey.wasPressedThisFrame;
                 case GameKey.Pause: return kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame;
+                case GameKey.Item: return kb.qKey.wasPressedThisFrame;
+                case GameKey.Drift: return kb.leftCtrlKey.wasPressedThisFrame || kb.rightCtrlKey.wasPressedThisFrame;
                 default: return false;
             }
 #else
@@ -128,6 +136,8 @@ namespace RacingGame.Core
                 case GameKey.Camera: return Input.GetKeyDown(KeyCode.C);
                 case GameKey.Restart: return Input.GetKeyDown(KeyCode.R);
                 case GameKey.Pause: return Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P);
+                case GameKey.Item: return Input.GetKeyDown(KeyCode.Q);
+                case GameKey.Drift: return Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.RightControl);
                 default: return false;
             }
 #endif

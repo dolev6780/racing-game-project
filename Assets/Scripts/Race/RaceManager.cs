@@ -164,7 +164,12 @@ namespace RacingGame.Race
                 racer.Progress.Initialize(Path);
                 racer.Progress.NewLap += (p, lap) => racer.Weapons.Refill();
 
-                if (!isPlayer) ConfigureAI(car, Request);
+                if (!isPlayer)
+                {
+                    ConfigureAI(car, Request);
+                    // Every field has a mix of driving styles.
+                    car.GetComponent<AICarInput>().personality = (AiPersonality)(1 + (opponentIndex - 1) % 3);
+                }
                 else
                 {
                     PlayerGarage.ApplyTo(car, PlayerGarage.Stats(playerVehicle));

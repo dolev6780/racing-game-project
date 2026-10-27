@@ -36,6 +36,13 @@ namespace RacingGame.Car
             set { PlayerPrefs.SetInt("touchSteering", (int)value); PlayerPrefs.Save(); calibrateRequested = true; }
         }
 
+        /// <summary>Show a DRIFT touch button (drifting also works by steering hard at speed).</summary>
+        public static bool DriftButton
+        {
+            get => PlayerPrefs.GetInt("driftButton", 0) == 1;
+            set { PlayerPrefs.SetInt("driftButton", value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+
         public static bool InvertTilt
         {
             get => PlayerPrefs.GetInt("tiltInvert", 0) == 1;
@@ -49,7 +56,7 @@ namespace RacingGame.Car
 
         // ---------- Buttons ----------
 
-        public enum Btn { Left, Right, Gas, Reverse, Fire, Mine, Boost, Count }
+        public enum Btn { Left, Right, Gas, Reverse, Fire, Mine, Boost, Item, Drift, Count }
 
         readonly Rect[] rects = new Rect[(int)Btn.Count];
         readonly bool[] held = new bool[(int)Btn.Count];
@@ -121,6 +128,10 @@ namespace RacingGame.Car
             s.Fire = InputBridge.WasPressedThisFrame(GameKey.Fire) || Pressed(Btn.Fire);
             s.Mine = InputBridge.WasPressedThisFrame(GameKey.Mine) || Pressed(Btn.Mine);
             s.Boost = InputBridge.WasPressedThisFrame(GameKey.Boost) || Pressed(Btn.Boost);
+            s.Item = InputBridge.WasPressedThisFrame(GameKey.Item) || Pressed(Btn.Item);
+            s.Drift = InputBridge.IsHeld(GameKey.Drift) || (ShowTouchControls && held[(int)Btn.Drift]);
+            // Ramp trick: the drift button, or on a phone simply tapping GAS again, while in the air.
+            s.Trick = InputBridge.WasPressedThisFrame(GameKey.Drift) || Pressed(Btn.Drift) || Pressed(Btn.Gas);
             return s;
         }
 
@@ -262,6 +273,9 @@ namespace RacingGame.Car
             rects[(int)Btn.Fire] = new Rect(gas.center.x - a * 0.5f, gas.yMin - gap - a, a, a);
             rects[(int)Btn.Mine] = new Rect(rev.center.x - a * 0.5f, rev.yMin - gap - a, a, a);
             rects[(int)Btn.Boost] = new Rect(rev.center.x - a * 1.5f - gap, rev.yMin - gap - a, a, a);
+            rects[(int)Btn.Item] = new Rect(gas.center.x - a * 0.5f, gas.yMin - gap * 2f - a * 2f, a, a);   // above FIRE
+            float dr = u * 0.95f;
+            rects[(int)Btn.Drift] = DriftButton ? new Rect(rev.xMin - gap - dr, h - m - dr, dr, dr) : Rect.zero;
         }
     }
 }

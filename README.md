@@ -20,6 +20,21 @@ Tracks get a checkered mowed lawn with flowers (pebbles and sparkles on other pl
 on the outside of sharp bends, and pennant flags along the start straight. Badly damaged karts smoke
 (new `RacingGame/Smoke` shader).
 
+**Phase 3 (branch `v2-phase3`) — gameplay:**
+- **Coins** in lines on the racing line: +1% top speed each (up to 10) and +$10; a missile hit knocks 2 loose,
+  a wreck costs half. Counter on the HUD.
+- **Special items** from item boxes, one held at a time (`ITEM` button / Q / gamepad LB): **oil slick** (spins
+  out karts that drive over it), **shield** (blocks the next hit for 6 s), **shockwave** (hits every kart
+  within 8 m). Karts near the back get better odds; the leader never gets a shockwave.
+- **Drift button** (optional `DRIFT` touch button in Settings, Ctrl, gamepad RB): loosens grip at speed so
+  drifts and mini-turbos are easier.
+- **Ramps** (one per track, in one lane): press DRIFT in the air — or tap GAS again on a phone — for a barrel
+  roll and a boost on landing.
+- **Off-road** is slower (60% top speed).
+- **AI personalities**: aggressive (hunts the kart ahead, fires more), defensive (holds the middle, mines and
+  shields early), collector (weaves for coins and item boxes).
+- Play-mode tests for every item, coins, ramps, drifting, off-road and personalities.
+
 ### v0.7 — kart-racer graphics & shaders
 
 Cartoon look inspired by kart racers: custom toon/outline shaders, cartoon sky, item boxes, boost pads, drift sparks + mini-turbo.
@@ -92,6 +107,8 @@ If the 3D models can't load, the game falls back to placeholder block cars autom
 | Fire missile | Space / J (gamepad: A) | `FIRE` |
 | Drop mine | E / K (gamepad: B) | `MINE` |
 | Nitro | Left Shift / L (gamepad: X) | `NITRO` |
+| Special item (oil / shield / shockwave) | Q (gamepad: LB) | `ITEM` |
+| Drift / ramp trick | Ctrl (gamepad: RB) | `DRIFT` (optional) / tap `GAS` in the air |
 | Switch camera (Close / Wide / Chase) | C (gamepad: Y) | `VIEW` button |
 | Pause | Esc / P (gamepad: Start) | `II` button (top centre) |
 | Restart race | R (after finish) | `RACE AGAIN` / pause menu |

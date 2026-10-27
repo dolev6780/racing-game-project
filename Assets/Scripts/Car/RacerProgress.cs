@@ -53,6 +53,10 @@ namespace RacingGame.Car
                 NewLap?.Invoke(this, Lap);
             }
 
+            // Off the road (past the curbs): slower.
+            float lateral = Mathf.Abs(Vector3.Dot(transform.position - Path.Point(CurrentIndex), Path.Right(CurrentIndex)));
+            controller.OffRoad = lateral > Path.RoadWidth * 0.5f + 0.5f;
+
             // Wrong-way detection
             float along = Vector3.Dot(controller.Body.linearVelocity, Path.Direction(CurrentIndex));
             wrongWayTimer = along < -3f ? wrongWayTimer + Time.deltaTime : 0f;
