@@ -90,6 +90,9 @@ class Profile {
       _prefs.getBool('showTouch') ??
       (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
   static set showTouch(bool v) => _prefs.setBool('showTouch', v);
+  /// Frames-per-second counter in races (to check how smoothly a device runs the game).
+  static bool get showFps => _prefs.getBool('showFps') ?? false;
+  static set showFps(bool v) => _prefs.setBool('showFps', v);
   static int get quickTrack => _int('q_track');
   static set quickTrack(int v) => _setInt('q_track', v);
   static int get quickLaps => _int('q_laps', 3);

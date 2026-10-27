@@ -36,11 +36,15 @@ class _Static {
   }
 }
 
-/// A square piece of the ground plane, recorded into its own picture so only visible pieces are drawn.
+/// A square piece of the ground plane, recorded into its own picture the first time it comes into
+/// view (so loading is instant), then replayed every frame while visible.
 class _GroundTile {
   final Rect rect;
-  final Picture picture;
-  _GroundTile(this.rect, this.picture);
+  final Picture Function() _record;
+  Picture? _picture;
+  _GroundTile(this.rect, this._record);
+
+  Picture get picture => _picture ??= _record();
 }
 
 /// Renders the whole race in 2.5D isometric view:
@@ -105,7 +109,7 @@ class IsoScene extends Component {
       Offset(_edge(i, outer).x, _edge(i, outer).y),
     ], true);
 
-  // ---------- ground (drawn once into a picture, in world metres) ----------
+  // ---------- ground (tiles recorded into pictures on first sight, in world metres) ----------
 
   void _buildGround() {
     double minX = double.infinity, minY = double.infinity, maxX = -double.infinity, maxY = -double.infinity;
@@ -135,43 +139,45 @@ class IsoScene extends Component {
     for (double ty = (b.top / tileSize).floorToDouble() * tileSize; ty < b.bottom; ty += tileSize) {
       for (double tx = (b.left / tileSize).floorToDouble() * tileSize; tx < b.right; tx += tileSize) {
         final tile = Rect.fromLTWH(tx, ty, tileSize, tileSize);
-        final recorder = PictureRecorder();
-        final c = Canvas(recorder);
-        // Tiles overlap a hair so anti-aliased edges never leave seams.
-        c.clipRect(tile.inflate(0.08));
-        c.drawRect(tile.inflate(0.08), groundPaint);
-        // Mowed-lawn checkerboard, then flowers / pebbles (the road is painted over them).
-        const cell = 8.0;
-        for (double y = ty; y < tile.bottom; y += cell) {
-          for (double x = tx; x < tile.right; x += cell) {
-            if (((x / cell).round() + (y / cell).round()).isEven) c.drawRect(Rect.fromLTWH(x, y, cell, cell), stripe);
+        _ground.add(_GroundTile(tile, () {
+          final recorder = PictureRecorder();
+          final c = Canvas(recorder);
+          // Tiles overlap a hair so anti-aliased edges never leave seams.
+          c.clipRect(tile.inflate(0.08));
+          c.drawRect(tile.inflate(0.08), groundPaint);
+          // Mowed-lawn checkerboard, then flowers / pebbles (the road is painted over them).
+          const cell = 8.0;
+          for (double y = ty; y < tile.bottom; y += cell) {
+            for (double x = tx; x < tile.right; x += cell) {
+              if (((x / cell).round() + (y / cell).round()).isEven) c.drawRect(Rect.fromLTWH(x, y, cell, cell), stripe);
+            }
           }
-        }
-        _drawGroundDecor(c, tile);
-        final segs = [for (int i = 0; i < path.count; i++) if (segBounds[i].overlaps(tile)) i];
-        if (segs.isNotEmpty) {
-          final verge = Path(), road = Path(), sheen = Path(), dashes = Path(), red = Path(), white = Path(), line = Path();
-          for (final i in segs) {
-            verge.addPath(_band(i, -half - 1.6, half + 1.6), Offset.zero);
-            road.addPath(_band(i, -half - 0.05, half + 0.05), Offset.zero);
-            sheen.addPath(_band(i, -half * 0.55, half * 0.55), Offset.zero);
-            if (i % 4 == 0) dashes.addPath(_band(i, -0.15, 0.15), Offset.zero);
-            final curb = i.isEven ? red : white;
-            curb.addPath(_band(i, half - 1.1, half), Offset.zero);
-            curb.addPath(_band(i, -half, -half + 1.1), Offset.zero);
-            line.addPath(_band(i, half - 1.6, half - 1.35), Offset.zero);
-            line.addPath(_band(i, -half + 1.35, -half + 1.6), Offset.zero);
+          _drawGroundDecor(c, tile);
+          final segs = [for (int i = 0; i < path.count; i++) if (segBounds[i].overlaps(tile)) i];
+          if (segs.isNotEmpty) {
+            final verge = Path(), road = Path(), sheen = Path(), dashes = Path(), red = Path(), white = Path(), line = Path();
+            for (final i in segs) {
+              verge.addPath(_band(i, -half - 1.6, half + 1.6), Offset.zero);
+              road.addPath(_band(i, -half - 0.05, half + 0.05), Offset.zero);
+              sheen.addPath(_band(i, -half * 0.55, half * 0.55), Offset.zero);
+              if (i % 4 == 0) dashes.addPath(_band(i, -0.15, 0.15), Offset.zero);
+              final curb = i.isEven ? red : white;
+              curb.addPath(_band(i, half - 1.1, half), Offset.zero);
+              curb.addPath(_band(i, -half, -half + 1.1), Offset.zero);
+              line.addPath(_band(i, half - 1.6, half - 1.35), Offset.zero);
+              line.addPath(_band(i, -half + 1.35, -half + 1.6), Offset.zero);
+            }
+            c.drawPath(verge, vergePaint);
+            c.drawPath(road, roadPaint);
+            c.drawPath(sheen, sheenPaint);
+            c.drawPath(dashes, dashPaint);
+            c.drawPath(white, whitePaint);
+            c.drawPath(red, redPaint);
+            c.drawPath(line, linePaint);
+            if (segs.contains(0) || segs.contains(path.count - 1)) _drawStartLine(c);
           }
-          c.drawPath(verge, vergePaint);
-          c.drawPath(road, roadPaint);
-          c.drawPath(sheen, sheenPaint);
-          c.drawPath(dashes, dashPaint);
-          c.drawPath(white, whitePaint);
-          c.drawPath(red, redPaint);
-          c.drawPath(line, linePaint);
-          if (segs.contains(0) || segs.contains(path.count - 1)) _drawStartLine(c);
-        }
-        _ground.add(_GroundTile(tile, recorder.endRecording()));
+          return recorder.endRecording();
+        }));
       }
     }
   }

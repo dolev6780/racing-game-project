@@ -61,9 +61,20 @@ class _RaceScreenState extends State<RaceScreen> with SingleTickerProviderStateM
   }
 
   Duration _lastTick = Duration.zero;
+  int _fpsFrames = 0, _fps = 0;
+  double _fpsTime = 0;
   void _tick(Duration elapsed) {
-    final dt = ((elapsed - _lastTick).inMicroseconds / 1e6).clamp(0.0, 0.1);
+    final raw = (elapsed - _lastTick).inMicroseconds / 1e6;
+    final dt = raw.clamp(0.0, 0.1);
     _lastTick = elapsed;
+    // Frames per second, measured over one-second windows.
+    _fpsFrames++;
+    _fpsTime += raw;
+    if (_fpsTime >= 1) {
+      _fps = (_fpsFrames / _fpsTime).round();
+      _fpsFrames = 0;
+      _fpsTime = 0;
+    }
     if (!mounted) return;
     _frame++;
     if (!_paused) _updateHudState(dt);
@@ -131,6 +142,18 @@ class _RaceScreenState extends State<RaceScreen> with SingleTickerProviderStateM
             ]),
           ),
         ),
+        if (Profile.showFps)
+          Positioned(
+            top: 84,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: Center(
+                child: Text('$_fps FPS',
+                    style: title(16, _fps >= 55 ? AppColors.good : _fps >= 30 ? AppColors.accent : AppColors.bad)),
+              ),
+            ),
+          ),
         if (_paused) _pauseMenu(),
         if (_result != null) _results(),
       ]),

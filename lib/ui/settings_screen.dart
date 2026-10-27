@@ -36,6 +36,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onChanged: (i) => setState(() => Profile.steering = SteeringMode.values[i]),
                   ),
                   OptionRow(
+                    label: 'SHOW FPS',
+                    options: const ['OFF', 'ON'],
+                    index: Profile.showFps ? 1 : 0,
+                    onChanged: (i) => setState(() => Profile.showFps = i == 1),
+                  ),
+                  OptionRow(
                     label: 'CAMERA ZOOM',
                     options: const ['CLOSE', 'WIDE'],
                     index: Profile.camera.index,
