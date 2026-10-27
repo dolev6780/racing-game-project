@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'data/achievements.dart';
 import 'data/championship.dart';
@@ -59,7 +60,15 @@ class _BootState extends State<_Boot> {
 
   Future<void> _load() async {
     try {
-      await Profile.load();
+      try {
+        await Profile.load();
+      } catch (e) {
+        // Saving is broken on this device: play anyway, keeping progress in memory only.
+        reportError('Progress will not be saved on this device: $e');
+        // ignore: invalid_use_of_visible_for_testing_member
+        SharedPreferences.setMockInitialValues({});
+        await Profile.load();
+      }
       Achievements.init();
       await SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
       await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);

@@ -41,6 +41,15 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter build apk --release
+      - name: Check plugin methods called through JNI survived the build
+        run: |
+          DEXDUMP=$(ls "$ANDROID_HOME"/build-tools/*/dexdump | sort -V | tail -1)
+          mkdir -p apkdex && unzip -o -q build/app/outputs/flutter-apk/app-release.apk 'classes*.dex' -d apkdex
+          for f in apkdex/classes*.dex; do "$DEXDUMP" "$f"; done > dex.txt
+          awk '/Class descriptor/ {inside = index($0, "sharedpreferences/SharedPreferencesApiRegistrar;") > 0}
+               inside && /name +: .getAll./ {found = 1} END {exit found ? 0 : 1}' dex.txt \
+            || { echo "::error::SharedPreferencesApiRegistrar.getAll is missing from the APK (stripped by R8?)"; exit 1; }
+          echo "OK: SharedPreferencesApiRegistrar.getAll is in the APK"
       - uses: actions/upload-artifact@v4
         with:
           name: RiotRacers-android-apk

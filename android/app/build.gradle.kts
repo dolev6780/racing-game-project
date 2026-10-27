@@ -34,6 +34,10 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // No R8 code shrinking: plugins that call Kotlin through JNI (shared_preferences_android,
+            // path_provider_android) crash with NoSuchMethodError when their methods are stripped.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
