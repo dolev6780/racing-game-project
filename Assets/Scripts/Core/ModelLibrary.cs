@@ -39,7 +39,7 @@ namespace RacingGame.Core
 
             var go = Object.Instantiate(prefab, parent, false);
             go.name = name;
-            foreach (var col in go.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(col);
+            foreach (var col in go.GetComponentsInChildren<Collider>()) MaterialFactory.RemoveCollider(col);
             return go;
         }
 

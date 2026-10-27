@@ -98,7 +98,7 @@ namespace RacingGame.Track
             holder.transform.SetParent(parent, false);
 
             var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            UnityEngine.Object.DestroyImmediate(box.GetComponent<Collider>());
+            MaterialFactory.RemoveCollider(box.GetComponent<Collider>());
             box.transform.SetParent(holder.transform, false);
             box.transform.localScale = Vector3.one * 1.5f;
             box.transform.localRotation = Quaternion.Euler(20f, 0f, 20f);

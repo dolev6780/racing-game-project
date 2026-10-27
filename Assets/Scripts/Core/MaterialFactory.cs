@@ -21,7 +21,8 @@ namespace RacingGame.Core
             {
                 var temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 baseMaterial = temp.GetComponent<Renderer>().sharedMaterial;
-                Object.DestroyImmediate(temp);
+                temp.SetActive(false);   // destroyed at the end of the frame; keep it invisible until then
+                SafeDestroy(temp);
             }
 
             // Cartoon shading when the toon shader is available, Unity's default material otherwise.
@@ -30,12 +31,31 @@ namespace RacingGame.Core
             return mat;
         }
 
+        /// <summary>
+        /// Removes a collider from a visual-only object. Disabled at once and destroyed at the end of the frame:
+        /// DestroyImmediate is not allowed while Unity is reporting collisions (e.g. an explosion from a ramming wreck).
+        /// </summary>
+        public static void RemoveCollider(Collider collider)
+        {
+            if (collider == null) return;
+            collider.enabled = false;
+            SafeDestroy(collider);
+        }
+
+        /// <summary>Destroy in play mode (safe inside physics callbacks), DestroyImmediate in edit mode.</summary>
+        public static void SafeDestroy(Object obj)
+        {
+            if (obj == null) return;
+            if (Application.isPlaying) Object.Destroy(obj);
+            else Object.DestroyImmediate(obj);
+        }
+
         /// <summary>Creates a primitive without collider, colored, parented.</summary>
         public static GameObject Visual(PrimitiveType type, Transform parent, Vector3 localPos,
             Vector3 localScale, Color color, Quaternion? localRot = null, float outline = 0f)
         {
             var go = GameObject.CreatePrimitive(type);
-            Object.DestroyImmediate(go.GetComponent<Collider>());
+            RemoveCollider(go.GetComponent<Collider>());
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPos;
             go.transform.localRotation = localRot ?? Quaternion.identity;

@@ -16,7 +16,7 @@ namespace RacingGame.Core
         {
             Exploded?.Invoke(position, size);
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            DestroyImmediate(go.GetComponent<Collider>());
+            MaterialFactory.RemoveCollider(go.GetComponent<Collider>());
             go.name = "Explosion";
             go.transform.position = position;
             go.transform.localScale = Vector3.zero;

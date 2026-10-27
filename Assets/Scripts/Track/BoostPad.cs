@@ -18,7 +18,7 @@ namespace RacingGame.Track
 
             // Visual: a flat quad whose UV.y runs along the driving direction (shader scrolls arrows along it).
             var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            Object.DestroyImmediate(quad.GetComponent<Collider>());
+            MaterialFactory.RemoveCollider(quad.GetComponent<Collider>());
             quad.transform.SetParent(go.transform, false);
             quad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             quad.transform.localScale = new Vector3(Width, Length, 1f);
