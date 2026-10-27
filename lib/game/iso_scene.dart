@@ -408,7 +408,8 @@ class IsoScene extends Component {
       if (car.wrecked) continue;
       if (car.invulnerable > 0 && (_t * 10).floor().isEven) continue;
       final steer = _steer[car] ?? 0;
-      sprites.add(_Sprite(car.position.x, car.position.y, (c) => CarPainter.paint(c, car, steer, _t)));
+      final at = car.renderPosition;
+      sprites.add(_Sprite(at.x, at.y, (c) => CarPainter.paint(c, car, steer, _t)));
     }
     for (final coin in race.coins) {
       if (coin.hiddenFor > 0) continue;

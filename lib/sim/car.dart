@@ -46,6 +46,40 @@ class Car {
   final Vector2 velocity = Vector2.zero();
   double angle;
   double forwardSpeed = 0, lateralSpeed = 0;
+
+  // Smooth drawing on displays faster than the 60 Hz simulation (e.g. 120 Hz phones): the pose is
+  // drawn part of the way between the previous step and the current one.
+  final Vector2 _prevPosition = Vector2.zero(), _drawPosition = Vector2.zero();
+  double _prevAngle = 0, _drawAngle = 0;
+  bool _hasPrev = false, _interpolated = false;
+
+  /// Position / angle to draw (the physics pose until [interpolate] is used).
+  Vector2 get renderPosition => _interpolated ? _drawPosition : position;
+  double get renderAngle => _interpolated ? _drawAngle : angle;
+
+  /// Remembers the pose before a simulation step.
+  void savePose() {
+    _prevPosition.setFrom(position);
+    _prevAngle = angle;
+    _hasPrev = true;
+  }
+
+  /// Sets the drawn pose [alpha] (0..1) of the way from the previous step to the current one.
+  void interpolate(double alpha) {
+    _interpolated = true;
+    // No sweep across the track after a respawn teleport.
+    if (!_hasPrev || _prevPosition.distanceToSquared(position) > 64) {
+      _drawPosition.setFrom(position);
+      _drawAngle = angle;
+      return;
+    }
+    _drawPosition
+      ..setFrom(_prevPosition)
+      ..add((position - _prevPosition)..scale(alpha));
+    var d = (angle - _prevAngle) % (2 * math.pi);
+    if (d > math.pi) d -= 2 * math.pi;
+    _drawAngle = _prevAngle + d * alpha;
+  }
   final CarInput input = CarInput();
   bool inputEnabled = false;
 

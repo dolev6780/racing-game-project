@@ -276,9 +276,15 @@ class Race {
     _accumulator += math.min(dt, 0.1);
     while (_accumulator >= step) {
       _accumulator -= step;
+      for (final c in cars) {
+        c.savePose();
+      }
       _fixedStep(step);
     }
   }
+
+  /// How far (0..1) the current frame is between the last simulation step and the next one.
+  double get interpolation => (_accumulator / step).clamp(0.0, 1.0);
 
   void _fixedStep(double dt) {
     time += dt;

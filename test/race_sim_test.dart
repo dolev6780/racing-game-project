@@ -144,4 +144,20 @@ void main() {
     expect(car.wrecked, isTrue);
     expect(car.coins, Car.maxCoins ~/ 2);
   });
+
+  test('drawn kart pose moves smoothly between 60 Hz steps (120 Hz displays)', () {
+    final race = simulate(tracks.first, maxSeconds: 8); // past the countdown, cars moving
+    final car = race.cars.first;
+    final positions = <double>[];
+    // 120 Hz frames: half of them land between simulation steps.
+    for (int i = 0; i < 12; i++) {
+      race.update(1 / 120);
+      car.interpolate(race.interpolation);
+      positions.add(car.renderPosition.distanceTo(race.path.point(0)));
+    }
+    // Every frame shows a new position (no frame repeats the previous one).
+    for (int i = 1; i < positions.length; i++) {
+      expect((positions[i] - positions[i - 1]).abs(), greaterThan(1e-4), reason: 'frame $i repeated the pose');
+    }
+  });
 }

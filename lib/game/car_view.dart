@@ -15,7 +15,7 @@ class CarPainter {
 
   /// [steer] -1..1 for front wheel angle, [time] for flame flicker.
   static void paint(Canvas c, Car car, double steer, double time, {bool showShadow = true}) {
-    final pos = car.position, a = car.angle;
+    final pos = car.renderPosition, a = car.renderAngle;
     final f = Vector2(math.sin(a), -math.cos(a)), r = Vector2(math.cos(a), math.sin(a));
     Vector2 at(double x, double y) => pos + r * x + f * y; // car frame: x right, y forward
 

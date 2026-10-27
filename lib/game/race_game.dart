@@ -103,6 +103,10 @@ class RaceGame extends FlameGame with KeyboardEvents {
     if (race.paused) return;
     clock += dt;
     race.update(dt);
+    final alpha = race.interpolation;
+    for (final c in race.cars) {
+      c.interpolate(alpha);
+    }
     _handleEvents();
     super.update(dt);
     _updateCamera(dt);
@@ -230,7 +234,7 @@ class RaceGame extends FlameGame with KeyboardEvents {
   void _updateCamera(double dt) {
     final p = race.player;
     // Look ahead in the direction of travel.
-    final target = p.position + p.velocity * 0.32;
+    final target = p.renderPosition + p.velocity * 0.32;
     _focus.add((target - _focus) * (1 - math.exp(-5 * dt)));
     final o = Iso.projectV(_focus);
     camera.viewfinder.position = Vector2(o.dx, o.dy);
