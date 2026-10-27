@@ -24,6 +24,11 @@ namespace UnityEditor
         public static void SaveAssets() { }
     }
     public static class EditorUtility { public static void SetDirty(UnityEngine.Object o) { } }
+    public static class SessionState
+    {
+        public static bool GetBool(string key, bool defaultValue) => defaultValue;
+        public static void SetBool(string key, bool value) { }
+    }
     public class SerializedProperty { public bool boolValue; }
     public class SerializedObject
     {
@@ -77,6 +82,39 @@ namespace UnityEditor.SceneManagement
         public static bool SaveCurrentModifiedScenesIfUserWantsTo() => true;
         public static UnityEngine.SceneManagement.Scene NewScene(NewSceneSetup s, NewSceneMode m) => default;
         public static bool SaveScene(UnityEngine.SceneManagement.Scene s, string path) => true;
+    }
+}
+namespace UnityEditor.TestTools.TestRunner.Api
+{
+    [System.Flags] public enum TestMode { EditMode = 1, PlayMode = 2 }
+    public enum TestStatus { Skipped, Passed, Failed, Inconclusive }
+    public class Filter { public TestMode testMode; }
+    public class ExecutionSettings { public ExecutionSettings(params Filter[] filtersToExecute) { } }
+    public interface ITestAdaptor { string Name { get; } string FullName { get; } int TestCaseCount { get; } }
+    public interface ITestResultAdaptor
+    {
+        ITestAdaptor Test { get; }
+        TestStatus TestStatus { get; }
+        bool HasChildren { get; }
+        string Message { get; }
+        string StackTrace { get; }
+        double Duration { get; }
+        int PassCount { get; }
+        int FailCount { get; }
+        int SkipCount { get; }
+    }
+    public interface ICallbacks
+    {
+        void RunStarted(ITestAdaptor testsToRun);
+        void RunFinished(ITestResultAdaptor result);
+        void TestStarted(ITestAdaptor test);
+        void TestFinished(ITestResultAdaptor result);
+    }
+    public class TestRunnerApi : UnityEngine.ScriptableObject
+    {
+        public void RegisterCallbacks<T>(T testCallbacks, int priority = 0) where T : ICallbacks { }
+        public string Execute(ExecutionSettings executionSettings) => "";
+        public static void SaveResultToFile(ITestResultAdaptor results, string xmlFilePath) { }
     }
 }
 #endif

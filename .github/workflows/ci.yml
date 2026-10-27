@@ -46,20 +46,20 @@ jobs:
           path: Library
           key: Library-tests-${{ hashFiles('Packages/**', 'ProjectSettings/**') }}
           restore-keys: Library-tests-
-      - uses: game-ci/unity-test-runner@v4
+      # Runs the tests through unity-builder: its license activation works with a personal license,
+      # while unity-test-runner reported "No valid Unity Editor license found" with Unity 6.
+      - uses: game-ci/unity-builder@v4
         if: env.UNITY_LICENSE != ''
-        id: tests
         with:
-          testMode: playmode
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-          checkName: Unity test results
+          targetPlatform: StandaloneLinux64
+          buildMethod: RacingGame.EditorTools.CiTests.RunPlayModeTests
+          manualExit: true
       - uses: actions/upload-artifact@v4
         if: always() && env.UNITY_LICENSE != ''
         with:
           name: unity-test-results
-          path: ${{ steps.tests.outputs.artifactsPath }}
+          path: artifacts
 
-  # Builds an Android APK you can download from the run page and install on a phone.
   # Runs after the tests: a personal Unity license can't be activated by two jobs at the same time.
   # Still builds when a test fails, so there is always an APK to try.
   android-build:
