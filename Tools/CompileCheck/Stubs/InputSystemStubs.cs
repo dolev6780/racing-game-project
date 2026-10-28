@@ -25,7 +25,7 @@ namespace UnityEngine.InputSystem
     {
         public static Keyboard current;
         public ButtonControl wKey, aKey, sKey, dKey, upArrowKey, downArrowKey, leftArrowKey, rightArrowKey,
-            spaceKey, jKey, kKey, eKey, lKey, cKey, rKey, pKey, qKey, leftShiftKey, escapeKey, leftCtrlKey, rightCtrlKey;
+            spaceKey, jKey, kKey, eKey, lKey, cKey, rKey, pKey, qKey, iKey, uKey, xKey, zKey, enterKey, leftShiftKey, escapeKey, leftCtrlKey, rightCtrlKey;
     }
     public class Gamepad : InputDevice
     {

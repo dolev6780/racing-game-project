@@ -23,6 +23,13 @@ namespace RacingGame.Core
             AudioListener.volume = RaceConfig.Volume;
             PerformanceGovernor.Install();
 
+            // The Cloudborne prototype has its own scene; everything in it is built by code.
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Cloudborne")
+            {
+                Cloudborne.CbGame.Boot();
+                return;
+            }
+
             if (Object.FindAnyObjectByType<RaceManager>() != null) return;
             if (Object.FindAnyObjectByType<MainMenu>() != null) return;
             GameFlow.ShowMenu();

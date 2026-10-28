@@ -17,17 +17,19 @@ namespace RacingGame.EditorTools
         public static void BuildAndroid()
         {
             UrpSetup.Ensure(true);
-            string scene = RacingGameMenu.EnsureGameScene();
+            // This branch builds the Cloudborne prototype (the racing game stays in the project, outside the build).
+            string scene = CloudborneSetup.Ensure();
 
-            string path = Arg("-customBuildPath") ?? "build/Android/RacingGame.apk";
-            if (!path.EndsWith(".apk", StringComparison.OrdinalIgnoreCase)) path = Path.Combine(path, "RacingGame.apk");
+            string path = Arg("-customBuildPath") ?? "build/Android/Cloudborne.apk";
+            if (!path.EndsWith(".apk", StringComparison.OrdinalIgnoreCase)) path = Path.Combine(path, "Cloudborne.apk");
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
 
             // 64-bit ARM is required by newer phones (and by Google Play).
             EditorUserBuildSettings.buildAppBundle = false;
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
-            PlayerSettings.productName = "Riot Racers";
+            PlayerSettings.productName = "Cloudborne";
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.dolev6780.cloudborne");
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
             PlayerSettings.allowedAutorotateToPortrait = false;
             PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;

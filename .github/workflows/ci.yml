@@ -92,11 +92,11 @@ jobs:
         if: env.UNITY_LICENSE != ''
         with:
           targetPlatform: Android
-          buildName: RacingGame
-          # Sets up URP and the game scene, then builds a 64-bit (IL2CPP, ARM64) APK.
+          buildName: Cloudborne
+          # Sets up URP and the Cloudborne scene, then builds a 64-bit (IL2CPP, ARM64) APK.
           buildMethod: RacingGame.EditorTools.BuildScript.BuildAndroid
       - uses: actions/upload-artifact@v4
         if: env.UNITY_LICENSE != ''
         with:
-          name: RacingGame-Android-apk
+          name: Cloudborne-Android-apk
           path: build/Android

@@ -17,6 +17,8 @@ Shader "RacingGame/Toon"
         _RimStrength ("Rim Strength", Range(0,1)) = 0.3
         _OutlineColor ("Outline Color", Color) = (0.07,0.06,0.12,1)
         _OutlineWidth ("Outline Width", Range(0,5)) = 0
+        [HDR] _EmissionColor ("Emission", Color) = (0,0,0,0)
+        _EmissionMap ("Emission Mask", 2D) = "white" {}
     }
 
     // ---------- Universal Render Pipeline ----------
@@ -41,6 +43,7 @@ Shader "RacingGame/Toon"
             half _RimStrength;
             half4 _OutlineColor;
             half _OutlineWidth;
+            half4 _EmissionColor;
         CBUFFER_END
         ENDHLSL
 
@@ -59,6 +62,8 @@ Shader "RacingGame/Toon"
 
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
+            TEXTURE2D(_EmissionMap);
+            SAMPLER(sampler_EmissionMap);
 
             struct Attributes
             {
@@ -118,6 +123,8 @@ Shader "RacingGame/Toon"
                 float rim = pow(1.0 - saturate(dot(n, v)), _RimPower) * _RimStrength * saturate(ndl * 0.5 + 0.6);
 
                 float3 col = albedo.rgb * (lightCol + ambient) + spec * light.color + rim * _RimColor.rgb;
+                // Glow (HDR, picked up by bloom), masked by a texture so only parts of a surface can light up.
+                col += SAMPLE_TEXTURE2D(_EmissionMap, sampler_EmissionMap, i.uv).rgb * _EmissionColor.rgb;
                 col = MixFog(col, i.fogFactor);
                 return half4(col, 1);
             }
@@ -266,6 +273,8 @@ Shader "RacingGame/Toon"
             fixed4 _RimColor;
             half _RimPower;
             half _RimStrength;
+            sampler2D _EmissionMap;
+            fixed4 _EmissionColor;
 
             struct appdata
             {
@@ -326,6 +335,7 @@ Shader "RacingGame/Toon"
                 float rim = pow(1.0 - saturate(dot(n, v)), _RimPower) * _RimStrength * saturate(ndl * 0.5 + 0.6);
 
                 float3 col = albedo.rgb * (lightCol + ambient) + spec * _LightColor0.rgb + rim * _RimColor.rgb;
+                col += tex2D(_EmissionMap, i.uv).rgb * _EmissionColor.rgb;
                 UNITY_APPLY_FOG(i.fogCoord, col);
                 return fixed4(col, 1);
             }

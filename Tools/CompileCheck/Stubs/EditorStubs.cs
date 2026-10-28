@@ -22,6 +22,8 @@ namespace UnityEditor
         public static string GetAssetPath(UnityEngine.Object asset) => "";
         public static string MoveAsset(string from, string to) => "";
         public static void SaveAssets() { }
+        public static UnityEngine.Object[] LoadAllAssetsAtPath(string path) => null;
+        public static void AddObjectToAsset(UnityEngine.Object o, UnityEngine.Object asset) { }
     }
     public static class EditorUtility { public static void SetDirty(UnityEngine.Object o) { } }
     public static class SessionState
@@ -29,7 +31,7 @@ namespace UnityEditor
         public static bool GetBool(string key, bool defaultValue) => defaultValue;
         public static void SetBool(string key, bool value) { }
     }
-    public class SerializedProperty { public bool boolValue; }
+    public class SerializedProperty { public bool boolValue; public int intValue; }
     public class SerializedObject
     {
         public SerializedObject(UnityEngine.Object o) { }
@@ -60,6 +62,7 @@ namespace UnityEditor
         public static bool allowedAutorotateToPortrait, allowedAutorotateToPortraitUpsideDown,
             allowedAutorotateToLandscapeLeft, allowedAutorotateToLandscapeRight;
         public static void SetScriptingBackend(UnityEditor.Build.NamedBuildTarget target, ScriptingImplementation backend) { }
+        public static void SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget target, string id) { }
         public static class Android { public static AndroidArchitecture targetArchitectures; }
     }
 }
