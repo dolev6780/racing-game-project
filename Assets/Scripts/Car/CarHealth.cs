@@ -104,7 +104,8 @@ namespace RacingGame.Car
         void SetPresent(bool present)
         {
             Controller.Body.isKinematic = !present;
-            foreach (var c in colliders) c.enabled = present;
+            // skip colliders removed since they were collected (visual-only parts lose theirs at the end of a frame)
+            foreach (var c in colliders) if (c != null) c.enabled = present;
             if (VisualRoot) VisualRoot.SetActive(present);
         }
 
