@@ -9,12 +9,32 @@ namespace RacingGame.EditorTools
     /// <summary>
     /// Project setup for the Cloudborne prototype: an empty "Cloudborne" scene (the game builds itself from code),
     /// URP with HDR for bloom, the post-processing profile as an asset, and linear fog kept in builds.
-    /// Safe to run in batch mode; the Android build calls it first.
+    /// Safe to run in batch mode; the Android build calls it first. The first time the editor opens the
+    /// project it also runs by itself and opens the scene, so pressing Play starts the game.
     /// </summary>
+    [InitializeOnLoad]
     public static class CloudborneSetup
     {
         public const string ScenePath = "Assets/Scenes/Cloudborne.unity";
         const string PostPath = "Assets/Resources/Cloudborne/PostFX.asset";
+
+        static CloudborneSetup()
+        {
+            if (Application.isBatchMode || File.Exists(ScenePath)) return;
+            // Wait until the asset database is ready.
+            EditorApplication.delayCall += () =>
+            {
+                if (File.Exists(ScenePath) || EditorApplication.isPlayingOrWillChangePlaymode) return;
+                // Creating the scene replaces the open one: never at the cost of unsaved work.
+                if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().isDirty)
+                {
+                    Debug.Log("Cloudborne: save your scene, then run Cloudborne > Set Up Scene and Settings.");
+                    return;
+                }
+                Ensure();
+                Debug.Log("Cloudborne: created and opened " + ScenePath + ". Press Play.");
+            };
+        }
 
         [MenuItem("Cloudborne/Set Up Scene and Settings")]
         static void Menu()

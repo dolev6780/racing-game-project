@@ -9,7 +9,7 @@ namespace UnityEditor
     public static class EditorApplication
     {
         public delegate void CallbackFunction();
-        public static bool isPlaying;
+        public static bool isPlaying, isPlayingOrWillChangePlaymode;
         public static CallbackFunction delayCall;
         public static void Exit(int code) { }
     }
