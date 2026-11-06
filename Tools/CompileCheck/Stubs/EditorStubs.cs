@@ -10,7 +10,7 @@ namespace UnityEditor
     {
         public delegate void CallbackFunction();
         public static bool isPlaying, isPlayingOrWillChangePlaymode;
-        public static CallbackFunction delayCall;
+        public static CallbackFunction delayCall, update;
         public static void Exit(int code) { }
     }
     [System.AttributeUsage(System.AttributeTargets.Class)]
@@ -22,6 +22,7 @@ namespace UnityEditor
         public static string GetAssetPath(UnityEngine.Object asset) => "";
         public static string MoveAsset(string from, string to) => "";
         public static void SaveAssets() { }
+        public static void Refresh() { }
         public static UnityEngine.Object[] LoadAllAssetsAtPath(string path) => null;
         public static void AddObjectToAsset(UnityEngine.Object o, UnityEngine.Object asset) { }
     }

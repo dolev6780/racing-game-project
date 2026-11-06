@@ -9,6 +9,16 @@
 [Mm]emoryCaptures/
 [Rr]ecordings/
 
+# Made by Unity or the editor setup scripts when the project opens; the repository doesn't keep them,
+# so a clone stays clean and pulling updates never trips over them
+*.meta
+ProjectSettings/*
+!ProjectSettings/ProjectVersion.txt
+Packages/packages-lock.json
+Assets/Scenes/
+Assets/Settings/
+Assets/Resources/Cloudborne/
+
 # IDE / OS
 .vs/
 .vscode/
