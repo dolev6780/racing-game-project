@@ -11,8 +11,9 @@ namespace RacingGame.EditorTools
     /// <summary>
     /// Keeps a cloned copy of the project up to date: pulls the latest commits from GitHub when the editor
     /// opens, and from Cloudborne > Update from GitHub. Fast-forward only, so local changes are never
-    /// touched (git refuses and the Console says why). Needs git: Git for Windows, macOS's git, or the
-    /// copy inside GitHub Desktop. A project downloaded as a zip has no git history and is left alone.
+    /// touched (git refuses and the Console says why), except ProjectVersion.txt, which Unity rewrites on open.
+    /// Needs git: Git for Windows, macOS's git, or the copy inside GitHub Desktop. A project downloaded
+    /// as a zip has no git history and is left alone.
     /// </summary>
     [InitializeOnLoad]
     public static class GitUpdate
@@ -52,7 +53,12 @@ namespace RacingGame.EditorTools
                 return;
             }
             Debug.Log("Update: checking GitHub for a newer version...");
-            pulling = Task.Run(() => Run(git, "pull --ff-only", root));
+            pulling = Task.Run(() =>
+            {
+                // Unity rewrites ProjectVersion.txt when it opens the project; the repository's copy wins.
+                Run(git, "checkout -- ProjectSettings/ProjectVersion.txt", root);
+                return Run(git, "pull --ff-only", root);
+            });
             EditorApplication.update += Finish;
         }
 
