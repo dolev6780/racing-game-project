@@ -13,7 +13,8 @@ namespace Cloudborne
     public class CbWorld
     {
         public const float LevelMin = -8f, LevelMax = 108f;
-        public static readonly Color Horizon = CbArt.Hex("#dde8bb");
+        // a clear mint-teal haze: distant layers fade into colour, not into white
+        public static readonly Color Horizon = CbArt.Hex("#a6d4bd");
 
         public Transform root;
         readonly List<(Transform t, Material m, float ph, float baseA)> shafts = new List<(Transform, Material, float, float)>();
@@ -191,7 +192,7 @@ namespace Cloudborne
                     // waterfall: a glowing strip down the pillar's front, with mist at its foot
                     var w = CbArt.Part(CbMesh.Quad, fall, root, new Vector3(x + Random.Range(-0.6f, 0.6f), h * 0.45f, z - r * 0.75f), new Vector3(1.4f, h * 0.85f, 1), shadows: false);
                     w.name = "waterfall";
-                    var m = CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(1, 1, 1, 0.35f), CbArt.Mist), root, new Vector3(w.localPosition.x, 0.8f, z - r - 1), new Vector3(10, 3.5f, 1), shadows: false);
+                    var m = CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(1, 1, 1, 0.25f), CbArt.Mist), root, new Vector3(w.localPosition.x, 0.8f, z - r - 1), new Vector3(10, 3.5f, 1), shadows: false);
                     m.name = "fallMist";
                 }
             }
@@ -249,14 +250,14 @@ namespace Cloudborne
             {
                 var holder = CbArt.Joint(root, x, 15, Random.Range(4f, 16f), "shaft");
                 holder.localRotation = CbArt.Rot(0, 0, Random.Range(0.42f, 0.55f));
-                var m = CbArt.Glow(new Color(1f, 0.96f, 0.78f, 0.2f), CbArt.Shaft);
+                var m = CbArt.Glow(new Color(1f, 0.96f, 0.78f, 0.12f), CbArt.Shaft);
                 CbArt.Part(CbMesh.Quad, m, holder, new Vector3(0, -14, 0), new Vector3(Random.Range(1.6f, 3.2f), 28, 1), shadows: false);
-                shafts.Add((holder, m, Random.Range(0f, 6f), Random.Range(0.12f, 0.22f)));
+                shafts.Add((holder, m, Random.Range(0f, 6f), Random.Range(0.06f, 0.12f)));
             }
             for (int i = 0; i < 16; i++)
             {
                 float s = Random.Range(24f, 46f);
-                var m = CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(0.95f, 0.97f, 0.9f, Random.Range(0.18f, 0.32f)), CbArt.Mist), root,
+                var m = CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(0.95f, 0.97f, 0.9f, Random.Range(0.07f, 0.14f)), CbArt.Mist), root,
                     new Vector3(Random.Range(-60f, 180f), Random.Range(0.8f, 4f), Random.Range(12f, 45f)), new Vector3(s, s * 0.28f, 1), shadows: false);
                 mists.Add(m);
             }

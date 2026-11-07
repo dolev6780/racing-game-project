@@ -17,7 +17,7 @@ ProjectSettings/*
 Packages/packages-lock.json
 Assets/Scenes/
 Assets/Settings/
-Assets/Resources/Cloudborne/PostFX.asset
+Assets/Resources/Cloudborne/PostFX*.asset
 
 # IDE / OS
 .vs/

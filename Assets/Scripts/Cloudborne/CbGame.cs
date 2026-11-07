@@ -120,7 +120,7 @@ namespace Cloudborne
             var data = cam.GetUniversalAdditionalCameraData();
             if (data != null) data.renderPostProcessing = true;
 
-            var profile = Resources.Load<VolumeProfile>("Cloudborne/PostFX");
+            var profile = Resources.Load<VolumeProfile>("Cloudborne/PostFX_Anime");
             if (profile == null) profile = CreatePostProfile();
             var vol = new GameObject("PostFX").AddComponent<Volume>();
             vol.transform.SetParent(transform, false);
@@ -129,22 +129,25 @@ namespace Cloudborne
             vol.sharedProfile = profile;
         }
 
-        /// <summary>Bloom for fire and glow, ACES tone mapping, a soft vignette and a little extra saturation.</summary>
+        /// <summary>
+        /// The anime look: bloom kept for fire and glow only, neutral tone mapping (ACES washes colours out and shifts
+        /// them), punchy saturation and contrast, a soft vignette.
+        /// </summary>
         public static VolumeProfile CreatePostProfile()
         {
             var p = ScriptableObject.CreateInstance<VolumeProfile>();
             var bloom = p.Add<Bloom>(true);
-            bloom.threshold.Override(1.0f);
-            bloom.intensity.Override(0.9f);
-            bloom.scatter.Override(0.62f);
-            p.Add<Tonemapping>(true).mode.Override(TonemappingMode.ACES);
+            bloom.threshold.Override(1.1f);
+            bloom.intensity.Override(0.5f);
+            bloom.scatter.Override(0.6f);
+            p.Add<Tonemapping>(true).mode.Override(TonemappingMode.Neutral);
             var vig = p.Add<Vignette>(true);
-            vig.intensity.Override(0.22f);
+            vig.intensity.Override(0.2f);
             vig.smoothness.Override(0.5f);
             var ca = p.Add<ColorAdjustments>(true);
-            ca.postExposure.Override(0.25f);
-            ca.saturation.Override(12f);
-            ca.contrast.Override(6f);
+            ca.postExposure.Override(0f);
+            ca.saturation.Override(24f);
+            ca.contrast.Override(18f);
             return p;
         }
 
@@ -154,27 +157,28 @@ namespace Cloudborne
             go.transform.SetParent(transform, false);
             sun = go.AddComponent<Light>();
             sun.type = LightType.Directional;
-            sun.color = new Color(1f, 0.92f, 0.75f);
-            sun.intensity = 1.5f;
+            sun.color = new Color(1f, 0.9f, 0.72f);
+            sun.intensity = 1.8f;
             sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.75f;
+            sun.shadowStrength = 0.85f;
             sun.shadowBias = 0.05f;
             sun.shadowNormalBias = 0.4f;
             go.transform.rotation = Quaternion.LookRotation(new Vector3(9, -15, 11));
 
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.78f, 0.9f, 0.7f);
-            RenderSettings.ambientEquatorColor = new Color(0.55f, 0.66f, 0.46f);
-            RenderSettings.ambientGroundColor = new Color(0.3f, 0.33f, 0.22f);
+            // cool, darker fill: the shade side reads as a clear second tone, as in cel animation
+            RenderSettings.ambientSkyColor = new Color(0.58f, 0.74f, 0.8f);
+            RenderSettings.ambientEquatorColor = new Color(0.4f, 0.52f, 0.44f);
+            RenderSettings.ambientGroundColor = new Color(0.2f, 0.24f, 0.17f);
             var sh = new SphericalHarmonicsL2();
-            sh.AddAmbientLight(new Color(0.62f, 0.74f, 0.56f));
+            sh.AddAmbientLight(new Color(0.5f, 0.62f, 0.56f));
             RenderSettings.ambientProbe = sh;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = CbWorld.Horizon;
-            RenderSettings.fogStartDistance = 16f;
-            RenderSettings.fogEndDistance = 150f;
-            var sky = RacingGame.Core.ToonStyle.Sky(CbArt.Hex("#3f8a96"), CbWorld.Horizon, CbWorld.Horizon);
+            RenderSettings.fogStartDistance = 24f;
+            RenderSettings.fogEndDistance = 175f;
+            var sky = RacingGame.Core.ToonStyle.Sky(CbArt.Hex("#2a78a8"), CbWorld.Horizon, CbWorld.Horizon);
             if (sky != null) RenderSettings.skybox = sky;
             else { cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = CbWorld.Horizon; }
         }

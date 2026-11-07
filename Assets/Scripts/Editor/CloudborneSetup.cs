@@ -16,7 +16,7 @@ namespace RacingGame.EditorTools
     public static class CloudborneSetup
     {
         public const string ScenePath = "Assets/Scenes/Cloudborne.unity";
-        const string PostPath = "Assets/Resources/Cloudborne/PostFX.asset";
+        const string PostPath = "Assets/Resources/Cloudborne/PostFX_Anime.asset";
 
         static CloudborneSetup()
         {
