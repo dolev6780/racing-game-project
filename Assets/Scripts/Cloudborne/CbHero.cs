@@ -37,6 +37,8 @@ namespace Cloudborne
         static readonly Vector3 StaffHandPos = new Vector3(0, -0.02f, 0.02f);
 
         public readonly Rig f;
+        /// <summary>The modelled Raja; null if it could not be loaded, and then the procedural one shows.</summary>
+        public readonly CbHeroModel model;
         public float x, y, vx, vy, hp = 100, ki = 40, inv;
         public int facing = 1;
         public State state = State.Idle;
@@ -65,8 +67,13 @@ namespace Cloudborne
             }, "Raja");
             RigBuilder.TigerHead(f);
             f.root.SetParent(parent, false);
+            // The rig still places, turns and flips Raja; with the model loaded its own parts are not drawn.
+            model = CbHeroModel.Load(f.body);
+            if (model != null)
+                foreach (var r in f.body.GetComponentsInChildren<Renderer>(true))
+                    if (!r.transform.IsChildOf(model.root)) r.enabled = false;
             staff = RigBuilder.Staff();
-            staff.SetParent(f.chest, false);
+            staff.SetParent(model != null ? f.body : f.chest, false);
             staff.localPosition = StaffBackPos;
             staff.localRotation = StaffBackRot;
 
@@ -82,8 +89,11 @@ namespace Cloudborne
             glow = 0; airHits = 0;
             f.flip.localRotation = Quaternion.identity;
             SetStaff(false, silent: true);
-            staff.localPosition = StaffBackPos;
-            staff.localRotation = StaffBackRot;
+            if (model == null)
+            {
+                staff.localPosition = StaffBackPos;
+                staff.localRotation = StaffBackRot;
+            }
             Place();
         }
 
@@ -91,7 +101,7 @@ namespace Cloudborne
         {
             if (staffInHand == hand) return;
             staffInHand = hand;
-            staff.SetParent(hand ? f.R.hand : f.chest, true);
+            if (model == null) staff.SetParent(hand ? f.R.hand : f.chest, true);
             if (!silent) CbFx.Sfx("staff", 0.6f);
         }
 
@@ -297,6 +307,45 @@ namespace Cloudborne
             UpdateStaffPlacement(pose, dt);
             UpdateCloth(dt);
             UpdateFire(dt);
+            Animate();
+        }
+
+        /// <summary>
+        /// Picks the modelled Raja's clip, and the moment in it, for the current state and move, so each animation
+        /// lasts exactly as long as the game's move and lands its blow when the move deals damage.
+        /// </summary>
+        void Animate()
+        {
+            if (model == null) return;
+            switch (state)
+            {
+                case State.Idle: model.LoopSeconds("Combat_Stance", g.clock); break;
+                case State.Run: model.Loop("RunFast", runPh / (Mathf.PI * 2)); break;
+                case State.Air: model.Show("Regular_Jump", vy > 0 ? 0.32f : 0.5f, 0.12f); break;
+                case State.Atk:
+                {
+                    float u = t / Paw[combo].dur;
+                    if (air) model.Window("Flying_Fist_Kick", 0.38f, 0.6f, u);
+                    else if (combo == 0) model.Window("Punch_Combo", 0.25f, 0.5f, u);
+                    else if (combo == 1) model.Window("Punch_Combo", 0.5f, 0.75f, u);
+                    else if (combo == 2) model.Window("Roundhouse_Kick", 0.3f, 0.65f, u);
+                    else model.Window("Kung_Fu_Punch", 0.3f, 0.48f, u);
+                    break;
+                }
+                case State.Staff:
+                    if (move == Move.Whirl) model.Window("Double_Blade_Spin", 0.05f, 0.4f, t / 0.95f);
+                    else if (move == Move.Launch) model.Window("Charged_Upward_Slash", 0.12f, 0.45f, t / 0.42f);
+                    else if (move == Move.Thrust) model.Window("Thrust_Slash", 0f, 0.25f, t / 0.38f);
+                    else if (move == Move.Slam) model.Show("Charged_Ground_Slam", 0.45f);
+                    else if (move == Move.Land) model.Window("Charged_Ground_Slam", 0.55f, 0.85f, t / 0.3f);
+                    break;
+                case State.Blast: model.Window("Charged_Spell_Cast", 0f, 0.3f, t / 0.32f); break;
+                case State.Charge: model.Show("Charged_Spell_Cast", 0.45f + Mathf.PingPong(t * 0.2f, 0.08f)); break;
+                case State.Roar: model.Window("Chest_Pound_Taunt", 0.2f, 0.75f, t); break;
+                case State.Dash: model.Window("Roll_Dodge", 0.25f, 0.6f, t / 0.2f); break;
+                case State.Hurt: model.Window("Hit_Reaction", 0.1f, 0.6f, t / 0.35f); break;
+                case State.Dead: model.Window("Knock_Down", 0f, 1f, t / 1.4f); break;
+            }
         }
 
         void UpdatePaw(ref Pose pose, CbInput input, ref float rate)
@@ -412,11 +461,41 @@ namespace Cloudborne
                 staffHold = Mathf.Max(0, staffHold - dt);
                 if (staffHold <= 0 && staffInHand) SetStaff(false);
             }
+            if (model != null)
+            {
+                PlaceModelStaff(pose, dt);
+                return;
+            }
             Vector3 tp = staffInHand ? StaffHandPos : StaffBackPos;
             Quaternion tq = staffInHand ? CbArt.Rot(Mathf.PI / 2 + pose.staffX, pose.spin, 0) : StaffBackRot;
             float k = 1 - Mathf.Exp(-(pose.spin != 0 ? 60f : 22f) * dt);
             staff.localPosition = Vector3.Lerp(staff.localPosition, tp, k);
             staff.localRotation = Quaternion.Slerp(staff.localRotation, tq, k);
+        }
+
+        /// <summary>
+        /// The staff on the modelled Raja: across his back, or out of his right fist (twirling in the whirl).
+        /// Placed in world space, as the model's bones have their own axes.
+        /// </summary>
+        void PlaceModelStaff(Pose pose, float dt)
+        {
+            Vector3 wp;
+            Quaternion wq;
+            if (staffInHand)
+            {
+                var hand = model.rightHand;
+                wp = hand.position + (hand.position - hand.parent.position).normalized * 0.05f;   // the palm, past the wrist
+                wq = hand.rotation * model.grip;
+                if (pose.spin != 0) wq = Quaternion.AngleAxis(pose.spin * Mathf.Rad2Deg, f.body.rotation * Vector3.right) * wq;
+            }
+            else
+            {
+                wp = model.chest.position + f.body.rotation * new Vector3(0, 0.05f, -0.16f);
+                wq = f.body.rotation * StaffBackRot;
+            }
+            float k = 1 - Mathf.Exp(-(pose.spin != 0 ? 60f : 22f) * dt);
+            staff.position = Vector3.Lerp(staff.position, wp, k);
+            staff.rotation = Quaternion.Slerp(staff.rotation, wq, k);
         }
 
         void UpdateCloth(float dt)
@@ -449,6 +528,7 @@ namespace Cloudborne
             float target = state == State.Roar ? 3.2f : state == State.Charge ? 1.6f + Mathf.Sin(g.clock * 12) * 0.6f : empower ? 1.2f : 0f;
             glow += (target - glow) * Damp(10, dt);
             CbArt.SetGlow(furMat, new Color(1f, 0.48f, 0.1f) * glow);
+            if (model != null) CbArt.SetGlow(model.material, new Color(1f, 0.48f, 0.1f) * glow * 0.35f);
             // blink while invulnerable after a hit
             bool visible = !(inv > 0 && state != State.Dead && g.slow <= 0 && Mathf.FloorToInt(g.clock * 20) % 2 == 0);
             f.body.gameObject.SetActive(visible);
@@ -463,6 +543,11 @@ namespace Cloudborne
             f.root.localPosition = new Vector3(x, 0, 0);
             f.body.localRotation = Quaternion.Euler(0, 140, 0);
             UpdateCloth(dt);
+            if (model != null)
+            {
+                model.LoopSeconds("Idle", g.clock);
+                PlaceModelStaff(pose, dt);
+            }
         }
 
         static float Damp(float k, float dt) => 1 - Mathf.Exp(-k * dt);

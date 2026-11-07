@@ -27,6 +27,21 @@ namespace UnityEditor
         public static void AddObjectToAsset(UnityEngine.Object o, UnityEngine.Object asset) { }
     }
     public static class EditorUtility { public static void SetDirty(UnityEngine.Object o) { } }
+    public class AssetImporter : UnityEngine.Object { }
+    public enum ModelImporterAnimationType { None, Legacy, Generic, Human }
+    public enum ModelImporterMaterialImportMode { None, ImportStandard, ImportViaMaterialDescription }
+    public class ModelImporter : AssetImporter
+    {
+        public ModelImporterAnimationType animationType;
+        public ModelImporterMaterialImportMode materialImportMode;
+        public bool importAnimation, importCameras, importLights;
+    }
+    public class AssetPostprocessor
+    {
+        public string assetPath;
+        public AssetImporter assetImporter;
+        public virtual uint GetVersion() => 0;
+    }
     public static class SessionState
     {
         public static bool GetBool(string key, bool defaultValue) => defaultValue;
