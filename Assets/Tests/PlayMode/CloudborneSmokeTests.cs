@@ -46,14 +46,18 @@ namespace RacingGame.Tests
             game.StartGame();
             yield return Frames(2);
             Assert.IsNotNull(game.hero.model, "Raja's model did not load");
+            // in profile: his face points along the run (within about 30 degrees), running and standing alike
             foreach (int dir in new[] { 1, -1, 1 })
             {
                 game.TestInput = i => i.x = dir;
                 yield return new WaitForSeconds(0.6f);
-                // side-on to the camera, turned a little towards it: his face points mostly along the run
                 var face = game.hero.model.Facing;
-                Assert.Greater(face.x * dir, 0.35f, $"Running {(dir > 0 ? "right" : "left")}, Raja faces {face}");
+                Assert.Greater(face.x * dir, 0.85f, $"Running {(dir > 0 ? "right" : "left")}, Raja faces {face}");
             }
+            game.TestInput = i => i.x = 0;
+            yield return new WaitForSeconds(0.8f);
+            Assert.AreEqual(CbHero.State.Idle, game.hero.state);
+            Assert.Greater(game.hero.model.Facing.x, 0.85f, $"Standing after running right, Raja faces {game.hero.model.Facing}");
         }
 
         [UnityTest]

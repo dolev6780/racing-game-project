@@ -448,8 +448,8 @@ namespace Cloudborne
         void Place()
         {
             f.root.localPosition = new Vector3(x, y, 0);
-            // turned 25 degrees from side-on towards the camera (which looks along +Z)
-            float target = facing * (90f + 25f);
+            // turned from side-on towards the camera (which looks along +Z): the modelled Raja shows his profile
+            float target = facing * (90f + (model != null ? 8f : 25f));
             float cur = f.body.localEulerAngles.y;
             f.body.localRotation = Quaternion.Euler(0, Mathf.LerpAngle(cur, target, 1 - Mathf.Exp(-18f * Time.deltaTime)), 0);
         }

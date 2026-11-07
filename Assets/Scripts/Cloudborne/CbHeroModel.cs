@@ -22,6 +22,10 @@ namespace Cloudborne
         readonly Animation anim;
         readonly Dictionary<string, AnimationState> clips = new Dictionary<string, AnimationState>();
         AnimationState current;
+        // Each clip's own turn of the face away from straight ahead (degrees), undone so he always shows his profile.
+        readonly Dictionary<AnimationState, float> clipYaw = new Dictionary<AnimationState, float>();
+        Quaternion baseRotation;
+        float yaw, yawTarget;
 
         public int ClipCount => clips.Count;
 
@@ -108,6 +112,9 @@ namespace Cloudborne
             }
             grip = Quaternion.FromToRotation(Vector3.up, best);
 
+            baseRotation = root.localRotation;
+            MeasureClipTurns(parent);
+
             // anime cel look: one hard light/shadow step with a cool shadow tint, a warm rim, no plastic highlight
             material = CbArt.NewToon(Color.white, CbArt.CharacterOutline, Resources.Load<Texture2D>(ResourcePath + "_Albedo"));
             material.SetFloat("_Bands", 1);
@@ -123,6 +130,35 @@ namespace Cloudborne
                 for (int i = 0; i < mats.Length; i++) mats[i] = material;
                 r.sharedMaterials = mats;
                 if (r is SkinnedMeshRenderer skin) skin.updateWhenOffscreen = true;
+            }
+        }
+
+        /// <summary>
+        /// Samples each clip and averages where the face points. A fighting stance stands half turned and some clips
+        /// turn further; the game wants him in profile, so Show turns the model back by this much.
+        /// Clips that spin all the way round average out and get no correction.
+        /// </summary>
+        void MeasureClipTurns(Transform parent)
+        {
+            foreach (var s in clips.Values)
+            {
+                foreach (var other in clips.Values) { other.enabled = false; other.weight = 0; }
+                s.enabled = true;
+                s.weight = 1;
+                Vector2 sum = Vector2.zero;
+                const int samples = 8;
+                for (int i = 0; i < samples; i++)
+                {
+                    s.normalizedTime = (i + 0.5f) / samples;
+                    anim.Sample();
+                    var f = parent.InverseTransformDirection(headFront.position - head.position);
+                    var flat = new Vector2(f.x, f.z);
+                    if (flat.sqrMagnitude > 1e-8f) sum += flat.normalized;
+                }
+                float steady = sum.magnitude / samples;
+                clipYaw[s] = steady > 0.6f ? Mathf.Clamp(Mathf.Atan2(sum.x, sum.y) * Mathf.Rad2Deg, -75f, 75f) : 0f;
+                s.enabled = false;
+                s.weight = 0;
             }
         }
 
@@ -157,9 +193,12 @@ namespace Cloudborne
             {
                 anim.CrossFade(s.name, blend);
                 current = s;
+                clipYaw.TryGetValue(s, out yawTarget);
             }
             s.speed = 0;
             s.normalizedTime = Mathf.Clamp01(t);
+            yaw = Mathf.LerpAngle(yaw, yawTarget, 1 - Mathf.Exp(-14f * Time.deltaTime));
+            root.localRotation = Quaternion.AngleAxis(-yaw, Vector3.up) * baseRotation;
         }
 
         /// <summary>Plays the part of a clip between from and to as u goes from 0 to 1.</summary>
