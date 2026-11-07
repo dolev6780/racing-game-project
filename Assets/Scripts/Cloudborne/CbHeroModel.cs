@@ -15,6 +15,7 @@ namespace Cloudborne
         public const float Height = 1.75f;
 
         public readonly Transform root, rightHand, chest;
+        readonly Transform head, headFront;
         public readonly Material material;
         /// <summary>Turns the staff (long axis +Y) so it points forward out of the right fist.</summary>
         public readonly Quaternion grip;
@@ -23,6 +24,17 @@ namespace Cloudborne
         AnimationState current;
 
         public int ClipCount => clips.Count;
+
+        /// <summary>Where his face points, flattened to the ground (world space).</summary>
+        public Vector3 Facing
+        {
+            get
+            {
+                var d = headFront.position - head.position;
+                d.y = 0;
+                return d.normalized;
+            }
+        }
 
         /// <summary>Null when the model or its legacy clips are missing; the hero then keeps the procedural look.</summary>
         public static CbHeroModel Load(Transform parent)
@@ -65,13 +77,17 @@ namespace Cloudborne
 
             rightHand = bones["RightHand"];
             chest = bones["Spine"];
+            head = bones["Head"];
+            headFront = bones["headfront"];
 
-            // Fit the model while it is still in its bind pose: face +Z, stand on y = 0, make it Height tall.
+            // Fit the model in its bind pose: face +Z, stand on y = 0, make it Height tall. The imported prefab may
+            // stand in a frame of one of its clips (in "Idle" his head is turned 90 degrees), so reset it first.
             // The hair rises about 6% of the toe-to-crown span above the head bone's end; the toes sit 4% above the floor.
-            var head = bones["Head"].position;
-            var fwd = bones["headfront"].position - head;
+            var skinned = root.GetComponentInChildren<SkinnedMeshRenderer>(true);
+            if (skinned != null) ToBindPose(skinned);
+            var fwd = headFront.position - head.position;
             fwd.y = 0;
-            root.localRotation = Quaternion.FromToRotation(parent.InverseTransformDirection(fwd.normalized), Vector3.forward);
+            root.localRotation = Quaternion.FromToRotation(parent.InverseTransformDirection(fwd.normalized), Vector3.forward) * root.localRotation;
             float toe = parent.InverseTransformPoint(bones["RightToeBase"].position).y;
             float crown = parent.InverseTransformPoint(bones["head_end"].position).y;
             float span = crown - toe;
@@ -108,6 +124,29 @@ namespace Cloudborne
                 r.sharedMaterials = mats;
                 if (r is SkinnedMeshRenderer skin) skin.updateWhenOffscreen = true;
             }
+        }
+
+        /// <summary>Moves every skinned bone to where it was when the mesh was bound to the skeleton, parents first.</summary>
+        static void ToBindPose(SkinnedMeshRenderer skin)
+        {
+            var bones = skin.bones;
+            var bind = skin.sharedMesh != null ? skin.sharedMesh.bindposes : null;
+            if (bind == null || bind.Length != bones.Length) return;
+            var order = new List<int>();
+            for (int i = 0; i < bones.Length; i++) if (bones[i] != null) order.Add(i);
+            order.Sort((a, b) => Depth(bones[a]).CompareTo(Depth(bones[b])));
+            foreach (int i in order)
+            {
+                var m = skin.transform.localToWorldMatrix * bind[i].inverse;
+                bones[i].SetPositionAndRotation(m.GetColumn(3), m.rotation);
+            }
+        }
+
+        static int Depth(Transform t)
+        {
+            int d = 0;
+            for (; t.parent != null; t = t.parent) d++;
+            return d;
         }
 
         /// <summary>Shows a clip at normalised time t (0..1). Switching clips blends over a few frames.</summary>
