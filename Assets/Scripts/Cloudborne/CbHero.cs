@@ -38,7 +38,8 @@ namespace Cloudborne
 
         public readonly Rig f;
         /// <summary>The modelled Raja; null if it could not be loaded, and then the procedural one shows.</summary>
-        public readonly CbHeroModel model;
+        public readonly CbModel model;
+        const string ModelPath = "Cloudborne/Raja/Raja";
         public float x, y, vx, vy, hp = 100, ki = 40, inv;
         public int facing = 1;
         public State state = State.Idle;
@@ -68,7 +69,7 @@ namespace Cloudborne
             RigBuilder.TigerHead(f);
             f.root.SetParent(parent, false);
             // The rig still places, turns and flips Raja; with the model loaded its own parts are not drawn.
-            model = CbHeroModel.Load(f.body);
+            model = CbModel.Load(ModelPath, 1.75f, f.body);
             if (model != null)
                 foreach (var r in f.body.GetComponentsInChildren<Renderer>(true))
                     if (!r.transform.IsChildOf(model.root)) r.enabled = false;
@@ -485,9 +486,8 @@ namespace Cloudborne
             Quaternion wq;
             if (staffInHand)
             {
-                var hand = model.rightHand;
-                wp = hand.position + (hand.position - hand.parent.position).normalized * 0.05f;   // the palm, past the wrist
-                wq = hand.rotation * model.grip;
+                wp = model.Palm(model.rightHand);
+                wq = model.Grip(Vector3.up);   // the staff's long axis is its local Y
                 if (pose.spin != 0) wq = Quaternion.AngleAxis(pose.spin * Mathf.Rad2Deg, f.body.rotation * Vector3.right) * wq;
             }
             else

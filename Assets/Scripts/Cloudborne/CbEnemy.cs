@@ -13,6 +13,9 @@ namespace Cloudborne
 
         public readonly Kind kind;
         public readonly Rig f;
+        /// <summary>The modelled hyena; null if it could not be loaded, and then the procedural one shows.</summary>
+        public readonly CbModel model;
+        readonly Transform blade;
         public float x, y, vx, vy, hp, max, burnT, burnTick, flash, tele;
         public int facing = -1;
         public State state = State.Move;
@@ -48,7 +51,7 @@ namespace Cloudborne
                 pants = CbArt.Hex("#4a3a2e"), belt = CbArt.Hex("#2a1f1a"), wrap = CbArt.Hex("#4a3a2e"), bulk = shield ? 1.12f : 1f,
             }, shield ? "ShieldHyena" : "Hyena");
             RigBuilder.HyenaHead(f);
-            var blade = CbArt.Joint(f.R.hand, 0, -0.02f, 0.02f, "machete");
+            blade = CbArt.Joint(f.R.hand, 0, -0.02f, 0.02f, "machete");
             CbArt.Box(f.M("#c9ced6"), blade, new Vector3(0, 0, 0.38f), new Vector3(0.03f, 0.1f, 0.62f));
             CbArt.Box(f.M("#2a1f1a"), blade, new Vector3(0, 0, 0.02f), new Vector3(0.05f, 0.06f, 0.16f));
             if (shield)
@@ -63,6 +66,59 @@ namespace Cloudborne
             f.root.SetParent(parent, false);
             f.root.localPosition = new Vector3(x, 0, 0);
             f.body.localRotation = Quaternion.Euler(0, -115, 0);
+
+            // The rig still places, turns and flips the hyena; with the model loaded only its machete and shield are drawn.
+            model = CbModel.Load(shield ? "Cloudborne/HyenaGuard/HyenaGuard" : "Cloudborne/HyenaRaider/HyenaRaider", shield ? 2.1f : 2.25f, f.body);
+            if (model != null)
+            {
+                foreach (var r in f.body.GetComponentsInChildren<Renderer>(true))
+                    if (!r.transform.IsChildOf(model.root) && !r.transform.IsChildOf(blade) && (f.shield == null || !r.transform.IsChildOf(f.shield)))
+                        r.enabled = false;
+                blade.SetParent(f.body, true);
+                if (f.shield != null) f.shield.SetParent(f.body, true);
+                f.mats.Add(model.material);
+                PlaceGear(1f);
+            }
+        }
+
+        /// <summary>
+        /// The modelled hyena's machete in its right fist, and the guard's shield on its left forearm, facing forward.
+        /// Placed in world space, as the model's bones have their own axes.
+        /// </summary>
+        void PlaceGear(float k)
+        {
+            if (model == null) return;
+            blade.position = model.Palm(model.rightHand);
+            blade.rotation = model.Grip(Vector3.forward);   // the blade runs along its local Z
+            if (f.shield == null) return;
+            var arm = (model.leftForeArm.position + model.leftHand.position) * 0.5f;
+            f.shield.position = Vector3.Lerp(f.shield.position, arm + f.body.rotation * new Vector3(0, 0, 0.14f), k);
+            f.shield.rotation = Quaternion.Slerp(f.shield.rotation, f.body.rotation, k);
+        }
+
+        /// <summary>Picks the modelled hyena's clip, and the moment in it, for the current state.</summary>
+        void Animate()
+        {
+            if (model == null) return;
+            bool shield = kind == Kind.Shield;
+            switch (state)
+            {
+                case State.Dying: model.Window("dying_backwards", 0f, 0.85f, t); break;
+                case State.Hurt:
+                    if (y > 0.25f) model.Show("BeHit_FlyUp", vy > 0 ? 0.3f : 0.5f, 0.1f);
+                    else model.Window("Hit_Reaction", 0.1f, 0.6f, t / 0.42f);
+                    break;
+                case State.Atk:
+                    // the blow lands at the end of the 0.45 s wind-up, a little past the middle of the clip
+                    if (shield && guard) model.Window("Shield_Push_Left", 0.1f, 0.8f, t / 0.8f);
+                    else model.Window("Right_Hand_Sword_Slash", 0.1f, 0.85f, t / 0.8f);
+                    break;
+                default:
+                    if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh / (Mathf.PI * 2));
+                    else if (shield && guard) model.Show("Block1", 0.15f);
+                    else model.LoopSeconds("Combat_Stance", g.clock + runPh);
+                    break;
+            }
         }
 
         void FaceTarget() => facing = g.hero.x >= x ? 1 : -1;
@@ -193,8 +249,10 @@ namespace Cloudborne
             }
             f.Apply(pose, dt, state == State.Atk ? 22 : 12);
             f.root.localPosition = new Vector3(x, y, 0);
-            float target = facing * (90f + 25f);
+            float target = facing * (90f + (model != null ? 8f : 25f));
             f.body.localRotation = Quaternion.Euler(0, Mathf.LerpAngle(f.body.localEulerAngles.y, target, 1 - Mathf.Exp(-12 * dt)), 0);
+            Animate();
+            PlaceGear(1 - Mathf.Exp(-25 * dt));
 
             // white flash when hit, white blink on wind-up, orange while burning
             if (flash > 0) f.SetFlash(Color.white, 0.9f);

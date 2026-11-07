@@ -39,6 +39,18 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ShieldHyenaHasItsModelAndClips()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            var guard = new CbEnemy(game, CbEnemy.Kind.Shield, 0, game.transform);
+            Assert.IsNotNull(guard.model, "The shield hyena's model did not load (Resources/Cloudborne/HyenaGuard)");
+            Assert.AreEqual(8, guard.model.ClipCount, "The shield hyena's model is missing animation clips");
+            Assert.IsNotNull(guard.f.shield, "The shield hyena has no shield");
+            guard.f.Destroy();
+        }
+
+        [UnityTest]
         public IEnumerator RajaFacesTheWayHeIsGoing()
         {
             game = CbGame.Boot();
@@ -74,6 +86,8 @@ namespace RacingGame.Tests
             float waited = 0;
             while (game.enemies.Count < 3 && waited < 5f) { waited += Time.deltaTime; yield return null; }
             Assert.AreEqual(3, game.enemies.Count, "The first fight zone did not spawn three hyenas");
+            foreach (var e in game.enemies)
+                Assert.IsNotNull(e.model, "A hyena raider's model did not load (Resources/Cloudborne/HyenaRaider)");
 
             // one move every 0.8 s, timed in seconds so the test does not depend on the frame rate
             float t0 = Time.time, prev = -1;
