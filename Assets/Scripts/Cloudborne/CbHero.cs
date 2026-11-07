@@ -365,8 +365,10 @@ namespace Cloudborne
                 pose.lean = 0.38f; pose.hLx = -0.8f; pose.kL = 0.45f; pose.hRx = 0.55f; pose.kR = 0.3f; pose.bob = -0.14f;
                 if (u > 0.42f && u < 0.6f && Random.value < 0.8f) CbFx.Spark(new Vector3(x + facing * Random.Range(0.6f, 1.4f), y + Random.Range(0.9f, 1.9f), -0.5f), CbFx.Hit, 1, 1, 0.25f, 0.15f, 0);
             }
-            // HIT, HIT, then hold HIT: staff whirl
-            if (!air && combo >= 1 && input.atkDown && input.atkHeldT > 0.22f && !holdUsed) StartStaff(Move.Whirl);
+            // HIT, HIT, then hold HIT: staff whirl. The hit lasts about as long as the hold takes, so a hold still on
+            // when the hit ends counts too (a quick tap in a mashed combo is shorter than 0.12 s).
+            bool held = input.atkHeldT > 0.22f || (u >= 1 && input.atkHeldT > 0.12f);
+            if (!air && combo >= 1 && input.atkDown && held && !holdUsed) StartStaff(Move.Whirl);
             else if (u >= 1)
             {
                 if (buffer > 0 && combo < 3 && (!air || airHits < 3)) StartPaw(combo + 1);
