@@ -102,7 +102,8 @@ namespace RacingGame.Tests
                 switch (phase)
                 {
                     case 0: i.atk = At(0) || At(0.12f) || At(0.24f) || At(0.36f); break;    // paw combo
-                    case 1: i.atk = At(0) || At(0.12f); i.atkDown = pt < 0.7f; break;      // HIT, HIT, hold: whirl
+                    // HIT, HIT, hold: whirl. Waits for phase 0's four-hit combo, which runs about 0.3 s past it
+                    case 1: i.atk = At(0.25f) || At(0.37f); i.atkDown = pt > 0.37f; break;
                     case 2: i.y = 1; i.atk = At(0.1f); break;                               // launcher
                     case 3: i.dash = At(0.05f); i.atk = At(0.12f); break;                   // dash, then thrust
                     case 4: i.jump = At(0); if (pt > 0.25f) i.y = -1; i.atk = At(0.3f); break; // slam
