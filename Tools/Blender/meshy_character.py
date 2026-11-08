@@ -10,7 +10,9 @@ crouch, but stay centred over the character's origin and never rise above their 
 With --upright CLIP[,CLIP...] those clips also lose the hips' rotation: a flip then keeps only its tucked
 pose, and the game turns the whole character itself (so it can flip forwards, twice, in its own time).
 
-    blender --background --python Tools/Blender/meshy_character.py -- OUT_DIR NAME anim1.glb [anim2.glb ...] [--upright CLIPS]
+--drop CLIP[,CLIP...] leaves clips out (ones the game no longer uses).
+
+    blender --background --python Tools/Blender/meshy_character.py -- OUT_DIR NAME anim1.glb [anim2.glb ...] [--upright CLIPS] [--drop CLIPS]
 
 Writes OUT_DIR/NAME.fbx (mesh, skeleton, every clip) and OUT_DIR/NAME_Albedo.png (base colour).
 """
@@ -22,11 +24,16 @@ import bpy
 from mathutils import Vector
 
 args = sys.argv[sys.argv.index("--") + 1:]
-upright = set()
-if "--upright" in args:
-    i = args.index("--upright")
-    upright = set(args[i + 1].split(","))
+def option(flag):
+    if flag not in args:
+        return set()
+    i = args.index(flag)
+    names = set(args[i + 1].split(","))
     del args[i:i + 2]
+    return names
+
+
+upright, drop = option("--upright"), option("--drop")
 out_dir, name, sources = args[0], args[1], args[2:]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -52,7 +59,7 @@ for path in sources[1:]:
     for o in import_glb(path):
         bpy.data.objects.remove(o, do_unlink=True)
 
-clips = [a for a in bpy.data.actions if a.frame_range[1] > a.frame_range[0]]
+clips = [a for a in bpy.data.actions if a.frame_range[1] > a.frame_range[0] and a.name.split("|")[-1] not in drop]
 for a in list(bpy.data.actions):
     if a not in clips:
         bpy.data.actions.remove(a)

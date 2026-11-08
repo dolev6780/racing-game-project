@@ -37,6 +37,31 @@ namespace Cloudborne
         public static void Burst(Vector3 pos, Color c, float size, float life = 0.14f)
             => Spawn(pos, c, Star, size * 0.55f, size, life, true, Random.Range(0f, 360f));
 
+        /// <summary>
+        /// A fiery explosion: the painted one (Resources/Cloudborne/Effects/Explosion, drawn in Canva on black, so
+        /// it adds light) if it is in the project, else a hot star.
+        /// </summary>
+        public static void Explosion(Vector3 pos, float size, float life = 0.22f)
+        {
+            var tex = Painted("Explosion");
+            if (tex == null) { Burst(pos, CbFx.Flame, size, life); return; }
+            Spawn(pos, new Color(1, 1, 1, 1) * 1.6f, tex, size * 0.5f, size, life, true, Random.Range(0f, 360f));
+        }
+
+        static readonly Dictionary<string, Texture2D> painted = new Dictionary<string, Texture2D>();
+
+        /// <summary>A painted effect from Resources/Cloudborne/Effects, or null; looked up once.</summary>
+        public static Texture2D Painted(string name)
+        {
+            if (!painted.TryGetValue(name, out var t))
+            {
+                t = Resources.Load<Texture2D>("Cloudborne/Effects/" + name);
+                if (t != null) t.wrapMode = name == "Beam" ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
+                painted[name] = t;
+            }
+            return t;
+        }
+
         /// <summary>An expanding ring: across the view for heavy blows, flat on the ground for slams and the roar.</summary>
         public static void Ring(Vector3 pos, Color c, float radius, float life = 0.3f, bool ground = false)
         {

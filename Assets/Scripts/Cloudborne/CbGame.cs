@@ -80,7 +80,9 @@ namespace Cloudborne
         // the flame cannon reaches BeamLength in BeamGrow, holds, then thins away; it hits BeamHits times, the last hard
         const float BeamLength = 16f, BeamGrow = 0.12f, BeamHold = 0.55f, BeamFade = 0.2f;
         const int BeamHits = 6;
-        static Material fireCore, fireGlow, fireTail, fireTailInner;
+        static Material fireCore, fireGlow, fireTail, fireTailInner, fireSprite;
+        // the painted fireball (Resources/Cloudborne/Effects/Fireball): its length in metres, and where its ball sits
+        const float FireballLength = 2.6f, FireballHead = 0.85f;
 
         public static CbGame Boot()
         {
@@ -394,11 +396,22 @@ namespace Cloudborne
             var t = new GameObject("fireball").transform;
             t.SetParent(transform, false);
             t.position = pos;
-            CbArt.Part(CbMesh.Sphere, fireCore, t, Vector3.zero, Vector3.one * 0.42f, shadows: false);
             var glow = CbArt.Part(CbMesh.Quad, fireGlow, t, new Vector3(0, 0, -0.3f), Vector3.one * 1.6f, shadows: false);
-            // the tail's bright end (u = 1) sits at the ball; flipped for a ball flying left
-            CbArt.Part(CbMesh.Quad, fireTail, t, new Vector3(-dir * 1.1f, 0, -0.2f), new Vector3(2.4f * dir, 0.75f, 1), shadows: false);
-            CbArt.Part(CbMesh.Quad, fireTailInner, t, new Vector3(-dir * 0.7f, 0, -0.25f), new Vector3(1.5f * dir, 0.32f, 1), shadows: false);
+            var sprite = CbVfx.Painted("Fireball");
+            if (sprite != null)
+            {
+                // the painted fireball flies right with its ball at FireballHead of its width; flipped to fly left
+                if (fireSprite == null) fireSprite = CbArt.Glow(Color.white * 1.5f, sprite);
+                float w = FireballLength, h = w * sprite.height / sprite.width;
+                CbArt.Part(CbMesh.Quad, fireSprite, t, new Vector3(-dir * (FireballHead - 0.5f) * w, 0, -0.25f), new Vector3(w * dir, h, 1), shadows: false);
+            }
+            else
+            {
+                CbArt.Part(CbMesh.Sphere, fireCore, t, Vector3.zero, Vector3.one * 0.42f, shadows: false);
+                // the tail's bright end (u = 1) sits at the ball; flipped for a ball flying left
+                CbArt.Part(CbMesh.Quad, fireTail, t, new Vector3(-dir * 1.1f, 0, -0.2f), new Vector3(2.4f * dir, 0.75f, 1), shadows: false);
+                CbArt.Part(CbMesh.Quad, fireTailInner, t, new Vector3(-dir * 0.7f, 0, -0.25f), new Vector3(1.5f * dir, 0.32f, 1), shadows: false);
+            }
             shots.Add(new Shot { t = t, glow = glow, x = pos.x, y = pos.y, vx = dir * 18, life = 1.6f });
             // from the palm: a burst, a ring, a little jolt
             CbVfx.Burst(pos, CbFx.Fire, 1.6f, 0.12f);
@@ -438,6 +451,10 @@ namespace Cloudborne
                 coreM = CbArt.Glow(new Color(1f, 0.96f, 0.85f, 1f) * 3f, CbVfx.BeamCore),
                 headM = CbArt.Glow(new Color(1f, 0.6f, 0.15f, 1f) * 3f, CbArt.Soft),
             };
+            var paintedBeam = CbVfx.Painted("Beam");
+            if (paintedBeam != null) { b.outerM.mainTexture = paintedBeam; b.outerM.SetColor("_Color", Color.white * 1.5f); b.midM.SetColor("_Color", new Color(1, 0.8f, 0.4f, 0.35f)); }
+            var paintedHead = CbVfx.Painted("Explosion");
+            if (paintedHead != null) { b.headM.mainTexture = paintedHead; b.headM.SetColor("_Color", Color.white * 1.5f); }
             b.outer = CbArt.Part(CbMesh.Quad, b.outerM, holder, Vector3.zero, new Vector3(0.01f, 2.2f, 1), shadows: false);
             b.mid = CbArt.Part(CbMesh.Quad, b.midM, holder, new Vector3(0, 0, -0.05f), new Vector3(0.01f, 1.2f, 1), shadows: false);
             b.core = CbArt.Part(CbMesh.Quad, b.coreM, holder, new Vector3(0, 0, -0.1f), new Vector3(0.01f, 0.45f, 1), shadows: false);
@@ -458,6 +475,8 @@ namespace Cloudborne
             var b = beam;
             if (b == null) return;
             b.t += dt;
+            // the beam stays on his palm while he holds it out
+            if (hero.state == CbHero.State.Special) { b.from = hero.HandPoint(); b.holder.position = b.from; }
             float len = BeamLength * Mathf.Clamp01(b.t / BeamGrow);
             float thick = b.t < BeamGrow + BeamHold ? 1f + Mathf.Sin(b.t * 60) * 0.06f : Mathf.Max(0, 1 - (b.t - BeamGrow - BeamHold) / BeamFade);
             foreach (var (layer, h) in new[] { (b.outer, 2.2f), (b.mid, 1.2f), (b.core, 0.45f) })
@@ -466,7 +485,10 @@ namespace Cloudborne
                 layer.localScale = new Vector3(Mathf.Max(0.01f, len), h * thick, 1);
             }
             // the flames stream away from his hands
-            b.outerM.mainTextureScale = new Vector2(len / 4f, 1);
+            // the painted beam keeps its proportions at the outer layer's 2.2 m height; the streaks repeat every 4 m
+            var paintedBeam = CbVfx.Painted("Beam");
+            float segment = paintedBeam != null ? 2.2f * paintedBeam.width / paintedBeam.height : 4f;
+            b.outerM.mainTextureScale = new Vector2(len / segment, 1);
             b.outerM.mainTextureOffset = new Vector2(-b.dir * b.t * 5f, 0);
             b.midM.mainTextureScale = new Vector2(len / 3f, 1);
             b.midM.mainTextureOffset = new Vector2(-b.dir * b.t * 8f, 0.3f);
@@ -541,7 +563,7 @@ namespace Cloudborne
                     if (hit)
                     {
                         // an explosion of fire where it lands
-                        CbVfx.Burst(at, CbFx.Flame, 2.4f, 0.18f);
+                        CbVfx.Explosion(at, 2.6f, 0.22f);
                         CbVfx.Ring(at, CbFx.Fire * 0.5f, 1.6f, 0.3f);
                         shake = Mathf.Max(shake, 0.15f);
                     }

@@ -66,13 +66,26 @@ namespace Cloudborne
         public bool crouching;
         public bool Ducking => crouching && y <= 0.01f && (state == State.Idle || state == State.Run || (state == State.Atk && combo == Sweep));
         public bool Guarding => state == State.Guard;
+
+        /// <summary>
+        /// Where a shot leaves him: just past the palm of his right hand (it thrusts forward in the casting clips),
+        /// on the play plane. Without the model, about chest high in front of him.
+        /// </summary>
+        public Vector3 HandPoint()
+        {
+            if (model == null) return new Vector3(x + facing * 0.9f, y + 1.05f, 0);
+            var p = model.Palm(model.rightHand);
+            return new Vector3(p.x + facing * 0.15f, p.y, 0);
+        }
         public float T => t;
 
         readonly CbGame g;
-        readonly Material furMat, auraMat;
-        readonly Transform staff, aura;
+        readonly Material furMat;
+        readonly Transform staff;
         bool staffInHand;
-        float t, buffer, heavyBuffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, auraA, ghostT, blockT;
+        float t, buffer, heavyBuffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, ghostT, blockT, crouchT, walkT;
+        // below WalkSpeed he walks (a light push on the stick), above it he runs; the walk clip's own pace
+        const float WalkSpeed = 4.2f, WalkClipPace = 1.4f;
         int combo, jumps, airHits, hits;
         bool air, airDashed, holdUsed, fired;
         readonly HashSet<CbEnemy> hitSet = new HashSet<CbEnemy>();
@@ -99,9 +112,6 @@ namespace Cloudborne
             staff.localPosition = StaffBackPos;
             staff.localRotation = StaffBackRot;
 
-            auraMat = CbArt.Glow(new Color(1f, 0.54f, 0.12f, 0f) * 2.4f, CbArt.Flame);
-            aura = CbArt.Part(CbMesh.Frustum(0.75f, 24, false), auraMat, f.root, new Vector3(0, -0.15f, 0), new Vector3(1f, 2.8f, 1f), shadows: false);
-            aura.gameObject.SetActive(false);
         }
 
         public void Reset()
@@ -226,14 +236,14 @@ namespace Cloudborne
                     float u = t / 0.32f;
                     if (u < 0.4f) { pose.twist = -0.6f; pose.sRx = 0.5f; pose.eR = -1.9f; pose.sLx = -0.8f; pose.eL = -1.2f; pose.lean = 0.05f; pose.hLx = -0.5f; pose.kL = 0.45f; pose.hRx = 0.5f; pose.kR = 0.4f; pose.bob = -0.1f; }
                     else { pose.twist = 0.55f; pose.sRx = -1.6f; pose.eR = -0.05f; pose.sRz = 0.05f; pose.sLx = -0.3f; pose.eL = -1.6f; pose.lean = 0.2f; pose.hLx = -0.7f; pose.kL = 0.4f; pose.hRx = 0.6f; pose.kR = 0.3f; pose.bob = -0.12f; }
-                    if (u >= 0.4f && !fired) { fired = true; g.FireShot(new Vector3(x + facing * 1f, y + 1.45f, 0), facing); }
+                    if (u >= 0.4f && !fired) { fired = true; g.FireShot(HandPoint(), facing); }
                     if (u >= 1) state = air ? State.Air : State.Idle;
                     break;
                 }
                 case State.Special:
                 {
                     rate = 18;
-                    var hands = new Vector3(x + facing * 0.9f, y + 1.25f, -0.3f);
+                    var hands = HandPoint();
                     if (t < SpecialWindup)
                     {
                         // gathering: fire drawn in to his hands, focus lines, a rumble
@@ -250,8 +260,6 @@ namespace Cloudborne
                     {
                         pose.lean = 0.3f; pose.sLx = -1.5f; pose.sRx = -1.5f; pose.eL = -0.1f; pose.eR = -0.1f; pose.hLx = -0.8f; pose.kL = 0.5f; pose.hRx = 0.7f; pose.kR = 0.4f; pose.bob = -0.18f;
                         if (!fired) { fired = true; g.SpecialBeam(hands, facing); }
-                        // the beam pushes him back a little while it runs
-                        vx = -facing * 0.6f;
                     }
                     if (t > SpecialTime) state = State.Idle;
                     break;
@@ -284,6 +292,7 @@ namespace Cloudborne
             {
                 // down on the stick ducks right where he stands (he can still turn round)
                 crouching = !air && input.y < -0.5f;
+                crouchT = crouching ? crouchT + dt : 0;
                 vx += (input.x * (crouching ? 0f : 7f) - vx) * Damp(air ? 6 : 14, dt);
                 if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
                 if (input.jump && jumps < 2)
@@ -326,6 +335,7 @@ namespace Cloudborne
             if (state == State.Run)
             {
                 runPh += dt * Mathf.Abs(vx) * 1.9f;
+                walkT += dt * Mathf.Abs(vx) / WalkClipPace;
                 Pose.Run(ref pose, runPh);
                 if (Random.value < 0.15f) CbFx.Spark(new Vector3(x - facing * 0.3f, 0.1f, Random.Range(-0.3f, 0.3f)), CbFx.Dust, 1, 1.5f, 0.35f, 0.4f, -1);
             }
@@ -389,10 +399,12 @@ namespace Cloudborne
             if (model == null) return;
             switch (state)
             {
-                // a deep duck with a guarding arm up (the hips drop from 0.75 to 0.49 of his height)
-                case State.Idle when crouching: model.Show("Sit_Dodge", 0.3f, 0.08f); break;
-                case State.Run when crouching: model.Show("Sit_Dodge", 0.3f, 0.08f); break;
+                // ducking: drops quickly into the bottom of a squat, arms out in front (hips from 0.75 to 0.43)
+                case State.Idle when crouching:
+                case State.Run when crouching: model.Window("air_squat", 0.15f, 0.45f, crouchT / 0.12f, 0.05f); break;
                 case State.Idle: model.LoopSeconds("Combat_Stance", g.clock); break;
+                // a light push on the stick walks, a full one runs (a slow run looked like slow motion)
+                case State.Run when Mathf.Abs(vx) < WalkSpeed: model.LoopSeconds("Quick_Walk", walkT); break;
                 case State.Run: model.Loop("RunFast", runPh / (Mathf.PI * 2)); break;
                 // the somersault shows the tuck of the backflip clip (its hips' turn removed): the game turns him
                 case State.Air when flipT > 0: model.Window("Backflip_Jump", 0.3f, 0.52f, 1 - flipT / FlipTime, 0.06f); break;
@@ -622,20 +634,6 @@ namespace Cloudborne
 
         void UpdateFire(float dt)
         {
-            bool burning = state == State.Special;
-            auraA += ((burning ? 1f : 0f) - auraA) * Damp(8, dt);
-            aura.gameObject.SetActive(auraA > 0.02f);
-            if (aura.gameObject.activeSelf)
-            {
-                // the modelled Raja is a small cub: a slimmer, see-through flame around him, not a pillar of light
-                bool cub = model != null;
-                var c = new Color(1f, 0.54f, 0.12f) * (cub ? 1.3f : 2.4f);
-                c.a = auraA * (cub ? 0.55f : 0.9f);
-                auraMat.SetColor("_Color", c);
-                auraMat.mainTextureOffset = new Vector2(g.clock * 0.6f, 0);
-                float w = (cub ? 0.58f : 1f) * (1 + Mathf.Sin(g.clock * 20) * 0.04f);
-                aura.localScale = new Vector3(w, cub ? 2.1f : 2.8f, w);
-            }
             float target = state == State.Special ? (t < SpecialWindup ? 1.6f + t / SpecialWindup * 1.6f : 3.2f) : empower ? 1.2f : 0f;
             glow += (target - glow) * Damp(10, dt);
             CbArt.SetGlow(furMat, new Color(1f, 0.48f, 0.1f) * glow);
