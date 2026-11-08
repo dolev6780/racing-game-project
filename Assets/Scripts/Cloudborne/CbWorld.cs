@@ -27,11 +27,13 @@ namespace Cloudborne
         const string TreeModel = "Tree", PalmModel = "Palm", FernModel = "Fern", LeavesModel = "Leaves",
             BoulderModel = "Boulder", PillarModel = "Pillar", GateModel = "Gate", KarstModel = "Karst";
         // The backdrop is a painting on a wall far behind everything. It follows the camera along the level and its
-        // picture slides only a little, so it reads as very far away. Its top is above the view; the mist under its
-        // karst pillars, about 62% of the way down, sits near eye level, and the ground hides the rest.
+        // picture slides only a little, so it reads as very far away. The painting (ImageHeight tall, its top at
+        // ImageTop) puts the treetops in its lower quarter just above eye level, so a forest, not a lawn, runs to the
+        // horizon; its sky and karst pillars fill the view above. The wall goes on up to BackdropTop with the
+        // painting's top row of sky, so no screen shape ever sees past it.
         const string BackdropPath = "Cloudborne/Jungle/Backdrop/JungleBackdrop";
-        const float BackdropZ = 150f, BackdropTop = 48f, BackdropHeight = 73f, BackdropWidth = 260f, BackdropStretch = 1.3f,
-            BackdropSlide = 0.15f;
+        const float BackdropZ = 150f, ImageTop = 40f, ImageHeight = 50f, BackdropTop = 80f, BackdropWidth = 300f,
+            BackdropStretch = 1.5f, BackdropSlide = 0.15f;
         Transform backdrop;
         Material backdropMat;
         static readonly Color ForegroundShade = new Color(0.16f, 0.24f, 0.2f);
@@ -138,12 +140,21 @@ namespace Cloudborne
                 else if (trees) Place(TreeModel, near, new Vector3(x, 0, z + 1f), Random.Range(0.5f, 0.6f), CbArt.PropOutline);
                 else JungleTree(near, x, z, Random.Range(0.85f, 1.1f), CbArt.PropOutline);
             }
-            for (float x = -30; x < 150; x += Random.Range(7f, 11f))
+            if (trees)
             {
-                float z = Random.Range(17f, 28f), s = Random.Range(1.3f, 1.9f);
-                if (trees) Place(TreeModel, far, new Vector3(x, 0, z), s * 0.45f);
-                else JungleTree(far, x, z, s, 0f);
+                // two rows of forest behind the first, so the ground between the trees and the horizon is not an
+                // empty lawn; they fade into the haze with distance
+                foreach (var (z0, z1, s0, s1, step) in new[] { (15f, 24f, 0.45f, 0.6f, 4.5f), (26f, 42f, 0.55f, 0.75f, 5f) })
+                    for (float x = -40; x < 160; x += Random.Range(step, step * 1.6f))
+                    {
+                        var at = new Vector3(x, 0, Random.Range(z0, z1));
+                        if (palms && Random.value < 0.25f) Place(PalmModel, far, at, Random.Range(s0, s1) * 1.1f);
+                        else Place(TreeModel, far, at, Random.Range(s0, s1));
+                    }
             }
+            else
+                for (float x = -30; x < 150; x += Random.Range(7f, 11f))
+                    JungleTree(far, x, Random.Range(17f, 28f), Random.Range(1.3f, 1.9f), 0f);
             // clumps of big leaves among the rocks between the path and the trees
             if (Has(LeavesModel))
                 for (float x = -25; x < 145; x += Random.Range(5f, 9f))
@@ -157,10 +168,10 @@ namespace Cloudborne
         static bool Has(string name) => Resources.Load<GameObject>(ModelPath(name)) != null;
 
         /// <summary>
-        /// Models of thin leaves, seen from both sides. They get no outline: the outline is drawn from the back faces,
-        /// so a leaf showing its back would turn black.
+        /// Models with thin leaves, seen from both sides (the boulders have sprigs of moss and leaves). They get no
+        /// outline: the outline is drawn from the back faces, so a leaf showing its back would turn black.
         /// </summary>
-        static bool Leafy(string name) => name == LeavesModel || name == FernModel || name == PalmModel;
+        static bool Leafy(string name) => name == LeavesModel || name == FernModel || name == PalmModel || name == BoulderModel;
 
         /// <summary>
         /// Places a copy of a scenery model standing at pos, its drawn front turned towards the camera give or take a
@@ -331,10 +342,12 @@ namespace Cloudborne
             tex.wrapModeU = TextureWrapMode.Mirror;
             tex.wrapModeV = TextureWrapMode.Clamp;
             backdropMat = new Material(shader) { mainTexture = tex };
-            float tile = BackdropHeight * tex.width / tex.height * BackdropStretch;
-            backdropMat.mainTextureScale = new Vector2(BackdropWidth / tile, 1);
-            backdrop = CbArt.Part(CbMesh.Quad, backdropMat, root, new Vector3(0, BackdropTop - BackdropHeight / 2, BackdropZ),
-                new Vector3(BackdropWidth, BackdropHeight, 1), shadows: false);
+            float tile = ImageHeight * tex.width / tex.height * BackdropStretch;
+            float height = BackdropTop - (ImageTop - ImageHeight);
+            // the quad's bottom is the painting's bottom; above the painting's top the clamped texture repeats its sky
+            backdropMat.mainTextureScale = new Vector2(BackdropWidth / tile, height / ImageHeight);
+            backdrop = CbArt.Part(CbMesh.Quad, backdropMat, root, new Vector3(0, BackdropTop - height / 2, BackdropZ),
+                new Vector3(BackdropWidth, height, 1), shadows: false);
             backdrop.name = "backdrop";
             backdrop.GetComponent<MeshRenderer>().receiveShadows = false;
             return true;
