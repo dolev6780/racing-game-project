@@ -11,6 +11,7 @@ namespace Cloudborne
     public class CbModel
     {
         public readonly Transform root, rightHand, leftHand, leftForeArm, chest;
+        public readonly SkinnedMeshRenderer skin;
         readonly Transform head, headFront;
         public readonly Material material;
         readonly Animation anim;
@@ -91,8 +92,8 @@ namespace Cloudborne
             // Fit the model in its bind pose. The imported prefab may stand in a frame of one of its clips (in Raja's
             // "Idle" his head is turned 90 degrees), so reset it first. Meshy's characters all share one skeleton:
             // the hair or ears rise about 6% of the toe-to-crown span above the head bone's end, the toes sit 4% above the floor.
-            var skinned = root.GetComponentInChildren<SkinnedMeshRenderer>(true);
-            if (skinned != null) ToBindPose(skinned);
+            skin = root.GetComponentInChildren<SkinnedMeshRenderer>(true);
+            if (skin != null) ToBindPose(skin);
             var fwd = headFront.position - head.position;
             fwd.y = 0;
             root.localRotation = Quaternion.FromToRotation(parent.InverseTransformDirection(fwd.normalized), Vector3.forward) * root.localRotation;
@@ -131,7 +132,7 @@ namespace Cloudborne
                 var mats = new Material[r.sharedMaterials.Length];
                 for (int i = 0; i < mats.Length; i++) mats[i] = material;
                 r.sharedMaterials = mats;
-                if (r is SkinnedMeshRenderer skin) skin.updateWhenOffscreen = true;
+                if (r is SkinnedMeshRenderer skinned) skinned.updateWhenOffscreen = true;
             }
         }
 

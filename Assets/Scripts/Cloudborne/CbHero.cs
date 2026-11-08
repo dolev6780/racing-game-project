@@ -51,7 +51,7 @@ namespace Cloudborne
         readonly Material furMat, auraMat;
         readonly Transform staff, aura;
         bool staffInHand;
-        float t, buffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, auraA;
+        float t, buffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, auraA, ghostT, ringT;
         int combo, jumps, airHits, hits;
         bool air, airDashed, holdUsed, fired;
         readonly HashSet<CbEnemy> hitSet = new HashSet<CbEnemy>();
@@ -210,6 +210,15 @@ namespace Cloudborne
                     ki = Mathf.Min(100, ki + 34 * dt);
                     if (Random.value < 0.7f) CbFx.Spark(new Vector3(x + Random.Range(-0.7f, 0.7f), y + Random.Range(0f, 0.5f), Random.Range(-0.4f, 0.4f)), Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 0.5f, 0.35f, 0.8f, -6);
                     if (Random.value < 0.04f) CbFx.Sfx("charge", 0.5f);
+                    // powering up: rings of fire running out over the ground, focus lines, a rumble
+                    ringT -= dt;
+                    if (ringT <= 0)
+                    {
+                        ringT = 0.3f;
+                        CbVfx.Ring(new Vector3(x, y + 0.05f, 0), CbFx.Fire * 0.5f, 1.6f, 0.45f, ground: true);
+                    }
+                    g.hud.SpeedLines(0.22f, 0.15f);
+                    g.shake = Mathf.Max(g.shake, 0.04f);
                     if (!input.charging || air) state = State.Idle;
                     break;
                 case State.Dash:
@@ -217,6 +226,13 @@ namespace Cloudborne
                     pose.lean = 0.65f; pose.sLx = 0.9f; pose.sRx = 0.9f; pose.eL = -0.4f; pose.eR = -0.4f; pose.hLx = -0.9f; pose.kL = 1.1f; pose.hRx = 0.6f; pose.kR = 0.9f; pose.bob = -0.15f;
                     if (air) vy = 0;
                     if (Random.value < 0.9f) CbFx.Spark(new Vector3(x - facing * 0.4f, y + Random.Range(0.4f, 1.8f), -0.1f), CbFx.Flame, 1, 0.5f, 0.45f, 0.25f, 0);
+                    // afterimages left behind along the dash
+                    ghostT -= dt;
+                    if (model != null && ghostT <= 0)
+                    {
+                        ghostT = 0.04f;
+                        CbVfx.Ghost(model.skin, new Color(1f, 0.55f, 0.15f, 0.5f) * 1.6f, 0.25f);
+                    }
                     if (input.atk) buffer = 0.3f;
                     if (t > 0.2f) { state = air ? State.Air : State.Idle; vx = facing * 4; }
                     break;
@@ -238,7 +254,8 @@ namespace Cloudborne
                 if (input.dash && dashCd <= 0 && !(air && airDashed))
                 {
                     if (Mathf.Abs(input.x) > 0.2f) facing = input.x > 0 ? 1 : -1;
-                    state = State.Dash; t = 0; vx = facing * 16; dashCd = 0.35f; sinceDash = 0;
+                    state = State.Dash; t = 0; vx = facing * 16; dashCd = 0.35f; sinceDash = 0; ghostT = 0;
+                    g.hud.SpeedLines(0.4f, 0.25f);
                     if (air) airDashed = true;
                     CbFx.Sfx("dash", 0.6f);
                 }
@@ -437,6 +454,9 @@ namespace Cloudborne
                         CbFx.Spark(new Vector3(x + facing * 1.1f, 0.2f, -0.4f), CbFx.Fire, 10, 6, 0.4f, 0.4f, 3);
                         g.shake = Mathf.Max(g.shake, 0.4f);
                         CbFx.Sfx("heavy");
+                        CbVfx.Ring(new Vector3(x + facing * 1.1f, 0.05f, 0), CbFx.Hit * 0.6f, 3.5f, 0.4f, ground: true);
+                        CbVfx.Burst(new Vector3(x + facing * 1.1f, 0.3f, -0.4f), CbFx.Hit, 2.6f, 0.18f);
+                        g.hud.ImpactFlash(0.3f);
                         move = Move.Land; t = 0;
                     }
                     break;

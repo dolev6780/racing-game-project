@@ -88,6 +88,7 @@ namespace Cloudborne
             SetupCamera();
             SetupLight();
             CbFx.Init(transform);
+            CbVfx.Init(transform);
             world = new CbWorld(transform);
             actors = new GameObject("Actors").transform;
             actors.SetParent(transform, false);
@@ -293,6 +294,7 @@ namespace Cloudborne
             if (e.guard && frontal && e.state != CbEnemy.State.Hurt && !breaker)
             {
                 CbFx.Spark(at, CbFx.Grey, 8, 5, 0.3f, 0.25f, 4);
+                CbVfx.Burst(at, CbFx.Grey, 1.1f, 0.1f);
                 hud.Popup(new Vector3(e.x, e.HitHeight + 1, 0), "BLOCK", CbHud.PopStyle.Block);
                 CbFx.Sfx("block");
                 hero.vx = -dir * 3;
@@ -302,6 +304,8 @@ namespace Cloudborne
             if (e.guard && breaker)
             {
                 e.BreakGuard(dir);
+                CbVfx.Ring(at, CbFx.Hit, 1.6f, 0.3f);
+                hud.ImpactFlash(0.4f);
                 hud.Popup(new Vector3(e.x, e.y + 2.6f, 0), "GUARD BREAK", CbHud.PopStyle.Big);
                 CbFx.Sfx("heavy");
             }
@@ -315,6 +319,13 @@ namespace Cloudborne
             score += Mathf.RoundToInt(dmg * 10 * (1 + combo * 0.1f));
             hero.ki = Mathf.Min(100, hero.ki + 3);
             CbFx.Spark(at, fire ? CbFx.Fire : CbFx.Hit, big ? 22 : 12, big ? 11 : 7, big ? 0.6f : 0.4f);
+            CbVfx.Burst(at, fire ? CbFx.Fire : CbFx.Hit, big ? 2.4f : 1.4f, big ? 0.2f : 0.12f);
+            if (big)
+            {
+                CbVfx.Ring(at, (fire ? CbFx.Fire : CbFx.Hit) * 0.7f, 1.8f, 0.3f);
+                hud.ImpactFlash(0.45f);
+                hud.SpeedLines(0.55f, 0.3f);
+            }
             hud.Popup(new Vector3(e.x, e.HitHeight + 0.9f, 0), Mathf.RoundToInt(dmg).ToString(), big ? CbHud.PopStyle.Big : CbHud.PopStyle.Normal);
             hud.SetCombo(combo);
             if (e.hp <= 0) { KillEnemy(e, dir); return true; }
@@ -332,6 +343,9 @@ namespace Cloudborne
             hitstop = 0.12f;
             shake = Mathf.Max(shake, 0.4f);
             CbFx.Spark(new Vector3(e.x, e.HitHeight, -0.4f), e.burnT > 0 ? CbFx.Fire : CbFx.Purple, 26, 9, 0.6f, 0.6f, 2);
+            CbVfx.Burst(new Vector3(e.x, e.HitHeight, -0.5f), CbFx.Hit, 3f, 0.25f);
+            CbVfx.Ring(new Vector3(e.x, e.HitHeight, -0.5f), CbFx.Purple * 0.6f, 2.4f, 0.4f);
+            hud.ImpactFlash(0.35f);
         }
 
         public void PerfectDodge()
@@ -342,6 +356,9 @@ namespace Cloudborne
             hero.inv = Mathf.Max(hero.inv, 0.6f);
             hud.Banner("PERFECT!", true);
             hud.SetSlow(true);
+            hud.SpeedLines(0.7f, 0.6f);
+            hud.ImpactFlash(0.3f);
+            if (hero.model != null) CbVfx.Ghost(hero.model.skin, new Color(0.4f, 0.75f, 1f, 0.6f) * 2f, 0.5f);
             CbFx.Sfx("perfect");
         }
 
@@ -353,6 +370,7 @@ namespace Cloudborne
             CbArt.Part(CbMesh.Sphere, CbArt.Emissive(new Color(1f, 0.95f, 0.77f) * 5f), t, Vector3.zero, Vector3.one * 0.48f, shadows: false);
             var glow = CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(1f, 0.48f, 0.1f, 1f) * 2.8f, CbArt.Soft), t, new Vector3(0, 0, -0.3f), Vector3.one * 1.6f, shadows: false);
             shots.Add(new Shot { t = t, glow = glow, x = pos.x, y = pos.y, vx = dir * 18, life = 1.6f });
+            CbVfx.Burst(pos, CbFx.Fire, 1.3f, 0.12f);
             CbFx.Sfx("fire");
         }
 
@@ -380,6 +398,10 @@ namespace Cloudborne
             shake = Mathf.Max(shake, 0.55f);
             hitstop = 0.1f;
             fovKick = -5;
+            CbVfx.Ring(new Vector3(p.x, p.y + 0.05f, 0), CbFx.Fire * 0.8f, 5f, 0.5f, ground: true);
+            CbVfx.Ring(new Vector3(p.x + dir, p.y + 1.5f, -0.3f), CbFx.Flame, 3.5f, 0.4f);
+            hud.SpeedLines(0.9f, 0.6f);
+            hud.ImpactFlash(0.4f);
             CbFx.Sfx("roar");
         }
 
@@ -479,6 +501,7 @@ namespace Cloudborne
             }
             world.Update(clock, camX);
             UpdateCamera(raw);
+            CbVfx.Update(cam, raw);
             hud.Tick(raw);
         }
 

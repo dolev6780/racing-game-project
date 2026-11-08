@@ -21,7 +21,8 @@ namespace Cloudborne
 
         readonly Canvas canvas;
         readonly RectTransform root;
-        readonly Image hpFill, kiFill, kiFrame, hurtFlash, slowFx;
+        readonly Image hpFill, kiFill, kiFrame, hurtFlash, slowFx, speedLines, impactFlash;
+        float speedT, speedDur, speedStrength, linesFlip, flashT, flashA, flashGap;
         readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt;
         readonly RectTransform comboBox, pads, stickBase, stickKnob, title, paused, result, pauseBtn;
         readonly Text resultTitle, resultStats, startLabel;
@@ -57,6 +58,12 @@ namespace Cloudborne
 
             hurtFlash = UIKit.Image(UIKit.Stretch(root, "hurt"), UIKit.Vignette, new Color(1f, 0.2f, 0.15f, 0f));
             slowFx = UIKit.Image(UIKit.Stretch(root, "slow"), UIKit.Vignette, new Color(0.25f, 0.5f, 1f, 0f));
+            // anime focus lines and a white impact frame, over the game and under the rest of the HUD
+            var lines = CbVfx.SpeedLines(512);
+            speedLines = UIKit.Image(UIKit.Stretch(root, "speedLines"), Sprite.Create(lines, new Rect(0, 0, 512, 512), new Vector2(0.5f, 0.5f)), Color.clear);
+            speedLines.enabled = false;
+            impactFlash = UIKit.Image(UIKit.Stretch(root, "impact"), null, Color.clear);
+            impactFlash.enabled = false;
 
             // status: portrait, name, bars
             var status = UIKit.Rect(root, "status", new Vector2(0, 1), new Vector2(0, 1), new Vector2(14, -12), new Vector2(300, 60));
@@ -256,6 +263,27 @@ namespace Cloudborne
         }
 
         public void FlashHurt() => hurtT = 0.25f;
+
+        /// <summary>Anime focus lines for a moment (dash, heavy blows, the roar); called every frame, it holds them on.</summary>
+        public void SpeedLines(float strength, float time)
+        {
+            float now = speedDur > 0 ? speedStrength * Mathf.Clamp01(speedT / speedDur) : 0;
+            if (strength < now) return;
+            speedStrength = strength;
+            speedT = speedDur = time;
+        }
+
+        /// <summary>
+        /// A white frame for an instant: a finishing blow, a guard break, the roar. Never more than about three a
+        /// second, and never full white, so a busy fight doesn't strobe.
+        /// </summary>
+        public void ImpactFlash(float strength)
+        {
+            if (flashGap > 0) return;
+            flashGap = 0.3f;
+            flashT = 0.08f;
+            flashA = Mathf.Min(strength, 0.45f);
+        }
         public void SetSlow(bool on) => slowFx.color = new Color(0.25f, 0.5f, 1f, on ? 0.5f : 0f);
 
         public void Banner(string text, bool small = false)
@@ -314,6 +342,24 @@ namespace Cloudborne
             if (comboPop > 0) { comboPop -= dt; comboN.transform.localScale = Vector3.one * (1 + Mathf.Max(0, comboPop) * 2f); }
             hurtT = Mathf.Max(0, hurtT - dt);
             hurtFlash.color = new Color(1f, 0.2f, 0.15f, hurtT > 0 ? 0.75f * hurtT / 0.25f : 0);
+            speedT = Mathf.Max(0, speedT - dt);
+            speedLines.enabled = speedT > 0;
+            if (speedT > 0)
+            {
+                speedLines.color = new Color(1, 1, 1, speedStrength * Mathf.Sqrt(speedT / speedDur));
+                linesFlip -= dt;
+                if (linesFlip <= 0)
+                {
+                    // flicker by mirroring: always covers the screen, unlike turning it
+                    linesFlip = 0.05f;
+                    float s = Random.Range(1.05f, 1.2f);
+                    speedLines.rectTransform.localScale = new Vector3(Random.value < 0.5f ? s : -s, Random.value < 0.5f ? s : -s, 1);
+                }
+            }
+            flashT = Mathf.Max(0, flashT - dt);
+            flashGap = Mathf.Max(0, flashGap - dt);
+            impactFlash.enabled = flashT > 0;
+            if (flashT > 0) impactFlash.color = new Color(1, 1, 1, flashA * flashT / 0.08f);
         }
 
         // ---------- touch ----------
