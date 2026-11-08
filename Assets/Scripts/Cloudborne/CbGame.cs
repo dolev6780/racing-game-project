@@ -301,7 +301,7 @@ namespace Cloudborne
                 hud.Popup(new Vector3(e.x, e.HitHeight + 1, 0), "BLOCK", CbHud.PopStyle.Block);
                 CbFx.Sfx("block");
                 hero.vx = -dir * 3;
-                hitstop = Mathf.Max(hitstop, 0.04f);
+                hitstop = Mathf.Max(hitstop, 0.02f);
                 return false;
             }
             if (e.guard && breaker)
@@ -333,7 +333,8 @@ namespace Cloudborne
             hud.SetCombo(combo);
             if (e.hp <= 0) { KillEnemy(e, dir); return true; }
             e.Stagger(dir, kb, up);
-            hitstop = Mathf.Max(hitstop, big ? 0.1f : 0.055f);
+            // Hit-stop only on heavy blows, and short: a pause on every punch read as the game stuttering
+            if (big) hitstop = Mathf.Max(hitstop, 0.05f);
             shake = Mathf.Max(shake, big ? 0.3f : 0.12f);
             return true;
         }
@@ -343,7 +344,7 @@ namespace Cloudborne
             if (e.dead) return;
             e.Kill(dir);
             score += e.scoreValue;
-            hitstop = 0.12f;
+            hitstop = Mathf.Max(hitstop, 0.06f);
             shake = Mathf.Max(shake, 0.4f);
             CbFx.Spark(new Vector3(e.x, e.HitHeight, -0.4f), e.burnT > 0 ? CbFx.Fire : CbFx.Purple, 26, 9, 0.6f, 0.6f, 2);
             CbVfx.Burst(new Vector3(e.x, e.HitHeight, -0.5f), CbFx.Hit, 3f, 0.25f);
@@ -399,7 +400,7 @@ namespace Cloudborne
                 if (dx > -0.5f && dx < 10 + e.w && Mathf.Abs(e.HitHeight - (p.y + 1.4f)) < 3) HurtEnemy(e, 26, dir, 10, 6, true, true, true, true);
             }
             shake = Mathf.Max(shake, 0.55f);
-            hitstop = 0.1f;
+            hitstop = Mathf.Max(hitstop, 0.06f);
             fovKick = -5;
             CbVfx.Ring(new Vector3(p.x, p.y + 0.05f, 0), CbFx.Fire * 0.8f, 5f, 0.5f, ground: true);
             CbVfx.Ring(new Vector3(p.x + dir, p.y + 1.5f, -0.3f), CbFx.Flame * 0.5f, 3.5f, 0.4f);
@@ -485,7 +486,8 @@ namespace Cloudborne
             else
             {
                 float dt = raw;
-                if (hitstop > 0) { hitstop -= raw; dt = raw * 0.05f; }
+                // a hit-stop slows the fight right down rather than freezing it, so it never reads as a hitch
+                if (hitstop > 0) { hitstop -= raw; dt = raw * 0.2f; }
                 float edt = dt;
                 if (slow > 0) { slow -= raw; edt = dt * 0.3f; if (slow <= 0) hud.SetSlow(false); }
                 if (mode == Mode.Play) time += raw;

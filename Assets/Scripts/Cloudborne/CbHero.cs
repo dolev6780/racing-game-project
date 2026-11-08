@@ -162,7 +162,7 @@ namespace Cloudborne
             vx = dir * 6; vy = 4; air = true;
             state = State.Hurt; t = 0; move = Move.None;
             g.shake = Mathf.Max(g.shake, 0.35f);
-            g.hitstop = 0.06f;
+            g.hitstop = Mathf.Max(g.hitstop, 0.04f);
             CbFx.Spark(new Vector3(x, y + 1.4f, -0.4f), CbFx.Red, 14, 7, 0.4f);
             g.hud.Popup(new Vector3(x, y + 2.6f, 0), "-" + Mathf.RoundToInt(dmg), CbHud.PopStyle.Hurt);
             g.hud.FlashHurt();
