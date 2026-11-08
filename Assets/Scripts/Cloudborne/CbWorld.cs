@@ -19,7 +19,7 @@ namespace Cloudborne
         public Transform root;
         readonly List<(Transform t, Material m, float ph, float baseA)> shafts = new List<(Transform, Material, float, float)>();
         readonly List<Transform> mists = new List<Transform>();
-        Transform sunGlow, flies;
+        Transform flies;
         static readonly string[] Greens = { "#2e7a3c", "#3c8f46", "#256a36", "#4a9a4c", "#1f5e33" };
 
         public CbWorld(Transform parent)
@@ -242,7 +242,7 @@ namespace Cloudborne
             }
         }
 
-        // ---------- light shafts, mist, fireflies, sun ----------
+        // ---------- light shafts, mist, fireflies ----------
 
         void BuildLightAndAir()
         {
@@ -261,8 +261,8 @@ namespace Cloudborne
                     new Vector3(Random.Range(-60f, 180f), Random.Range(0.8f, 4f), Random.Range(12f, 45f)), new Vector3(s, s * 0.28f, 1), shadows: false);
                 mists.Add(m);
             }
-            sunGlow = CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(1f, 0.94f, 0.7f, 1f) * 2f, CbArt.Soft), root, new Vector3(-70, 70, 320), Vector3.one * 170, shadows: false);
-            CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(1f, 0.98f, 0.9f, 1f) * 4f, CbArt.Soft), sunGlow, Vector3.back * 0.01f, Vector3.one * 0.18f, shadows: false);
+            // No sun disc: its glow sat just above the view and blew up into a big yellow flash through bloom
+            // whenever a jump or a shake tilted the camera up. The light shafts carry the sunlight.
 
             // fireflies drift around the camera
             var go = new GameObject("fireflies");
@@ -303,7 +303,6 @@ namespace Cloudborne
                 if (p.x > camX + 120) p.x = camX - 120;
                 m.localPosition = p;
             }
-            sunGlow.localPosition = new Vector3(camX * 0.6f - 70, 70, 320);
             flies.localPosition = new Vector3(camX, 3.2f, 3.5f);
         }
 
