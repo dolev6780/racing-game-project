@@ -12,16 +12,22 @@ pose, and the game turns the whole character itself (so it can flip forwards, tw
 
 --drop CLIP[,CLIP...] leaves clips out (ones the game no longer uses).
 
+Clips made with Meshy's text to motion all come named "retarget_clip": a source file named motion_<name>.glb
+gives its clip the name Motion_<Name>. --take NEW=CLIP:START:END:YAW then makes a new clip from part of a clip
+(START and END as fractions of its length), turned YAW degrees about the vertical: a motion that faces the
+wrong way while it does its move is turned to face forward, and only that part kept.
+
     blender --background --python Tools/Blender/meshy_character.py -- OUT_DIR NAME anim1.glb [anim2.glb ...] [--upright CLIPS] [--drop CLIPS]
 
 Writes OUT_DIR/NAME.fbx (mesh, skeleton, every clip) and OUT_DIR/NAME_Albedo.png (base colour).
 """
 
+import math
 import os
 import sys
 
 import bpy
-from mathutils import Vector
+from mathutils import Quaternion, Vector
 
 args = sys.argv[sys.argv.index("--") + 1:]
 def option(flag):
@@ -33,7 +39,7 @@ def option(flag):
     return names
 
 
-upright, drop = option("--upright"), option("--drop")
+upright, drop, takes = option("--upright"), option("--drop"), option("--take")
 out_dir, name, sources = args[0], args[1], args[2:]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -56,10 +62,15 @@ arm.name, body.name = name, name + "_Body"
 
 # clips from the other files; their copies of the character are thrown away
 for path in sources[1:]:
+    before = set(bpy.data.actions)
     for o in import_glb(path):
         bpy.data.objects.remove(o, do_unlink=True)
+    stem = os.path.splitext(os.path.basename(path))[0]
+    if stem.startswith("motion_"):
+        for a in set(bpy.data.actions) - before:
+            a.name = "Motion_" + stem[len("motion_"):].capitalize()
 
-clips = [a for a in bpy.data.actions if a.frame_range[1] > a.frame_range[0] and a.name.split("|")[-1] not in drop]
+clips = [a for a in bpy.data.actions if a.frame_range[1] > a.frame_range[0]]
 for a in list(bpy.data.actions):
     if a not in clips:
         bpy.data.actions.remove(a)
@@ -125,6 +136,55 @@ for a in clips:
             c.keyframe_points[k].interpolation = "LINEAR"
         c.update()
 
+
+# ---- clips taken from part of another, turned to face forward
+def all_curves(a):
+    try:
+        return list(a.fcurves)
+    except AttributeError:
+        return [c for layer in a.layers for strip in layer.strips for bag in strip.channelbags for c in bag.fcurves]
+
+
+arm_rest = hips.matrix_local.to_quaternion()
+for spec in takes:
+    new, rest = spec.split("=")
+    src, start, end, yaw = rest.split(":")
+    a = next(x for x in clips if x.name.split("|")[-1] == src).copy()
+    a.name = new
+    a.use_fake_user = True
+    f0, f1 = a.frame_range
+    lo, hi = f0 + float(start) * (f1 - f0), f0 + float(end) * (f1 - f0)
+    turn = Quaternion(up, math.radians(float(yaw)))
+    # the hips' rotation is relative to their rest pose: turned in armature space, it becomes rest^-1 * turn * rest * q
+    qc = [find_curve(a, f'pose.bones["{hips.name}"].rotation_quaternion', i) for i in range(4)]
+    if all(qc):
+        keys = sorted({k.co.x for c in qc for k in c.keyframe_points})
+        values = []
+        for f in keys:
+            q = Quaternion([c.evaluate(f) for c in qc])
+            values.append(arm_rest.inverted() @ turn @ arm_rest @ q)
+        for i, c in enumerate(qc):
+            c.keyframe_points.clear()
+            c.keyframe_points.add(len(keys))
+            for k, (f, q) in enumerate(zip(keys, values)):
+                c.keyframe_points[k].co = (f, q[i])
+                c.keyframe_points[k].interpolation = "LINEAR"
+    # keep only lo..hi, moved to start at frame 0
+    for c in all_curves(a):
+        inside = [(k.co.x, k.co.y) for k in c.keyframe_points if lo - 1e-3 <= k.co.x <= hi + 1e-3]
+        if not inside:
+            inside = [(lo, c.evaluate(lo)), (hi, c.evaluate(hi))]
+        c.keyframe_points.clear()
+        c.keyframe_points.add(len(inside))
+        for k, (f, v) in enumerate(inside):
+            c.keyframe_points[k].co = (f - lo, v)
+            c.keyframe_points[k].interpolation = "LINEAR"
+        c.update()
+    a.use_frame_range = True
+    a.frame_start, a.frame_end = 0, hi - lo
+    clips.append(a)
+    print(f"took {new} from {src} {start}..{end}, turned {yaw} degrees")
+
 # ---- base colour as a plain PNG next to the FBX (the game builds its own material)
 os.makedirs(out_dir, exist_ok=True)
 for m in body.data.materials:
@@ -140,6 +200,7 @@ ad = arm.animation_data or arm.animation_data_create()
 for track in list(ad.nla_tracks):
     ad.nla_tracks.remove(track)
 ad.action = None
+clips = [a for a in clips if a.name.split("|")[-1] not in drop]
 for track_action in clips:                              # an NLA strip per clip: the exporter writes each as a take
     tr = ad.nla_tracks.new()
     tr.name = track_action.name

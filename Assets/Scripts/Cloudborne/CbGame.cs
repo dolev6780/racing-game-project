@@ -213,6 +213,8 @@ namespace Cloudborne
             foreach (var d in debris) if (d.t != null) Destroy(d.t.gameObject);
             debris.Clear();
             EndBeam();
+            EndWheel();
+            waves.Clear();
             hero.Reset();
             time = score = 0; combo = maxCombo = 0; comboT = 0; hitstop = shake = slow = 0; lockZone = null; zoneIdx = 0; fovKick = 0;
             hud.SetWave("Chase the raiders");
@@ -522,6 +524,107 @@ namespace Cloudborne
             if (b.t > BeamGrow + BeamHold + BeamFade) EndBeam();
         }
 
+        // ---------- fire combos ----------
+
+        /// <summary>Flames wheeling round Raja during the fire whirl: they follow him and fade at the end.</summary>
+        class Wheel { public Transform holder; public Transform[] flames; public Material mat; public CbHero hero; public float t, life; public int dir; }
+        Wheel wheel;
+        // flame bursts still to go off along the ground (the flame wave): when, where, which way
+        readonly List<(float at, Vector3 pos, int dir)> waves = new List<(float, Vector3, int)>();
+        static Material wheelMat;
+
+        /// <summary>
+        /// The fire whirl: four flames (the painted fireball, or glowing orbs) wheel round Raja in the plane of the
+        /// screen, each pointing along its path, with a ring of fire on the ground and sparks flung out.
+        /// </summary>
+        public void FireWheel(CbHero hero, int dir, float life)
+        {
+            EndWheel();
+            var sprite = CbVfx.Painted("Fireball");
+            if (wheelMat == null) wheelMat = CbArt.Glow(Color.white * 1.4f, sprite != null ? sprite : CbArt.Soft);
+            var holder = new GameObject("fireWheel").transform;
+            holder.SetParent(transform, false);
+            var flames = new Transform[4];
+            for (int i = 0; i < flames.Length; i++)
+                flames[i] = CbArt.Part(CbMesh.Quad, wheelMat, holder, Vector3.zero, new Vector3(1.6f, sprite != null ? 1.6f * sprite.height / sprite.width : 0.8f, 1), shadows: false);
+            wheel = new Wheel { holder = holder, flames = flames, hero = hero, life = life, dir = dir };
+            CbVfx.Ring(new Vector3(hero.x, 0.05f, 0), CbFx.Fire * 0.6f, 2.6f, 0.45f, ground: true);
+            CbVfx.Explosion(new Vector3(hero.x, hero.y + 1f, -0.3f), 2f, 0.18f);
+            shake = Mathf.Max(shake, 0.2f);
+        }
+
+        void UpdateWheel(float dt)
+        {
+            if (wheel == null) return;
+            var w = wheel;
+            w.t += dt;
+            float k = w.t / w.life, grow = Mathf.Clamp01(k / 0.15f), fade = k < 0.8f ? 1 : Mathf.Max(0, 1 - (k - 0.8f) / 0.2f);
+            var centre = new Vector3(w.hero.x, w.hero.y + 1f, -0.4f);
+            w.holder.position = centre;
+            float r = 1.3f * grow;
+            for (int i = 0; i < w.flames.Length; i++)
+            {
+                // round the wheel 2.5 times a second, the way he spins; each flame points along its path
+                float a = -w.dir * w.t * Mathf.PI * 2 * 2.5f + i * Mathf.PI / 2;
+                var f = w.flames[i];
+                f.localPosition = new Vector3(Mathf.Cos(a) * r, Mathf.Sin(a) * r, i % 2 == 0 ? -0.1f : 0.1f);
+                f.localRotation = Quaternion.Euler(0, 0, a * Mathf.Rad2Deg + (w.dir > 0 ? -90 : 90));
+                f.localScale = new Vector3(1.6f, f.localScale.y, 1) * fade;
+            }
+            if (Random.value < 0.8f)
+                CbFx.Spark(centre + new Vector3(Random.Range(-1.3f, 1.3f), Random.Range(-1f, 1f), 0), Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 5, 0.4f, 0.3f, -2);
+            if (k >= 1) EndWheel();
+        }
+
+        void EndWheel()
+        {
+            if (wheel == null) return;
+            Destroy(wheel.holder.gameObject);
+            wheel = null;
+        }
+
+        /// <summary>The blazing palm: a big explosion of fire point blank that hurls everything in front of him.</summary>
+        public void BlazePalm(Vector3 at, int dir)
+        {
+            CbVfx.Explosion(at, 3.8f, 0.3f);
+            CbVfx.Ring(at, CbFx.Fire * 0.6f, 2.4f, 0.35f);
+            CbFx.Spark(at, CbFx.Fire, 24, 8, 0.5f, 0.4f, 0, dir * 6);
+            foreach (var e in enemies.ToArray())
+            {
+                if (e.dead) continue;
+                float dx = (e.x - at.x) * dir;
+                if (dx > -1.6f && dx < 1.8f + e.w && Mathf.Abs(e.HitHeight - at.y) < 1.8f) HurtEnemy(e, 18, dir, 10, 7, true, true, true, true);
+            }
+            shake = Mathf.Max(shake, 0.35f);
+            hud.ImpactFlash(0.3f);
+            hud.SpeedLines(0.5f, 0.3f);
+            CbFx.Sfx("heavy");
+        }
+
+        /// <summary>The flaming staff smash: six bursts of fire run along the ground ahead of him, 1.1 m and 0.06 s apart.</summary>
+        public void FlameWave(Vector3 start, int dir)
+        {
+            for (int i = 0; i < 6; i++) waves.Add((clock + i * 0.06f, start + new Vector3(dir * (0.6f + i * 1.1f), 0.5f, -0.3f), dir));
+        }
+
+        void UpdateWaves()
+        {
+            for (int i = waves.Count - 1; i >= 0; i--)
+            {
+                var (at, pos, dir) = waves[i];
+                if (clock < at) continue;
+                waves.RemoveAt(i);
+                CbVfx.Explosion(pos, 2f, 0.2f);
+                CbFx.Spark(pos, CbFx.Fire, 8, 5, 0.4f, 0.3f, -2);
+                shake = Mathf.Max(shake, 0.15f);
+                foreach (var e in enemies.ToArray())
+                {
+                    if (e.dead || Mathf.Abs(e.x - pos.x) > 1f + e.w * 0.5f || e.HitHeight > 2.6f) continue;
+                    HurtEnemy(e, 8, dir, 3, 5, false, true, true, true);
+                }
+            }
+        }
+
         void EndBeam()
         {
             if (beam == null) return;
@@ -572,6 +675,8 @@ namespace Cloudborne
                 }
             }
             UpdateBeam(dt);
+            UpdateWheel(dt);
+            UpdateWaves();
             for (int i = debris.Count - 1; i >= 0; i--)
             {
                 var d = debris[i];

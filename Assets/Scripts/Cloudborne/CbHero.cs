@@ -23,8 +23,8 @@ namespace Cloudborne
     /// </summary>
     public class CbHero
     {
-        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead }
-        public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash }
+        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo }
+        public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash, FireWhirl, BlazePalm }
 
         struct Attack { public float dur, a, b, range, dmg, kb, up; public bool fin; }
         static readonly Attack[] Paw =
@@ -48,6 +48,14 @@ namespace Cloudborne
         /// <summary>The special shot unlocks later in the story; on for now so it can be tried.</summary>
         public static bool SpecialUnlocked = true;
         const float BlockReact = 0.25f;
+        // Fire combos (FIRE in the middle of a combo): after a hit or two a fire whirl (flames wheel round him, hitting
+        // all round), after the finisher a point-blank blazing palm, during a staff smash a wave of fire along the ground
+        const float ComboFireCost = 15f, FireWhirlTime = 0.8f, BlazePalmTime = 0.45f;
+        // custom clips made in Meshy from a text description (text to motion) and put on Raja's rig
+        // Fire_Palms: a two-palm thrust from the hip (fully out at 0.38, held to 0.74). Power_Gather: a wide low stance,
+        // cupped hands drawn back to the hip. Both turned in Blender to face forward (meshy_character.py --take).
+        const string FireClip = "Fire_Palms", GatherClip = "Power_Gather", WhirlClip = "Motion_Whirl";
+        const float BlastTime = 0.4f;
 
         static readonly Vector3 StaffBackPos = new Vector3(0.02f, 0.32f, -0.3f);
         static readonly Quaternion StaffBackRot = CbArt.Rot(-0.12f, 0, 0.82f);
@@ -66,6 +74,8 @@ namespace Cloudborne
         public bool crouching;
         public bool Ducking => crouching && y <= 0.01f && (state == State.Idle || state == State.Run || (state == State.Atk && combo == Sweep));
         public bool Guarding => state == State.Guard;
+        /// <summary>Which blow of the HIT combo is out (0 to 3, 4 the sweep).</summary>
+        public int Combo => combo;
 
         /// <summary>
         /// Where a shot leaves him: just past the palm of his right hand (it thrusts forward in the casting clips),
@@ -87,7 +97,7 @@ namespace Cloudborne
         // below WalkSpeed he walks (a light push on the stick), above it he runs; the walk clip's own pace
         const float WalkSpeed = 4.2f, WalkClipPace = 1.4f;
         int combo, jumps, airHits, hits;
-        bool air, airDashed, holdUsed, fired;
+        bool air, airDashed, holdUsed, fired, flameSmash;
         readonly HashSet<CbEnemy> hitSet = new HashSet<CbEnemy>();
 
         public CbHero(CbGame game, Transform parent)
@@ -153,7 +163,16 @@ namespace Cloudborne
             if (m == Move.Launch) vx = facing * 1.5f;
             if (m == Move.Whirl) holdUsed = true;
             if (m == Move.Slam) { vy = 6; vx = facing * 2; }
-            if (m == Move.Smash) { vx = facing * 1.2f; fired = false; }
+            if (m == Move.Smash) { vx = facing * 1.2f; fired = false; flameSmash = false; }
+        }
+
+        void StartFire(Move m)
+        {
+            ki -= ComboFireCost;
+            state = State.FireCombo; move = m; t = 0; hitSet.Clear(); tick = 0; hits = 0; fired = false;
+            vx = facing * (m == Move.BlazePalm ? 3f : 0.8f);
+            if (m == Move.FireWhirl) g.FireWheel(this, facing, FireWhirlTime);
+            CbFx.Sfx("fire");
         }
 
         void EndStaff() { state = air ? State.Air : State.Idle; move = Move.None; staffHold = 0.5f; combo = 0; }
@@ -233,7 +252,7 @@ namespace Cloudborne
                 case State.Blast:
                 {
                     rate = 28;
-                    float u = t / 0.32f;
+                    float u = t / BlastTime;
                     if (u < 0.4f) { pose.twist = -0.6f; pose.sRx = 0.5f; pose.eR = -1.9f; pose.sLx = -0.8f; pose.eL = -1.2f; pose.lean = 0.05f; pose.hLx = -0.5f; pose.kL = 0.45f; pose.hRx = 0.5f; pose.kR = 0.4f; pose.bob = -0.1f; }
                     else { pose.twist = 0.55f; pose.sRx = -1.6f; pose.eR = -0.05f; pose.sRz = 0.05f; pose.sLx = -0.3f; pose.eL = -1.6f; pose.lean = 0.2f; pose.hLx = -0.7f; pose.kL = 0.4f; pose.hRx = 0.6f; pose.kR = 0.3f; pose.bob = -0.12f; }
                     if (u >= 0.4f && !fired) { fired = true; g.FireShot(HandPoint(), facing); }
@@ -264,6 +283,7 @@ namespace Cloudborne
                     if (t > SpecialTime) state = State.Idle;
                     break;
                 }
+                case State.FireCombo: UpdateFireCombo(ref pose, dt, ref rate); break;
                 case State.Guard:
                     pose.sLx = -1.2f; pose.sRx = -1.0f; pose.eL = -1.9f; pose.eR = -1.9f; pose.lean = 0.1f; pose.hLx = -0.4f; pose.kL = 0.5f; pose.hRx = 0.4f; pose.kR = 0.4f; pose.bob = -0.12f;
                     vx *= 1 - Damp(14, dt);
@@ -430,12 +450,17 @@ namespace Cloudborne
                     // the overhead swing lands at about 0.85 of the clip, inside the smash's hit window
                     else if (move == Move.Smash) model.Window("Heavy_Hammer_Swing", 0.25f, 0.92f, t / SmashTime);
                     break;
-                // a right palm thrust: the fireball leaves at 0.4 of the cast, as the palm reaches out
-                case State.Blast: model.Window("Charged_Spell_Cast_1", 0.38f, 0.62f, t / 0.32f); break;
+                // both palms thrust from the hip: the fireball leaves at 0.4 of the shot, as they reach full stretch
+                case State.Blast: model.Window(FireClip, 0.1f, 0.8f, t / BlastTime); break;
+                // the special: power gathered low at the hip, then both palms pushed out and held while the beam runs
                 case State.Special:
-                    if (t < SpecialWindup) model.Window("Charged_Spell_Cast_1", 0f, 0.45f, t / SpecialWindup);
-                    else if (t < SpecialTime - 0.25f) model.Show("Charged_Spell_Cast_1", 0.5f + Mathf.PingPong(t * 0.3f, 0.12f));
-                    else model.Window("Charged_Spell_Cast_1", 0.66f, 0.85f, (t - (SpecialTime - 0.25f)) / 0.25f);
+                    if (t < SpecialWindup) model.Window(GatherClip, 0f, 1f, t / SpecialWindup);
+                    else if (t < SpecialTime - 0.25f) model.Show(FireClip, 0.5f + Mathf.PingPong(t * 0.3f, 0.1f));
+                    else model.Window(FireClip, 0.74f, 1f, (t - (SpecialTime - 0.25f)) / 0.25f);
+                    break;
+                case State.FireCombo:
+                    if (move == Move.FireWhirl) model.Window(WhirlClip, 0.05f, 0.85f, t / FireWhirlTime);
+                    else model.Window(FireClip, 0.15f, 0.7f, t / BlazePalmTime);
                     break;
                 case State.Guard:
                     if (blockT > 0) model.Window("Block1", 0.3f, 0.45f, 1 - blockT / BlockReact);
@@ -452,6 +477,12 @@ namespace Cloudborne
             rate = 30;
             var A = Paw[combo];
             float u = t / A.dur;
+            // FIRE in the middle of the combo: a fire whirl after the first hits, the blazing palm after the finisher
+            if (input.kiTap && !air && combo >= 1 && combo != Sweep && ki >= ComboFireCost)
+            {
+                StartFire(combo >= 3 ? Move.BlazePalm : Move.FireWhirl);
+                return;
+            }
             if (u > A.a && u < A.b) MeleeHits(A.range, A.dmg, A.kb, A.up, A.fin, false);
             if (air) { pose.hRx = -1.5f; pose.kR = 0.1f; pose.hLx = 0.2f; pose.kL = 1.2f; pose.lean = -0.3f; pose.sLx = -0.5f; pose.eL = -1.6f; pose.sRx = 0.6f; pose.eR = -1f; }
             else if (combo == 0) { pose.twist = -0.45f; pose.sLx = -1.55f; pose.sLz = 0.08f; pose.eL = -0.1f; pose.sRx = -0.5f; pose.eR = -1.9f; pose.lean = 0.22f; pose.hLx = -0.55f; pose.kL = 0.35f; pose.hRx = 0.45f; pose.kR = 0.3f; pose.bob = -0.1f; }
@@ -472,6 +503,43 @@ namespace Cloudborne
             else if (u > 0.6f && buffer > 0 && combo < 3 && (!air || airHits < 3)) StartPaw(combo + 1);
         }
 
+        void UpdateFireCombo(ref Pose pose, float dt, ref float rate)
+        {
+            rate = 30;
+            vx *= 1 - Damp(6, dt);
+            if (move == Move.FireWhirl)
+            {
+                float u = t / FireWhirlTime;
+                pose.sLz = 1.3f; pose.sRz = -1.3f; pose.eL = -0.2f; pose.eR = -0.2f; pose.hLx = -0.5f; pose.kL = 0.6f; pose.hRx = 0.5f; pose.kR = 0.5f; pose.bob = -0.15f;
+                pose.twist = t * 30;
+                // the flames hit everything close round him, every 0.12 s, the last time hard
+                tick -= dt;
+                if (tick <= 0 && hits < 6)
+                {
+                    tick = 0.12f; hits++;
+                    bool last = hits == 6;
+                    foreach (var e in g.enemies)
+                    {
+                        if (e.dead || Mathf.Abs(e.x - x) > 2.4f + e.w * 0.5f || Mathf.Abs(e.HitHeight - (y + 1f)) > 1.8f) continue;
+                        g.HurtEnemy(e, last ? 12 : 5, e.x >= x ? 1 : -1, last ? 7 : 1, last ? 5 : 0.5f, last, true, fire: true, fromPlayer: true);
+                    }
+                }
+                if (u >= 1) { state = State.Idle; move = Move.None; combo = 0; }
+            }
+            else
+            {
+                float u = t / BlazePalmTime;
+                pose.sLx = -1.5f; pose.sRx = -1.5f; pose.eL = -0.1f; pose.eR = -0.1f; pose.lean = 0.35f; pose.hLx = -0.8f; pose.kL = 0.5f; pose.hRx = 0.7f; pose.kR = 0.3f; pose.bob = -0.15f;
+                if (u > 0.42f && !fired)
+                {
+                    // point blank, as the palms reach full stretch: an explosion of fire right off them
+                    fired = true;
+                    g.BlazePalm(HandPoint() + new Vector3(facing * 0.9f, 0, 0), facing);
+                }
+                if (u >= 1) { state = State.Idle; move = Move.None; combo = 0; }
+            }
+        }
+
         void UpdateStaff(ref Pose pose, CbInput input, float dt, ref float rate)
         {
             rate = 30;
@@ -485,6 +553,9 @@ namespace Cloudborne
                     vx *= 1 - Damp(5, dt);
                     // HEAVY still held after the wind-up starts: the swing becomes the staff whirl
                     if (input.heavyDown && t > SmashToWhirl && !holdUsed) { StartStaff(Move.Whirl); break; }
+                    // FIRE while swinging: the staff blazes up and the smash sends a wave of fire along the ground
+                    if (input.kiTap && !flameSmash && !fired && ki >= ComboFireCost) { ki -= ComboFireCost; flameSmash = true; CbFx.Sfx("fire"); }
+                    if (flameSmash && Random.value < 0.8f) CbFx.Spark(staff.position, Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 1.5f, 0.4f, 0.3f, -2);
                     if (u > 0.78f && u < 0.95f) MeleeHits(2.6f, 16, 6, 3, true, true);
                     if (u > 0.82f && !fired)
                     {
@@ -495,6 +566,7 @@ namespace Cloudborne
                         CbVfx.Ring(at, CbFx.Hit * 0.5f, 2.4f, 0.35f, ground: true);
                         g.shake = Mathf.Max(g.shake, 0.3f);
                         CbFx.Sfx("heavy", 0.7f);
+                        if (flameSmash) g.FlameWave(at, facing);
                     }
                     if (u >= 1) EndStaff();
                     break;

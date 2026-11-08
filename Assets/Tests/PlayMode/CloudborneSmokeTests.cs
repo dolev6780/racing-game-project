@@ -35,7 +35,7 @@ namespace RacingGame.Tests
             Assert.AreEqual(CbGame.Mode.Title, game.mode);
             Assert.IsNotNull(game.hero.f.root, "Raja was not built");
             Assert.IsNotNull(game.hero.model, "Raja's model did not load (Resources/Cloudborne/Raja, legacy animation)");
-            Assert.AreEqual(26, game.hero.model.ClipCount, "Raja's model is missing animation clips");
+            Assert.AreEqual(29, game.hero.model.ClipCount, "Raja's model is missing animation clips");
             foreach (var prop in new[] { "Staff", "Machete", "Shield" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Props/{prop}/{prop}"), $"The {prop} model is missing");
             var scenery = new[] { "Tree", "Palm", "Fern", "Leaves", "Boulder", "Pillar", "Gate", "Karst" };
@@ -136,6 +136,53 @@ namespace RacingGame.Tests
             game.hero.TakeHit(10, game.hero.facing);
             Assert.Less(game.hero.hp, hp, "A blow from behind was blocked too");
             game.TestInput = null;
+        }
+
+        [UnityTest]
+        public IEnumerator HitsThenFireMakeAFireWhirl()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            game.hero.ki = 100;
+            float t0 = Time.time;
+            bool second = false, sawWhirl = false, sawPalm = false;
+            // HIT, HIT, then FIRE while the second blow is out
+            game.TestInput = i =>
+            {
+                float tt = Time.time - t0;
+                if (tt < 0.01f) i.atk = true;
+                if (!second && tt > 0.1f) { i.atk = true; second = true; }
+                if (tt > 0.18f && game.hero.state == CbHero.State.Atk) i.kiTap = true;
+            };
+            for (float waited = 0; waited < 1.5f && !sawWhirl; waited += Time.deltaTime)
+            {
+                yield return null;
+                if (game.hero.move == CbHero.Move.FireWhirl) sawWhirl = true;
+            }
+            Assert.IsTrue(sawWhirl, "HIT, HIT, FIRE did not start the fire whirl");
+            // the flames wheel round him for the whole whirl and take ki
+            Assert.Less(game.hero.ki, 100f, "The fire whirl took no ki");
+            game.TestInput = null;
+            yield return new WaitForSeconds(1f);
+            // after the four-hit combo, FIRE is the blazing palm
+            game.hero.ki = 100;
+            t0 = Time.time;
+            int presses = 0;
+            game.TestInput = i =>
+            {
+                float tt = Time.time - t0;
+                if (presses < 4 && tt > presses * 0.12f) { i.atk = true; presses++; }
+                if (game.hero.state == CbHero.State.Atk && game.hero.Combo == 3) i.kiTap = true;
+            };
+            for (float waited = 0; waited < 2f && !sawPalm; waited += Time.deltaTime)
+            {
+                yield return null;
+                if (game.hero.move == CbHero.Move.BlazePalm) sawPalm = true;
+            }
+            game.TestInput = null;
+            Assert.IsTrue(sawPalm, "The combo finisher + FIRE did not make the blazing palm");
         }
 
         [UnityTest]
