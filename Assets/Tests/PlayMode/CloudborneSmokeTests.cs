@@ -149,14 +149,15 @@ namespace RacingGame.Tests
             yield return Frames(2);
             game.hero.ki = 100;
             float t0 = Time.time;
-            bool second = false, sawWhirl = false, sawPalm = false;
-            // HIT, HIT, then FIRE while the second blow is out
+            int hits = 0;
+            bool sawWhirl = false, sawPalm = false;
+            // HIT, HIT (pressed during the first blow, so it chains), then FIRE once the second blow is out;
+            // counted by presses and states, not by time, so a slow frame rate can't skip a press
             game.TestInput = i =>
             {
-                float tt = Time.time - t0;
-                if (tt < 0.01f) i.atk = true;
-                if (!second && tt > 0.1f) { i.atk = true; second = true; }
-                if (tt > 0.18f && game.hero.state == CbHero.State.Atk) i.kiTap = true;
+                if (hits == 0) { i.atk = true; hits = 1; return; }
+                if (hits == 1 && game.hero.state == CbHero.State.Atk && Time.time - t0 > 0.08f) { i.atk = true; hits = 2; }
+                if (game.hero.state == CbHero.State.Atk && game.hero.Combo >= 1) i.kiTap = true;
             };
             for (float waited = 0; waited < 1.5f && !sawWhirl; waited += Time.deltaTime)
             {
