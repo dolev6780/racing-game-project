@@ -32,6 +32,18 @@ namespace Cloudborne
         // horizon; its sky and karst pillars fill the view above. The wall goes on up to BackdropTop with the
         // painting's top row of sky, so no screen shape ever sees past it.
         const string BackdropPath = "Cloudborne/Jungle/Backdrop/JungleBackdrop";
+        // The stage changes scenery on the way: the jungle, then a waterfall gorge from GorgeAt, then temple ruins at
+        // sunset from TempleAt, each painting cross-fading into the next over BackdropFade metres. A part whose
+        // painting isn't in the project keeps the one before.
+        static readonly (string path, float from)[] BackdropParts =
+        {
+            ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
+            ("Cloudborne/Jungle/Backdrop/GorgeBackdrop", 34f),
+            ("Cloudborne/Jungle/Backdrop/TempleBackdrop", 66f),
+        };
+        const float BackdropFade = 12f;
+        readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
+        int shownPart = -1;
         const float BackdropZ = 150f, ImageTop = 36f, ImageHeight = 45f, BackdropTop = 80f, BackdropWidth = 300f,
             BackdropStretch = 1.7f, BackdropSlide = 0.15f;
         Transform backdrop;
@@ -215,7 +227,7 @@ namespace Cloudborne
         /// Models with thin leaves, seen from both sides (the boulders have sprigs of moss and leaves). They get no
         /// outline: the outline is drawn from the back faces, so a leaf showing its back would turn black.
         /// </summary>
-        static bool Leafy(string name) => name == LeavesModel || name == FernModel || name == PalmModel || name == BoulderModel;
+        static bool Leafy(string name) => name == LeavesModel || name == FernModel || name == PalmModel || name == BoulderModel || name == TreeModel;
 
         /// <summary>
         /// Places a copy of a scenery model standing at pos, its drawn front turned towards the camera give or take a
@@ -223,7 +235,9 @@ namespace Cloudborne
         /// </summary>
         Transform Place(string name, Transform parent, Vector3 pos, float scale, float outline = 0f, Color? tint = null, float turn = 35f)
         {
-            if (Leafy(name)) outline = 0f;
+            // Scenery has no outlines: they broke up into black patches through its leaves and vines, and painted
+            // backgrounds read better without them (the characters keep theirs and stand out)
+            outline = 0f;
             var key = (name, outline, tint ?? SceneryTone);
             if (!models.TryGetValue(key, out var model))
             {
@@ -232,6 +246,9 @@ namespace Cloudborne
                 mat.color = key.Item3;
                 // scenery takes a softer rim light than the characters, so they stand out in front of it
                 mat.SetFloat("_RimStrength", 0.25f);
+                // smooth shading for the scenery: light rolls gently into shade instead of one hard cel step
+                mat.SetFloat("_BandSoftness", 0.35f);
+                mat.SetColor("_ShadowColor", new Color(0.7f, 0.72f, 0.86f));
                 if (Leafy(name)) mat.SetFloat("_Cull", (float)CullMode.Off);
                 models[key] = model = (Resources.Load<GameObject>(path), mat);
             }
@@ -376,15 +393,39 @@ namespace Cloudborne
             Canopy(far, 160, 22, 9, "#5c8a62", 5);
         }
 
+        /// <summary>Which part of the stage the camera is in: that part's painting, fading into the next near its start.</summary>
+        void ShowPart(float camX)
+        {
+            if (paintings.Count == 0) return;
+            int i = 0;
+            while (i + 1 < paintings.Count && camX >= paintings[i + 1].from - BackdropFade) i++;
+            // i: the last part whose fade has begun; blend from the one before it
+            float blend = i == 0 ? 1 : Mathf.Clamp01((camX - (paintings[i].from - BackdropFade)) / BackdropFade);
+            var a = i == 0 ? paintings[0].tex : paintings[i - 1].tex;
+            if (shownPart != i)
+            {
+                shownPart = i;
+                backdropMat.SetTexture("_MainTex", a);
+                backdropMat.SetTexture("_NextTex", paintings[i].tex);
+            }
+            backdropMat.SetFloat("_Blend", blend);
+        }
+
         /// <summary>The painted backdrop in place of the canopy layers; false when the painting or its shader is missing.</summary>
         bool BuildBackdrop()
         {
             var tex = Resources.Load<Texture2D>(BackdropPath);
             var shader = Resources.Load<Shader>("Shaders/Backdrop");
             if (tex == null || shader == null || !shader.isSupported) return false;
-            // mirrored repeats join without a seam
-            tex.wrapModeU = TextureWrapMode.Mirror;
-            tex.wrapModeV = TextureWrapMode.Clamp;
+            foreach (var (path, from) in BackdropParts)
+            {
+                var t = Resources.Load<Texture2D>(path);
+                if (t == null) continue;
+                // mirrored repeats join without a seam
+                t.wrapModeU = TextureWrapMode.Mirror;
+                t.wrapModeV = TextureWrapMode.Clamp;
+                paintings.Add((t, from));
+            }
             backdropMat = new Material(shader) { mainTexture = tex };
             float tile = ImageHeight * tex.width / tex.height * BackdropStretch;
             float height = BackdropTop - (ImageTop - ImageHeight);
@@ -514,6 +555,7 @@ namespace Cloudborne
                 p.x = camX;
                 backdrop.localPosition = p;
                 backdropMat.mainTextureOffset = new Vector2(camX * BackdropSlide / (BackdropWidth / backdropMat.mainTextureScale.x), 0);
+                ShowPart(camX);
             }
         }
 

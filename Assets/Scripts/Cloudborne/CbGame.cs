@@ -526,32 +526,31 @@ namespace Cloudborne
 
         // ---------- fire combos ----------
 
-        /// <summary>The fire tornado round Raja during the fire whirl: it follows him, rises, spins and fades.</summary>
+        /// <summary>The rings of fire round Raja during the fire whirl: they follow him, spread, spin and fade.</summary>
         class Wheel { public Transform holder, outer, inner; public Material outerM, innerM; public CbHero hero; public float t, life; public int dir; }
         Wheel wheel;
         // flame bursts still to go off along the ground (the flame wave): when, where, which way
         readonly List<(float at, Vector3 pos, int dir)> waves = new List<(float, Vector3, int)>();
 
         /// <summary>
-        /// The fire whirl: a tornado of fire round Raja - two funnels of streaming flame (the painted beam's flames
-        /// wrapped round him), the outer one spinning his way and the inner one against it, so the flames seem
-        /// to whirl round him; a burst and a ring of fire on the ground as it starts, sparks flung out.
+        /// The fire whirl: rings of fire round Raja. Each is a band of the painted beam's flames (its white-hot core
+        /// running round the middle) tilted towards the camera, so it reads as an ellipse whose front half passes in
+        /// front of him and back half behind; a wide one at his waist spins his way, a smaller one at his chest
+        /// against it. A burst and a ring of fire on the ground as it starts.
         /// </summary>
         public void FireWheel(CbHero hero, int dir, float life)
         {
             EndWheel();
             var tex = CbVfx.Painted("Beam");
-            var holder = new GameObject("fireTornado").transform;
+            var holder = new GameObject("fireRings").transform;
             holder.SetParent(transform, false);
-            var outerM = CbArt.Glow(new Color(1f, 0.62f, 0.25f, 0.8f) * 1.5f, tex != null ? tex : CbVfx.BeamStreaks);
-            var innerM = CbArt.Glow(new Color(1f, 0.85f, 0.5f, 0.55f) * 1.4f, tex != null ? tex : CbVfx.BeamStreaks);
-            // the flame band repeats round the funnel and twice up it: rings of flame wrapped round him
-            outerM.mainTextureScale = new Vector2(3, 2);
-            innerM.mainTextureScale = new Vector2(2, 2.5f);
-            // an open funnel, wider at the top
-            var funnel = CbMesh.Frustum(1.4f, 32, false);
-            var outer = CbArt.Part(funnel, outerM, holder, Vector3.zero, new Vector3(0.95f, 2.6f, 0.95f), shadows: false);
-            var inner = CbArt.Part(funnel, innerM, holder, Vector3.zero, new Vector3(0.7f, 2.3f, 0.7f), shadows: false);
+            var outerM = CbArt.Glow(new Color(1f, 0.75f, 0.4f, 0.95f) * 1.5f, tex != null ? tex : CbVfx.BeamStreaks);
+            var innerM = CbArt.Glow(new Color(1f, 0.85f, 0.55f, 0.8f) * 1.4f, tex != null ? tex : CbVfx.BeamStreaks);
+            outerM.mainTextureScale = new Vector2(3, 1);
+            innerM.mainTextureScale = new Vector2(2, 1);
+            var band = CbMesh.Frustum(1f, 48, false);
+            var outer = CbArt.Part(band, outerM, holder, new Vector3(0, 0.9f, 0), Vector3.one, CbArt.Rot(-0.38f, 0, 0.1f * dir), shadows: false);
+            var inner = CbArt.Part(band, innerM, holder, new Vector3(0, 1.45f, 0), Vector3.one, CbArt.Rot(-0.3f, 0, -0.15f * dir), shadows: false);
             wheel = new Wheel { holder = holder, outer = outer, inner = inner, outerM = outerM, innerM = innerM, hero = hero, life = life, dir = dir };
             UpdateWheel(0);
             CbVfx.Ring(new Vector3(hero.x, 0.05f, 0), CbFx.Fire * 0.6f, 2.6f, 0.45f, ground: true);
@@ -565,22 +564,23 @@ namespace Cloudborne
             var w = wheel;
             w.t += dt;
             float k = w.t / w.life;
-            // rises in a tenth of the whirl, burns, then thins and fades in the last fifth
-            float rise = Mathf.Clamp01(k / 0.12f), fade = k < 0.8f ? 1 : Mathf.Max(0, 1 - (k - 0.8f) / 0.2f);
-            w.holder.position = new Vector3(w.hero.x, w.hero.y - 0.05f, 0);
-            w.outer.localScale = new Vector3(0.95f * (0.6f + 0.4f * rise), 2.6f * rise, 0.95f * (0.6f + 0.4f * rise));
-            w.inner.localScale = new Vector3(0.7f * (0.6f + 0.4f * rise), 2.3f * rise, 0.7f * (0.6f + 0.4f * rise));
-            // round it goes: the outer flames his way, the inner ones against it, both streaming up
-            w.outerM.mainTextureOffset = new Vector2(-w.dir * w.t * 2.6f, -w.t * 1.2f);
-            w.innerM.mainTextureOffset = new Vector2(w.dir * w.t * 3.4f, -w.t * 1.8f);
-            var oc = new Color(1f, 0.62f, 0.25f, 0.8f * fade) * 1.5f; oc.a = 0.8f * fade; w.outerM.SetColor("_Color", oc);
-            var ic = new Color(1f, 0.85f, 0.5f, 0.55f * fade) * 1.4f; ic.a = 0.55f * fade; w.innerM.SetColor("_Color", ic);
+            // spread out in a tenth of the whirl, burn, then fade in the last fifth
+            float spread = Mathf.Clamp01(k / 0.12f), fade = k < 0.8f ? 1 : Mathf.Max(0, 1 - (k - 0.8f) / 0.2f);
+            w.holder.position = new Vector3(w.hero.x, w.hero.y, 0);
+            float ro = 0.4f + 0.95f * spread, ri = 0.3f + 0.65f * spread;
+            // the bands are short cylinders: their height is the flames' thickness
+            w.outer.localScale = new Vector3(ro, 0.42f * (0.5f + 0.5f * fade), ro);
+            w.inner.localScale = new Vector3(ri, 0.32f * (0.5f + 0.5f * fade), ri);
+            w.outerM.mainTextureOffset = new Vector2(-w.dir * w.t * 2.2f, 0);
+            w.innerM.mainTextureOffset = new Vector2(w.dir * w.t * 3f, 0);
+            var oc = new Color(1f, 0.75f, 0.4f) * 1.5f; oc.a = 0.95f * fade; w.outerM.SetColor("_Color", oc);
+            var ic = new Color(1f, 0.85f, 0.55f) * 1.4f; ic.a = 0.8f * fade; w.innerM.SetColor("_Color", ic);
             if (Random.value < 0.9f)
             {
-                // sparks flung off the tornado
+                // sparks flung off the outer ring
                 float a = Random.Range(0f, Mathf.PI * 2);
-                var p = new Vector3(w.hero.x + Mathf.Cos(a) * 0.9f, w.hero.y + Random.Range(0.2f, 2.4f), Mathf.Sin(a) * 0.9f - 0.2f);
-                CbFx.Spark(p, Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 6, 0.4f, 0.35f, -3, Mathf.Cos(a) * 8);
+                var p = new Vector3(w.hero.x + Mathf.Cos(a) * ro, w.hero.y + 0.9f + Random.Range(-0.2f, 0.2f), Mathf.Sin(a) * ro);
+                CbFx.Spark(p, Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 6, 0.4f, 0.35f, -2, Mathf.Cos(a) * 8);
             }
             if (k >= 1) EndWheel();
         }

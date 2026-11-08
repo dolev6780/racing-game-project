@@ -93,7 +93,10 @@ namespace Cloudborne
         readonly Material furMat;
         readonly Transform staff;
         bool staffInHand;
-        float t, buffer, heavyBuffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, ghostT, blockT, crouchT, walkT;
+        float t, buffer, heavyBuffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, ghostT, blockT, crouchT, walkT, stowT;
+        // putting the staff away: standing, he swings it up over his shoulder onto his back (the raise of the hammer
+        // swing clip, both hands up behind his head); it leaves his hand at StowAt of the way
+        const float StowTime = 0.45f, StowAt = 0.6f;
         // below WalkSpeed he walks (a light push on the stick), above it he runs; the walk clip's own pace
         const float WalkSpeed = 4.2f, WalkClipPace = 1.4f;
         int combo, jumps, airHits, hits;
@@ -426,6 +429,7 @@ namespace Cloudborne
                     if (crouchT < 0.12f) model.Window(CrouchClip, 0f, 0.12f, crouchT / 0.12f, 0.04f);
                     else model.Show(CrouchClip, 0.15f + Mathf.PingPong((crouchT - 0.12f) * 0.25f, 0.65f));
                     break;
+                case State.Idle when stowT > 0: model.Window("Heavy_Hammer_Swing", 0.4f, 0.62f, 1 - stowT / StowTime, 0.06f); break;
                 case State.Idle: model.LoopSeconds("Combat_Stance", g.clock); break;
                 // a light push on the stick walks, a full one runs (a slow run looked like slow motion)
                 case State.Run when Mathf.Abs(vx) < WalkSpeed: model.LoopSeconds("Quick_Walk", walkT); break;
@@ -657,7 +661,19 @@ namespace Cloudborne
             if (state != State.Staff)
             {
                 staffHold = Mathf.Max(0, staffHold - dt);
-                if (staffHold <= 0 && staffInHand) SetStaff(false);
+                if (stowT > 0)
+                {
+                    // the put-away swing runs its course; the staff leaves his hand on the way up
+                    stowT = Mathf.Max(0, stowT - dt);
+                    if (staffInHand && stowT <= StowTime * (1 - StowAt)) SetStaff(false);
+                    if (state != State.Idle) { stowT = 0; SetStaff(false); }
+                }
+                else if (staffHold <= 0 && staffInHand)
+                {
+                    // standing still he puts it away with a swing over the shoulder; on the move it just goes back
+                    if (state == State.Idle && model != null) stowT = StowTime;
+                    else SetStaff(false);
+                }
             }
             if (model != null)
             {
