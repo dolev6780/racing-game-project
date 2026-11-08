@@ -255,7 +255,8 @@ namespace Cloudborne
             PlaceGear(1 - Mathf.Exp(-25 * dt));
 
             // white flash when hit, white blink on wind-up, orange while burning
-            if (flash > 0) f.SetFlash(Color.white, 0.9f);
+            // white on a hit; the modelled hyenas take less, or bloom turns them into a white cut-out
+            if (flash > 0) f.SetFlash(Color.white, model != null ? 0.45f : 0.9f);
             else if (tele > 0) f.SetFlash(Color.white, tele);
             else if (burnT > 0) f.SetFlash(new Color(1f, 0.48f, 0.1f), 0.25f);
             else f.SetFlash(Color.black, 0);

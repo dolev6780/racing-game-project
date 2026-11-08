@@ -154,7 +154,7 @@ namespace Cloudborne
             }
         }
 
-        /// <summary>A thin bright band with a faint glow inside it.</summary>
+        /// <summary>A thin bright band, empty inside (a filled one reads as a bubble).</summary>
         static Texture2D RingTexture
         {
             get
@@ -166,9 +166,8 @@ namespace Cloudborne
                     for (int x = 0; x < S; x++)
                     {
                         float r = new Vector2(x - S / 2f + 0.5f, y - S / 2f + 0.5f).magnitude / (S / 2f);
-                        float band = Mathf.Clamp01(1 - Mathf.Abs(r - 0.86f) / 0.07f);
-                        float inner = r < 0.86f ? 0.12f * r : 0;
-                        px[y * S + x] = new Color(1, 1, 1, Mathf.Clamp01(band * band + inner));
+                        float band = Mathf.Clamp01(1 - Mathf.Abs(r - 0.86f) / 0.05f);
+                        px[y * S + x] = new Color(1, 1, 1, band * band);
                     }
                 return ringTex = Tex(S, px);
             }

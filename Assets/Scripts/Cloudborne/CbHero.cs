@@ -540,12 +540,14 @@ namespace Cloudborne
             aura.gameObject.SetActive(auraA > 0.02f);
             if (aura.gameObject.activeSelf)
             {
-                var c = new Color(1f, 0.54f, 0.12f) * 2.4f;
-                c.a = auraA * 0.9f;
+                // the modelled Raja is a small cub: a slimmer, see-through flame around him, not a pillar of light
+                bool cub = model != null;
+                var c = new Color(1f, 0.54f, 0.12f) * (cub ? 1.3f : 2.4f);
+                c.a = auraA * (cub ? 0.55f : 0.9f);
                 auraMat.SetColor("_Color", c);
                 auraMat.mainTextureOffset = new Vector2(g.clock * 0.6f, 0);
-                float w = 1 + Mathf.Sin(g.clock * 20) * 0.04f;
-                aura.localScale = new Vector3(w, 2.8f, w);
+                float w = (cub ? 0.58f : 1f) * (1 + Mathf.Sin(g.clock * 20) * 0.04f);
+                aura.localScale = new Vector3(w, cub ? 2.1f : 2.8f, w);
             }
             float target = state == State.Roar ? 3.2f : state == State.Charge ? 1.6f + Mathf.Sin(g.clock * 12) * 0.6f : empower ? 1.2f : 0f;
             glow += (target - glow) * Damp(10, dt);

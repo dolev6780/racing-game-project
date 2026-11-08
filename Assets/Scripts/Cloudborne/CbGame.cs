@@ -132,7 +132,7 @@ namespace Cloudborne
 
         /// <summary>
         /// The anime look: bloom kept for fire and glow only, neutral tone mapping (ACES washes colours out and shifts
-        /// them), punchy saturation and contrast, a soft vignette.
+        /// them), a little extra saturation and contrast (more turns the grass fluorescent), a soft vignette.
         /// </summary>
         public static VolumeProfile CreatePostProfile()
         {
@@ -147,8 +147,8 @@ namespace Cloudborne
             vig.smoothness.Override(0.5f);
             var ca = p.Add<ColorAdjustments>(true);
             ca.postExposure.Override(0f);
-            ca.saturation.Override(24f);
-            ca.contrast.Override(18f);
+            ca.saturation.Override(12f);
+            ca.contrast.Override(12f);
             return p;
         }
 
@@ -304,7 +304,7 @@ namespace Cloudborne
             if (e.guard && breaker)
             {
                 e.BreakGuard(dir);
-                CbVfx.Ring(at, CbFx.Hit, 1.6f, 0.3f);
+                CbVfx.Ring(at, CbFx.Hit * 0.4f, 1.4f, 0.3f);
                 hud.ImpactFlash(0.4f);
                 hud.Popup(new Vector3(e.x, e.y + 2.6f, 0), "GUARD BREAK", CbHud.PopStyle.Big);
                 CbFx.Sfx("heavy");
@@ -322,7 +322,7 @@ namespace Cloudborne
             CbVfx.Burst(at, fire ? CbFx.Fire : CbFx.Hit, big ? 2.4f : 1.4f, big ? 0.2f : 0.12f);
             if (big)
             {
-                CbVfx.Ring(at, (fire ? CbFx.Fire : CbFx.Hit) * 0.7f, 1.8f, 0.3f);
+                CbVfx.Ring(at, (fire ? CbFx.Fire : CbFx.Hit) * 0.35f, 1.4f, 0.3f);
                 hud.ImpactFlash(0.45f);
                 hud.SpeedLines(0.55f, 0.3f);
             }
@@ -344,7 +344,7 @@ namespace Cloudborne
             shake = Mathf.Max(shake, 0.4f);
             CbFx.Spark(new Vector3(e.x, e.HitHeight, -0.4f), e.burnT > 0 ? CbFx.Fire : CbFx.Purple, 26, 9, 0.6f, 0.6f, 2);
             CbVfx.Burst(new Vector3(e.x, e.HitHeight, -0.5f), CbFx.Hit, 3f, 0.25f);
-            CbVfx.Ring(new Vector3(e.x, e.HitHeight, -0.5f), CbFx.Purple * 0.6f, 2.4f, 0.4f);
+            CbVfx.Ring(new Vector3(e.x, e.HitHeight, -0.5f), CbFx.Purple * 0.35f, 1.8f, 0.4f);
             hud.ImpactFlash(0.35f);
         }
 
@@ -399,7 +399,7 @@ namespace Cloudborne
             hitstop = 0.1f;
             fovKick = -5;
             CbVfx.Ring(new Vector3(p.x, p.y + 0.05f, 0), CbFx.Fire * 0.8f, 5f, 0.5f, ground: true);
-            CbVfx.Ring(new Vector3(p.x + dir, p.y + 1.5f, -0.3f), CbFx.Flame, 3.5f, 0.4f);
+            CbVfx.Ring(new Vector3(p.x + dir, p.y + 1.5f, -0.3f), CbFx.Flame * 0.5f, 3.5f, 0.4f);
             hud.SpeedLines(0.9f, 0.6f);
             hud.ImpactFlash(0.4f);
             CbFx.Sfx("roar");
