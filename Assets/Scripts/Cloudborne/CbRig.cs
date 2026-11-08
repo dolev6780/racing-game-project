@@ -251,6 +251,7 @@ namespace Cloudborne
         public static Transform Staff()
         {
             var g = new GameObject("staff").transform;
+            if (CbArt.Prop("Cloudborne/Props/Staff/Staff", g) != null) return g;   // the modelled bamboo staff
             var inner = CbArt.Joint(g, 0, 0.35f, 0, "bamboo");
             CbArt.Part(CbMesh.Frustum(0.92f, 10, true), CbArt.Toon("#86b84e", CbArt.CharacterOutline), inner, new Vector3(0, -1.05f, 0), new Vector3(0.05f, 2.1f, 0.05f));
             var node = CbArt.Toon("#4f7f2a");

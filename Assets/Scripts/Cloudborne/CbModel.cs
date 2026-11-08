@@ -118,15 +118,7 @@ namespace Cloudborne
             if (!TurnsByModel.TryGetValue(path, out clipTurns))
                 TurnsByModel[path] = clipTurns = MeasureClipTurns(parent);
 
-            // anime cel look: one hard light/shadow step with a cool shadow tint, a warm rim, no plastic highlight
-            material = CbArt.NewToon(Color.white, CbArt.CharacterOutline, Resources.Load<Texture2D>(path + "_Albedo"));
-            material.SetFloat("_Bands", 1);
-            material.SetFloat("_BandSoftness", 0.02f);
-            material.SetColor("_ShadowColor", new Color(0.62f, 0.55f, 0.76f));
-            material.SetFloat("_SpecStrength", 0);
-            material.SetColor("_RimColor", new Color(1f, 0.9f, 0.78f));
-            material.SetFloat("_RimPower", 3.5f);
-            material.SetFloat("_RimStrength", 0.45f);
+            material = CbArt.AnimeToon(Resources.Load<Texture2D>(path + "_Albedo"));
             foreach (var r in root.GetComponentsInChildren<Renderer>(true))
             {
                 var mats = new Material[r.sharedMaterials.Length];

@@ -51,17 +51,24 @@ namespace Cloudborne
                 pants = CbArt.Hex("#4a3a2e"), belt = CbArt.Hex("#2a1f1a"), wrap = CbArt.Hex("#4a3a2e"), bulk = shield ? 1.12f : 1f,
             }, shield ? "ShieldHyena" : "Hyena");
             RigBuilder.HyenaHead(f);
+            // the modelled machete and shield when they are in the project, else boxes as before
             blade = CbArt.Joint(f.R.hand, 0, -0.02f, 0.02f, "machete");
-            CbArt.Box(f.M("#c9ced6"), blade, new Vector3(0, 0, 0.38f), new Vector3(0.03f, 0.1f, 0.62f));
-            CbArt.Box(f.M("#2a1f1a"), blade, new Vector3(0, 0, 0.02f), new Vector3(0.05f, 0.06f, 0.16f));
+            if (CbArt.Prop("Cloudborne/Props/Machete/Machete", blade) == null)
+            {
+                CbArt.Box(f.M("#c9ced6"), blade, new Vector3(0, 0, 0.38f), new Vector3(0.03f, 0.1f, 0.62f));
+                CbArt.Box(f.M("#2a1f1a"), blade, new Vector3(0, 0, 0.02f), new Vector3(0.05f, 0.06f, 0.16f));
+            }
             if (shield)
             {
                 f.shield = CbArt.Joint(f.chest, 0.05f, 0.28f, 0.42f, "shield");
-                CbArt.Box(f.M("#5d646e"), f.shield, Vector3.zero, new Vector3(0.85f, 1.15f, 0.08f));
-                CbArt.Box(f.M("#3d434b"), f.shield, new Vector3(0, 0.55f, 0.01f), new Vector3(0.95f, 0.08f, 0.1f));
-                var gold = f.M("#d9a53a", 0f);
-                for (int i = -2; i <= 2; i++)
-                    CbArt.Cone(gold, f.shield, new Vector3(i * 0.1f, 0.12f + (2 - Mathf.Abs(i)) * 0.04f, 0.06f), 0.05f, 0.16f, null, 4);
+                if (CbArt.Prop("Cloudborne/Props/Shield/Shield", f.shield) == null)
+                {
+                    CbArt.Box(f.M("#5d646e"), f.shield, Vector3.zero, new Vector3(0.85f, 1.15f, 0.08f));
+                    CbArt.Box(f.M("#3d434b"), f.shield, new Vector3(0, 0.55f, 0.01f), new Vector3(0.95f, 0.08f, 0.1f));
+                    var gold = f.M("#d9a53a", 0f);
+                    for (int i = -2; i <= 2; i++)
+                        CbArt.Cone(gold, f.shield, new Vector3(i * 0.1f, 0.12f + (2 - Mathf.Abs(i)) * 0.04f, 0.06f), 0.05f, 0.16f, null, 4);
+                }
             }
             f.root.SetParent(parent, false);
             f.root.localPosition = new Vector3(x, 0, 0);

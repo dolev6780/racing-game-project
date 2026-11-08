@@ -42,6 +42,44 @@ namespace Cloudborne
         public static Material Toon(string hex, float outline = 0f) => Toon(Hex(hex), outline);
 
         /// <summary>A material of its own (characters flash and glow, so they never share).</summary>
+        /// <summary>
+        /// The anime cel look for modelled characters and props: one hard light/shadow step with a cool shadow tint,
+        /// a warm rim, no plastic highlight, colours from the model's own texture.
+        /// </summary>
+        public static Material AnimeToon(Texture texture, float outline = CharacterOutline)
+        {
+            var m = NewToon(Color.white, outline, texture);
+            m.SetFloat("_Bands", 1);
+            m.SetFloat("_BandSoftness", 0.02f);
+            m.SetColor("_ShadowColor", new Color(0.62f, 0.55f, 0.76f));
+            m.SetFloat("_SpecStrength", 0);
+            m.SetColor("_RimColor", new Color(1f, 0.9f, 0.78f));
+            m.SetFloat("_RimPower", 3.5f);
+            m.SetFloat("_RimStrength", 0.45f);
+            return m;
+        }
+
+        /// <summary>
+        /// A modelled prop (Resources/path, an FBX made by Tools/Blender/meshy_prop.py, with path_Albedo beside it)
+        /// placed at the parent's origin: its grip is there and it already faces the way the game expects.
+        /// Null when it isn't in the project; the caller then builds its procedural stand-in.
+        /// </summary>
+        public static Transform Prop(string path, Transform parent, float outline = CharacterOutline)
+        {
+            var prefab = Resources.Load<GameObject>(path);
+            if (prefab == null) return null;
+            var t = Object.Instantiate(prefab, parent, false).transform;
+            t.name = prefab.name;
+            var m = AnimeToon(Resources.Load<Texture2D>(path + "_Albedo"), outline);
+            foreach (var r in t.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = new Material[r.sharedMaterials.Length];
+                for (int i = 0; i < mats.Length; i++) mats[i] = m;
+                r.sharedMaterials = mats;
+            }
+            return t;
+        }
+
         public static Material NewToon(Color c, float outline, Texture texture = null)
         {
             Load();
