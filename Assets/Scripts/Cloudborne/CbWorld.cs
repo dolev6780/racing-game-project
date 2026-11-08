@@ -32,8 +32,8 @@ namespace Cloudborne
         // horizon; its sky and karst pillars fill the view above. The wall goes on up to BackdropTop with the
         // painting's top row of sky, so no screen shape ever sees past it.
         const string BackdropPath = "Cloudborne/Jungle/Backdrop/JungleBackdrop";
-        const float BackdropZ = 150f, ImageTop = 40f, ImageHeight = 50f, BackdropTop = 80f, BackdropWidth = 300f,
-            BackdropStretch = 1.5f, BackdropSlide = 0.15f;
+        const float BackdropZ = 150f, ImageTop = 36f, ImageHeight = 45f, BackdropTop = 80f, BackdropWidth = 300f,
+            BackdropStretch = 1.7f, BackdropSlide = 0.15f;
         Transform backdrop;
         Material backdropMat;
         static readonly Color ForegroundShade = new Color(0.16f, 0.24f, 0.2f);
@@ -65,12 +65,21 @@ namespace Cloudborne
 
         // ---------- ground ----------
 
+        // The ground is a platform, as in 2.5D side-scrollers: its grassy top at y = 0 with the path along its front
+        // edge, and a front face of earth from that edge down out of view.
+        const float GroundFront = -1.7f, GroundBack = 10f, GroundDepth = 10f;
+        const string GroundFacePath = "Cloudborne/Jungle/Ground/GroundFace";
+        // the painted face shows its full height over FaceHeight metres, then repeats its bottom row (dark earth)
+        const float FaceHeight = 3.5f;
+
         void BuildGround(Transform far)
         {
             var grass = CbArt.NewToon(GroundTone, 0f, CbArt.Grass);
             grass.mainTextureScale = new Vector2(70, 4);
             grass.SetFloat("_SpecStrength", 0f);
-            CbArt.Box(grass, root, new Vector3(50, -3, 0), new Vector3(260, 6, 20));
+            CbArt.Box(grass, root, new Vector3(50, -GroundDepth / 2, (GroundFront + GroundBack) / 2),
+                new Vector3(260, GroundDepth, GroundBack - GroundFront));
+            BuildGroundFace();
             var path = CbArt.NewToon(Color.white, 0f, CbArt.Path);
             path.mainTextureScale = new Vector2(60, 1);
             path.SetFloat("_SpecStrength", 0f);
@@ -89,27 +98,27 @@ namespace Cloudborne
             var grassMats = new[] { CbArt.Toon("#357a33"), CbArt.Toon("#468a3c"), CbArt.Toon("#2a6a30"), CbArt.Toon("#559443") };
             for (int i = 0; i < 1800; i++)
             {
-                bool front = Random.value < 0.35f;
-                var p = new Vector3(Random.Range(-40f, 140f), 0, front ? -Random.Range(1.8f, 6.5f) : Random.Range(1.8f, 9.5f));
+                var p = new Vector3(Random.Range(-40f, 140f), 0, Random.Range(1.8f, 9.5f));
                 var q = Quaternion.Euler(Random.Range(-17f, 17f), Random.Range(0f, 360f), Random.Range(-17f, 17f));
                 float k = Random.Range(0.6f, 1.6f);
                 Add(blade, grassMats[i % 4], Matrix4x4.TRS(p, q, new Vector3(0.05f * k, 0.42f * k, 0.05f * k)));
             }
             if (Has(FernModel))
             {
+                // a few small ferns lean over the front edge; the rest grow behind the path
                 for (int c = 0; c < 120; c++)
                 {
-                    bool front = Random.value < 0.3f;
-                    var at = new Vector3(Random.Range(-40f, 140f), 0, front ? -Random.Range(4.6f, 6.8f) : Random.Range(2.2f, 9.5f));
-                    Place(FernModel, far, at, front ? Random.Range(0.6f, 0.85f) : Random.Range(0.8f, 1.3f));
+                    bool front = Random.value < 0.25f;
+                    var at = new Vector3(Random.Range(-40f, 140f), 0, front ? Random.Range(GroundFront + 0.1f, GroundFront + 0.4f) : Random.Range(2.2f, 9.5f));
+                    Place(FernModel, far, at, front ? Random.Range(0.45f, 0.6f) : Random.Range(0.8f, 1.3f));
                 }
             }
             var fernMats = new[] { CbArt.Toon("#2c6e30"), CbArt.Toon("#3a8a3c"), CbArt.Toon("#245c2a") };
             for (int c = 0; c < (Has(FernModel) ? 0 : 300); c++)
             {
                 bool front = Random.value < 0.3f;
-                var center = new Vector3(Random.Range(-40f, 140f), 0, front ? -Random.Range(4.6f, 6.8f) : Random.Range(2.2f, 9.5f));
-                float ck = front ? Random.Range(0.55f, 0.85f) : Random.Range(0.8f, 1.4f);
+                var center = new Vector3(Random.Range(-40f, 140f), 0, front ? Random.Range(GroundFront + 0.1f, GroundFront + 0.4f) : Random.Range(2.2f, 9.5f));
+                float ck = front ? Random.Range(0.4f, 0.55f) : Random.Range(0.8f, 1.4f);
                 for (int f = 0; f < 7; f++)
                 {
                     float yaw = f / 7f * 360f + Random.Range(-12f, 12f);
@@ -120,6 +129,34 @@ namespace Cloudborne
             foreach (var kv in batches) MakeBatch(kv.Key, kv.Value, root, false);
         }
 
+        /// <summary>The platform's front face: the painted cross-section of earth if it's in the project, else speckled soil.</summary>
+        void BuildGroundFace()
+        {
+            var painted = Resources.Load<Texture2D>(GroundFacePath);
+            Material face;
+            if (painted != null)
+            {
+                painted.wrapModeU = TextureWrapMode.Repeat;
+                painted.wrapModeV = TextureWrapMode.Clamp;
+                face = CbArt.NewToon(SceneryTone, 0f, painted);
+                // the painting keeps its proportions, FaceHeight tall; its top at the platform's edge, then its bottom row
+                float rows = GroundDepth / FaceHeight;
+                face.mainTextureScale = new Vector2(260 / (FaceHeight * painted.width / painted.height), rows);
+                face.mainTextureOffset = new Vector2(0, 1 - rows);
+            }
+            else
+            {
+                face = CbArt.NewToon(GroundTone, 0f, CbArt.Soil);
+                face.mainTextureScale = new Vector2(260 / 4f, GroundDepth / 4f);
+                // a dark green lip along the edge
+                CbArt.Box(CbArt.Toon("#2c6a2e"), root, new Vector3(50, -0.12f, GroundFront + 0.1f), new Vector3(260, 0.28f, 0.24f));
+            }
+            face.SetFloat("_SpecStrength", 0f);
+            face.SetFloat("_RimStrength", 0f);
+            var t = CbArt.Part(CbMesh.Quad, face, root, new Vector3(50, -GroundDepth / 2, GroundFront - 0.01f), new Vector3(260, GroundDepth, 1), shadows: false);
+            t.name = "groundFace";
+        }
+
         // ---------- plants ----------
 
         void BuildPlants(Transform near, Transform far)
@@ -127,24 +164,23 @@ namespace Cloudborne
             bool trees = Has(TreeModel), palms = Has(PalmModel);
             for (float x = -30; x < 150; x += Random.Range(6f, 10f))
             {
-                // The camera looks a little down: on a wide screen it sees only about 5 m up at the tree line. The
-                // modelled trees (9.5 m, crown from about half way) and palms (7.5 m) are made small enough for their
-                // crowns to show, not just trunks. Leafy models cast no shadows (far): a thin leaf shadowing itself
-                // breaks up into dark specks.
+                // The level camera sees about 7 to 8 m up at the tree line: the modelled trees (9.5 m, crown from
+                // about half way) and palms (7.5 m) are sized to show whole. Leafy models cast no shadows (far): a
+                // thin leaf shadowing itself breaks up into dark specks.
                 float z = Random.Range(7.5f, 11f);
                 if (Random.value < 0.35f)
                 {
-                    if (palms) Place(PalmModel, far, new Vector3(x, 0, z + 1f), Random.Range(0.55f, 0.7f));
+                    if (palms) Place(PalmModel, far, new Vector3(x, 0, z + 1f), Random.Range(0.65f, 0.8f));
                     else Palm(near, x, z, Random.Range(1f, 1.3f));
                 }
-                else if (trees) Place(TreeModel, near, new Vector3(x, 0, z + 1f), Random.Range(0.5f, 0.6f), CbArt.PropOutline);
+                else if (trees) Place(TreeModel, near, new Vector3(x, 0, z + 1f), Random.Range(0.62f, 0.78f), CbArt.PropOutline);
                 else JungleTree(near, x, z, Random.Range(0.85f, 1.1f), CbArt.PropOutline);
             }
             if (trees)
             {
                 // two rows of forest behind the first, so the ground between the trees and the horizon is not an
                 // empty lawn; they fade into the haze with distance
-                foreach (var (z0, z1, s0, s1, step) in new[] { (15f, 24f, 0.45f, 0.6f, 4.5f), (26f, 42f, 0.55f, 0.75f, 5f) })
+                foreach (var (z0, z1, s0, s1, step) in new[] { (15f, 24f, 0.6f, 0.8f, 4.5f), (26f, 42f, 0.7f, 0.95f, 5f) })
                     for (float x = -40; x < 160; x += Random.Range(step, step * 1.6f))
                     {
                         var at = new Vector3(x, 0, Random.Range(z0, z1));
@@ -381,8 +417,8 @@ namespace Cloudborne
             {
                 if (leaves)
                 {
-                    // big leaves in shade right in front of the camera frame the bottom of the view
-                    Place(LeavesModel, far, new Vector3(x, -1.2f, -Random.Range(6.8f, 7.8f)), Random.Range(1f, 1.35f), 0f, ForegroundShade);
+                    // big leaves in shade right in front of the camera rise over the bottom of the view
+                    Place(LeavesModel, far, new Vector3(x, -2.4f, -Random.Range(6.8f, 7.8f)), Random.Range(1f, 1.35f), 0f, ForegroundShade);
                     continue;
                 }
                 int n = Random.Range(3, 5);
@@ -393,10 +429,11 @@ namespace Cloudborne
             }
             for (float x = -10; x < 150; x += Random.Range(18f, 28f))
             {
-                float len = Random.Range(3f, 5f);
-                CbArt.Cylinder(dark, far, new Vector3(x, 11 - len / 2, -5.5f), 0.06f, len);
+                // vines hang in from the top of the view (the level camera sees about 5 m up this close)
+                float len = Random.Range(1.5f, 2.5f);
+                CbArt.Cylinder(dark, far, new Vector3(x, 7 - len / 2, -5.5f), 0.06f, len);
                 for (int k = 0; k < 3; k++)
-                    CbArt.Part(CbMesh.Leaf(), dark, far, new Vector3(x, 11 - len * (0.3f + k * 0.3f), -5.5f), Vector3.one * 0.35f,
+                    CbArt.Part(CbMesh.Leaf(), dark, far, new Vector3(x, 7 - len * (0.3f + k * 0.3f), -5.5f), Vector3.one * 0.35f,
                         CbArt.Rot(0, 0, Mathf.PI + (k % 2 == 1 ? 0.7f : -0.7f)), shadows: false);
             }
         }

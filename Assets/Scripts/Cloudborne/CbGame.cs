@@ -56,13 +56,16 @@ namespace Cloudborne
         Camera cam;
         Light sun;
         Transform actors;
-        float comboT, camX, camY = 3.2f, fovKick, overT, atkHeldT, kiKeyT = -1;
+        float comboT, camX, camY = CamBase, fovKick, overT, atkHeldT, kiKeyT = -1;
         int zoneIdx, lastScore = -1;
         readonly List<(float at, CbEnemy.Kind kind, float x, Zone zone)> pending = new List<(float, CbEnemy.Kind, float, Zone)>();
         readonly List<Shot> shots = new List<Shot>();
         readonly List<(Transform t, Vector3 v, float spin, float life)> debris = new List<(Transform, Vector3, float, float)>();
         Roar roar;
-        const float BaseFov = 32f;
+        // A side-on view like 2.5D platformers: a narrow field of view from further back flattens the perspective,
+        // and the camera looks almost level, so the path reads as the top of a platform with its front face below
+        // and the scenery stands up behind it, instead of a green floor tilting away.
+        const float BaseFov = 26f, CamBase = 1.5f, CamRise = 0.6f;
 
         class Shot { public Transform t, glow; public float x, y, vx, life; }
         class Roar { public Transform holder; public Material outer, inner; public float t; public int dir; }
@@ -510,16 +513,16 @@ namespace Cloudborne
             fovKick += (0 - fovKick) * (1 - Mathf.Exp(-3 * dt));
             cam.fieldOfView = BaseFov + fovKick;
             float tanH = Mathf.Tan(BaseFov * 0.5f * Mathf.Deg2Rad);
-            float dist = Mathf.Clamp(9.8f / (tanH * cam.aspect), 11f, 22f);
+            float dist = Mathf.Clamp(9.8f / (tanH * cam.aspect), 13f, 28f);
             float tx = hero.x + hero.facing * 1.6f;
             if (mode == Mode.Title) tx = 2 + Mathf.Sin(clock * 0.15f) * 3;
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
             camX += (tx - camX) * (1 - Mathf.Exp(-3.5f * dt));
-            float ty = 3f + hero.y * 0.3f;
+            float ty = CamBase + hero.y * 0.5f;
             camY += (ty - camY) * (1 - Mathf.Exp(-3 * dt));
             float sh = shake;
-            cam.transform.position = new Vector3(camX + Random.Range(-1f, 1f) * sh * 0.4f, camY + 1 + Random.Range(-1f, 1f) * sh * 0.4f, -dist);
-            cam.transform.LookAt(new Vector3(camX, camY - 0.8f, 0));
+            cam.transform.position = new Vector3(camX + Random.Range(-1f, 1f) * sh * 0.4f, camY + CamRise + Random.Range(-1f, 1f) * sh * 0.4f, -dist);
+            cam.transform.LookAt(new Vector3(camX, camY, 0));
             shake = Mathf.Max(0, shake - dt * 1.6f);
         }
 

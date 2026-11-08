@@ -150,7 +150,7 @@ namespace Cloudborne
 
         // ---------- textures ----------
 
-        static Texture2D furTex, furMask, grassTex, pathTex, shaftTex, softTex, flameTex, mistTex;
+        static Texture2D furTex, furMask, grassTex, pathTex, soilTex, shaftTex, softTex, flameTex, mistTex;
 
         /// <summary>Orange fur with black stripes, and the same stripes as a white-on-black glow mask.</summary>
         public static Texture2D Fur { get { if (furTex == null) MakeFur(); return furTex; } }
@@ -189,6 +189,10 @@ namespace Cloudborne
 
         public static Texture2D Path => pathTex != null ? pathTex : pathTex = Speckle(128, Hex("#8f5f3d"),
             new[] { new Color(0.27f, 0.16f, 0.1f, 0.4f), new Color(0.86f, 0.67f, 0.47f, 0.3f), new Color(0.31f, 0.55f, 0.24f, 0.5f) }, 420, 1, 3);
+
+        /// <summary>Brown earth with stones: the front face of the ground until a painted one is in the project.</summary>
+        public static Texture2D Soil => soilTex != null ? soilTex : soilTex = Speckle(128, Hex("#5b3e29"),
+            new[] { new Color(0.24f, 0.15f, 0.09f, 0.5f), new Color(0.47f, 0.33f, 0.22f, 0.4f), new Color(0.5f, 0.52f, 0.46f, 0.8f) }, 260, 2, 6);
 
         /// <summary>Vertical fade (bright at the top) with soft sides: light shafts and fire cones.</summary>
         public static Texture2D Shaft
