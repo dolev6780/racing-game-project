@@ -63,14 +63,31 @@ namespace Cloudborne
                 fx = new Fx { t = go.transform, m = m, mf = mf };
                 ghosts.Add(fx);
             }
-            skin.BakeMesh(fx.mf.sharedMesh, true);    // in the renderer's space, scale included
-            fx.t.SetPositionAndRotation(skin.transform.position, skin.transform.rotation);
+            skin.BakeMesh(fx.mf.sharedMesh, true);
+            var st = skin.transform;
+            fx.t.SetPositionAndRotation(st.position, st.rotation);
+            fx.t.localScale = Vector3.one * BakedScale(skin, fx.mf.sharedMesh);
             fx.c = c;
             fx.age = 0;
             fx.life = life;
             fx.active = true;
             fx.m.SetColor("_Color", c);
             fx.t.gameObject.SetActive(true);
+        }
+
+        /// <summary>
+        /// The scale that shows a baked copy at the character's size. The baked vertices may come out in the renderer's
+        /// own units (divided by its world scale) or already at world size, so compare them with the renderer's own
+        /// local bounds and pick: a copy left at the wrong one is several times too big and floods the view with glow.
+        /// </summary>
+        static float BakedScale(SkinnedMeshRenderer skin, Mesh baked)
+        {
+            float world = skin.transform.lossyScale.x;
+            float bakedSize = baked.bounds.size.magnitude, localSize = skin.localBounds.size.magnitude;
+            if (bakedSize < 1e-6f || localSize < 1e-6f || world < 1e-6f) return 1f;
+            // in local units the two sizes match; at world size the baked one is `world` times larger
+            float k = bakedSize / localSize;
+            return Mathf.Abs(Mathf.Log(k)) < Mathf.Abs(Mathf.Log(k / world)) ? world : 1f;
         }
 
         static Fx Spawn(Vector3 pos, Color c, Texture tex, float size0, float size1, float life, bool billboard, float spin)

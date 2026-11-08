@@ -125,27 +125,29 @@ namespace Cloudborne
             bool trees = Has(TreeModel), palms = Has(PalmModel);
             for (float x = -30; x < 150; x += Random.Range(6f, 10f))
             {
-                // The camera looks a little down and sees about 8 m up at the tree line: the modelled trees (9.5 m)
-                // and palms (7.5 m) are made smaller and set further back so their crowns show, not just trunks.
+                // The camera looks a little down: on a wide screen it sees only about 5 m up at the tree line. The
+                // modelled trees (9.5 m, crown from about half way) and palms (7.5 m) are made small enough for their
+                // crowns to show, not just trunks. Leafy models cast no shadows (far): a thin leaf shadowing itself
+                // breaks up into dark specks.
                 float z = Random.Range(7.5f, 11f);
                 if (Random.value < 0.35f)
                 {
-                    if (palms) Place(PalmModel, near, new Vector3(x, 0, z + 1.5f), Random.Range(0.75f, 0.95f));
+                    if (palms) Place(PalmModel, far, new Vector3(x, 0, z + 1f), Random.Range(0.55f, 0.7f));
                     else Palm(near, x, z, Random.Range(1f, 1.3f));
                 }
-                else if (trees) Place(TreeModel, near, new Vector3(x, 0, z + 1.5f), Random.Range(0.6f, 0.75f), CbArt.PropOutline);
+                else if (trees) Place(TreeModel, near, new Vector3(x, 0, z + 1f), Random.Range(0.5f, 0.6f), CbArt.PropOutline);
                 else JungleTree(near, x, z, Random.Range(0.85f, 1.1f), CbArt.PropOutline);
             }
             for (float x = -30; x < 150; x += Random.Range(7f, 11f))
             {
                 float z = Random.Range(17f, 28f), s = Random.Range(1.3f, 1.9f);
-                if (trees) Place(TreeModel, far, new Vector3(x, 0, z), s * 0.62f);
+                if (trees) Place(TreeModel, far, new Vector3(x, 0, z), s * 0.45f);
                 else JungleTree(far, x, z, s, 0f);
             }
             // clumps of big leaves among the rocks between the path and the trees
             if (Has(LeavesModel))
                 for (float x = -25; x < 145; x += Random.Range(5f, 9f))
-                    Place(LeavesModel, near, new Vector3(x + Random.Range(-1f, 1f), 0, Random.Range(2.8f, 6f)), Random.Range(0.75f, 1.15f));
+                    Place(LeavesModel, far, new Vector3(x + Random.Range(-1f, 1f), 0, Random.Range(2.8f, 6f)), Random.Range(0.75f, 1.15f));
         }
 
         // ---------- modelled scenery ----------

@@ -98,6 +98,31 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator DashAfterimagesAreRajaSized()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            bool sent = false;
+            game.TestInput = i => { if (!sent) { i.dash = true; sent = true; } };
+            // the dash leaves an afterimage every 0.04 s, each fading in 0.25 s: look at the first one
+            MeshFilter ghost = null;
+            for (float waited = 0; ghost == null && waited < 1f; waited += Time.deltaTime)
+            {
+                yield return null;
+                foreach (var mf in game.transform.Find("VFX").GetComponentsInChildren<MeshFilter>())
+                    if (mf.name == "afterimage") ghost = mf;
+            }
+            game.TestInput = null;
+            Assert.IsNotNull(ghost, "The dash left no afterimage");
+            var raja = game.hero.model.skin.bounds.size;
+            var size = ghost.GetComponent<MeshRenderer>().bounds.size;
+            float ratio = size.magnitude / raja.magnitude;
+            Assert.That(ratio, Is.InRange(0.6f, 1.6f), $"The afterimage is {ratio:0.00} times Raja's size ({size} vs {raja})");
+        }
+
+        [UnityTest]
         public IEnumerator EveryMoveWorksInTheFirstFight()
         {
             game = CbGame.Boot();

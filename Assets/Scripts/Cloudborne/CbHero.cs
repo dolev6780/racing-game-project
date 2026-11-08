@@ -231,7 +231,7 @@ namespace Cloudborne
                     if (model != null && ghostT <= 0)
                     {
                         ghostT = 0.04f;
-                        CbVfx.Ghost(model.skin, new Color(1f, 0.55f, 0.15f, 0.5f) * 1.6f, 0.25f);
+                        CbVfx.Ghost(model.skin, new Color(1.2f, 0.66f, 0.18f, 0.4f), 0.25f);
                     }
                     if (input.atk) buffer = 0.3f;
                     if (t > 0.2f) { state = air ? State.Air : State.Idle; vx = facing * 4; }
