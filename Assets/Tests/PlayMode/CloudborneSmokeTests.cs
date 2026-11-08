@@ -37,15 +37,19 @@ namespace RacingGame.Tests
             Assert.AreEqual(20, game.hero.model.ClipCount, "Raja's model is missing animation clips");
             foreach (var prop in new[] { "Staff", "Machete", "Shield" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Props/{prop}/{prop}"), $"The {prop} model is missing");
-            foreach (var plant in new[] { "Tree", "Palm", "Fern", "Leaves" })
+            var scenery = new[] { "Tree", "Palm", "Fern", "Leaves", "Boulder", "Pillar", "Gate", "Karst" };
+            foreach (var name in scenery)
             {
-                var model = Resources.Load<GameObject>($"Cloudborne/Jungle/{plant}/{plant}");
-                Assert.IsNotNull(model, $"The jungle's {plant} model is missing");
-                Assert.IsTrue(model.GetComponentInChildren<MeshFilter>().sharedMesh.isReadable, $"The {plant} mesh must be readable to be merged");
+                var model = Resources.Load<GameObject>($"Cloudborne/Jungle/{name}/{name}");
+                Assert.IsNotNull(model, $"The jungle's {name} model is missing");
+                Assert.IsTrue(model.GetComponentInChildren<MeshFilter>().sharedMesh.isReadable, $"The {name} mesh must be readable to be merged");
             }
-            // the plants are merged into the scenery: no copy of a model is left standing on its own
-            Assert.AreEqual(0, game.world.root.GetComponentsInChildren<Transform>().Count(t => t.name.StartsWith("Tree") || t.name.StartsWith("Palm")),
-                "Copies of the plant models were left unmerged");
+            // the scenery is merged: no copy of a model is left standing on its own
+            Assert.AreEqual(0, game.world.root.GetComponentsInChildren<Transform>().Count(t => scenery.Any(n => t.name.StartsWith(n))),
+                "Copies of the scenery models were left unmerged");
+            var backdrop = game.world.root.Find("backdrop");
+            Assert.IsNotNull(backdrop, "The painted backdrop is missing (Resources/Cloudborne/Jungle/Backdrop, Shaders/Backdrop)");
+            Assert.IsTrue(backdrop.GetComponent<MeshRenderer>().sharedMaterial.shader.isSupported, "The backdrop shader doesn't run");
             Assert.Greater(game.world.root.GetComponentsInChildren<MeshRenderer>().Length, 20, "The jungle has too few parts");
             Assert.IsNotNull(Resources.Load<Shader>("Shaders/Glow"), "Glow shader missing");
         }

@@ -6,17 +6,17 @@ namespace Cloudborne
 {
     /// <summary>
     /// The jungle of stage 1-1: path and grass, ferns, jungle trees and palms, big leaves, mossy rocks,
-    /// karst pillars with waterfalls, shrine ruins, far canopy layers, light shafts, ground mist, fireflies
+    /// karst pillars with waterfalls, shrine ruins, a painted far backdrop, light shafts, ground mist, fireflies
     /// and dark foreground leaves. Gameplay happens on the plane z = 0; the background is at +z, the camera at -z.
-    /// The plants are models drawn in Canva and built in Meshy (Resources/Cloudborne/Jungle); anything not modelled
-    /// yet is built from code. Static scenery is merged into one mesh per material and stretch of the level, so
-    /// the parts out of view are skipped.
+    /// The scenery is drawn in Canva and built in Meshy (Resources/Cloudborne/Jungle); whatever is missing there
+    /// is built from code instead. Static scenery is merged into one mesh per material and stretch of the level,
+    /// so the parts out of view are skipped.
     /// </summary>
     public class CbWorld
     {
         public const float LevelMin = -8f, LevelMax = 108f;
-        // a clear mint-teal haze: distant layers fade into colour, not into white
-        public static readonly Color Horizon = CbArt.Hex("#a6d4bd");
+        // the blue-teal haze of the painted backdrop: distant scenery fades into it, not into white
+        public static readonly Color Horizon = CbArt.Hex("#7fc0cc");
 
         public Transform root;
         readonly List<(Transform t, Material m, float ph, float baseA)> shafts = new List<(Transform, Material, float, float)>();
@@ -24,7 +24,16 @@ namespace Cloudborne
         Transform flies;
         static readonly string[] Greens = { "#2e7a3c", "#3c8f46", "#256a36", "#4a9a4c", "#1f5e33" };
         // the scenery models, made by Tools/Blender/meshy_prop.py with their foot at the origin, sized in metres
-        const string TreeModel = "Tree", PalmModel = "Palm", FernModel = "Fern", LeavesModel = "Leaves";
+        const string TreeModel = "Tree", PalmModel = "Palm", FernModel = "Fern", LeavesModel = "Leaves",
+            BoulderModel = "Boulder", PillarModel = "Pillar", GateModel = "Gate", KarstModel = "Karst";
+        // The backdrop is a painting on a wall far behind everything. It follows the camera along the level and its
+        // picture slides only a little, so it reads as very far away. Its top is above the view; the mist under its
+        // karst pillars, about 62% of the way down, sits near eye level, and the ground hides the rest.
+        const string BackdropPath = "Cloudborne/Jungle/Backdrop/JungleBackdrop";
+        const float BackdropZ = 150f, BackdropTop = 48f, BackdropHeight = 73f, BackdropWidth = 260f, BackdropStretch = 1.3f,
+            BackdropSlide = 0.15f;
+        Transform backdrop;
+        Material backdropMat;
         static readonly Color ForegroundShade = new Color(0.16f, 0.24f, 0.2f);
         readonly Dictionary<(string, float, Color), (GameObject prefab, Material mat)> models =
             new Dictionary<(string, float, Color), (GameObject, Material)>();
@@ -142,7 +151,7 @@ namespace Cloudborne
         /// Places a copy of a scenery model standing at pos, its drawn front turned towards the camera give or take a
         /// little. Copies with the same look share one material, so the bake merges them.
         /// </summary>
-        Transform Place(string name, Transform parent, Vector3 pos, float scale, float outline = 0f, Color? tint = null)
+        Transform Place(string name, Transform parent, Vector3 pos, float scale, float outline = 0f, Color? tint = null, float turn = 35f)
         {
             var key = (name, outline, tint ?? Color.white);
             if (!models.TryGetValue(key, out var model))
@@ -157,7 +166,7 @@ namespace Cloudborne
             // Meshy's front is Unity's +Z after the export; the camera looks along +Z from in front
             var t = Object.Instantiate(model.prefab, parent, false).transform;
             t.localPosition = pos;
-            t.localRotation = Quaternion.Euler(0, 180 + Random.Range(-35f, 35f), 0);
+            t.localRotation = Quaternion.Euler(0, 180 + Random.Range(-turn, turn), 0);
             t.localScale = Vector3.one * scale;
             foreach (var r in t.GetComponentsInChildren<MeshRenderer>(true)) r.sharedMaterial = model.mat;
             return t;
@@ -212,12 +221,29 @@ namespace Cloudborne
 
         void BuildRocksAndRuins(Transform near)
         {
+            bool boulders = Has(BoulderModel);
             for (float x = -20; x < 140; x += Random.Range(4f, 8f))
             {
                 float s = Random.Range(0.25f, 0.6f), z = Random.Range(2.4f, 4.5f);
+                if (boulders)
+                {
+                    Place(BoulderModel, near, new Vector3(x, -0.08f * s, z), s * 1.5f, CbArt.PropOutline, turn: 180f);
+                    continue;
+                }
                 CbArt.Part(CbMesh.Blob(6, 4), CbArt.Toon("#7f8a78", CbArt.PropOutline), near, new Vector3(x, s * 0.35f, z),
                     new Vector3(s, s * 0.7f, s), Random.rotation);
                 CbArt.Part(CbMesh.Dome(0.5f, 8), CbArt.Toon("#5f9a50"), near, new Vector3(x, s * 0.45f, z), new Vector3(s * 0.8f, s * 0.36f, s * 0.8f));
+            }
+            if (Has(GateModel) && Has(PillarModel))
+            {
+                // the shrine: its gate, lone pillars of different heights and a few fallen stones
+                Place(GateModel, near, new Vector3(74, 0, 4.2f), 1f, CbArt.PropOutline, turn: 8f);
+                Place(PillarModel, near, new Vector3(66, 0, 5f), 0.5f, CbArt.PropOutline, turn: 20f);
+                Place(PillarModel, near, new Vector3(86, 0, 4.8f), 0.65f, CbArt.PropOutline, turn: 20f);
+                Place(PillarModel, near, new Vector3(91, 0, 4f), 0.85f, CbArt.PropOutline, turn: 20f);
+                foreach (var p in new[] { new Vector2(80, 3.2f), new Vector2(83, 3.6f), new Vector2(88, 3.1f) })
+                    Place(boulders ? BoulderModel : PillarModel, near, new Vector3(p.x, -0.05f, p.y), boulders ? 0.4f : 0.15f, CbArt.PropOutline, turn: 180f);
+                return;
             }
             var stone = CbArt.Toon("#8f9a8a", CbArt.PropOutline);
             var moss = CbArt.Toon("#5f9a50");
@@ -240,15 +266,26 @@ namespace Cloudborne
         void BuildBackground(Transform far)
         {
             var fall = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.55f), CbArt.Shaft);
+            bool karst = Has(KarstModel);
             for (float x = -20; x < 160; x += Random.Range(15f, 24f))
             {
                 float z = Random.Range(36f, 50f), h = Random.Range(16f, 28f), r = Random.Range(2.6f, 4.2f);
-                CbArt.Part(CbMesh.Frustum(0.55f, 7), CbArt.Toon("#8a9488"), far, new Vector3(x, -0.5f, z), new Vector3(r, h, r), CbArt.Rot(0, Random.Range(0f, 6f)));
-                CbArt.Part(CbMesh.Dome(0.5f, 10), CbArt.Toon("#4f9a48"), far, new Vector3(x, h - 0.7f, z), new Vector3(r * 0.75f, r * 0.41f, r * 0.75f));
-                for (int k = 0; k < 4; k++)
+                if (karst)
                 {
-                    float len = Random.Range(4f, 9f);
-                    CbArt.Cylinder(CbArt.Toon("#2f5a2a"), far, new Vector3(x + Random.Range(-r * 0.5f, r * 0.5f), h - 1 - len / 2, z - r * 0.6f), 0.08f, len);
+                    // the model is 26 m tall and about 11 m across; r becomes the distance to its face, where the waterfall runs
+                    float s = h / 26f;
+                    Place(KarstModel, far, new Vector3(x, -0.5f, z), s, turn: 30f);
+                    r = 6f * s;
+                }
+                else
+                {
+                    CbArt.Part(CbMesh.Frustum(0.55f, 7), CbArt.Toon("#8a9488"), far, new Vector3(x, -0.5f, z), new Vector3(r, h, r), CbArt.Rot(0, Random.Range(0f, 6f)));
+                    CbArt.Part(CbMesh.Dome(0.5f, 10), CbArt.Toon("#4f9a48"), far, new Vector3(x, h - 0.7f, z), new Vector3(r * 0.75f, r * 0.41f, r * 0.75f));
+                    for (int k = 0; k < 4; k++)
+                    {
+                        float len = Random.Range(4f, 9f);
+                        CbArt.Cylinder(CbArt.Toon("#2f5a2a"), far, new Vector3(x + Random.Range(-r * 0.5f, r * 0.5f), h - 1 - len / 2, z - r * 0.6f), 0.08f, len);
+                    }
                 }
                 if (Random.value < 0.5f)
                 {
@@ -259,9 +296,29 @@ namespace Cloudborne
                     m.name = "fallMist";
                 }
             }
+            if (BuildBackdrop()) return;
             Canopy(far, 70, 7, 4, "#2d5a3a", 1);
             Canopy(far, 110, 13, 6, "#3f6e4a", 3);
             Canopy(far, 160, 22, 9, "#5c8a62", 5);
+        }
+
+        /// <summary>The painted backdrop in place of the canopy layers; false when the painting or its shader is missing.</summary>
+        bool BuildBackdrop()
+        {
+            var tex = Resources.Load<Texture2D>(BackdropPath);
+            var shader = Resources.Load<Shader>("Shaders/Backdrop");
+            if (tex == null || shader == null || !shader.isSupported) return false;
+            // mirrored repeats join without a seam
+            tex.wrapModeU = TextureWrapMode.Mirror;
+            tex.wrapModeV = TextureWrapMode.Clamp;
+            backdropMat = new Material(shader) { mainTexture = tex };
+            float tile = BackdropHeight * tex.width / tex.height * BackdropStretch;
+            backdropMat.mainTextureScale = new Vector2(BackdropWidth / tile, 1);
+            backdrop = CbArt.Part(CbMesh.Quad, backdropMat, root, new Vector3(0, BackdropTop - BackdropHeight / 2, BackdropZ),
+                new Vector3(BackdropWidth, BackdropHeight, 1), shadows: false);
+            backdrop.name = "backdrop";
+            backdrop.GetComponent<MeshRenderer>().receiveShadows = false;
+            return true;
         }
 
         static void Canopy(Transform far, float z, float baseY, float amp, string hex, float seed)
@@ -374,6 +431,13 @@ namespace Cloudborne
                 m.localPosition = p;
             }
             flies.localPosition = new Vector3(camX, 3.2f, 3.5f);
+            if (backdrop != null)
+            {
+                var p = backdrop.localPosition;
+                p.x = camX;
+                backdrop.localPosition = p;
+                backdropMat.mainTextureOffset = new Vector2(camX * BackdropSlide / (BackdropWidth / backdropMat.mainTextureScale.x), 0);
+            }
         }
 
         // ---------- merging ----------
