@@ -106,13 +106,15 @@ Shader "RacingGame/Toon"
                 float3 l = light.direction;
 
                 float ndl = dot(n, l);
-                float lit = saturate(ndl) * light.shadowAttenuation;
+                // Only the light's angle is banded. Cast shadows keep the shadow map's own soft filtered edge: banded,
+                // they turned into hard stair-stepped pixels across the characters.
+                float lit = saturate(ndl);
 
                 // Quantise the light into soft-edged bands.
                 float bands = max(_Bands, 1.0);
                 float q = lit * bands;
                 float band = floor(q) + smoothstep(0.5 - _BandSoftness, 0.5 + _BandSoftness, frac(q));
-                float toon = saturate(band / bands);
+                float toon = saturate(band / bands) * light.shadowAttenuation;
 
                 float3 lightCol = lerp(_ShadowColor.rgb, float3(1, 1, 1), toon) * light.color;
                 float3 ambient = SampleSH(n) * 0.6;
@@ -319,13 +321,13 @@ Shader "RacingGame/Toon"
 
                 float ndl = dot(n, l);
                 float shadow = SHADOW_ATTENUATION(i);
-                float lit = saturate(ndl) * shadow;
+                float lit = saturate(ndl);
 
                 // Quantise the light into soft-edged bands.
                 float bands = max(_Bands, 1.0);
                 float q = lit * bands;
                 float band = floor(q) + smoothstep(0.5 - _BandSoftness, 0.5 + _BandSoftness, frac(q));
-                float toon = saturate(band / bands);
+                float toon = saturate(band / bands) * shadow;
 
                 float3 lightCol = lerp(_ShadowColor.rgb, float3(1, 1, 1), toon) * _LightColor0.rgb;
                 float3 ambient = ShadeSH9(float4(n, 1)) * 0.6;

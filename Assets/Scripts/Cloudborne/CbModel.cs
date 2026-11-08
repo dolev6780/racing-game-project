@@ -206,7 +206,7 @@ namespace Cloudborne
         }
 
         /// <summary>Plays the part of a clip between from and to as u goes from 0 to 1.</summary>
-        public void Window(string clip, float from, float to, float u) => Show(clip, Mathf.Lerp(from, to, Mathf.Clamp01(u)));
+        public void Window(string clip, float from, float to, float u, float blend = 0.08f) => Show(clip, Mathf.Lerp(from, to, Mathf.Clamp01(u)), blend);
 
         /// <summary>Loops a clip: cycles counts whole plays of it.</summary>
         public void Loop(string clip, float cycles) => Show(clip, cycles - Mathf.Floor(cycles));

@@ -21,6 +21,7 @@ namespace RacingGame.Tests
         {
             if (game != null) Object.Destroy(game.gameObject);
             Time.timeScale = 1f;
+            Time.captureDeltaTime = 0f;
             yield return null;
         }
 
@@ -34,7 +35,7 @@ namespace RacingGame.Tests
             Assert.AreEqual(CbGame.Mode.Title, game.mode);
             Assert.IsNotNull(game.hero.f.root, "Raja was not built");
             Assert.IsNotNull(game.hero.model, "Raja's model did not load (Resources/Cloudborne/Raja, legacy animation)");
-            Assert.AreEqual(20, game.hero.model.ClipCount, "Raja's model is missing animation clips");
+            Assert.AreEqual(27, game.hero.model.ClipCount, "Raja's model is missing animation clips");
             foreach (var prop in new[] { "Staff", "Machete", "Shield" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Props/{prop}/{prop}"), $"The {prop} model is missing");
             var scenery = new[] { "Tree", "Palm", "Fern", "Leaves", "Boulder", "Pillar", "Gate", "Karst" };
@@ -95,6 +96,51 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(0.8f);
             Assert.AreEqual(CbHero.State.Idle, game.hero.state);
             Assert.Greater(game.hero.model.Facing.x, 0.85f, $"Standing after running right, Raja faces {game.hero.model.Facing}");
+        }
+
+        [UnityTest]
+        public IEnumerator CrouchesAndSweeps()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            bool sweep = false;
+            game.TestInput = i => { i.y = -1; i.atk = sweep; sweep = false; };
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsTrue(game.hero.Ducking, "Down on the stick did not make Raja duck");
+            sweep = true;
+            yield return Frames(2);
+            Assert.AreEqual(CbHero.State.Atk, game.hero.state, "Crouch + HIT did not start the sweep");
+            game.TestInput = null;
+            yield return new WaitForSeconds(0.8f);
+            Assert.IsFalse(game.hero.Ducking, "Raja stayed down after letting go");
+        }
+
+        [UnityTest]
+        public IEnumerator DoubleJumpIsADoubleSomersault()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            // a steady 60 fps, so no frame turns him so far that the angle wraps round
+            Time.captureDeltaTime = 1f / 60f;
+            int presses = 0;
+            game.TestInput = i => { if (presses < 2 && (presses == 0 || game.hero.vy < 4)) { i.jump = true; presses++; } };
+            // add up how far the somersault turns him, frame by frame
+            var flip = game.hero.f.flip;
+            float turned = 0, last = 0;
+            for (float waited = 0; waited < 1.5f; waited += Time.deltaTime)
+            {
+                yield return null;
+                float a = flip.localEulerAngles.z;
+                turned += Mathf.Abs(Mathf.DeltaAngle(last, a));
+                last = a;
+            }
+            game.TestInput = null;
+            Assert.AreEqual(2, presses, "The second jump was not made");
+            Assert.That(turned, Is.InRange(700f, 740f), $"The double jump turned him {turned:0} degrees, not two full somersaults");
         }
 
         [UnityTest]

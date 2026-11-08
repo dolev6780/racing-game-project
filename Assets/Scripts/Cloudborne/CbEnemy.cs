@@ -212,7 +212,9 @@ namespace Cloudborne
                         {
                             hitDone = true;
                             float ddx = (hero.x - x) * facing;
-                            if (ddx > -0.3f && ddx < reach + 0.4f && hero.y < 1.8f) hero.TakeHit(dmg, facing);
+                            // a raider's slash goes over a ducking Raja; the guard's shield push still hits him
+                            bool ducked = kind == Kind.Hyena && hero.Ducking;
+                            if (ddx > -0.3f && ddx < reach + 0.4f && hero.y < 1.8f && !ducked) hero.TakeHit(dmg, facing);
                             CbFx.Sfx("swing", 0.5f);
                         }
                     }

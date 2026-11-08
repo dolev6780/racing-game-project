@@ -30,7 +30,12 @@ namespace Cloudborne
             new Attack { dur = 0.22f, a = 0.3f, b = 0.65f, range = 1.7f, dmg = 6, kb = 2 },
             new Attack { dur = 0.3f, a = 0.3f, b = 0.65f, range = 2.0f, dmg = 9, kb = 3 },
             new Attack { dur = 0.38f, a = 0.42f, b = 0.72f, range = 2.1f, dmg = 14, kb = 8, up = 5, fin = true },
+            // 4: crouch + HIT, a low sweep that knocks the legs out from under them
+            new Attack { dur = 0.42f, a = 0.35f, b = 0.7f, range = 2.2f, dmg = 9, kb = 2, up = 6, fin = true },
         };
+        const int Sweep = 4;
+        // the double jump is a double forward somersault, tucked
+        const float FlipTime = 0.62f, FlipTurns = 2f;
 
         static readonly Vector3 StaffBackPos = new Vector3(0.02f, 0.32f, -0.3f);
         static readonly Quaternion StaffBackRot = CbArt.Rot(-0.12f, 0, 0.82f);
@@ -45,6 +50,9 @@ namespace Cloudborne
         public State state = State.Idle;
         public Move move = Move.None;
         public bool empower;
+        /// <summary>Ducking (down on the stick, on the ground): moves slowly, a slash passes over him, HIT sweeps.</summary>
+        public bool crouching;
+        public bool Ducking => crouching && y <= 0.01f && (state == State.Idle || state == State.Run || (state == State.Atk && combo == Sweep));
         public float T => t;
 
         readonly CbGame g;
@@ -124,7 +132,7 @@ namespace Cloudborne
             if (m == Move.Slam) { vy = 6; vx = facing * 2; }
         }
 
-        void EndStaff() { state = air ? State.Air : State.Idle; move = Move.None; staffHold = 1f; combo = 0; }
+        void EndStaff() { state = air ? State.Air : State.Idle; move = Move.None; staffHold = 0.5f; combo = 0; }
 
         bool MeleeHits(float range, float dmg, float kb, float up, bool big, bool breaker)
         {
@@ -241,12 +249,13 @@ namespace Cloudborne
             bool free = state == State.Idle || state == State.Run || state == State.Air;
             if (free)
             {
-                vx += (input.x * 7 - vx) * Damp(air ? 6 : 14, dt);
+                crouching = !air && input.y < -0.5f;
+                vx += (input.x * (crouching ? 2.5f : 7f) - vx) * Damp(air ? 6 : 14, dt);
                 if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
                 if (input.jump && jumps < 2)
                 {
                     vy = jumps == 0 ? 11.5f : 10f;
-                    if (jumps == 1) flipT = 0.45f;
+                    if (jumps == 1) flipT = FlipTime;
                     jumps++; air = true; state = State.Air;
                     CbFx.Sfx("jump", 0.6f);
                     if (jumps == 1) CbFx.Spark(new Vector3(x, 0.1f, -0.3f), CbFx.Dust, 8, 3, 0.5f, 0.4f, 2);
@@ -263,6 +272,7 @@ namespace Cloudborne
                 {
                     if (air && input.y < -0.5f) StartStaff(Move.Slam);
                     else if (!air && input.y > 0.5f) StartStaff(Move.Launch);
+                    else if (!air && input.y < -0.5f) StartPaw(Sweep);
                     else if (!air && sinceDash < 0.35f) StartStaff(Move.Thrust);
                     else if (!air || airHits < 3) StartPaw(0);
                 }
@@ -316,7 +326,10 @@ namespace Cloudborne
             if (flipT > 0)
             {
                 flipT = Mathf.Max(0, flipT - dt);
-                f.flip.localRotation = CbArt.Rot(0, 0, -facing * (1 - flipT / 0.45f) * Mathf.PI * 2);
+                // eased: a quick tuck-and-turn in the middle, slower out of the jump and into the opening
+                float p = 1 - flipT / FlipTime;
+                p = p * p * (3 - 2 * p);
+                f.flip.localRotation = CbArt.Rot(0, 0, -facing * p * FlipTurns * Mathf.PI * 2);
             }
             else f.flip.localRotation = Quaternion.identity;
 
@@ -337,17 +350,23 @@ namespace Cloudborne
             if (model == null) return;
             switch (state)
             {
+                case State.Idle when crouching: model.Show("Cautious_Crouch_Walk_Forward", 0.2f, 0.1f); break;
+                case State.Run when crouching: model.Loop("Cautious_Crouch_Walk_Forward", runPh / (Mathf.PI * 2) * 0.6f); break;
                 case State.Idle: model.LoopSeconds("Combat_Stance", g.clock); break;
                 case State.Run: model.Loop("RunFast", runPh / (Mathf.PI * 2)); break;
+                // the somersault shows the tuck of the backflip clip (its hips' turn removed): the game turns him
+                case State.Air when flipT > 0: model.Window("Backflip_Jump", 0.3f, 0.52f, 1 - flipT / FlipTime, 0.06f); break;
                 case State.Air: model.Show("Regular_Jump", vy > 0 ? 0.32f : 0.5f, 0.12f); break;
                 case State.Atk:
                 {
                     float u = t / Paw[combo].dur;
-                    if (air) model.Window("Flying_Fist_Kick", 0.38f, 0.6f, u);
+                    // each strike lands inside its hit window (Paw[].a to .b)
+                    if (air) model.Window("Jumping_Punch", 0.25f, 0.6f, u);
                     else if (combo == 0) model.Window("Punch_Combo", 0.25f, 0.5f, u);
                     else if (combo == 1) model.Window("Punch_Combo", 0.5f, 0.75f, u);
-                    else if (combo == 2) model.Window("Roundhouse_Kick", 0.3f, 0.65f, u);
-                    else model.Window("Kung_Fu_Punch", 0.3f, 0.48f, u);
+                    else if (combo == 2) model.Window("Lunge_Spin_Kick", 0.5f, 0.95f, u);
+                    else if (combo == 3) model.Window("Rising_Flying_Kick", 0f, 0.5f, u);
+                    else model.Window("Sweep_Kick", 0.38f, 0.62f, u);
                     break;
                 }
                 case State.Staff:
@@ -360,7 +379,7 @@ namespace Cloudborne
                 case State.Blast: model.Window("Charged_Spell_Cast", 0f, 0.3f, t / 0.32f); break;
                 case State.Charge: model.Show("Charged_Spell_Cast", 0.45f + Mathf.PingPong(t * 0.2f, 0.08f)); break;
                 case State.Roar: model.Window("Chest_Pound_Taunt", 0.2f, 0.75f, t); break;
-                case State.Dash: model.Window("Roll_Dodge", 0.25f, 0.6f, t / 0.2f); break;
+                case State.Dash: model.Window("Quick_Step_and_Spin_Dodge", 0.1f, 0.75f, t / 0.2f); break;
                 case State.Hurt: model.Window("Hit_Reaction", 0.1f, 0.6f, t / 0.35f); break;
                 case State.Dead: model.Window("Knock_Down", 0f, 1f, t / 1.4f); break;
             }

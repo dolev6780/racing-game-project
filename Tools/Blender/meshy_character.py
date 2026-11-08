@@ -7,7 +7,10 @@ removes the clips' travel: the game moves the character itself, so a roll or a j
 moved the hips would carry the body away from where the game thinks it is. Hips keep their bob and
 crouch, but stay centred over the character's origin and never rise above their rest height.
 
-    blender --background --python Tools/Blender/meshy_character.py -- OUT_DIR NAME anim1.glb [anim2.glb ...]
+With --upright CLIP[,CLIP...] those clips also lose the hips' rotation: a flip then keeps only its tucked
+pose, and the game turns the whole character itself (so it can flip forwards, twice, in its own time).
+
+    blender --background --python Tools/Blender/meshy_character.py -- OUT_DIR NAME anim1.glb [anim2.glb ...] [--upright CLIPS]
 
 Writes OUT_DIR/NAME.fbx (mesh, skeleton, every clip) and OUT_DIR/NAME_Albedo.png (base colour).
 """
@@ -19,6 +22,11 @@ import bpy
 from mathutils import Vector
 
 args = sys.argv[sys.argv.index("--") + 1:]
+upright = set()
+if "--upright" in args:
+    i = args.index("--upright")
+    upright = set(args[i + 1].split(","))
+    del args[i:i + 2]
 out_dir, name, sources = args[0], args[1], args[2:]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -56,19 +64,43 @@ while hips.parent:
 to_arm = hips.matrix_local.to_3x3()                     # hips' rest axes in armature space
 up = (arm.matrix_world.to_3x3().inverted() @ Vector((0, 0, 1))).normalized()
 path = f'pose.bones["{hips.name}"].location'
+
+
+def find_curve(a, data_path, index):
+    try:
+        return a.fcurves.find(data_path, index=index)
+    except AttributeError:                              # Blender 5: curves live in the action's channelbag
+        for layer in a.layers:
+            for strip in layer.strips:
+                for bag in strip.channelbags:
+                    fc = bag.fcurves.find(data_path, index=index)
+                    if fc:
+                        return fc
+    return None
+
+
+def hold(curve, value):
+    """Replaces a curve's keys with one constant value over the clip."""
+    keys = [k.co.x for k in curve.keyframe_points]
+    curve.keyframe_points.clear()
+    curve.keyframe_points.add(2)
+    for k, f in enumerate((min(keys), max(keys))):
+        curve.keyframe_points[k].co = (f, value)
+    curve.update()
+
+
 for a in clips:
     a.use_fake_user = True
-    curves = []
-    for i in range(3):
-        try:
-            fc = a.fcurves.find(path, index=i)
-        except AttributeError:                          # Blender 5: curves live in the action's channelbag
-            fc = None
-            for layer in a.layers:
-                for strip in layer.strips:
-                    for bag in strip.channelbags:
-                        fc = fc or bag.fcurves.find(path, index=i)
-        curves.append(fc)
+    if a.name.split("|")[-1] in upright:
+        for i, v in enumerate((1.0, 0.0, 0.0, 0.0)):
+            c = find_curve(a, f'pose.bones["{hips.name}"].rotation_quaternion', i)
+            if c:
+                hold(c, v)
+        for i in range(3):
+            c = find_curve(a, f'pose.bones["{hips.name}"].rotation_euler', i)
+            if c:
+                hold(c, 0.0)
+    curves = [find_curve(a, path, i) for i in range(3)]
     if not all(curves):
         continue
     f0, f1 = (int(round(v)) for v in a.frame_range)
