@@ -82,7 +82,7 @@ namespace Cloudborne
         const int BeamHits = 6;
         static Material fireCore, fireGlow, fireTail, fireTailInner, fireSprite;
         // the painted fireball (Resources/Cloudborne/Effects/Fireball): its length in metres, and where its ball sits
-        const float FireballLength = 2.6f, FireballHead = 0.85f;
+        const float FireballLength = 2.6f, FireballHead = 0.88f;
 
         public static CbGame Boot()
         {
