@@ -42,7 +42,8 @@ namespace Cloudborne
         // HEAVY on the ground: an overhead staff smash; holding HEAVY past SmashToWhirl turns it into the whirl
         const float SmashTime = 0.6f, SmashToWhirl = 0.2f;
         // ki comes back by itself (there is no charging any more) and with every hit
-        const float KiRegen = 5f, FireCost = 12f, SpecialCost = 50f;
+        // (slowly: ki crystals and hits are the real source)
+        const float KiRegen = 1.5f, FireCost = 12f, SpecialCost = 50f;
         // SPECIAL: the tiger flame cannon. Gathered for SpecialWindup, then the beam (CbGame.SpecialBeam) runs
         const float SpecialWindup = 0.45f, SpecialTime = 1.35f;
         /// <summary>The special shot unlocks later in the story; on for now so it can be tried.</summary>
@@ -193,8 +194,9 @@ namespace Cloudborne
                     if (g.HurtEnemy(e, dmg, facing, kb, up, big, breaker, fire: false, fromPlayer: true)) any = true;
                 }
             }
-            // crates in reach crack and burst too
+            // crates in reach crack and burst too; the cracked wall only gives way to the staff
             if (g.items != null && g.items.HitCrates(x, y, facing, range)) any = true;
+            if (g.level != null && g.level.Strike(x, y, facing, range, staff: breaker)) any = true;
             if (any) CbFx.Sfx(big ? "heavy" : "hit");
             return any;
         }
@@ -376,14 +378,17 @@ namespace Cloudborne
                 pose.sLx += Mathf.Sin(g.clock * 3) * 0.05f;
             }
 
-            // physics
+            // physics: the path, the stone blocks he can't walk through, the ledges he lands on
             if (state != State.Dash || !air) vy -= 30 * dt;
+            float prevX = x, prevY = y;
             y += vy * dt;
             x += vx * dt;
-            if (y <= 0)
+            if (g.level != null) x = g.level.BlockX(prevX, x, y);
+            float floor = g.level != null ? g.level.SupportAt(x, prevY) : 0;
+            if (y <= floor)
             {
-                if (air && vy < -6) CbFx.Spark(new Vector3(x, 0.1f, -0.3f), CbFx.Dust, 10, 3, 0.5f, 0.4f, 2);
-                y = 0; vy = 0;
+                if (air && vy < -6) CbFx.Spark(new Vector3(x, floor + 0.1f, -0.3f), CbFx.Dust, 10, 3, 0.5f, 0.4f, 2);
+                y = floor; vy = 0;
                 if (air)
                 {
                     air = false; jumps = 0; airDashed = false; airHits = 0;
@@ -631,6 +636,7 @@ namespace Cloudborne
                             if (e.dead || Mathf.Abs(e.x - x) > 3f + e.w || e.HitHeight - y > 2.6f) continue;
                             g.HurtEnemy(e, 14, e.x >= x ? 1 : -1, 5, 7, true, true, fire: false, fromPlayer: true);
                         }
+                        if (g.level != null) g.level.Strike(x, y, facing, 2f, staff: true);
                         CbFx.Spark(new Vector3(x + facing * 1.1f, 0.1f, -0.4f), CbFx.Dust, 18, 6, 0.6f, 0.5f, 4);
                         CbFx.Spark(new Vector3(x + facing * 1.1f, 0.2f, -0.4f), CbFx.Fire, 10, 6, 0.4f, 0.4f, 3);
                         g.shake = Mathf.Max(g.shake, 0.4f);

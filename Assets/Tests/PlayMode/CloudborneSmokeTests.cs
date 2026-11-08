@@ -62,6 +62,8 @@ namespace RacingGame.Tests
             Assert.Greater(game.world.root.GetComponentsInChildren<MeshRenderer>().Length, 20, "The jungle has too few parts");
             Assert.IsNotNull(Resources.Load<Shader>("Shaders/Glow"), "Glow shader missing");
             Assert.IsTrue(Resources.Load<Shader>("Shaders/Toon").isSupported, "The toon shader doesn't run");
+            foreach (var item in new[] { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll", "Crate" })
+                Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Items/{item}/{item}"), $"The {item} model is missing");
             foreach (var fx in new[] { "Fireball", "Beam", "Explosion" })
                 Assert.IsNotNull(CbVfx.Painted(fx), $"The painted {fx} effect is missing (Resources/Cloudborne/Effects)");
         }
@@ -212,6 +214,37 @@ namespace RacingGame.Tests
             game.TestInput = null;
             Assert.AreEqual(crates - 1, game.items.CrateCount, "Blows did not break the crate");
             Assert.Greater(game.items.ItemCount, things, "The broken crate held nothing");
+        }
+
+        [UnityTest]
+        public IEnumerator WallsLedgesAndTheStaff()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            var level = game.level;
+            float wallLeft = CbLevel.WallX - 0.65f - CbLevel.HalfWidth;
+            // the cracked wall stops him on the path, and is taller than a double jump
+            Assert.LessOrEqual(level.BlockX(57f, 60f, 0f), wallLeft + 0.001f, "Raja walked into the cracked wall");
+            Assert.LessOrEqual(level.BlockX(57f, 60f, 3.9f), wallLeft + 0.001f, "A double jump clears the cracked wall");
+            // paws and kicks clang off it; two staff blows break it and the way is open
+            level.Strike(wallLeft, 0f, 1, 1.7f, staff: false);
+            Assert.IsTrue(level.WallStanding, "A paw broke the cracked wall");
+            level.Strike(wallLeft, 0f, 1, 2.6f, staff: true);
+            level.Strike(wallLeft, 0f, 1, 2.6f, staff: true);
+            Assert.IsFalse(level.WallStanding, "Two staff blows did not break the cracked wall");
+            Assert.AreEqual(60f, level.BlockX(57f, 60f, 0f), 0.001f, "The broken wall still blocks the path");
+            // a ledge is landed on from above and jumped through from below
+            Assert.AreEqual(3.9f, level.SupportAt(105f, 4.5f), 0.001f, "Raja does not land on the first ledge");
+            Assert.AreEqual(0f, level.SupportAt(105f, 3f), 0.001f, "The ledge stops him jumping up through it");
+            // the hero really stands on it: dropped above it, he comes to rest on top
+            game.SkipFights();
+            game.hero.y = 4.6f;
+            game.hero.vy = 0;
+            game.hero.x = 105f;
+            yield return new WaitForSeconds(0.4f);
+            Assert.AreEqual(3.9f, game.hero.y, 0.05f, "Raja fell through the ledge");
         }
 
         [UnityTest]

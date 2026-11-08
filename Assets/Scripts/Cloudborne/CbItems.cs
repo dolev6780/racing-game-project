@@ -6,8 +6,8 @@ namespace Cloudborne
     /// <summary>
     /// Things to find on the way: healing mangoes, ki crystals, the rare golden fruit (full health and ki), tiger
     /// coins, and the secret scroll that unlocks a power. Breakable bamboo crates along the path hold some of them,
-    /// beaten hyenas drop others, and a few are hidden (a golden fruit on top of the shrine gate, the scroll behind
-    /// the start). Each item uses its model from Resources/Cloudborne/Items/Name/Name (drawn in Canva, built in
+    /// beaten hyenas drop others, and a few are hidden (a golden fruit at the top of a crumbling climb, the scroll
+    /// behind the start). Each item uses its model from Resources/Cloudborne/Items/Name/Name (drawn in Canva, built in
     /// Meshy) or a glowing stand-in, bobs and turns, and is picked up when Raja touches it.
     /// </summary>
     public class CbItems
@@ -83,8 +83,9 @@ namespace Cloudborne
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(4 + i * 0.9f, 1.2f + Mathf.Sin(i / 4f * Mathf.PI) * 1.6f, 0), resting: true);
             for (int i = 0; i < 6; i++) Spawn(Kind.Coin, new Vector3(30 + i * 0.8f, 0.7f, 0), resting: true);
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(50 + i * 0.9f, 1.4f + Mathf.Sin(i / 4f * Mathf.PI) * 2.2f, 0), resting: true);
-            // secrets: a golden fruit on top of the shrine gate (a double jump reaches it), the scroll behind the start
-            Spawn(Kind.GoldenFruit, new Vector3(74f, 4.8f, 0), resting: true);
+            // secrets: a golden fruit high above the path at the top of the climb (the last ledges crumble), the scroll
+            // behind the start
+            Spawn(Kind.GoldenFruit, new Vector3(111.6f, 8.3f, 0), resting: true);
             Spawn(Kind.Scroll, new Vector3(CbWorld.LevelMin + 1.2f, 0.8f, 0), resting: true);
         }
 

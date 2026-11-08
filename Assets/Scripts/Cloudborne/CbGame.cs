@@ -49,6 +49,9 @@ namespace Cloudborne
         public CbWorld world;
         /// <summary>Pickups, crates and secrets.</summary>
         public CbItems items;
+        /// <summary>Things to climb and things in the way.</summary>
+        public CbLevel level;
+        bool cleared;
         public readonly List<CbEnemy> enemies = new List<CbEnemy>();
         public Zone lockZone;
         public float clock, time, hitstop, shake, slow;
@@ -110,6 +113,7 @@ namespace Cloudborne
             CbVfx.Init(transform);
             world = new CbWorld(transform);
             items = new CbItems(this, transform);
+            level = new CbLevel(this, transform);
             actors = new GameObject("Actors").transform;
             actors.SetParent(transform, false);
             hero = new CbHero(this, actors);
@@ -216,6 +220,8 @@ namespace Cloudborne
             foreach (var d in debris) if (d.t != null) Destroy(d.t.gameObject);
             debris.Clear();
             items?.Reset();
+            level?.Reset();
+            cleared = false;
             hud?.SetCoins(0);
             EndBeam();
             EndWheel();
@@ -269,6 +275,13 @@ namespace Cloudborne
                 if (pending[i].zone == lockZone) enemies.Add(new CbEnemy(this, pending[i].kind, pending[i].x, actors));
                 pending.RemoveAt(i);
             }
+            if (lockZone == null && zoneIdx >= Zones.Length && !cleared && hero.x >= CbWorld.GoalX)
+            {
+                cleared = true;
+                hud.ShowGo(false);
+                hud.Banner("STAGE CLEAR");
+                Invoke(nameof(Won), 1.2f);
+            }
             if (lockZone == null)
             {
                 if (zoneIdx < Zones.Length && hero.x > Zones[zoneIdx].x - 3)
@@ -287,8 +300,9 @@ namespace Cloudborne
                 zoneIdx++;
                 if (zoneIdx >= Zones.Length)
                 {
-                    hud.Banner("STAGE CLEAR");
-                    Invoke(nameof(Won), 1.2f);
+                    // the last fight is won: on to the shrine gate at the end of the stage
+                    hud.ShowGo(true);
+                    hud.SetWave("Reach the shrine gate");
                 }
                 else
                 {
@@ -733,7 +747,7 @@ namespace Cloudborne
                 for (int i = enemies.Count - 1; i >= 0; i--)
                     if (enemies[i].Update(edt)) { enemies[i].f.Destroy(); enemies.RemoveAt(i); }
                 UpdateShots(dt);
-                if (mode == Mode.Play) { UpdateFlow(dt); items.Update(dt, hero, cam); }
+                if (mode == Mode.Play) { UpdateFlow(dt); items.Update(dt, hero, cam); level.Update(dt, hero); }
                 hud.SetBars(hero.hp, hero.ki);
                 if (score != lastScore) { lastScore = score; hud.SetScore(score); }
                 if (mode == Mode.Over)
@@ -854,5 +868,15 @@ namespace Cloudborne
 
         /// <summary>Test hook: puts Raja at a position (e.g. next to a fight zone).</summary>
         public void Teleport(float x) => hero.x = x;
+
+        /// <summary>Test hook: counts every fight as won, so Raja can go anywhere on the stage.</summary>
+        public void SkipFights()
+        {
+            pending.Clear();
+            foreach (var e in enemies) e.f.Destroy();
+            enemies.Clear();
+            lockZone = null;
+            zoneIdx = Zones.Length;
+        }
     }
 }
