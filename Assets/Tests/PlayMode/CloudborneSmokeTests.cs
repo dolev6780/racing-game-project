@@ -166,7 +166,8 @@ namespace RacingGame.Tests
             if (ghost.sharedMesh.vertexCount == 0 || ghost.sharedMesh.bounds.size == Vector3.zero)
                 Assert.Ignore("No skinning without a graphics device: the afterimage's size can't be checked here");
             var raja = game.hero.model.skin.bounds.size;
-            var size = ghost.GetComponent<MeshRenderer>().bounds.size;
+            // the copy's own size: its mesh times its scale (a headless Unity leaves renderer bounds at zero)
+            var size = Vector3.Scale(ghost.sharedMesh.bounds.size, ghost.transform.lossyScale);
             float ratio = size.magnitude / raja.magnitude;
             Assert.That(ratio, Is.InRange(0.6f, 1.6f), $"The afterimage is {ratio:0.00} times Raja's size ({size} vs {raja})");
         }
