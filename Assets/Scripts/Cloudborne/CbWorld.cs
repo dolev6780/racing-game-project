@@ -5,10 +5,12 @@ using UnityEngine.Rendering;
 namespace Cloudborne
 {
     /// <summary>
-    /// The jungle of stage 1-1, built from code: path and grass, ferns, jungle trees and palms, mossy rocks,
+    /// The jungle of stage 1-1: path and grass, ferns, jungle trees and palms, big leaves, mossy rocks,
     /// karst pillars with waterfalls, shrine ruins, far canopy layers, light shafts, ground mist, fireflies
     /// and dark foreground leaves. Gameplay happens on the plane z = 0; the background is at +z, the camera at -z.
-    /// Static scenery is merged into one mesh per material.
+    /// The plants are models drawn in Canva and built in Meshy (Resources/Cloudborne/Jungle); anything not modelled
+    /// yet is built from code. Static scenery is merged into one mesh per material and stretch of the level, so
+    /// the parts out of view are skipped.
     /// </summary>
     public class CbWorld
     {
@@ -21,15 +23,21 @@ namespace Cloudborne
         readonly List<Transform> mists = new List<Transform>();
         Transform flies;
         static readonly string[] Greens = { "#2e7a3c", "#3c8f46", "#256a36", "#4a9a4c", "#1f5e33" };
+        // the scenery models, made by Tools/Blender/meshy_prop.py with their foot at the origin, sized in metres
+        const string TreeModel = "Tree", PalmModel = "Palm", FernModel = "Fern", LeavesModel = "Leaves";
+        static readonly Color ForegroundShade = new Color(0.16f, 0.24f, 0.2f);
+        readonly Dictionary<(string, float, Color), (GameObject prefab, Material mat)> models =
+            new Dictionary<(string, float, Color), (GameObject, Material)>();
 
         public CbWorld(Transform parent)
         {
             root = new GameObject("Jungle").transform;
             root.SetParent(parent, false);
             Random.InitState(7);
-            BuildGround();
+            // near casts shadows; far (the distance and the low ground cover) doesn't
             var near = new GameObject("near").transform; near.SetParent(root, false);
             var far = new GameObject("far").transform; far.SetParent(root, false);
+            BuildGround(far);
             BuildPlants(near, far);
             BuildRocksAndRuins(near);
             BuildBackground(far);
@@ -41,7 +49,7 @@ namespace Cloudborne
 
         // ---------- ground ----------
 
-        void BuildGround()
+        void BuildGround(Transform far)
         {
             var grass = CbArt.NewToon(Color.white, 0f, CbArt.Grass);
             grass.mainTextureScale = new Vector2(70, 4);
@@ -71,8 +79,17 @@ namespace Cloudborne
                 float k = Random.Range(0.6f, 1.6f);
                 Add(blade, grassMats[i % 4], Matrix4x4.TRS(p, q, new Vector3(0.05f * k, 0.42f * k, 0.05f * k)));
             }
+            if (Has(FernModel))
+            {
+                for (int c = 0; c < 120; c++)
+                {
+                    bool front = Random.value < 0.3f;
+                    var at = new Vector3(Random.Range(-40f, 140f), 0, front ? -Random.Range(4.6f, 6.8f) : Random.Range(2.2f, 9.5f));
+                    Place(FernModel, far, at, front ? Random.Range(0.6f, 0.85f) : Random.Range(0.8f, 1.3f));
+                }
+            }
             var fernMats = new[] { CbArt.Toon("#2c6e30"), CbArt.Toon("#3a8a3c"), CbArt.Toon("#245c2a") };
-            for (int c = 0; c < 300; c++)
+            for (int c = 0; c < (Has(FernModel) ? 0 : 300); c++)
             {
                 bool front = Random.value < 0.3f;
                 var center = new Vector3(Random.Range(-40f, 140f), 0, front ? -Random.Range(4.6f, 6.8f) : Random.Range(2.2f, 9.5f));
@@ -91,13 +108,59 @@ namespace Cloudborne
 
         void BuildPlants(Transform near, Transform far)
         {
+            bool trees = Has(TreeModel), palms = Has(PalmModel);
             for (float x = -30; x < 150; x += Random.Range(6f, 10f))
             {
                 float z = Random.Range(7.5f, 11f);
-                if (Random.value < 0.35f) Palm(near, x, z, Random.Range(1f, 1.3f));
+                if (Random.value < 0.35f)
+                {
+                    if (palms) Place(PalmModel, near, new Vector3(x, 0, z), Random.Range(0.95f, 1.2f), CbArt.PropOutline);
+                    else Palm(near, x, z, Random.Range(1f, 1.3f));
+                }
+                else if (trees) Place(TreeModel, near, new Vector3(x, 0, z), Random.Range(0.85f, 1.1f), CbArt.PropOutline);
                 else JungleTree(near, x, z, Random.Range(0.85f, 1.1f), CbArt.PropOutline);
             }
-            for (float x = -30; x < 150; x += Random.Range(7f, 11f)) JungleTree(far, x, Random.Range(17f, 28f), Random.Range(1.3f, 1.9f), 0f);
+            for (float x = -30; x < 150; x += Random.Range(7f, 11f))
+            {
+                float z = Random.Range(17f, 28f), s = Random.Range(1.3f, 1.9f);
+                if (trees) Place(TreeModel, far, new Vector3(x, 0, z), s);
+                else JungleTree(far, x, z, s, 0f);
+            }
+            // clumps of big leaves among the rocks between the path and the trees
+            if (Has(LeavesModel))
+                for (float x = -25; x < 145; x += Random.Range(5f, 9f))
+                    Place(LeavesModel, near, new Vector3(x + Random.Range(-1f, 1f), 0, Random.Range(2.8f, 6f)), Random.Range(0.75f, 1.15f), CbArt.PropOutline);
+        }
+
+        // ---------- modelled scenery ----------
+
+        static string ModelPath(string name) => $"Cloudborne/Jungle/{name}/{name}";
+
+        static bool Has(string name) => Resources.Load<GameObject>(ModelPath(name)) != null;
+
+        /// <summary>
+        /// Places a copy of a scenery model standing at pos, its drawn front turned towards the camera give or take a
+        /// little. Copies with the same look share one material, so the bake merges them.
+        /// </summary>
+        Transform Place(string name, Transform parent, Vector3 pos, float scale, float outline = 0f, Color? tint = null)
+        {
+            var key = (name, outline, tint ?? Color.white);
+            if (!models.TryGetValue(key, out var model))
+            {
+                var path = ModelPath(name);
+                var mat = CbArt.AnimeToon(Resources.Load<Texture2D>(path + "_Albedo"), outline);
+                mat.color = key.Item3;
+                // scenery takes a softer rim light than the characters, so they stand out in front of it
+                mat.SetFloat("_RimStrength", 0.25f);
+                models[key] = model = (Resources.Load<GameObject>(path), mat);
+            }
+            // Meshy's front is Unity's +Z after the export; the camera looks along +Z from in front
+            var t = Object.Instantiate(model.prefab, parent, false).transform;
+            t.localPosition = pos;
+            t.localRotation = Quaternion.Euler(0, 180 + Random.Range(-35f, 35f), 0);
+            t.localScale = Vector3.one * scale;
+            foreach (var r in t.GetComponentsInChildren<MeshRenderer>(true)) r.sharedMaterial = model.mat;
+            return t;
         }
 
         static void JungleTree(Transform parent, float x, float z, float s, float outline)
@@ -224,8 +287,15 @@ namespace Cloudborne
         void BuildForeground(Transform far)
         {
             var dark = CbArt.Emissive(CbArt.Hex("#13221a"));
+            bool leaves = Has(LeavesModel);
             for (float x = -20; x < 150; x += Random.Range(14f, 22f))
             {
+                if (leaves)
+                {
+                    // big leaves in shade right in front of the camera frame the bottom of the view
+                    Place(LeavesModel, far, new Vector3(x, -1.2f, -Random.Range(6.8f, 7.8f)), Random.Range(1f, 1.35f), 0f, ForegroundShade);
+                    continue;
+                }
                 int n = Random.Range(3, 5);
                 float z = -Random.Range(6.8f, 7.8f);
                 for (int k = 0; k < n; k++)
@@ -308,20 +378,26 @@ namespace Cloudborne
 
         // ---------- merging ----------
 
-        /// <summary>Merges every mesh under <paramref name="group"/> into one mesh per material, then removes the parts.</summary>
+        const float ChunkWidth = 24f;
+
+        /// <summary>
+        /// Merges every mesh under <paramref name="group"/> into one mesh per material and stretch of the level
+        /// (ChunkWidth wide), then removes the parts. The camera skips the stretches out of view.
+        /// </summary>
         static void Bake(Transform group, bool shadows)
         {
-            var batches = new Dictionary<Material, List<CombineInstance>>();
+            var batches = new Dictionary<(Material, int), List<CombineInstance>>();
             var toLocal = group.worldToLocalMatrix;
             foreach (var mf in group.GetComponentsInChildren<MeshFilter>())
             {
                 var mr = mf.GetComponent<MeshRenderer>();
                 if (mr == null || mf.sharedMesh == null) continue;
-                if (!batches.TryGetValue(mr.sharedMaterial, out var list)) batches[mr.sharedMaterial] = list = new List<CombineInstance>();
+                var key = (mr.sharedMaterial, Mathf.FloorToInt(mf.transform.position.x / ChunkWidth));
+                if (!batches.TryGetValue(key, out var list)) batches[key] = list = new List<CombineInstance>();
                 list.Add(new CombineInstance { mesh = mf.sharedMesh, transform = toLocal * mf.transform.localToWorldMatrix });
             }
             for (int i = group.childCount - 1; i >= 0; i--) Object.Destroy(group.GetChild(i).gameObject);
-            foreach (var kv in batches) MakeBatch(kv.Key, kv.Value, group, shadows);
+            foreach (var kv in batches) MakeBatch(kv.Key.Item1, kv.Value, group, shadows);
         }
 
         static void MakeBatch(Material m, List<CombineInstance> list, Transform parent, bool shadows)

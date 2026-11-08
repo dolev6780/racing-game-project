@@ -34,7 +34,7 @@ namespace UnityEditor
     {
         public ModelImporterAnimationType animationType;
         public ModelImporterMaterialImportMode materialImportMode;
-        public bool importAnimation, importCameras, importLights;
+        public bool importAnimation, importCameras, importLights, isReadable;
     }
     public class AssetPostprocessor
     {

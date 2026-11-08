@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using Cloudborne;
 using NUnit.Framework;
 using UnityEngine;
@@ -36,6 +37,15 @@ namespace RacingGame.Tests
             Assert.AreEqual(20, game.hero.model.ClipCount, "Raja's model is missing animation clips");
             foreach (var prop in new[] { "Staff", "Machete", "Shield" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Props/{prop}/{prop}"), $"The {prop} model is missing");
+            foreach (var plant in new[] { "Tree", "Palm", "Fern", "Leaves" })
+            {
+                var model = Resources.Load<GameObject>($"Cloudborne/Jungle/{plant}/{plant}");
+                Assert.IsNotNull(model, $"The jungle's {plant} model is missing");
+                Assert.IsTrue(model.GetComponentInChildren<MeshFilter>().sharedMesh.isReadable, $"The {plant} mesh must be readable to be merged");
+            }
+            // the plants are merged into the scenery: no copy of a model is left standing on its own
+            Assert.AreEqual(0, game.world.root.GetComponentsInChildren<Transform>().Count(t => t.name.StartsWith("Tree") || t.name.StartsWith("Palm")),
+                "Copies of the plant models were left unmerged");
             Assert.Greater(game.world.root.GetComponentsInChildren<MeshRenderer>().Length, 20, "The jungle has too few parts");
             Assert.IsNotNull(Resources.Load<Shader>("Shaders/Glow"), "Glow shader missing");
         }
