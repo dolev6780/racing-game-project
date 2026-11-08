@@ -1,6 +1,7 @@
 // Cartoon (cel) shading in the style of kart racers:
 // banded lighting with tinted shadows, a crisp specular highlight, rim light and an optional outline.
 // Two versions: URP (first SubShader) and the built-in pipeline (fallback). Receives and casts shadows, supports fog.
+// _Cull Off draws both sides of thin surfaces such as leaves, lit from the side that faces the camera.
 Shader "RacingGame/Toon"
 {
     Properties
@@ -19,6 +20,7 @@ Shader "RacingGame/Toon"
         _OutlineWidth ("Outline Width", Range(0,5)) = 0
         [HDR] _EmissionColor ("Emission", Color) = (0,0,0,0)
         _EmissionMap ("Emission Mask", 2D) = "white" {}
+        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
     }
 
     // ---------- Universal Render Pipeline ----------
@@ -51,6 +53,7 @@ Shader "RacingGame/Toon"
         {
             Name "ToonForward"
             Tags { "LightMode"="UniversalForward" }
+            Cull [_Cull]
 
             HLSLPROGRAM
             #pragma vertex vert
@@ -93,11 +96,11 @@ Shader "RacingGame/Toon"
                 return o;
             }
 
-            half4 frag (Varyings i) : SV_Target
+            half4 frag (Varyings i, FRONT_FACE_TYPE face : FRONT_FACE_SEMANTIC) : SV_Target
             {
                 half4 albedo = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv) * _Color;
 
-                float3 n = normalize(i.normalWS);
+                float3 n = normalize(i.normalWS) * IS_FRONT_VFACE(face, 1.0, -1.0);
                 float3 v = GetWorldSpaceNormalizeViewDir(i.positionWS);
                 Light light = GetMainLight(TransformWorldToShadowCoord(i.positionWS));
                 float3 l = light.direction;
@@ -186,7 +189,7 @@ Shader "RacingGame/Toon"
             ZWrite On
             ZTest LEqual
             ColorMask 0
-            Cull Back
+            Cull [_Cull]
 
             HLSLPROGRAM
             #pragma vertex vert
@@ -231,7 +234,7 @@ Shader "RacingGame/Toon"
             Tags { "LightMode"="DepthOnly" }
             ZWrite On
             ColorMask 0
-            Cull Back
+            Cull [_Cull]
 
             HLSLPROGRAM
             #pragma vertex vert
@@ -252,6 +255,7 @@ Shader "RacingGame/Toon"
         {
             Name "TOON"
             Tags { "LightMode"="ForwardBase" }
+            Cull [_Cull]
 
             CGPROGRAM
             #pragma vertex vert
@@ -305,11 +309,11 @@ Shader "RacingGame/Toon"
                 return o;
             }
 
-            fixed4 frag (v2f i) : SV_Target
+            fixed4 frag (v2f i, fixed facing : VFACE) : SV_Target
             {
                 fixed4 albedo = tex2D(_MainTex, i.uv) * _Color;
 
-                float3 n = normalize(i.worldNormal);
+                float3 n = normalize(i.worldNormal) * (facing > 0 ? 1.0 : -1.0);
                 float3 l = normalize(_WorldSpaceLightPos0.xyz);
                 float3 v = normalize(_WorldSpaceCameraPos.xyz - i.worldPos);
 

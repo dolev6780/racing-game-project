@@ -60,6 +60,7 @@ namespace RacingGame.Tests
             Assert.IsTrue(backdrop.GetComponent<MeshRenderer>().sharedMaterial.shader.isSupported, "The backdrop shader doesn't run");
             Assert.Greater(game.world.root.GetComponentsInChildren<MeshRenderer>().Length, 20, "The jungle has too few parts");
             Assert.IsNotNull(Resources.Load<Shader>("Shaders/Glow"), "Glow shader missing");
+            Assert.IsTrue(Resources.Load<Shader>("Shaders/Toon").isSupported, "The toon shader doesn't run");
         }
 
         [UnityTest]

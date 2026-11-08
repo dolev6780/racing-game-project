@@ -38,6 +38,8 @@ namespace Cloudborne
         // The painted textures are bright, and the toon light doubles them in the sun: plain, they glow lime green.
         // Toned down a little towards blue they sit behind the characters, like the painting.
         static readonly Color SceneryTone = new Color(0.66f, 0.64f, 0.7f);
+        // the meadow between the path and the trees glowed neon in the sun in the same way
+        static readonly Color GroundTone = new Color(0.72f, 0.7f, 0.74f);
         readonly Dictionary<(string, float, Color), (GameObject prefab, Material mat)> models =
             new Dictionary<(string, float, Color), (GameObject, Material)>();
 
@@ -63,7 +65,7 @@ namespace Cloudborne
 
         void BuildGround(Transform far)
         {
-            var grass = CbArt.NewToon(Color.white, 0f, CbArt.Grass);
+            var grass = CbArt.NewToon(GroundTone, 0f, CbArt.Grass);
             grass.mainTextureScale = new Vector2(70, 4);
             grass.SetFloat("_SpecStrength", 0f);
             CbArt.Box(grass, root, new Vector3(50, -3, 0), new Vector3(260, 6, 20));
@@ -82,7 +84,7 @@ namespace Cloudborne
                 if (!batches.TryGetValue(m, out var list)) batches[m] = list = new List<CombineInstance>();
                 list.Add(new CombineInstance { mesh = mesh, transform = mat });
             }
-            var grassMats = new[] { CbArt.Toon("#3f8f3a"), CbArt.Toon("#57a845"), CbArt.Toon("#2f7a35"), CbArt.Toon("#6bb84f") };
+            var grassMats = new[] { CbArt.Toon("#357a33"), CbArt.Toon("#468a3c"), CbArt.Toon("#2a6a30"), CbArt.Toon("#559443") };
             for (int i = 0; i < 1800; i++)
             {
                 bool front = Random.value < 0.35f;
@@ -123,25 +125,27 @@ namespace Cloudborne
             bool trees = Has(TreeModel), palms = Has(PalmModel);
             for (float x = -30; x < 150; x += Random.Range(6f, 10f))
             {
+                // The camera looks a little down and sees about 8 m up at the tree line: the modelled trees (9.5 m)
+                // and palms (7.5 m) are made smaller and set further back so their crowns show, not just trunks.
                 float z = Random.Range(7.5f, 11f);
                 if (Random.value < 0.35f)
                 {
-                    if (palms) Place(PalmModel, near, new Vector3(x, 0, z), Random.Range(0.95f, 1.2f), CbArt.PropOutline);
+                    if (palms) Place(PalmModel, near, new Vector3(x, 0, z + 1.5f), Random.Range(0.75f, 0.95f));
                     else Palm(near, x, z, Random.Range(1f, 1.3f));
                 }
-                else if (trees) Place(TreeModel, near, new Vector3(x, 0, z), Random.Range(0.85f, 1.1f), CbArt.PropOutline);
+                else if (trees) Place(TreeModel, near, new Vector3(x, 0, z + 1.5f), Random.Range(0.6f, 0.75f), CbArt.PropOutline);
                 else JungleTree(near, x, z, Random.Range(0.85f, 1.1f), CbArt.PropOutline);
             }
             for (float x = -30; x < 150; x += Random.Range(7f, 11f))
             {
                 float z = Random.Range(17f, 28f), s = Random.Range(1.3f, 1.9f);
-                if (trees) Place(TreeModel, far, new Vector3(x, 0, z), s);
+                if (trees) Place(TreeModel, far, new Vector3(x, 0, z), s * 0.62f);
                 else JungleTree(far, x, z, s, 0f);
             }
             // clumps of big leaves among the rocks between the path and the trees
             if (Has(LeavesModel))
                 for (float x = -25; x < 145; x += Random.Range(5f, 9f))
-                    Place(LeavesModel, near, new Vector3(x + Random.Range(-1f, 1f), 0, Random.Range(2.8f, 6f)), Random.Range(0.75f, 1.15f), CbArt.PropOutline);
+                    Place(LeavesModel, near, new Vector3(x + Random.Range(-1f, 1f), 0, Random.Range(2.8f, 6f)), Random.Range(0.75f, 1.15f));
         }
 
         // ---------- modelled scenery ----------
@@ -151,11 +155,18 @@ namespace Cloudborne
         static bool Has(string name) => Resources.Load<GameObject>(ModelPath(name)) != null;
 
         /// <summary>
+        /// Models of thin leaves, seen from both sides. They get no outline: the outline is drawn from the back faces,
+        /// so a leaf showing its back would turn black.
+        /// </summary>
+        static bool Leafy(string name) => name == LeavesModel || name == FernModel || name == PalmModel;
+
+        /// <summary>
         /// Places a copy of a scenery model standing at pos, its drawn front turned towards the camera give or take a
         /// little. Copies with the same look share one material, so the bake merges them.
         /// </summary>
         Transform Place(string name, Transform parent, Vector3 pos, float scale, float outline = 0f, Color? tint = null, float turn = 35f)
         {
+            if (Leafy(name)) outline = 0f;
             var key = (name, outline, tint ?? SceneryTone);
             if (!models.TryGetValue(key, out var model))
             {
@@ -164,6 +175,7 @@ namespace Cloudborne
                 mat.color = key.Item3;
                 // scenery takes a softer rim light than the characters, so they stand out in front of it
                 mat.SetFloat("_RimStrength", 0.25f);
+                if (Leafy(name)) mat.SetFloat("_Cull", (float)CullMode.Off);
                 models[key] = model = (Resources.Load<GameObject>(path), mat);
             }
             // Meshy's front is Unity's +Z after the export; the camera looks along +Z from in front. The turn and the
