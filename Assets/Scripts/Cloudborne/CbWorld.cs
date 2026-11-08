@@ -68,20 +68,28 @@ namespace Cloudborne
         // The ground is a platform, as in 2.5D side-scrollers: its grassy top at y = 0 with the path along its front
         // edge, and a front face of earth from that edge down out of view.
         const float GroundFront = -1.7f, GroundBack = 10f, GroundDepth = 10f;
-        const string GroundFacePath = "Cloudborne/Jungle/Ground/GroundFace";
+        // painted ground textures drawn in Canva; until they are in the project the speckled ones are used
+        const string GroundDir = "Cloudborne/Jungle/Ground/";
+        const string GroundFacePath = GroundDir + "GroundFace";
+        // the painted grass repeats every GrassTile metres, the path every PathWidth (it is square)
+        const float GrassTile = 4f, PathWidth = 3.2f;
+        // the painted path is a strong orange; toned like the rest of the ground
+        static readonly Color PathTone = new Color(0.86f, 0.8f, 0.78f);
         // the painted face shows its full height over FaceHeight metres, then repeats its bottom row (dark earth)
         const float FaceHeight = 3.5f;
 
         void BuildGround(Transform far)
         {
-            var grass = CbArt.NewToon(GroundTone, 0f, CbArt.Grass);
-            grass.mainTextureScale = new Vector2(70, 4);
+            var paintedGrass = Resources.Load<Texture2D>(GroundDir + "Grass");
+            var grass = CbArt.NewToon(GroundTone, 0f, paintedGrass != null ? paintedGrass : CbArt.Grass);
+            grass.mainTextureScale = paintedGrass != null ? new Vector2(260 / GrassTile, (GroundBack - GroundFront) / GrassTile) : new Vector2(70, 4);
             grass.SetFloat("_SpecStrength", 0f);
             CbArt.Box(grass, root, new Vector3(50, -GroundDepth / 2, (GroundFront + GroundBack) / 2),
                 new Vector3(260, GroundDepth, GroundBack - GroundFront));
             BuildGroundFace();
-            var path = CbArt.NewToon(Color.white, 0f, CbArt.Path);
-            path.mainTextureScale = new Vector2(60, 1);
+            var paintedPath = Resources.Load<Texture2D>(GroundDir + "Path");
+            var path = CbArt.NewToon(paintedPath != null ? PathTone : Color.white, 0f, paintedPath != null ? paintedPath : CbArt.Path);
+            path.mainTextureScale = paintedPath != null ? new Vector2(260 / PathWidth, 1) : new Vector2(60, 1);
             path.SetFloat("_SpecStrength", 0f);
             CbArt.Part(CbMesh.Quad, path, root, new Vector3(50, 0.01f, 0), new Vector3(260, 3.2f, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
             CbArt.Part(CbMesh.Quad, CbArt.Toon("#3a7a33"), root, new Vector3(50, -0.3f, 68), new Vector3(520, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
