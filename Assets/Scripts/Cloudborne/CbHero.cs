@@ -96,7 +96,7 @@ namespace Cloudborne
         float t, buffer, heavyBuffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, ghostT, blockT, crouchT, walkT, stowT;
         // putting the staff away: standing, he swings it up over his shoulder onto his back (the raise of the hammer
         // swing clip, both hands up behind his head); it leaves his hand at StowAt of the way
-        const float StowTime = 0.45f, StowAt = 0.6f;
+        const float StowTime = 0.32f, StowAt = 0.6f;
         // below WalkSpeed he walks (a light push on the stick), above it he runs; the walk clip's own pace
         const float WalkSpeed = 4.2f, WalkClipPace = 1.4f;
         int combo, jumps, airHits, hits;

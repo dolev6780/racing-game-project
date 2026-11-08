@@ -526,32 +526,29 @@ namespace Cloudborne
 
         // ---------- fire combos ----------
 
-        /// <summary>The rings of fire round Raja during the fire whirl: they follow him, spread, spin and fade.</summary>
-        class Wheel { public Transform holder, outer, inner; public Material outerM, innerM; public CbHero hero; public float t, life; public int dir; }
+        /// <summary>The ring of fire round Raja during the fire whirl: it follows him, spreads, spins and fades.</summary>
+        class Wheel { public Transform holder, ring; public Material mat; public CbHero hero; public float t, life; public int dir; }
         Wheel wheel;
+        // the ring runs round his middle
+        const float RingHeight = 1.05f;
         // flame bursts still to go off along the ground (the flame wave): when, where, which way
         readonly List<(float at, Vector3 pos, int dir)> waves = new List<(float, Vector3, int)>();
 
         /// <summary>
-        /// The fire whirl: rings of fire round Raja. Each is a band of the painted beam's flames (its white-hot core
-        /// running round the middle) tilted towards the camera, so it reads as an ellipse whose front half passes in
-        /// front of him and back half behind; a wide one at his waist spins his way, a smaller one at his chest
-        /// against it. A burst and a ring of fire on the ground as it starts.
+        /// The fire whirl: a ring of fire round Raja's middle - a band of the painted beam's flames (its white-hot
+        /// core running round it) tilted towards the camera, so it reads as an ellipse whose front half passes in
+        /// front of him and back half behind, spinning his way. A burst and a ring of fire on the ground as it starts.
         /// </summary>
         public void FireWheel(CbHero hero, int dir, float life)
         {
             EndWheel();
             var tex = CbVfx.Painted("Beam");
-            var holder = new GameObject("fireRings").transform;
+            var holder = new GameObject("fireRing").transform;
             holder.SetParent(transform, false);
-            var outerM = CbArt.Glow(new Color(1f, 0.75f, 0.4f, 0.95f) * 1.5f, tex != null ? tex : CbVfx.BeamStreaks);
-            var innerM = CbArt.Glow(new Color(1f, 0.85f, 0.55f, 0.8f) * 1.4f, tex != null ? tex : CbVfx.BeamStreaks);
-            outerM.mainTextureScale = new Vector2(3, 1);
-            innerM.mainTextureScale = new Vector2(2, 1);
-            var band = CbMesh.Frustum(1f, 48, false);
-            var outer = CbArt.Part(band, outerM, holder, new Vector3(0, 0.9f, 0), Vector3.one, CbArt.Rot(-0.38f, 0, 0.1f * dir), shadows: false);
-            var inner = CbArt.Part(band, innerM, holder, new Vector3(0, 1.45f, 0), Vector3.one, CbArt.Rot(-0.3f, 0, -0.15f * dir), shadows: false);
-            wheel = new Wheel { holder = holder, outer = outer, inner = inner, outerM = outerM, innerM = innerM, hero = hero, life = life, dir = dir };
+            var mat = CbArt.Glow(new Color(1f, 0.75f, 0.4f, 0.95f) * 1.5f, tex != null ? tex : CbVfx.BeamStreaks);
+            mat.mainTextureScale = new Vector2(3, 1);
+            var ring = CbArt.Part(CbMesh.Frustum(1f, 48, false), mat, holder, new Vector3(0, RingHeight, 0), Vector3.one, CbArt.Rot(-0.38f, 0, 0), shadows: false);
+            wheel = new Wheel { holder = holder, ring = ring, mat = mat, hero = hero, life = life, dir = dir };
             UpdateWheel(0);
             CbVfx.Ring(new Vector3(hero.x, 0.05f, 0), CbFx.Fire * 0.6f, 2.6f, 0.45f, ground: true);
             CbVfx.Explosion(new Vector3(hero.x, hero.y + 1f, -0.5f), 2.2f, 0.2f);
@@ -567,19 +564,16 @@ namespace Cloudborne
             // spread out in a tenth of the whirl, burn, then fade in the last fifth
             float spread = Mathf.Clamp01(k / 0.12f), fade = k < 0.8f ? 1 : Mathf.Max(0, 1 - (k - 0.8f) / 0.2f);
             w.holder.position = new Vector3(w.hero.x, w.hero.y, 0);
-            float ro = 0.4f + 0.95f * spread, ri = 0.3f + 0.65f * spread;
-            // the bands are short cylinders: their height is the flames' thickness
-            w.outer.localScale = new Vector3(ro, 0.42f * (0.5f + 0.5f * fade), ro);
-            w.inner.localScale = new Vector3(ri, 0.32f * (0.5f + 0.5f * fade), ri);
-            w.outerM.mainTextureOffset = new Vector2(-w.dir * w.t * 2.2f, 0);
-            w.innerM.mainTextureOffset = new Vector2(w.dir * w.t * 3f, 0);
-            var oc = new Color(1f, 0.75f, 0.4f) * 1.5f; oc.a = 0.95f * fade; w.outerM.SetColor("_Color", oc);
-            var ic = new Color(1f, 0.85f, 0.55f) * 1.4f; ic.a = 0.8f * fade; w.innerM.SetColor("_Color", ic);
+            float ro = 0.4f + 1f * spread;
+            // the band is a short cylinder: its height is the flames' thickness
+            w.ring.localScale = new Vector3(ro, 0.48f * (0.5f + 0.5f * fade), ro);
+            w.mat.mainTextureOffset = new Vector2(-w.dir * w.t * 2.4f, 0);
+            var c = new Color(1f, 0.75f, 0.4f) * 1.5f; c.a = 0.95f * fade; w.mat.SetColor("_Color", c);
             if (Random.value < 0.9f)
             {
                 // sparks flung off the outer ring
                 float a = Random.Range(0f, Mathf.PI * 2);
-                var p = new Vector3(w.hero.x + Mathf.Cos(a) * ro, w.hero.y + 0.9f + Random.Range(-0.2f, 0.2f), Mathf.Sin(a) * ro);
+                var p = new Vector3(w.hero.x + Mathf.Cos(a) * ro, w.hero.y + RingHeight + Random.Range(-0.2f, 0.2f), Mathf.Sin(a) * ro);
                 CbFx.Spark(p, Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 6, 0.4f, 0.35f, -2, Mathf.Cos(a) * 8);
             }
             if (k >= 1) EndWheel();
@@ -589,8 +583,7 @@ namespace Cloudborne
         {
             if (wheel == null) return;
             Destroy(wheel.holder.gameObject);
-            Destroy(wheel.outerM);
-            Destroy(wheel.innerM);
+            Destroy(wheel.mat);
             wheel = null;
         }
 
