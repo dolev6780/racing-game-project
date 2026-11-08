@@ -23,7 +23,7 @@ namespace Cloudborne
         readonly RectTransform root;
         readonly Image hpFill, kiFill, kiFrame, hurtFlash, slowFx, speedLines, impactFlash;
         float speedT, speedDur, speedStrength, linesFlip, flashT, flashA, flashGap;
-        readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt;
+        readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt;
         readonly RectTransform comboBox, pads, stickBase, stickKnob, title, paused, result, pauseBtn;
         readonly Text resultTitle, resultStats, startLabel;
         readonly List<Pad> buttons = new List<Pad>();
@@ -90,6 +90,7 @@ namespace Cloudborne
             // score, pause
             UIKit.Label(root, "SCORE", 10, new Color(1, 1, 1, 0.8f), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -14), new Vector2(120, 14), TextAnchor.MiddleRight);
             scoreTxt = UIKit.Label(root, "0", 24, Paper, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -28), new Vector2(160, 28), TextAnchor.MiddleRight, true);
+            coinTxt = UIKit.Label(root, "COINS 0", 20, Gold, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -58), new Vector2(160, 24), TextAnchor.MiddleRight, true);
             pauseBtn = UIKit.Rect(root, "pause", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -12), new Vector2(48, 48));
             UIKit.Image(pauseBtn, UIKit.Circle, Glass);
             UIKit.Image(UIKit.Rect(pauseBtn, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(48, 48)), UIKit.Ring, Paper);
@@ -257,6 +258,9 @@ namespace Cloudborne
         }
 
         public void SetScore(int s) => scoreTxt.text = s.ToString("N0");
+
+        /// <summary>Tiger coins picked up this run.</summary>
+        public void SetCoins(int n) => coinTxt.text = "COINS " + n;
 
         public void SetCombo(int n)
         {

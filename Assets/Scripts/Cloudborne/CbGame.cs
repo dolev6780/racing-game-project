@@ -47,6 +47,8 @@ namespace Cloudborne
         public CbHero hero;
         public CbHud hud;
         public CbWorld world;
+        /// <summary>Pickups, crates and secrets.</summary>
+        public CbItems items;
         public readonly List<CbEnemy> enemies = new List<CbEnemy>();
         public Zone lockZone;
         public float clock, time, hitstop, shake, slow;
@@ -107,6 +109,7 @@ namespace Cloudborne
             CbFx.Init(transform);
             CbVfx.Init(transform);
             world = new CbWorld(transform);
+            items = new CbItems(this, transform);
             actors = new GameObject("Actors").transform;
             actors.SetParent(transform, false);
             hero = new CbHero(this, actors);
@@ -212,6 +215,8 @@ namespace Cloudborne
             shots.Clear();
             foreach (var d in debris) if (d.t != null) Destroy(d.t.gameObject);
             debris.Clear();
+            items?.Reset();
+            hud?.SetCoins(0);
             EndBeam();
             EndWheel();
             waves.Clear();
@@ -360,6 +365,7 @@ namespace Cloudborne
             if (e.dead) return;
             e.Kill(dir);
             score += e.scoreValue;
+            items.Drop(new Vector3(e.x, e.HitHeight, 0));
             hitstop = Mathf.Max(hitstop, 0.06f);
             shake = Mathf.Max(shake, 0.4f);
             CbFx.Spark(new Vector3(e.x, e.HitHeight, -0.4f), e.burnT > 0 ? CbFx.Fire : CbFx.Purple, 26, 9, 0.6f, 0.6f, 2);
@@ -663,6 +669,7 @@ namespace Cloudborne
                         break;
                     }
                 }
+                if (!hit && items.ShotCrates(s.x, s.y)) hit = true;
                 if (hit || s.life <= 0)
                 {
                     var at = new Vector3(s.x, s.y, -0.3f);
@@ -726,7 +733,7 @@ namespace Cloudborne
                 for (int i = enemies.Count - 1; i >= 0; i--)
                     if (enemies[i].Update(edt)) { enemies[i].f.Destroy(); enemies.RemoveAt(i); }
                 UpdateShots(dt);
-                if (mode == Mode.Play) UpdateFlow(dt);
+                if (mode == Mode.Play) { UpdateFlow(dt); items.Update(dt, hero, cam); }
                 hud.SetBars(hero.hp, hero.ki);
                 if (score != lastScore) { lastScore = score; hud.SetScore(score); }
                 if (mode == Mode.Over)

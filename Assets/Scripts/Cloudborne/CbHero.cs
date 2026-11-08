@@ -193,6 +193,8 @@ namespace Cloudborne
                     if (g.HurtEnemy(e, dmg, facing, kb, up, big, breaker, fire: false, fromPlayer: true)) any = true;
                 }
             }
+            // crates in reach crack and burst too
+            if (g.items != null && g.items.HitCrates(x, y, facing, range)) any = true;
             if (any) CbFx.Sfx(big ? "heavy" : "hit");
             return any;
         }

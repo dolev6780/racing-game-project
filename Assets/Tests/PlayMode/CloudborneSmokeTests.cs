@@ -189,6 +189,32 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator PickupsHealAndCratesBreak()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            Assert.Greater(game.items.CrateCount, 0, "The stage has no crates");
+            // a mango where Raja stands heals him
+            game.hero.hp = 50;
+            game.items.Spawn(CbItems.Kind.Mango, new Vector3(game.hero.x, 0.6f, 0), resting: true);
+            yield return new WaitForSeconds(0.4f);
+            Assert.AreEqual(50 + CbItems.MangoHeal, game.hero.hp, 0.01f, "The mango did not heal Raja");
+            // two blows break the first crate (at 9 m) and what was in it pops out
+            game.Teleport(7.9f);
+            game.hero.facing = 1;
+            int crates = game.items.CrateCount, things = game.items.ItemCount;
+            int presses = 0;
+            float t0 = Time.time;
+            game.TestInput = i => { if (presses < 4 && Time.time - t0 > presses * 0.3f) { i.atk = true; presses++; } };
+            for (float waited = 0; waited < 2f && game.items.CrateCount == crates; waited += Time.deltaTime) yield return null;
+            game.TestInput = null;
+            Assert.AreEqual(crates - 1, game.items.CrateCount, "Blows did not break the crate");
+            Assert.Greater(game.items.ItemCount, things, "The broken crate held nothing");
+        }
+
+        [UnityTest]
         public IEnumerator DoubleJumpIsADoubleSomersault()
         {
             game = CbGame.Boot();

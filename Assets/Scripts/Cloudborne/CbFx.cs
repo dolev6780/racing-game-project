@@ -120,6 +120,9 @@ namespace Cloudborne
                 case "dash": c = Synth(type, 0.18f, (t, d) => Noise() * 0.3f * Band(t, 0.18f)); break;
                 case "perfect": c = Synth(type, 0.3f, (t, d) => (Mathf.Sin(2 * Mathf.PI * (880 + 1500 * t) * t) * 0.15f + Mathf.Sin(2 * Mathf.PI * (660 + 1100 * t) * t) * 0.1f) * Band(t, 0.3f)); break;
                 case "charge": c = Synth(type, 0.25f, (t, d) => Mathf.PingPong(t * (200 + 400 * t) * 2, 1) * 0.06f * Band(t, 0.25f)); break;
+                // a bright two-note chime for a coin, a rising sparkle for anything else picked up
+                case "coin": c = Synth(type, 0.16f, (t, d) => Mathf.Sin(2 * Mathf.PI * (t < 0.05f ? 1320 : 1760) * t) * 0.12f * Band(t, 0.16f)); break;
+                case "pickup": c = Synth(type, 0.3f, (t, d) => (Mathf.Sin(2 * Mathf.PI * (520 + 1600 * t) * t) * 0.12f + Mathf.Sin(2 * Mathf.PI * (780 + 2400 * t) * t) * 0.06f) * Band(t, 0.3f)); break;
             }
             clips[type] = c;
             return c;
