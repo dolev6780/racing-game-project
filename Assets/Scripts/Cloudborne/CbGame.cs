@@ -34,11 +34,11 @@ namespace Cloudborne
 
         static readonly string[] Tips =
         {
-            "Tap <color=#ffb03a>HIT</color> four times for a paw combo",
-            "<color=#ffb03a>HIT, HIT,</color> then hold <color=#ffb03a>HIT</color> to whirl the staff",
-            "Tap <color=#ffb03a>KI</color> for a fireball. Hold <color=#ffb03a>KI</color> to charge",
-            "Shields stop paws. Use the staff: <color=#ffb03a>↑ + HIT</color> or <color=#ffb03a>DASH → HIT</color>",
-            "<color=#ffb03a>DASH</color> just before a blow lands: slow motion, double damage. <color=#ffb03a>ROAR</color> when ki is full",
+            "Tap <color=#ffb03a>HIT</color> four times for a combo, <color=#ffb03a>HEAVY</color> for the staff",
+            "Hold <color=#ffb03a>HEAVY</color> to whirl the staff. Hold <color=#ffb03a>GUARD</color> to block",
+            "<color=#ffb03a>FIRE</color> shoots a fireball. Duck under a slash with <color=#ffb03a>↓</color>",
+            "Shields stop paws. Use the staff: <color=#ffb03a>HEAVY</color>, <color=#ffb03a>↑ + HEAVY</color> or <color=#ffb03a>DASH → HEAVY</color>",
+            "<color=#ffb03a>DASH</color> just before a blow lands: slow motion, double damage. <color=#ffb03a>SPECIAL</color> when ki is high",
         };
 
         public static CbGame I { get; private set; }
@@ -56,19 +56,31 @@ namespace Cloudborne
         Camera cam;
         Light sun;
         Transform actors;
-        float comboT, camX, camY = CamBase, fovKick, overT, atkHeldT, kiKeyT = -1;
+        float comboT, camX, camY = CamBase, fovKick, overT, atkHeldT, heavyHeldT;
         int zoneIdx, lastScore = -1;
         readonly List<(float at, CbEnemy.Kind kind, float x, Zone zone)> pending = new List<(float, CbEnemy.Kind, float, Zone)>();
         readonly List<Shot> shots = new List<Shot>();
         readonly List<(Transform t, Vector3 v, float spin, float life)> debris = new List<(Transform, Vector3, float, float)>();
-        Roar roar;
+        Beam beam;
         // A side-on view like 2.5D platformers: a narrow field of view from further back flattens the perspective,
         // and the camera looks almost level, so the path reads as the top of a platform with its front face below
         // and the scenery stands up behind it, instead of a green floor tilting away.
         const float BaseFov = 26f, CamBase = 1.5f, CamRise = 0.6f;
 
-        class Shot { public Transform t, glow; public float x, y, vx, life; }
-        class Roar { public Transform holder; public Material outer, inner; public float t; public int dir; }
+        class Shot { public Transform t, glow; public float x, y, vx, life, crackle; }
+        /// <summary>The special shot's beam: its layers, how long it has run, where it starts and which way it points.</summary>
+        class Beam
+        {
+            public Transform holder, outer, mid, core, head;
+            public Material outerM, midM, coreM, headM;
+            public Vector3 from;
+            public float t, tick, ringT;
+            public int dir, hits;
+        }
+        // the flame cannon reaches BeamLength in BeamGrow, holds, then thins away; it hits BeamHits times, the last hard
+        const float BeamLength = 16f, BeamGrow = 0.12f, BeamHold = 0.55f, BeamFade = 0.2f;
+        const int BeamHits = 6;
+        static Material fireCore, fireGlow, fireTail, fireTailInner;
 
         public static CbGame Boot()
         {
@@ -198,7 +210,7 @@ namespace Cloudborne
             shots.Clear();
             foreach (var d in debris) if (d.t != null) Destroy(d.t.gameObject);
             debris.Clear();
-            if (roar != null) { Destroy(roar.holder.gameObject); roar = null; }
+            EndBeam();
             hero.Reset();
             time = score = 0; combo = maxCombo = 0; comboT = 0; hitstop = shake = slow = 0; lockZone = null; zoneIdx = 0; fovKick = 0;
             hud.SetWave("Chase the raiders");
@@ -293,7 +305,7 @@ namespace Cloudborne
             if (e.dead) return false;
             bool frontal = dir == -e.facing;
             var at = new Vector3(e.x - dir * 0.3f, e.HitHeight, -0.5f);
-            // a raised shield stops everything except staff blows and the roar
+            // a raised shield stops everything except staff blows and the special shot
             if (e.guard && frontal && e.state != CbEnemy.State.Hurt && !breaker)
             {
                 CbFx.Spark(at, CbFx.Grey, 8, 5, 0.3f, 0.25f, 4);
@@ -366,47 +378,134 @@ namespace Cloudborne
             CbFx.Sfx("perfect");
         }
 
+        /// <summary>
+        /// FIRE: a white-hot ball in an orange glow trailing a comet tail of fire, crackling as it flies, bursting
+        /// with a ring where it hits.
+        /// </summary>
         public void FireShot(Vector3 pos, int dir)
         {
+            if (fireCore == null)
+            {
+                fireCore = CbArt.Emissive(new Color(1f, 0.95f, 0.8f) * 5f);
+                fireGlow = CbArt.Glow(new Color(1f, 0.48f, 0.1f, 1f) * 2.8f, CbArt.Soft);
+                fireTail = CbArt.Glow(new Color(1f, 0.42f, 0.08f, 0.9f) * 2.2f, CbVfx.Tail);
+                fireTailInner = CbArt.Glow(new Color(1f, 0.85f, 0.45f, 1f) * 2.4f, CbVfx.Tail);
+            }
             var t = new GameObject("fireball").transform;
             t.SetParent(transform, false);
             t.position = pos;
-            CbArt.Part(CbMesh.Sphere, CbArt.Emissive(new Color(1f, 0.95f, 0.77f) * 5f), t, Vector3.zero, Vector3.one * 0.48f, shadows: false);
-            var glow = CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(1f, 0.48f, 0.1f, 1f) * 2.8f, CbArt.Soft), t, new Vector3(0, 0, -0.3f), Vector3.one * 1.6f, shadows: false);
+            CbArt.Part(CbMesh.Sphere, fireCore, t, Vector3.zero, Vector3.one * 0.42f, shadows: false);
+            var glow = CbArt.Part(CbMesh.Quad, fireGlow, t, new Vector3(0, 0, -0.3f), Vector3.one * 1.6f, shadows: false);
+            // the tail's bright end (u = 1) sits at the ball; flipped for a ball flying left
+            CbArt.Part(CbMesh.Quad, fireTail, t, new Vector3(-dir * 1.1f, 0, -0.2f), new Vector3(2.4f * dir, 0.75f, 1), shadows: false);
+            CbArt.Part(CbMesh.Quad, fireTailInner, t, new Vector3(-dir * 0.7f, 0, -0.25f), new Vector3(1.5f * dir, 0.32f, 1), shadows: false);
             shots.Add(new Shot { t = t, glow = glow, x = pos.x, y = pos.y, vx = dir * 18, life = 1.6f });
-            CbVfx.Burst(pos, CbFx.Fire, 1.3f, 0.12f);
+            // from the palm: a burst, a ring, a little jolt
+            CbVfx.Burst(pos, CbFx.Fire, 1.6f, 0.12f);
+            CbVfx.Ring(pos, CbFx.Flame * 0.5f, 0.9f, 0.2f);
+            shake = Mathf.Max(shake, 0.08f);
             CbFx.Sfx("fire");
         }
 
-        public void RoarWave(Vector3 p, int dir)
+        /// <summary>Raja's guard stopped a blow from the front: sparks off his arms, a ring, GUARD.</summary>
+        public void Blocked(Vector3 at)
         {
-            var holder = new GameObject("roar").transform;
+            CbFx.Spark(at, CbFx.Grey, 10, 5, 0.3f, 0.25f, 4);
+            CbVfx.Burst(at, CbFx.Grey, 1.3f, 0.1f);
+            CbVfx.Ring(at, CbFx.Grey * 0.5f, 1.1f, 0.25f);
+            hud.Popup(at + Vector3.up * 1.2f, "GUARD", CbHud.PopStyle.Block);
+            CbFx.Sfx("block");
+            shake = Mathf.Max(shake, 0.12f);
+            hitstop = Mathf.Max(hitstop, 0.02f);
+        }
+
+        /// <summary>
+        /// SPECIAL, the tiger flame cannon: a beam of fire from Raja's hands, BeamLength long, in layers (an orange
+        /// outer flame and a yellow one streaming forward, a white-hot core, a blazing head), with rings racing
+        /// along it. It hits everything in its path BeamHits times, the last blow hard.
+        /// </summary>
+        public void SpecialBeam(Vector3 from, int dir)
+        {
+            EndBeam();
+            var holder = new GameObject("flameCannon").transform;
             holder.SetParent(transform, false);
-            holder.position = new Vector3(p.x + dir * 0.6f, p.y + 1.55f, -0.2f);
-            holder.localRotation = Quaternion.Euler(0, 0, 90f * dir);   // the cone's -Y axis points forward
-            var outer = CbArt.Glow(new Color(1f, 0.29f, 0.06f, 0.4f), CbArt.Shaft);
-            var inner = CbArt.Glow(new Color(1f, 0.67f, 0.25f, 0.45f) * 1.3f, CbArt.Shaft);
-            CbArt.Part(CbMesh.Cone(28), outer, holder, new Vector3(0, -9.5f, 0), new Vector3(2.6f, 9.5f, 2.6f), shadows: false);
-            CbArt.Part(CbMesh.Cone(28), inner, holder, new Vector3(0, -9.5f, 0), new Vector3(1.3f, 9.5f, 1.3f), shadows: false);
-            holder.localScale = Vector3.one * 0.01f;
-            roar = new Roar { holder = holder, outer = outer, inner = inner, t = 0, dir = dir };
-            for (int i = 0; i < 70; i++)
-                CbFx.Spark(new Vector3(p.x + dir * Random.Range(0.5f, 3f), p.y + 1.5f + Random.Range(-0.6f, 0.6f), Random.Range(-0.6f, 0.6f)),
-                    Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 6, 0.7f, 0.7f, -2, dir * Random.Range(6f, 14f));
-            foreach (var e in enemies.ToArray())
+            holder.position = from;
+            var b = new Beam
             {
-                if (e.dead) continue;
-                float dx = (e.x - p.x) * dir;
-                if (dx > -0.5f && dx < 10 + e.w && Mathf.Abs(e.HitHeight - (p.y + 1.4f)) < 3) HurtEnemy(e, 26, dir, 10, 6, true, true, true, true);
-            }
-            shake = Mathf.Max(shake, 0.55f);
-            hitstop = Mathf.Max(hitstop, 0.06f);
-            fovKick = -5;
-            CbVfx.Ring(new Vector3(p.x, p.y + 0.05f, 0), CbFx.Fire * 0.8f, 5f, 0.5f, ground: true);
-            CbVfx.Ring(new Vector3(p.x + dir, p.y + 1.5f, -0.3f), CbFx.Flame * 0.5f, 3.5f, 0.4f);
-            hud.SpeedLines(0.9f, 0.6f);
-            hud.ImpactFlash(0.4f);
+                holder = holder, from = from, dir = dir,
+                outerM = CbArt.Glow(new Color(1f, 0.35f, 0.06f, 0.75f) * 2.2f, CbVfx.BeamStreaks),
+                midM = CbArt.Glow(new Color(1f, 0.72f, 0.25f, 0.85f) * 2.4f, CbVfx.BeamStreaks),
+                coreM = CbArt.Glow(new Color(1f, 0.96f, 0.85f, 1f) * 3f, CbVfx.BeamCore),
+                headM = CbArt.Glow(new Color(1f, 0.6f, 0.15f, 1f) * 3f, CbArt.Soft),
+            };
+            b.outer = CbArt.Part(CbMesh.Quad, b.outerM, holder, Vector3.zero, new Vector3(0.01f, 2.2f, 1), shadows: false);
+            b.mid = CbArt.Part(CbMesh.Quad, b.midM, holder, new Vector3(0, 0, -0.05f), new Vector3(0.01f, 1.2f, 1), shadows: false);
+            b.core = CbArt.Part(CbMesh.Quad, b.coreM, holder, new Vector3(0, 0, -0.1f), new Vector3(0.01f, 0.45f, 1), shadows: false);
+            b.head = CbArt.Part(CbMesh.Quad, b.headM, holder, new Vector3(0, 0, -0.15f), Vector3.one * 2.4f, shadows: false);
+            beam = b;
+            // the blast: a flash, a shock ring, focus lines, the camera punches in
+            CbVfx.Burst(from, CbFx.Flame, 3f, 0.2f);
+            CbVfx.Ring(from, CbFx.Fire * 0.6f, 2.6f, 0.4f);
+            hud.ImpactFlash(0.35f);
+            hud.SpeedLines(0.9f, 0.8f);
+            fovKick = -4;
+            shake = Mathf.Max(shake, 0.4f);
             CbFx.Sfx("roar");
+        }
+
+        void UpdateBeam(float dt)
+        {
+            var b = beam;
+            if (b == null) return;
+            b.t += dt;
+            float len = BeamLength * Mathf.Clamp01(b.t / BeamGrow);
+            float thick = b.t < BeamGrow + BeamHold ? 1f + Mathf.Sin(b.t * 60) * 0.06f : Mathf.Max(0, 1 - (b.t - BeamGrow - BeamHold) / BeamFade);
+            foreach (var (layer, h) in new[] { (b.outer, 2.2f), (b.mid, 1.2f), (b.core, 0.45f) })
+            {
+                layer.localPosition = new Vector3(b.dir * len / 2, 0, layer.localPosition.z);
+                layer.localScale = new Vector3(Mathf.Max(0.01f, len), h * thick, 1);
+            }
+            // the flames stream away from his hands
+            b.outerM.mainTextureScale = new Vector2(len / 4f, 1);
+            b.outerM.mainTextureOffset = new Vector2(-b.dir * b.t * 5f, 0);
+            b.midM.mainTextureScale = new Vector2(len / 3f, 1);
+            b.midM.mainTextureOffset = new Vector2(-b.dir * b.t * 8f, 0.3f);
+            b.head.localPosition = new Vector3(b.dir * len, 0, -0.15f);
+            b.head.localScale = Vector3.one * (2.2f + Mathf.Sin(b.t * 40) * 0.3f) * thick;
+            if (cam != null) b.head.rotation = cam.transform.rotation;
+            b.ringT -= dt;
+            if (b.ringT <= 0 && thick > 0.5f)
+            {
+                b.ringT = 0.07f;
+                CbVfx.Ring(b.from + Vector3.right * b.dir * Random.Range(1f, Mathf.Max(1.1f, len)), CbFx.Flame * 0.4f, 1.3f, 0.25f);
+            }
+            if (Random.value < 0.9f)
+                CbFx.Spark(b.from + new Vector3(b.dir * Random.Range(0.5f, Mathf.Max(0.6f, len)), Random.Range(-0.5f, 0.5f), -0.3f),
+                    Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 3, 0.4f, 0.3f, -2, b.dir * 12);
+            shake = Mathf.Max(shake, 0.15f * thick);
+            b.tick -= dt;
+            if (b.t >= BeamGrow * 0.5f && b.tick <= 0 && b.hits < BeamHits)
+            {
+                b.tick = 0.1f;
+                b.hits++;
+                bool last = b.hits == BeamHits;
+                foreach (var e in enemies.ToArray())
+                {
+                    if (e.dead) continue;
+                    float dx = (e.x - b.from.x) * b.dir;
+                    if (dx > -0.5f && dx < len + e.w && Mathf.Abs(e.HitHeight - b.from.y) < 1.8f)
+                        HurtEnemy(e, last ? 18 : 6, b.dir, last ? 12 : 1.5f, last ? 6 : 0.5f, last, true, true, true);
+                }
+            }
+            if (b.t > BeamGrow + BeamHold + BeamFade) EndBeam();
+        }
+
+        void EndBeam()
+        {
+            if (beam == null) return;
+            Destroy(beam.holder.gameObject);
+            foreach (var m in new[] { beam.outerM, beam.midM, beam.coreM, beam.headM }) Destroy(m);
+            beam = null;
         }
 
         public void AddDebris(Transform t, Vector3 velocity, float spinDeg) => debris.Add((t, velocity, spinDeg, 2.2f));
@@ -421,6 +520,9 @@ namespace Cloudborne
                 s.t.position = new Vector3(s.x, s.y, 0);
                 s.glow.localScale = Vector3.one * (1.4f + Mathf.Sin(clock * 40) * 0.25f);
                 if (Random.value < 0.9f) CbFx.Spark(new Vector3(s.x, s.y + Random.Range(-0.1f, 0.1f), -0.2f), Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 0.8f, 0.5f, 0.3f, -2);
+                // it crackles as it flies
+                s.crackle -= dt;
+                if (s.crackle <= 0) { s.crackle = 0.06f; CbVfx.Burst(new Vector3(s.x, s.y, -0.35f), CbFx.Flame, 0.8f, 0.08f); }
                 bool hit = false;
                 foreach (var e in enemies.ToArray())
                 {
@@ -434,22 +536,20 @@ namespace Cloudborne
                 }
                 if (hit || s.life <= 0)
                 {
-                    CbFx.Spark(new Vector3(s.x, s.y, -0.2f), CbFx.Fire, 14, 6, 0.5f, 0.35f, 0);
+                    var at = new Vector3(s.x, s.y, -0.3f);
+                    CbFx.Spark(at, CbFx.Fire, hit ? 20 : 8, 6, 0.5f, 0.35f, 0);
+                    if (hit)
+                    {
+                        // an explosion of fire where it lands
+                        CbVfx.Burst(at, CbFx.Flame, 2.4f, 0.18f);
+                        CbVfx.Ring(at, CbFx.Fire * 0.5f, 1.6f, 0.3f);
+                        shake = Mathf.Max(shake, 0.15f);
+                    }
                     Destroy(s.t.gameObject);
                     shots.RemoveAt(i);
                 }
             }
-            if (roar != null)
-            {
-                roar.t += dt;
-                float u = roar.t;
-                float grow = Mathf.Min(1, u / 0.22f), fade = u < 0.35f ? 1 : Mathf.Max(0, 1 - (u - 0.35f) / 0.4f);
-                float side = 0.3f + grow * 0.7f;
-                roar.holder.localScale = new Vector3(side + Mathf.Sin(u * 50) * 0.04f, 0.2f + grow * 0.8f, side);
-                var oc = roar.outer.GetColor("_Color"); oc.a = 0.4f * fade; roar.outer.SetColor("_Color", oc);
-                var ic = roar.inner.GetColor("_Color"); ic.a = 0.45f * fade; roar.inner.SetColor("_Color", ic);
-                if (u > 0.8f) { Destroy(roar.holder.gameObject); Destroy(roar.outer); Destroy(roar.inner); roar = null; }
-            }
+            UpdateBeam(dt);
             for (int i = debris.Count - 1; i >= 0; i--)
             {
                 var d = debris[i];
@@ -534,7 +634,7 @@ namespace Cloudborne
         {
             input.ClearEdges();
             input.x = input.y = 0;
-            input.atkDown = input.charging = false;
+            input.atkDown = input.heavyDown = input.guard = false;
             hud.ReadTouch(input, dt);
             ReadKeys(input, dt);
             TestInput?.Invoke(input);
@@ -543,6 +643,10 @@ namespace Cloudborne
             else if (input.atkDown) atkHeldT += dt;
             else atkHeldT = 0;
             input.atkHeldT = atkHeldT;
+            if (input.heavy) heavyHeldT = 0;
+            else if (input.heavyDown) heavyHeldT += dt;
+            else heavyHeldT = 0;
+            input.heavyHeldT = heavyHeldT;
             input.x = Mathf.Clamp(input.x, -1, 1);
             input.y = Mathf.Clamp(input.y, -1, 1);
         }
@@ -552,7 +656,6 @@ namespace Cloudborne
 
         void ReadKeys(CbInput inp, float dt)
         {
-            bool kiHeld = false, kiPressed = false;
 #if ENABLE_INPUT_SYSTEM
             var kb = Keyboard.current;
             if (kb != null)
@@ -564,10 +667,12 @@ namespace Cloudborne
                 if (kb.spaceKey.wasPressedThisFrame) inp.jump = true;
                 if (kb.jKey.wasPressedThisFrame || kb.zKey.wasPressedThisFrame) inp.atk = true;
                 if (kb.jKey.isPressed || kb.zKey.isPressed) inp.atkDown = true;
+                if (kb.kKey.wasPressedThisFrame || kb.xKey.wasPressedThisFrame) inp.heavy = true;
+                if (kb.kKey.isPressed || kb.xKey.isPressed) inp.heavyDown = true;
                 if (kb.lKey.wasPressedThisFrame || kb.leftShiftKey.wasPressedThisFrame) inp.dash = true;
-                if (kb.iKey.wasPressedThisFrame || kb.uKey.wasPressedThisFrame) inp.skill = true;
-                kiHeld = kb.kKey.isPressed || kb.xKey.isPressed;
-                kiPressed = kb.kKey.wasPressedThisFrame || kb.xKey.wasPressedThisFrame;
+                if (kb.oKey.isPressed || kb.cKey.isPressed) inp.guard = true;
+                if (kb.uKey.wasPressedThisFrame || kb.fKey.wasPressedThisFrame) inp.kiTap = true;
+                if (kb.iKey.wasPressedThisFrame || kb.vKey.wasPressedThisFrame) inp.skill = true;
                 if (kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame) inp.pause = true;
                 if (kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame) inp.confirm = true;
             }
@@ -582,10 +687,12 @@ namespace Cloudborne
                 if (pad.buttonSouth.wasPressedThisFrame) { inp.jump = true; inp.confirm = true; }
                 if (pad.buttonWest.wasPressedThisFrame) inp.atk = true;
                 if (pad.buttonWest.isPressed) inp.atkDown = true;
+                if (pad.buttonNorth.wasPressedThisFrame) inp.heavy = true;
+                if (pad.buttonNorth.isPressed) inp.heavyDown = true;
                 if (pad.buttonEast.wasPressedThisFrame) inp.dash = true;
+                if (pad.leftShoulder.isPressed) inp.guard = true;
+                if (pad.rightTrigger.wasPressedThisFrame) inp.kiTap = true;
                 if (pad.rightShoulder.wasPressedThisFrame) inp.skill = true;
-                kiHeld |= pad.buttonNorth.isPressed;
-                kiPressed |= pad.buttonNorth.wasPressedThisFrame;
                 if (pad.startButton.wasPressedThisFrame) inp.pause = true;
             }
 #else
@@ -596,20 +703,15 @@ namespace Cloudborne
             if (Input.GetKeyDown(KeyCode.Space)) inp.jump = true;
             if (Input.GetKeyDown(KeyCode.J)) inp.atk = true;
             if (Input.GetKey(KeyCode.J)) inp.atkDown = true;
+            if (Input.GetKeyDown(KeyCode.K)) inp.heavy = true;
+            if (Input.GetKey(KeyCode.K)) inp.heavyDown = true;
             if (Input.GetKeyDown(KeyCode.L) || Input.GetKeyDown(KeyCode.LeftShift)) inp.dash = true;
+            if (Input.GetKey(KeyCode.O)) inp.guard = true;
+            if (Input.GetKeyDown(KeyCode.U)) inp.kiTap = true;
             if (Input.GetKeyDown(KeyCode.I)) inp.skill = true;
-            kiHeld = Input.GetKey(KeyCode.K);
-            kiPressed = Input.GetKeyDown(KeyCode.K);
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P)) inp.pause = true;
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.J)) inp.confirm = true;
 #endif
-            // KI: a short press is a fireball, holding it charges
-            if (kiPressed) kiKeyT = 0;
-            if (kiKeyT >= 0)
-            {
-                if (kiHeld) { kiKeyT += dt; if (kiKeyT >= 0.22f) inp.charging = true; }
-                else { if (kiKeyT < 0.22f) inp.kiTap = true; kiKeyT = -1; }
-            }
         }
 
         /// <summary>Test hook: puts Raja at a position (e.g. next to a fight zone).</summary>

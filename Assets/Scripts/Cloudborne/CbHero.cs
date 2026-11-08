@@ -7,21 +7,24 @@ namespace Cloudborne
     public class CbInput
     {
         public float x, y;                 // stick, y > 0 is up
-        public bool jump, atk, dash, skill, kiTap, pause, confirm;
-        public bool atkDown, charging;     // held
-        public float atkHeldT;
+        // atk: HIT (light), heavy: HEAVY (the staff), kiTap: FIRE, skill: SPECIAL
+        public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm;
+        public bool atkDown, heavyDown, guard;   // held
+        public float atkHeldT, heavyHeldT;
 
-        public void ClearEdges() { jump = atk = dash = skill = kiTap = pause = confirm = false; }
+        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = false; }
     }
 
     /// <summary>
-    /// Raja, the fire tiger. Paw combo, four staff moves (the staff lives on his back and is drawn only for them),
-    /// fireball, ki charge, fire roar, dash with perfect dodge. A straight port of the web demo's numbers.
+    /// Raja, the fire tiger. HIT: paw and kick combo (down: a low sweep). HEAVY: the staff (a smash; up: launcher;
+    /// in the air: slam; after a dash: thrust; held: whirl), which lives on his back and is drawn only for it.
+    /// GUARD blocks blows from the front, down ducks, FIRE shoots a fireball, SPECIAL the tiger flame cannon.
+    /// Ki fills by itself and with every hit; DASH just before a blow is a perfect dodge.
     /// </summary>
     public class CbHero
     {
-        public enum State { Idle, Run, Air, Atk, Staff, Blast, Roar, Charge, Dash, Hurt, Dead }
-        public enum Move { None, Whirl, Launch, Thrust, Slam, Land }
+        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead }
+        public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash }
 
         struct Attack { public float dur, a, b, range, dmg, kb, up; public bool fin; }
         static readonly Attack[] Paw =
@@ -36,6 +39,15 @@ namespace Cloudborne
         const int Sweep = 4;
         // the double jump is a double forward somersault, tucked
         const float FlipTime = 0.62f, FlipTurns = 2f;
+        // HEAVY on the ground: an overhead staff smash; holding HEAVY past SmashToWhirl turns it into the whirl
+        const float SmashTime = 0.6f, SmashToWhirl = 0.2f;
+        // ki comes back by itself (there is no charging any more) and with every hit
+        const float KiRegen = 5f, FireCost = 12f, SpecialCost = 50f;
+        // SPECIAL: the tiger flame cannon. Gathered for SpecialWindup, then the beam (CbGame.SpecialBeam) runs
+        const float SpecialWindup = 0.45f, SpecialTime = 1.35f;
+        /// <summary>The special shot unlocks later in the story; on for now so it can be tried.</summary>
+        public static bool SpecialUnlocked = true;
+        const float BlockReact = 0.25f;
 
         static readonly Vector3 StaffBackPos = new Vector3(0.02f, 0.32f, -0.3f);
         static readonly Quaternion StaffBackRot = CbArt.Rot(-0.12f, 0, 0.82f);
@@ -53,13 +65,14 @@ namespace Cloudborne
         /// <summary>Ducking (down on the stick, on the ground): moves slowly, a slash passes over him, HIT sweeps.</summary>
         public bool crouching;
         public bool Ducking => crouching && y <= 0.01f && (state == State.Idle || state == State.Run || (state == State.Atk && combo == Sweep));
+        public bool Guarding => state == State.Guard;
         public float T => t;
 
         readonly CbGame g;
         readonly Material furMat, auraMat;
         readonly Transform staff, aura;
         bool staffInHand;
-        float t, buffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, auraA, ghostT, ringT;
+        float t, buffer, heavyBuffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, auraA, ghostT, blockT;
         int combo, jumps, airHits, hits;
         bool air, airDashed, holdUsed, fired;
         readonly HashSet<CbEnemy> hitSet = new HashSet<CbEnemy>();
@@ -130,6 +143,7 @@ namespace Cloudborne
             if (m == Move.Launch) vx = facing * 1.5f;
             if (m == Move.Whirl) holdUsed = true;
             if (m == Move.Slam) { vy = 6; vx = facing * 2; }
+            if (m == Move.Smash) { vx = facing * 1.2f; fired = false; }
         }
 
         void EndStaff() { state = air ? State.Air : State.Idle; move = Move.None; staffHold = 0.5f; combo = 0; }
@@ -157,6 +171,14 @@ namespace Cloudborne
             if (state == State.Dead || g.mode != CbGame.Mode.Play) return;
             if (state == State.Dash && t < 0.2f) { g.PerfectDodge(); return; }
             if (inv > 0) return;
+            // guarding: a blow from in front is stopped (dir is the way it pushes him, so the attacker faces -dir)
+            if (state == State.Guard && facing == -dir)
+            {
+                vx = dir * 3.5f;
+                blockT = BlockReact;
+                g.Blocked(new Vector3(x + facing * 0.6f, y + 1.2f, -0.4f));
+                return;
+            }
             hp = Mathf.Max(0, hp - dmg);
             inv = 0.9f;
             vx = dir * 6; vy = 4; air = true;
@@ -177,7 +199,10 @@ namespace Cloudborne
             dashCd = Mathf.Max(0, dashCd - dt);
             sinceDash += dt;
             if (input.atk) buffer = 0.25f; else buffer = Mathf.Max(0, buffer - dt);
-            if (!input.atkDown) holdUsed = false;
+            if (input.heavy) heavyBuffer = 0.25f; else heavyBuffer = Mathf.Max(0, heavyBuffer - dt);
+            if (!input.heavyDown) holdUsed = false;
+            if (state != State.Dead) ki = Mathf.Min(100, ki + KiRegen * dt);
+            blockT = Mathf.Max(0, blockT - dt);
             var pose = Pose.Base;
             float rate = 14f;
 
@@ -194,7 +219,7 @@ namespace Cloudborne
                     if (t > 0.35f && !air) state = State.Idle;
                     break;
                 case State.Atk: UpdatePaw(ref pose, input, ref rate); break;
-                case State.Staff: UpdateStaff(ref pose, dt, ref rate); break;
+                case State.Staff: UpdateStaff(ref pose, input, dt, ref rate); break;
                 case State.Blast:
                 {
                     rate = 28;
@@ -205,29 +230,36 @@ namespace Cloudborne
                     if (u >= 1) state = air ? State.Air : State.Idle;
                     break;
                 }
-                case State.Roar:
+                case State.Special:
+                {
                     rate = 18;
-                    if (t < 0.32f) { pose.lean = -0.35f; pose.headX = -0.35f; pose.sLz = 0.6f; pose.sRz = -0.6f; pose.sLx = 0.5f; pose.sRx = 0.5f; pose.eL = -1.8f; pose.eR = -1.8f; pose.hLx = -0.4f; pose.kL = 0.7f; pose.hRx = -0.4f; pose.kR = 0.7f; pose.bob = -0.22f; }
-                    else { pose.lean = 0.3f; pose.headX = -0.55f; pose.sLz = 1.25f; pose.sRz = -1.25f; pose.sLx = -0.5f; pose.sRx = -0.5f; pose.eL = -0.6f; pose.eR = -0.6f; pose.hLx = -0.7f; pose.kL = 0.5f; pose.hRx = 0.6f; pose.kR = 0.5f; pose.bob = -0.15f; }
-                    if (t >= 0.32f && !fired) { fired = true; g.RoarWave(new Vector3(x, y, 0), facing); }
-                    if (t > 1f) state = State.Idle;
-                    break;
-                case State.Charge:
-                    pose.sLz = 0.65f; pose.sRz = -0.65f; pose.sLx = 0.3f; pose.sRx = 0.3f; pose.eL = -0.5f; pose.eR = -0.5f; pose.hLx = -0.5f; pose.hRx = -0.5f;
-                    pose.kL = 0.85f; pose.kR = 0.85f; pose.bob = -0.2f + Mathf.Sin(g.clock * 50) * 0.01f; pose.headX = -0.3f; pose.lean = -0.05f;
-                    ki = Mathf.Min(100, ki + 34 * dt);
-                    if (Random.value < 0.7f) CbFx.Spark(new Vector3(x + Random.Range(-0.7f, 0.7f), y + Random.Range(0f, 0.5f), Random.Range(-0.4f, 0.4f)), Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 0.5f, 0.35f, 0.8f, -6);
-                    if (Random.value < 0.04f) CbFx.Sfx("charge", 0.5f);
-                    // powering up: rings of fire running out over the ground, focus lines, a rumble
-                    ringT -= dt;
-                    if (ringT <= 0)
+                    var hands = new Vector3(x + facing * 0.9f, y + 1.25f, -0.3f);
+                    if (t < SpecialWindup)
                     {
-                        ringT = 0.3f;
-                        CbVfx.Ring(new Vector3(x, y + 0.05f, 0), CbFx.Fire * 0.5f, 1.6f, 0.45f, ground: true);
+                        // gathering: fire drawn in to his hands, focus lines, a rumble
+                        pose.lean = -0.2f; pose.sLx = 0.4f; pose.sRx = 0.4f; pose.eL = -1.6f; pose.eR = -1.6f; pose.hLx = -0.5f; pose.kL = 0.7f; pose.hRx = 0.5f; pose.kR = 0.6f; pose.bob = -0.2f;
+                        if (Random.value < 0.8f)
+                        {
+                            var from = hands + new Vector3(Random.Range(-1.6f, 1.6f), Random.Range(-1.2f, 1.4f), Random.Range(-0.5f, 0.5f));
+                            CbFx.Spark(from, Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 0, 0.3f, 0.3f, 0, (hands.x - from.x) * 3f);
+                        }
+                        g.hud.SpeedLines(0.3f, 0.12f);
+                        g.shake = Mathf.Max(g.shake, 0.06f);
                     }
-                    g.hud.SpeedLines(0.22f, 0.15f);
-                    g.shake = Mathf.Max(g.shake, 0.04f);
-                    if (!input.charging || air) state = State.Idle;
+                    else
+                    {
+                        pose.lean = 0.3f; pose.sLx = -1.5f; pose.sRx = -1.5f; pose.eL = -0.1f; pose.eR = -0.1f; pose.hLx = -0.8f; pose.kL = 0.5f; pose.hRx = 0.7f; pose.kR = 0.4f; pose.bob = -0.18f;
+                        if (!fired) { fired = true; g.SpecialBeam(hands, facing); }
+                        // the beam pushes him back a little while it runs
+                        vx = -facing * 0.6f;
+                    }
+                    if (t > SpecialTime) state = State.Idle;
+                    break;
+                }
+                case State.Guard:
+                    pose.sLx = -1.2f; pose.sRx = -1.0f; pose.eL = -1.9f; pose.eR = -1.9f; pose.lean = 0.1f; pose.hLx = -0.4f; pose.kL = 0.5f; pose.hRx = 0.4f; pose.kR = 0.4f; pose.bob = -0.12f;
+                    vx *= 1 - Damp(14, dt);
+                    if (!input.guard || air) state = State.Idle;
                     break;
                 case State.Dash:
                     rate = 30;
@@ -242,6 +274,7 @@ namespace Cloudborne
                         CbVfx.Ghost(model.skin, new Color(1.2f, 0.66f, 0.18f, 0.4f), 0.25f);
                     }
                     if (input.atk) buffer = 0.3f;
+                    if (input.heavy) heavyBuffer = 0.3f;
                     if (t > 0.2f) { state = air ? State.Air : State.Idle; vx = facing * 4; }
                     break;
             }
@@ -249,8 +282,9 @@ namespace Cloudborne
             bool free = state == State.Idle || state == State.Run || state == State.Air;
             if (free)
             {
+                // down on the stick ducks right where he stands (he can still turn round)
                 crouching = !air && input.y < -0.5f;
-                vx += (input.x * (crouching ? 2.5f : 7f) - vx) * Damp(air ? 6 : 14, dt);
+                vx += (input.x * (crouching ? 0f : 7f) - vx) * Damp(air ? 6 : 14, dt);
                 if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
                 if (input.jump && jumps < 2)
                 {
@@ -268,20 +302,25 @@ namespace Cloudborne
                     if (air) airDashed = true;
                     CbFx.Sfx("dash", 0.6f);
                 }
+                else if (input.guard && !air) { state = State.Guard; t = 0; }
+                else if (input.heavy || (heavyBuffer > 0 && sinceDash < 0.35f))
+                {
+                    heavyBuffer = 0;
+                    if (air) StartStaff(Move.Slam);
+                    else if (input.y > 0.5f) StartStaff(Move.Launch);
+                    else if (sinceDash < 0.35f) StartStaff(Move.Thrust);
+                    else StartStaff(Move.Smash);
+                }
                 else if (input.atk || (buffer > 0 && sinceDash < 0.35f))
                 {
-                    if (air && input.y < -0.5f) StartStaff(Move.Slam);
-                    else if (!air && input.y > 0.5f) StartStaff(Move.Launch);
-                    else if (!air && input.y < -0.5f) StartPaw(Sweep);
-                    else if (!air && sinceDash < 0.35f) StartStaff(Move.Thrust);
+                    if (!air && input.y < -0.5f) StartPaw(Sweep);
                     else if (!air || airHits < 3) StartPaw(0);
                 }
-                else if (input.kiTap && ki >= 12) { ki -= 12; state = State.Blast; t = 0; fired = false; if (!air) vx *= 0.3f; else vy = Mathf.Max(vy, 1); }
-                else if (input.skill && ki >= 60 && !air) { ki -= 60; state = State.Roar; t = 0; vx = 0; fired = false; }
-                else if (input.charging && !air) { state = State.Charge; t = 0; }
+                else if (input.kiTap && ki >= FireCost) { ki -= FireCost; state = State.Blast; t = 0; fired = false; if (!air) vx *= 0.3f; else vy = Mathf.Max(vy, 1); }
+                else if (input.skill && SpecialUnlocked && ki >= SpecialCost && !air) { ki -= SpecialCost; state = State.Special; t = 0; vx = 0; fired = false; }
                 if (state == State.Idle || state == State.Run) state = Mathf.Abs(vx) > 0.6f ? State.Run : State.Idle;
             }
-            else if (state == State.Charge || state == State.Roar) vx *= 1 - Damp(12, dt);
+            else if (state == State.Special) vx *= 1 - Damp(12, dt);
             else if (state == State.Atk || state == State.Blast) vx *= 1 - Damp(8, dt);
 
             if (state == State.Run)
@@ -350,8 +389,9 @@ namespace Cloudborne
             if (model == null) return;
             switch (state)
             {
-                case State.Idle when crouching: model.Show("Cautious_Crouch_Walk_Forward", 0.2f, 0.1f); break;
-                case State.Run when crouching: model.Loop("Cautious_Crouch_Walk_Forward", runPh / (Mathf.PI * 2) * 0.6f); break;
+                // a deep duck with a guarding arm up (the hips drop from 0.75 to 0.49 of his height)
+                case State.Idle when crouching: model.Show("Sit_Dodge", 0.3f, 0.08f); break;
+                case State.Run when crouching: model.Show("Sit_Dodge", 0.3f, 0.08f); break;
                 case State.Idle: model.LoopSeconds("Combat_Stance", g.clock); break;
                 case State.Run: model.Loop("RunFast", runPh / (Mathf.PI * 2)); break;
                 // the somersault shows the tuck of the backflip clip (its hips' turn removed): the game turns him
@@ -375,10 +415,20 @@ namespace Cloudborne
                     else if (move == Move.Thrust) model.Window("Thrust_Slash", 0f, 0.25f, t / 0.38f);
                     else if (move == Move.Slam) model.Show("Charged_Ground_Slam", 0.45f);
                     else if (move == Move.Land) model.Window("Charged_Ground_Slam", 0.55f, 0.85f, t / 0.3f);
+                    // the overhead swing lands at about 0.85 of the clip, inside the smash's hit window
+                    else if (move == Move.Smash) model.Window("Heavy_Hammer_Swing", 0.25f, 0.92f, t / SmashTime);
                     break;
-                case State.Blast: model.Window("Charged_Spell_Cast", 0f, 0.3f, t / 0.32f); break;
-                case State.Charge: model.Show("Charged_Spell_Cast", 0.45f + Mathf.PingPong(t * 0.2f, 0.08f)); break;
-                case State.Roar: model.Window("Chest_Pound_Taunt", 0.2f, 0.75f, t); break;
+                // a right palm thrust: the fireball leaves at 0.4 of the cast, as the palm reaches out
+                case State.Blast: model.Window("Charged_Spell_Cast_1", 0.38f, 0.62f, t / 0.32f); break;
+                case State.Special:
+                    if (t < SpecialWindup) model.Window("Charged_Spell_Cast_1", 0f, 0.45f, t / SpecialWindup);
+                    else if (t < SpecialTime - 0.25f) model.Show("Charged_Spell_Cast_1", 0.5f + Mathf.PingPong(t * 0.3f, 0.12f));
+                    else model.Window("Charged_Spell_Cast_1", 0.66f, 0.85f, (t - (SpecialTime - 0.25f)) / 0.25f);
+                    break;
+                case State.Guard:
+                    if (blockT > 0) model.Window("Block1", 0.3f, 0.45f, 1 - blockT / BlockReact);
+                    else model.Show("Block1", 0.1f, 0.06f);
+                    break;
                 case State.Dash: model.Window("Quick_Step_and_Spin_Dodge", 0.1f, 0.75f, t / 0.2f); break;
                 case State.Hurt: model.Window("Hit_Reaction", 0.1f, 0.6f, t / 0.35f); break;
                 case State.Dead: model.Window("Knock_Down", 0f, 1f, t / 1.4f); break;
@@ -402,11 +452,7 @@ namespace Cloudborne
                 pose.lean = 0.38f; pose.hLx = -0.8f; pose.kL = 0.45f; pose.hRx = 0.55f; pose.kR = 0.3f; pose.bob = -0.14f;
                 if (u > 0.42f && u < 0.6f && Random.value < 0.8f) CbFx.Spark(new Vector3(x + facing * Random.Range(0.6f, 1.4f), y + Random.Range(0.9f, 1.9f), -0.5f), CbFx.Hit, 1, 1, 0.25f, 0.15f, 0);
             }
-            // HIT, HIT, then hold HIT: staff whirl. The hit lasts about as long as the hold takes, so a hold still on
-            // when the hit ends counts too (a quick tap in a mashed combo is shorter than 0.12 s).
-            bool held = input.atkHeldT > 0.22f || (u >= 1 && input.atkHeldT > 0.12f);
-            if (!air && combo >= 1 && input.atkDown && held && !holdUsed) StartStaff(Move.Whirl);
-            else if (u >= 1)
+            if (u >= 1)
             {
                 if (buffer > 0 && combo < 3 && (!air || airHits < 3)) StartPaw(combo + 1);
                 else { state = air ? State.Air : State.Idle; combo = 0; }
@@ -414,11 +460,33 @@ namespace Cloudborne
             else if (u > 0.6f && buffer > 0 && combo < 3 && (!air || airHits < 3)) StartPaw(combo + 1);
         }
 
-        void UpdateStaff(ref Pose pose, float dt, ref float rate)
+        void UpdateStaff(ref Pose pose, CbInput input, float dt, ref float rate)
         {
             rate = 30;
             switch (move)
             {
+                case Move.Smash:
+                {
+                    float u = t / SmashTime;
+                    pose.sRx = -2.8f + Mathf.Clamp01((u - 0.6f) / 0.25f) * 2.6f; pose.sLx = pose.sRx; pose.eR = -0.2f; pose.eL = -0.2f;
+                    pose.lean = 0.1f + Mathf.Clamp01((u - 0.6f) / 0.25f) * 0.4f; pose.hLx = -0.6f; pose.kL = 0.5f; pose.hRx = 0.5f; pose.kR = 0.4f; pose.bob = -0.15f;
+                    vx *= 1 - Damp(5, dt);
+                    // HEAVY still held after the wind-up starts: the swing becomes the staff whirl
+                    if (input.heavyDown && t > SmashToWhirl && !holdUsed) { StartStaff(Move.Whirl); break; }
+                    if (u > 0.78f && u < 0.95f) MeleeHits(2.6f, 16, 6, 3, true, true);
+                    if (u > 0.82f && !fired)
+                    {
+                        // the staff hits the ground: dust, a shock ring, a jolt
+                        fired = true;
+                        var at = new Vector3(x + facing * 1.5f, 0.05f, 0);
+                        CbFx.Spark(at + new Vector3(0, 0.1f, -0.4f), CbFx.Dust, 14, 5, 0.6f, 0.5f, 3);
+                        CbVfx.Ring(at, CbFx.Hit * 0.5f, 2.4f, 0.35f, ground: true);
+                        g.shake = Mathf.Max(g.shake, 0.3f);
+                        CbFx.Sfx("heavy", 0.7f);
+                    }
+                    if (u >= 1) EndStaff();
+                    break;
+                }
                 case Move.Whirl:
                 {
                     float u = t / 0.95f;
@@ -554,7 +622,7 @@ namespace Cloudborne
 
         void UpdateFire(float dt)
         {
-            bool burning = state == State.Charge || state == State.Roar;
+            bool burning = state == State.Special;
             auraA += ((burning ? 1f : 0f) - auraA) * Damp(8, dt);
             aura.gameObject.SetActive(auraA > 0.02f);
             if (aura.gameObject.activeSelf)
@@ -568,7 +636,7 @@ namespace Cloudborne
                 float w = (cub ? 0.58f : 1f) * (1 + Mathf.Sin(g.clock * 20) * 0.04f);
                 aura.localScale = new Vector3(w, cub ? 2.1f : 2.8f, w);
             }
-            float target = state == State.Roar ? 3.2f : state == State.Charge ? 1.6f + Mathf.Sin(g.clock * 12) * 0.6f : empower ? 1.2f : 0f;
+            float target = state == State.Special ? (t < SpecialWindup ? 1.6f + t / SpecialWindup * 1.6f : 3.2f) : empower ? 1.2f : 0f;
             glow += (target - glow) * Damp(10, dt);
             CbArt.SetGlow(furMat, new Color(1f, 0.48f, 0.1f) * glow);
             if (model != null) CbArt.SetGlow(model.material, new Color(1f, 0.48f, 0.1f) * glow * 0.35f);

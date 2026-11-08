@@ -218,6 +218,42 @@ namespace Cloudborne
             return Tex(size, px);
         }
 
+        static Texture2D tailTex, streakTex, coreTex;
+
+        /// <summary>A comet tail along U: bright and full at u = 1 (the head), fading and thinning to u = 0.</summary>
+        public static Texture2D Tail => tailTex != null ? tailTex : tailTex = Make(128, 32, TextureWrapMode.Clamp, (u, v) =>
+        {
+            float across = 1 - Mathf.Abs(v - 0.5f) * 2;
+            return Mathf.Pow(u, 1.6f) * Mathf.Clamp01(across * (0.6f + u) * 1.4f) * across;
+        });
+
+        /// <summary>Streaks of fire along U (repeating), thickest in the middle row: the body of the flame cannon.</summary>
+        public static Texture2D BeamStreaks => streakTex != null ? streakTex : streakTex = Make(128, 64, TextureWrapMode.Repeat, (u, v) =>
+        {
+            float across = 1 - Mathf.Abs(v - 0.5f) * 2;
+            // a few streaks per row, each row with its own phase; whole cycles across U so it repeats seamlessly
+            float row = v * 9;
+            float a = Mathf.Sin(u * Mathf.PI * 2 * 3 + Mathf.Floor(row) * 2.1f), b = Mathf.Sin(u * Mathf.PI * 2 * 5 + Mathf.Floor(row) * 4.7f);
+            float streak = 0.55f + 0.25f * a + 0.2f * b;
+            return Mathf.Clamp01(Mathf.Pow(across, 0.7f) * streak * 1.3f);
+        });
+
+        /// <summary>A soft white-hot line along U: the beam's core.</summary>
+        public static Texture2D BeamCore => coreTex != null ? coreTex : coreTex = Make(16, 32, TextureWrapMode.Repeat, (u, v) =>
+            Mathf.Pow(1 - Mathf.Abs(v - 0.5f) * 2, 2f));
+
+        static Texture2D Make(int w, int h, TextureWrapMode wrap, System.Func<float, float, float> alpha)
+        {
+            var px = new Color[w * h];
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    px[y * w + x] = new Color(1, 1, 1, alpha((x + 0.5f) / w, (y + 0.5f) / h));
+            var t = new Texture2D(w, h, TextureFormat.RGBA32, true) { wrapMode = wrap, filterMode = FilterMode.Bilinear };
+            t.SetPixels(px);
+            t.Apply(true, true);
+            return t;
+        }
+
         static Texture2D Tex(int s, Color[] px)
         {
             var t = new Texture2D(s, s, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };

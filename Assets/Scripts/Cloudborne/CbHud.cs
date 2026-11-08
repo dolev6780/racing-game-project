@@ -110,12 +110,15 @@ namespace Cloudborne
             UIKit.Image(UIKit.Rect(stickBase, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(120, 120)), UIKit.Ring, new Color(1, 1, 1, 0.5f));
             stickKnob = UIKit.Rect(stickBase, "knob", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(54, 54));
             UIKit.Image(stickKnob, UIKit.Circle, new Color(0.95f, 0.93f, 0.88f, 0.95f));
-            // centres measured from the bottom-right corner, as in the web demo
+            // centres measured from the bottom-right corner: the two attack buttons under the right thumb, jump and
+            // guard beside them, dash, fire and the special shot above
             AddPad("atk", "HIT", new Vector2(-14 - 46, 12 + 46), 92, CbArt.Hex("#d8453f"), 22);
+            AddPad("heavy", "HEAVY", new Vector2(-14 - 8 - 37, 12 + 106 + 37), 74, CbArt.Hex("#a8322e"), 16);
             AddPad("jump", "JUMP", new Vector2(-14 - 108 - 36, 12 + 36), 72, CbArt.Hex("#3aa862"), 17);
+            AddPad("guard", "GUARD", new Vector2(-14 - 196 - 32, 12 + 32), 64, CbArt.Hex("#7d8a99"), 14);
             AddPad("dash", "DASH", new Vector2(-14 - 104 - 32, 12 + 86 + 32), 64, CbArt.Hex("#2f8ae0"), 15);
-            AddPad("ki", "KI", new Vector2(-14 - 8 - 37, 12 + 106 + 37), 74, CbArt.Hex("#e8642a"), 20);
-            sp = AddPad("sp", "ROAR", new Vector2(-14 - 186 - 32, 12 + 76 + 32), 64, CbArt.Hex("#b8401f"), 15);
+            AddPad("ki", "FIRE", new Vector2(-14 - 186 - 32, 12 + 100 + 32), 64, CbArt.Hex("#e8642a"), 15);
+            sp = AddPad("sp", "SPECIAL", new Vector2(-14 - 60 - 30, 12 + 196 + 30), 60, CbArt.Hex("#b8401f"), 12);
 
             // screens
             title = Overlay("title");
@@ -126,7 +129,7 @@ namespace Cloudborne
             logo.transform.parent.localRotation = Quaternion.Euler(0, 0, 3);
             UIKit.Label(title, "RAJA, THE FIRE TIGER", 13, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 20), new Vector2(400, 20), TextAnchor.MiddleCenter);
             startLabel = BigButton(title, "START", new Vector2(0, -26));
-            var keys = UIKit.Label(title, "<color=#ffb03a>HIT ×4</color> paw combo · <color=#ffb03a>HIT, HIT, hold HIT</color> staff whirl · <color=#ffb03a>↑ + HIT</color> launcher · <color=#ffb03a>DASH → HIT</color> thrust · <color=#ffb03a>↓ + HIT</color> in the air slam\ntap <color=#ffb03a>KI</color> fireball · hold <color=#ffb03a>KI</color> charge · <color=#ffb03a>ROAR</color> when the ki bar glows · keyboard: A/D W/S Space J K L I",
+            var keys = UIKit.Label(title, "<color=#ffb03a>HIT</color> combo · <color=#ffb03a>↓ + HIT</color> sweep · <color=#ffb03a>HEAVY</color> staff smash · <color=#ffb03a>↑ + HEAVY</color> launcher · <color=#ffb03a>DASH → HEAVY</color> thrust · hold <color=#ffb03a>HEAVY</color> whirl · <color=#ffb03a>HEAVY</color> in the air slam\nhold <color=#ffb03a>GUARD</color> to block · <color=#ffb03a>↓</color> duck · <color=#ffb03a>FIRE</color> fireball · <color=#ffb03a>SPECIAL</color> flame cannon · keyboard: A/D W/S Space J K O U I L",
                 11, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -100), new Vector2(780, 44), TextAnchor.MiddleCenter);
             keys.supportRichText = true;
 
@@ -247,7 +250,7 @@ namespace Cloudborne
         {
             hpFill.rectTransform.localScale = new Vector3(Mathf.Clamp01(hp / 100f), 1, 1);
             kiFill.rectTransform.localScale = new Vector3(Mathf.Clamp01(ki / 100f), 1, 1);
-            bool ready = ki >= 60;
+            bool ready = ki >= 50 && CbHero.SpecialUnlocked;
             kiFrame.color = ready ? Color.Lerp(Paper, FireCol, 0.5f + 0.5f * Mathf.Sin(Time.time * 8)) : Paper;
             sp.rt.localScale = Vector3.one * (ready ? 1f + 0.04f * Mathf.Sin(Time.time * 7) : 1f);
             sp.img.color = ready ? CbArt.Hex("#d9541f") : new Color(0.72f, 0.25f, 0.12f, 0.45f);
@@ -368,7 +371,6 @@ namespace Cloudborne
         readonly HashSet<int> now = new HashSet<int>();
         int stickId = int.MinValue;
         Vector2 stickStart;
-        float kiT = -1;
 
         /// <summary>Feeds touches (and the mouse) into the input: stick, button presses and holds, taps on screens.</summary>
         public void ReadTouch(CbInput input, float dt)
@@ -409,7 +411,8 @@ namespace Cloudborne
                         case "jump": input.jump = true; break;
                         case "dash": input.dash = true; break;
                         case "sp": input.skill = true; break;
-                        case "ki": kiT = 0; break;
+                        case "ki": input.kiTap = true; break;
+                        case "heavy": input.heavy = true; break;
                     }
                 }
                 else if (stickId == int.MinValue && p.Position.x < UnityEngine.Screen.width * 0.45f && p.Position.y < UnityEngine.Screen.height * 0.7f)
@@ -429,17 +432,13 @@ namespace Cloudborne
                 if (now.Contains(b.pointer))
                 {
                     if (b.id == "atk") input.atkDown = true;
+                    if (b.id == "heavy") input.heavyDown = true;
+                    if (b.id == "guard") input.guard = true;
                     continue;
                 }
                 b.pointer = int.MinValue;
                 b.rt.localScale = Vector3.one;
-                if (b.id == "ki")
-                {
-                    if (kiT >= 0 && kiT < 0.22f) input.kiTap = true;
-                    kiT = -1;
-                }
             }
-            if (kiT >= 0) { kiT += dt; if (kiT >= 0.22f) input.charging = true; }
             if (stickId != int.MinValue && !now.Contains(stickId))
             {
                 stickId = int.MinValue;
