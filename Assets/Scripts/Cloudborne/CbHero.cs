@@ -54,7 +54,7 @@ namespace Cloudborne
         // custom clips made in Meshy from a text description (text to motion) and put on Raja's rig
         // Fire_Palms: a two-palm thrust from the hip (fully out at 0.38, held to 0.74). Power_Gather: a wide low stance,
         // cupped hands drawn back to the hip. Both turned in Blender to face forward (meshy_character.py --take).
-        const string FireClip = "Fire_Palms", GatherClip = "Power_Gather", WhirlClip = "Motion_Whirl";
+        const string FireClip = "Fire_Palms", GatherClip = "Power_Gather", WhirlClip = "Motion_Whirl", CrouchClip = "Motion_Crouch";
         const float BlastTime = 0.4f;
 
         static readonly Vector3 StaffBackPos = new Vector3(0.02f, 0.32f, -0.3f);
@@ -419,9 +419,13 @@ namespace Cloudborne
             if (model == null) return;
             switch (state)
             {
-                // ducking: drops quickly into the bottom of a squat, arms out in front (hips from 0.75 to 0.43)
+                // ducking (a clip made in Meshy from a description): drops in 0.12 s into a low crouching guard, knees
+                // deep, one foot forward, fists up at his chin (hips from 0.75 to 0.43), then breathes in it
                 case State.Idle when crouching:
-                case State.Run when crouching: model.Window("air_squat", 0.15f, 0.45f, crouchT / 0.12f, 0.05f); break;
+                case State.Run when crouching:
+                    if (crouchT < 0.12f) model.Window(CrouchClip, 0f, 0.12f, crouchT / 0.12f, 0.04f);
+                    else model.Show(CrouchClip, 0.15f + Mathf.PingPong((crouchT - 0.12f) * 0.25f, 0.65f));
+                    break;
                 case State.Idle: model.LoopSeconds("Combat_Stance", g.clock); break;
                 // a light push on the stick walks, a full one runs (a slow run looked like slow motion)
                 case State.Run when Mathf.Abs(vx) < WalkSpeed: model.LoopSeconds("Quick_Walk", walkT); break;
