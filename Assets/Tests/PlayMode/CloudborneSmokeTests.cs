@@ -47,6 +47,14 @@ namespace RacingGame.Tests
             // the scenery is merged: no copy of a model is left standing on its own
             Assert.AreEqual(0, game.world.root.GetComponentsInChildren<Transform>().Count(t => scenery.Any(n => t.name.StartsWith(n))),
                 "Copies of the scenery models were left unmerged");
+            // standing upright behind the path: nothing near leans out towards the camera, lies down or towers up
+            foreach (var r in game.world.root.Find("near").GetComponentsInChildren<MeshRenderer>())
+            {
+                var b = r.bounds;
+                Assert.Greater(b.min.z, 1f, $"Scenery near the path reaches out to z = {b.min.z:0.0} ({r.name})");
+                Assert.Greater(b.min.y, -1.5f, $"Scenery near the path sinks to y = {b.min.y:0.0} ({r.name})");
+                Assert.Less(b.max.y, 14f, $"Scenery near the path rises to y = {b.max.y:0.0} ({r.name})");
+            }
             var backdrop = game.world.root.Find("backdrop");
             Assert.IsNotNull(backdrop, "The painted backdrop is missing (Resources/Cloudborne/Jungle/Backdrop, Shaders/Backdrop)");
             Assert.IsTrue(backdrop.GetComponent<MeshRenderer>().sharedMaterial.shader.isSupported, "The backdrop shader doesn't run");

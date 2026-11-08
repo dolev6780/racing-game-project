@@ -35,6 +35,9 @@ namespace Cloudborne
         Transform backdrop;
         Material backdropMat;
         static readonly Color ForegroundShade = new Color(0.16f, 0.24f, 0.2f);
+        // The painted textures are bright, and the toon light doubles them in the sun: plain, they glow lime green.
+        // Toned down a little towards blue they sit behind the characters, like the painting.
+        static readonly Color SceneryTone = new Color(0.66f, 0.64f, 0.7f);
         readonly Dictionary<(string, float, Color), (GameObject prefab, Material mat)> models =
             new Dictionary<(string, float, Color), (GameObject, Material)>();
 
@@ -153,7 +156,7 @@ namespace Cloudborne
         /// </summary>
         Transform Place(string name, Transform parent, Vector3 pos, float scale, float outline = 0f, Color? tint = null, float turn = 35f)
         {
-            var key = (name, outline, tint ?? Color.white);
+            var key = (name, outline, tint ?? SceneryTone);
             if (!models.TryGetValue(key, out var model))
             {
                 var path = ModelPath(name);
@@ -163,11 +166,13 @@ namespace Cloudborne
                 mat.SetFloat("_RimStrength", 0.25f);
                 models[key] = model = (Resources.Load<GameObject>(path), mat);
             }
-            // Meshy's front is Unity's +Z after the export; the camera looks along +Z from in front
+            // Meshy's front is Unity's +Z after the export; the camera looks along +Z from in front. The turn and the
+            // size go on top of the import's own rotation and scale (it stands Blender's Z-up model upright).
             var t = Object.Instantiate(model.prefab, parent, false).transform;
+            var prefab = model.prefab.transform;
             t.localPosition = pos;
-            t.localRotation = Quaternion.Euler(0, 180 + Random.Range(-turn, turn), 0);
-            t.localScale = Vector3.one * scale;
+            t.localRotation = Quaternion.Euler(0, 180 + Random.Range(-turn, turn), 0) * prefab.localRotation;
+            t.localScale = prefab.localScale * scale;
             foreach (var r in t.GetComponentsInChildren<MeshRenderer>(true)) r.sharedMaterial = model.mat;
             return t;
         }
