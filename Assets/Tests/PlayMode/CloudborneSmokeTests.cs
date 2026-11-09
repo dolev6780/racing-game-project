@@ -202,7 +202,7 @@ namespace RacingGame.Tests
             Assert.IsNotNull(game.scene);
             // tapping through the talk: every line shows, then goes on, and the stage begins
             Time.captureDeltaTime = 1f / 20f;
-            bool sawKoda = false, sawRaiders = false, sawNet = false;
+            bool sawKoda = false, sawRaiders = false, sawNet = false, sawDrawn = false;
             int frames = 0;
             game.TestInput = i => i.confirm = Time.frameCount % 8 == 0;
             while (game.mode == CbGame.Mode.Scene && frames++ < 2000)
@@ -213,6 +213,7 @@ namespace RacingGame.Tests
                 sawKoda |= stage.Find("Koda") != null;
                 sawRaiders |= stage.Find("SgtSnap") != null && stage.Find("Raider") != null;
                 sawNet |= stage.Find("Koda/net") != null;
+                sawDrawn |= game.comic.Playing;
             }
             game.TestInput = null;
             Time.captureDeltaTime = 0f;
@@ -222,6 +223,7 @@ namespace RacingGame.Tests
             Assert.IsTrue(sawKoda, "Koda was not in the opening");
             Assert.IsTrue(sawRaiders, "Sergeant Snap and his raiders never came");
             Assert.IsTrue(sawNet, "Koda was never netted");
+            Assert.IsTrue(sawDrawn, "The opening's drawn panels (Koda boasting, Koda taken) never played");
             // no powers yet: his fire wakes only at the fire crystal (1-5)
             Assert.IsFalse(CbHero.FireAwake, "Raja's fire woke in the opening");
             Assert.IsNull(game.transform.Find("Opening"), "The scene's cast was left on the path");
@@ -288,6 +290,20 @@ namespace RacingGame.Tests
             game.PlayStage("1-1");
             yield return WaitForMode(CbGame.Mode.Play, 6f);
             Assert.AreEqual(CbGame.Mode.Play, game.mode);
+        }
+
+        [UnityTest]
+        public IEnumerator ApprovedStoryPaintingsLoad()
+        {
+            yield return null;
+            foreach (var name in new[] { "prologue_leap", "prologue_crown", "koda_boast", "koda_taken", "raja_angry" })
+            {
+                var tex = Resources.Load<Texture2D>("Cloudborne/Story/" + name);
+                Assert.IsNotNull(tex, $"The painting {name} is missing (Resources/Cloudborne/Story)");
+                Assert.AreEqual(1680, tex.width, $"The painting {name} was resized on import");
+            }
+            Assert.IsTrue(CbComic.Available(CbStory.KodaBoast), "Koda's boast can't be shown");
+            Assert.IsTrue(CbComic.Available(CbStory.KodaTaken), "Koda being taken can't be shown");
         }
 
         [UnityTest]

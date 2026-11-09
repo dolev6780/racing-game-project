@@ -36,6 +36,14 @@ namespace UnityEditor
         public ModelImporterMaterialImportMode materialImportMode;
         public bool importAnimation, importCameras, importLights, isReadable;
     }
+    public enum TextureImporterNPOTScale { None, ToNearest, ToLarger, ToSmaller }
+    public class TextureImporter : AssetImporter
+    {
+        public TextureImporterNPOTScale npotScale;
+        public bool mipmapEnabled;
+        public UnityEngine.TextureWrapMode wrapMode;
+        public int maxTextureSize;
+    }
     public class AssetPostprocessor
     {
         public string assetPath;
