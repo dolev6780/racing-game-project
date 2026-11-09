@@ -202,15 +202,24 @@ namespace Cloudborne
         // ---------- the mountain's rock ----------
 
         // The mountain is one rock face, not blocks piled up: a painted cliff texture (Cliff/RockFace, drawn in Canva;
-        // until it is in the project, rock drawn in code) repeated across every face, lined up with the world, with
+        // without it, rock drawn in code) repeated across every face, lined up with the world, with
         // the ground's own grassy lip along each top edge and grass on top.
         const float RockTile = 4f;
         static Texture2D rockTex;
+        static bool rockPainted;
+
+        /// <summary>The rock's tint: the painting takes the tone of the rest of the painted scenery (the path's earth face).</summary>
+        static Color RockTone()
+        {
+            RockTexture();
+            return rockPainted ? CbWorld.SceneryTone : new Color(0.8f, 0.78f, 0.82f);
+        }
 
         static Texture2D RockTexture()
         {
             if (rockTex != null) return rockTex;
             rockTex = Resources.Load<Texture2D>(CliffDir + "RockFace");
+            rockPainted = rockTex != null;
             if (rockTex == null)
             {
                 // layered grey-brown rock: wavy strata, darker cracks between them, patches of moss
@@ -239,7 +248,7 @@ namespace Cloudborne
         /// <summary>The rock for a face w by h whose lower left corner is at world (wx, wy): the painting lined up with the world.</summary>
         static Material RockMat(float w, float h, float wx, float wy, Color? tint = null)
         {
-            var m = CbArt.NewToon(tint ?? new Color(0.8f, 0.78f, 0.82f), 0f, RockTexture());
+            var m = CbArt.NewToon(tint ?? RockTone(), 0f, RockTexture());
             m.SetFloat("_SpecStrength", 0f);
             m.SetFloat("_RimStrength", 0f);
             m.mainTextureScale = new Vector2(w / RockTile, h / RockTile);
@@ -305,7 +314,9 @@ namespace Cloudborne
             }
             var mesh = new Mesh { name = "mountain" };
             mesh.SetVertices(v); mesh.SetUVs(0, uv); mesh.SetTriangles(tri, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
-            var rock = RockMat(1, 1, 0, 0, new Color(0.66f, 0.7f, 0.78f));
+            // a little darker and bluer than the terraces in front, being farther back
+            var tone = RockTone();
+            var rock = RockMat(1, 1, 0, 0, new Color(tone.r * 0.85f, tone.g * 0.9f, tone.b * 0.96f));
             rock.mainTextureScale = Vector2.one; rock.mainTextureOffset = Vector2.zero;
             CbArt.Part(mesh, rock, root, Vector3.zero, Vector3.one, shadows: false).name = "mountainBody";
             var ridge = new Mesh { name = "mountainRidge" };

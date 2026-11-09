@@ -330,7 +330,7 @@ namespace RacingGame.Tests
                 var card = Resources.Load<Texture2D>("Cloudborne/Jungle/Cards/" + n);
                 Assert.IsNotNull(card, $"The {n} card is missing");
             }
-            foreach (var t in new[] { "Backdrop/JungleMid", "Backdrop/JungleNear", "Ground/Path", "Water/Water" })
+            foreach (var t in new[] { "Backdrop/JungleMid", "Backdrop/JungleNear", "Ground/Path", "Water/Water", "Cliff/RockFace" })
                 Assert.IsNotNull(Resources.Load<Texture2D>("Cloudborne/Jungle/" + t), $"The painted {t} is missing");
             foreach (var m in new[] { "Banyan", "Kapok", "Bamboo" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/{m}/{m}"), $"The {m} tree is missing");
@@ -343,7 +343,9 @@ namespace RacingGame.Tests
             // the mountain is one rock face (not blocks piled up): a body behind, terraces faced with rock, ledges of the kit
             var level = game.transform.Find("Level");
             Assert.IsNotNull(level);
-            Assert.IsNotNull(level.Find("mountainBody"), "The mountain's body is missing");
+            var body = level.Find("mountainBody");
+            Assert.IsNotNull(body, "The mountain's body is missing");
+            Assert.AreEqual("RockFace", body.GetComponent<MeshRenderer>().sharedMaterial.mainTexture.name, "The mountain is not faced with the painted rock");
             int rock = 0, kitLedges = 0;
             foreach (Transform t in level)
             {

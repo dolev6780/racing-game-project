@@ -54,7 +54,7 @@ namespace Cloudborne
         static readonly Color ForegroundShade = new Color(0.16f, 0.24f, 0.2f);
         // The painted textures are bright, and the toon light doubles them in the sun: plain, they glow lime green.
         // Toned down a little towards blue they sit behind the characters, like the painting.
-        static readonly Color SceneryTone = new Color(0.66f, 0.64f, 0.7f);
+        public static readonly Color SceneryTone = new Color(0.66f, 0.64f, 0.7f);
         // the meadow between the path and the trees glowed neon in the sun in the same way
         static readonly Color GroundTone = new Color(0.72f, 0.7f, 0.74f);
         readonly Dictionary<(string, float, Color), (GameObject prefab, Material mat)> models =
