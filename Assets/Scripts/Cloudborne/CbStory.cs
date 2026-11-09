@@ -9,7 +9,7 @@ namespace Cloudborne
     public static class CbStory
     {
         public static readonly Color RajaCol = CbArt.Hex("#ffb03a"), KodaCol = CbArt.Hex("#9fd0ff"), SnapCol = CbArt.Hex("#ff6a4d"),
-            ElderCol = CbArt.Hex("#c9d2de");
+            ElderCol = CbArt.Hex("#c9d2de");   // the village elder (in later scenes)
 
         // the models each character will use once built in Meshy; until then the stand-ins below
         static readonly string[] KodaModels = { "Cloudborne/Koda/Koda" };
@@ -136,21 +136,12 @@ namespace Cloudborne
                 () => { s.Raja("Combat_Stance"); koda.Play("Show_Both_Arm_Muscles"); },
                 t => { if (koda.model == null) koda.y = t < 1.2f ? Mathf.Abs(Mathf.Sin(t * 7)) * 0.18f : 0; });
             s.Say("RAJA", RajaCol, "The prophecy kid is supposed to save the whole jungle, Koda. You fell out of a tree yesterday.");
-            // a little spark jumps from his paw (all he has: no one but Baba knows what it means); Koda leaps back
-            s.Wait(0.9f, u => s.rajaGlow = 0.6f * (1 - u), () =>
+            // nothing gives Raja away here: no one but Baba knows what he is
+            s.Say("KODA", KodaCol, "That tree attacked me first!", () =>
             {
-                var hand = hero.HandPoint() + new Vector3(0, 0, -0.3f);
-                CbFx.Spark(hand, CbFx.Fire, 8, 3, 0.25f, 0.4f);
-                CbVfx.Burst(hand, CbFx.Fire, 0.7f, 0.12f);
-                CbFx.Sfx("fire", 0.4f);
-                s.RajaOnce("Hit_Reaction", 0.1f, 0.6f, 0.6f);
                 koda.Once("Hit_Reaction", 0.1f, 0.7f, 0.6f);
-                koda.WalkTo(-0.8f, 4f, null);
-                koda.facing = -1;
+                s.Raja("Idle");
             });
-            s.Say("VILLAGE ELDER", ElderCol, "Keep away from that tiger. One day his spark will set us all on fire.",
-                () => { s.Raja("Idle"); koda.facing = -1; koda.Play("Idle"); });
-            s.Say("RAJA", RajaCol, "...I would never hurt anyone.");
 
             // the saws: the Iron Crown's raiders come running out of the trees, their sergeant in front
             s.Wait(1.7f, null, () =>
@@ -195,7 +186,7 @@ namespace Cloudborne
                 r1.Once("Right_Hand_Sword_Slash", 0.1f, 0.5f, 0.4f);
             });
             s.Say("KODA", KodaCol, "...wait, why the net?!");
-            s.Say("SGT. SNAP", SnapCol, "The wolf comes with us. The General knows what to do with prophecy kids.",
+            s.Say("SGT. SNAP", SnapCol, "The wolf comes with us. The General knows what to do with the prophecy kid.",
                 () => snap.Once("Shouting_Angrily", 0.15f, 0.85f, 1.8f));
 
             // two raiders take him between them on a bamboo pole, the sack hanging from it, and run; Raja runs after them

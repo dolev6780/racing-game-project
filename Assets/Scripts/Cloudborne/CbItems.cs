@@ -75,20 +75,29 @@ namespace Cloudborne
             // crates along the path, each with something in it
             AddCrate(9f, Kind.Coin, Kind.Coin, Kind.Coin);
             AddCrate(27f, Kind.Mango, Kind.Coin);
-            AddCrate(38f, Kind.KiCrystal, Kind.Coin, Kind.Coin);
-            AddCrate(57f, Kind.Mango, Kind.Coin);
-            AddCrate(70.4f, Kind.Coin, Kind.Coin, Kind.Coin);
-            AddCrate(91.4f, Kind.Mango, Kind.KiCrystal);
-            // coin trails: an arc to jump through, a row on the path
+            AddCrate(42f, Kind.KiCrystal, Kind.Coin, Kind.Coin);
+            AddCrate(52f, Kind.Mango, Kind.Coin);
+            AddCrate(73.5f, Kind.Coin, Kind.Coin, Kind.Coin);
+            AddCrate(105.5f, Kind.Mango, Kind.KiCrystal);
+            AddCrate(134.5f, Kind.Mango, Kind.Coin);
+            AddCrate(191f, Kind.KiCrystal, Kind.Coin, Kind.Coin);
+            AddCrate(228f, Kind.Mango, Kind.Coin);
+            AddCrate(234f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
+            // coin trails: an arc to jump through, a row along the rope bridge, an arc in the second fight
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(4 + i * 0.9f, 1.2f + Mathf.Sin(i / 4f * Mathf.PI) * 1.6f, 0), resting: true);
-            for (int i = 0; i < 6; i++) Spawn(Kind.Coin, new Vector3(30 + i * 0.8f, 0.7f, 0), resting: true);
-            for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(50 + i * 0.9f, 1.4f + Mathf.Sin(i / 4f * Mathf.PI) * 2.2f, 0), resting: true);
-            // over the river: one above each stepping stone and the log, for jumping across
-            foreach (var cx in new[] { 63.3f, 65.4f, 67.5f }) Spawn(Kind.Coin, new Vector3(cx, 1.3f, 0), resting: true);
-            // secrets: a golden fruit high above the path at the top of the climb (the last ledges crumble), and the
-            // scroll on the highest of the hidden ledges up to the left of the climb (CbLevel)
-            Spawn(Kind.GoldenFruit, new Vector3(111.6f, 8.3f, 0), resting: true);
-            Spawn(Kind.Scroll, new Vector3(94.2f, 8.1f, 0), resting: true);
+            for (int i = 0; i < 6; i++) Spawn(Kind.Coin, new Vector3(31.8f + i * 0.85f, 0.7f, 0), resting: true);
+            for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(54 + i * 0.9f, 1.4f + Mathf.Sin(i / 4f * Mathf.PI) * 2.2f, 0), resting: true);
+            // over the river: above its stones, logs and the rock, for jumping across
+            foreach (var cx in new[] { 80.6f, 83.6f, 86.6f, 92.2f, 95.2f, 97.4f, 99.8f }) Spawn(Kind.Coin, new Vector3(cx, 1.2f, 0), resting: true);
+            Spawn(Kind.Coin, new Vector3(89f, 2.4f, 0), resting: true);
+            // up the mountain: one over each ledge, a row along the plateau
+            foreach (var (cx, top) in new[] { (146.25f, 4.2f), (149.2f, 5.6f), (154.7f, 7.8f), (157.3f, 9f), (171.5f, 10.8f), (181.7f, 8.6f), (184.7f, 5.8f), (187.7f, 3f) })
+                Spawn(Kind.Coin, new Vector3(cx, top + 1f, 0), resting: true);
+            for (int i = 0; i < 6; i++) Spawn(Kind.Coin, new Vector3(160f + i * 1.2f, 11.2f, 0), resting: true);
+            // secrets: a golden fruit on the mountain's summit (past the crumbling ledges and the falling rocks), and
+            // the scroll on the highest of the hidden ledges above the plateau (CbLevel)
+            Spawn(Kind.GoldenFruit, new Vector3(177.5f, CbLevel.SummitTop + 1.2f, 0), resting: true);
+            Spawn(Kind.Scroll, new Vector3(160.3f, 15.8f, 0), resting: true);
         }
 
         void AddCrate(float x, params Kind[] contents)

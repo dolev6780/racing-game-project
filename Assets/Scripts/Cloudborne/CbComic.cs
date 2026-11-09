@@ -171,12 +171,26 @@ namespace Cloudborne
             if (s.fx == "sparks") for (int i = 0; i < 24; i++) Spawn("sparks", true);
         }
 
+        /// <summary>
+        /// How long a shot stays: its own time made unhurried, and long enough to read its words at an easy pace
+        /// (the user found the prologue too fast). A tap moves on sooner.
+        /// </summary>
+        static float Length(Shot s) => s.title != null ? s.dur * 1.5f : Mathf.Max(s.dur * 1.6f, 3f + (s.caption?.Length ?? 0) * 0.07f);
+
+        /// <summary>A tap: on to the next painting (after a moment, so a tap meant for something else doesn't skip it).</summary>
+        public void Tap()
+        {
+            if (!Playing || shots == null || index < 0 || index >= shots.Length || t < 0.8f) return;
+            Next();
+        }
+
         public void Update(float dt)
         {
             if (!Playing || shots == null || index >= shots.Length) return;
             var s = shots[index];
+            float dur = Length(s);
             t += dt;
-            float k = Mathf.Clamp01(t / s.dur);
+            float k = Mathf.Clamp01(t / dur);
             float ease = k * k * (3 - 2 * k);
 
             // the painting: covering the screen, its view easing from `from` to `to`
@@ -198,10 +212,10 @@ namespace Cloudborne
             frame.localScale = Vector3.one * (1 + shakeT * 0.03f);
             flashT = Mathf.Max(0, flashT - dt);
             flash.color = new Color(1, 1, 1, flashT / 0.45f * 0.9f);
-            float words = Mathf.Clamp01((t - 0.35f) / 0.4f) * Mathf.Clamp01((s.dur - t) / 0.35f);
+            float words = Mathf.Clamp01((t - 0.5f) / 0.5f) * Mathf.Clamp01((dur - t) / 0.4f);
             SetAlpha(whoTxt, words); SetAlpha(captionTxt, words);
-            float title = s.title != null ? Mathf.Clamp01(t / 0.8f) * Mathf.Clamp01((s.dur - t) / 0.5f) : 0;
-            SetAlpha(titleTxt, title); SetAlpha(subtitleTxt, Mathf.Clamp01((t - 0.5f) / 0.6f) * Mathf.Clamp01((s.dur - t) / 0.5f));
+            float title = s.title != null ? Mathf.Clamp01(t / 0.8f) * Mathf.Clamp01((dur - t) / 0.5f) : 0;
+            SetAlpha(titleTxt, title); SetAlpha(subtitleTxt, Mathf.Clamp01((t - 0.5f) / 0.6f) * Mathf.Clamp01((dur - t) / 0.5f));
             titleTxt.transform.localScale = Vector3.one * (1.15f - 0.15f * Mathf.Clamp01(t / 0.8f));
 
             // what drifts over it
@@ -224,7 +238,7 @@ namespace Cloudborne
                 m.rt.sizeDelta = Vector2.one * m.size;
             }
 
-            if (t >= s.dur) Next();
+            if (t >= dur) Next();
         }
 
         /// <summary>The part of the painting to show so it covers the screen, around a centre, zoomed in by view.z.</summary>

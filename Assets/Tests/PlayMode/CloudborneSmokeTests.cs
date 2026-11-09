@@ -64,7 +64,8 @@ namespace RacingGame.Tests
             bool done = false;
             game.comic.Play(shots, () => done = true);
             Assert.IsTrue(game.comic.Playing);
-            for (float waited = 0; !done && waited < 5f; waited += Time.unscaledDeltaTime)
+            // each painting stays long enough to read its words (about 3 s here), and a tap moves on sooner
+            for (float waited = 0; !done && waited < 12f; waited += Time.unscaledDeltaTime)
             {
                 game.comic.Update(Time.unscaledDeltaTime);
                 yield return null;
@@ -87,8 +88,8 @@ namespace RacingGame.Tests
             game.StartGame();
             game.SkipToBoss();
             yield return Frames(2);
-            // near the gate he steps out: a scene, then the fight in a shut arena
-            game.Teleport(118f);
+            // near the gate he steps out: a scene, then the fight in a shut arena (his arena stands 14 m before it)
+            game.Teleport(CbWorld.GoalX - 20f);
             yield return WaitForMode(CbGame.Mode.Scene, 3f);
             Assert.AreEqual(CbGame.Mode.Scene, game.mode, "Sergeant Snap's scene did not play");
             game.scene.Skip();
@@ -137,13 +138,14 @@ namespace RacingGame.Tests
             game.SkipFights();
             yield return Frames(2);
             var level = game.level;
-            // hidden: nothing to stand on up there while Raja is on the path
-            Assert.AreEqual(0f, level.SupportAt(97.6f, 6f), 0.001f, "The hidden ledge holds him before it was found");
-            // up on the tall pillar, close by, the first hidden ledge shows itself
-            game.Teleport(101.8f);
-            game.hero.y = 2.6f;
+            // hidden: above the mountain's plateau there is only the plateau to stand on
+            Assert.AreEqual(10.2f, level.SupportAt(163.5f, 14f), 0.001f, "The hidden ledge holds him before it was found");
+            // up on the plateau, close by, the first hidden ledge shows itself
+            game.Teleport(166f);
+            game.hero.y = 10.2f;
+            game.hero.vy = 0;
             for (float waited = 0; waited < 1f; waited += Time.deltaTime) yield return null;
-            Assert.AreEqual(5.2f, level.SupportAt(97.6f, 6f), 0.001f, "Climbing near did not reveal the hidden ledge");
+            Assert.AreEqual(12.8f, level.SupportAt(163.5f, 14f), 0.001f, "Climbing near did not reveal the hidden ledge");
         }
 
         [UnityTest]
@@ -602,25 +604,28 @@ namespace RacingGame.Tests
             var level = game.level;
             float wallLeft = CbLevel.WallX - 0.65f - CbLevel.HalfWidth;
             // the cracked wall stops him on the path, and is taller than a double jump
-            Assert.LessOrEqual(level.BlockX(57f, 60f, 0f), wallLeft + 0.001f, "Raja walked into the cracked wall");
-            Assert.LessOrEqual(level.BlockX(57f, 60f, 3.9f), wallLeft + 0.001f, "A double jump clears the cracked wall");
+            Assert.LessOrEqual(level.BlockX(CbLevel.WallX - 3f, CbLevel.WallX, 0f), wallLeft + 0.001f, "Raja walked into the cracked wall");
+            Assert.LessOrEqual(level.BlockX(CbLevel.WallX - 3f, CbLevel.WallX, 3.9f), wallLeft + 0.001f, "A double jump clears the cracked wall");
             // paws and kicks clang off it; two staff blows break it and the way is open
             level.Strike(wallLeft, 0f, 1, 1.7f, staff: false);
             Assert.IsTrue(level.WallStanding, "A paw broke the cracked wall");
             level.Strike(wallLeft, 0f, 1, 2.6f, staff: true);
             level.Strike(wallLeft, 0f, 1, 2.6f, staff: true);
             Assert.IsFalse(level.WallStanding, "Two staff blows did not break the cracked wall");
-            Assert.AreEqual(60f, level.BlockX(57f, 60f, 0f), 0.001f, "The broken wall still blocks the path");
-            // a ledge is landed on from above and jumped through from below
-            Assert.AreEqual(3.9f, level.SupportAt(105f, 4.5f), 0.001f, "Raja does not land on the first ledge");
-            Assert.AreEqual(0f, level.SupportAt(105f, 3f), 0.001f, "The ledge stops him jumping up through it");
-            // the hero really stands on it: dropped above it, he comes to rest on top
+            Assert.AreEqual(CbLevel.WallX, level.BlockX(CbLevel.WallX - 3f, CbLevel.WallX, 0f), 0.001f, "The broken wall still blocks the path");
+            // the mountain's first ledge is landed on from above and jumped through from below
+            Assert.AreEqual(4.2f, level.SupportAt(146.25f, 4.8f), 0.001f, "Raja does not land on the first ledge");
+            Assert.AreEqual(0f, level.SupportAt(146.25f, 3f), 0.001f, "The ledge stops him jumping up through it");
+            // its terraces are solid: they stop him on the path and hold him on top
+            Assert.LessOrEqual(level.BlockX(135f, 138f, 0f), 137f - CbLevel.HalfWidth + 0.001f, "Raja walked into the mountain");
+            Assert.AreEqual(CbLevel.SummitTop, level.SupportAt(176f, 12f), 0.001f, "The summit does not hold him");
+            // the hero really stands on the ledge: dropped above it, he comes to rest on top
             game.SkipFights();
-            game.hero.y = 4.6f;
+            game.hero.y = 4.8f;
             game.hero.vy = 0;
-            game.hero.x = 105f;
+            game.hero.x = 146.25f;
             yield return new WaitForSeconds(0.4f);
-            Assert.AreEqual(3.9f, game.hero.y, 0.05f, "Raja fell through the ledge");
+            Assert.AreEqual(4.2f, game.hero.y, 0.05f, "Raja fell through the ledge");
         }
 
         [UnityTest]
@@ -634,35 +639,51 @@ namespace RacingGame.Tests
             game.SkipFights();
             yield return Frames(2);
             var level = game.level;
-            // over a stream there is nothing to stand on...
-            Assert.Less(level.SupportAt(64.15f, 1f), -1f, "There is ground in the river between the stone and the log");
+            // over a stream there is nothing to stand on (between two stones of the long river)...
+            Assert.Less(level.SupportAt(96.3f, 1f), -1f, "There is ground in the river between the stones");
             // ...but the rope bridge's planks hold him, walked onto from the bank and sagging in the middle
-            float mid = level.SupportAt(31f, 0f);
-            Assert.That(mid, Is.InRange(-0.3f, 0f), "The rope bridge does not hold him in the middle");
-            Assert.That(level.SupportAt(28.1f, 0f), Is.InRange(0f, 0.3f), "The rope bridge can't be walked onto from the bank");
-            // stepping stones and the log are landed on from above, not walked onto from the bank
-            Assert.Greater(level.SupportAt(63.3f, 1f), 0.1f, "The stepping stone does not hold him");
-            Assert.Less(level.SupportAt(63.3f, 0f), -1f, "The stepping stone is walked onto without a jump");
-            // the stone arch bridge is jumped onto and stood on
-            Assert.AreEqual(1.64f, level.SupportAt(94.6f, 2f), 0.001f, "The stone bridge does not hold him");
+            Assert.That(level.SupportAt(34f, 0f), Is.InRange(-0.3f, 0f), "The rope bridge does not hold him in the middle");
+            Assert.That(level.SupportAt(31.2f, 0f), Is.InRange(0f, 0.3f), "The rope bridge can't be walked onto from the bank");
+            // a stepping stone is landed on from above, not climbed onto from the water
+            Assert.That(level.SupportAt(97.4f, 1f), Is.InRange(-0.1f, 0.1f), "The stepping stone does not hold him");
+            Assert.Less(level.SupportAt(97.4f, CbLevel.WaterLevel), -1f, "The stepping stone is climbed onto from the water");
+            // the rock in the river and the stone arch bridge are stood on
+            Assert.AreEqual(1.3f, level.SupportAt(89f, 2f), 0.001f, "The rock in the river does not hold him");
+            Assert.AreEqual(1.64f, level.SupportAt(223.4f, 2f), 0.001f, "The stone bridge does not hold him");
 
-            // falling in: a splash, health lost, and back on the bank he came from
-            float hp0 = game.hero.hp;
-            game.Teleport(64.15f);
-            game.hero.y = 1f;
-            game.hero.vy = 0;
-            yield return new WaitForSeconds(0.6f);
-            Assert.AreEqual(CbLevel.Waters[1].x0 - 0.8f, game.hero.x, 0.3f, "Falling into the river did not put Raja back on its near bank");
-            Assert.AreEqual(0f, game.hero.y, 0.05f);
-            Assert.AreEqual(hp0 - CbHero.WaterDamage, game.hero.hp, 0.01f, "Falling into the river cost no health");
-            // dropped onto the log he rides it, dipping a little
-            game.Teleport(65.4f);
-            game.hero.y = 1.2f;
+            // standing on a steady stone, then falling in: a splash, health lost, and back on that stone
+            game.Teleport(97.4f);
+            game.hero.y = 0.6f;
             game.hero.vy = 0;
             yield return new WaitForSeconds(0.5f);
-            Assert.Greater(game.hero.y, 0.1f, "Raja sank through the log");
-            Assert.AreEqual(65.4f, game.hero.x, 0.2f);
-            Assert.AreEqual(hp0 - CbHero.WaterDamage, game.hero.hp, 0.01f, "Standing on the log cost health");
+            Assert.AreEqual(0f, game.hero.y, 0.1f, "Raja did not land on the stepping stone");
+            float hp0 = game.hero.hp;
+            game.Teleport(96.3f);
+            game.hero.y = 1f;
+            game.hero.vy = 0;
+            yield return new WaitForSeconds(0.7f);
+            Assert.AreEqual(97.4f, game.hero.x, 0.3f, "Falling into the river did not put Raja back on the stone he stood on");
+            Assert.AreEqual(hp0 - CbHero.WaterDamage, game.hero.hp, 0.01f, "Falling into the river cost no health");
+            // a sinking stone goes under him after a moment, into the water he goes
+            game.Teleport(95.2f);
+            game.hero.y = 0.6f;
+            game.hero.vy = 0;
+            yield return new WaitForSeconds(2.2f);
+            Assert.AreEqual(hp0 - 2 * CbHero.WaterDamage, game.hero.hp, 0.01f, "The pale stone did not sink under him");
+            // a drifting log carries him along with it
+            game.Teleport(level.CrossingAt(92.2f));
+            game.hero.y = 0.6f;
+            game.hero.vy = 0;
+            yield return new WaitForSeconds(0.25f);
+            float onLog = game.hero.x, carried = 0;
+            Assert.Greater(game.hero.y, -0.3f, "Raja did not land on the drifting log");
+            for (float waited = 0; waited < 1.2f; waited += Time.deltaTime)
+            {
+                yield return null;
+                carried = Mathf.Max(carried, Mathf.Abs(game.hero.x - onLog));
+            }
+            Assert.Greater(carried, 0.1f, "The drifting log did not carry him");
+            Assert.Greater(game.hero.y, -0.3f, "Raja fell off the drifting log standing still");
         }
 
         [UnityTest]

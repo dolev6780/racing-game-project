@@ -116,8 +116,8 @@ namespace Cloudborne
         // below WalkSpeed he walks (a light push on the stick), above it he runs; the walk clip's own pace
         const float WalkSpeed = 4.2f, WalkClipPace = 1.4f;
         int combo, jumps, airHits, hits;
-        // the last place he stood on solid ground: falling into a stream puts him back on that side of it
-        float bankX;
+        // the last safe place he stood (ground, a bridge, a steady stone): falling into the water puts him back there
+        float safeX, safeY;
         /// <summary>Health lost falling into a stream.</summary>
         public const float WaterDamage = 10f;
         bool air, airDashed, holdUsed, fired, flameSmash, kiCrash;
@@ -149,7 +149,7 @@ namespace Cloudborne
 
         public void Reset()
         {
-            x = y = vx = vy = 0; bankX = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
+            x = y = vx = vy = 0; safeX = safeY = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
             flipT = 0; inv = 0; move = Move.None; staffHold = 0; sinceDash = 9; airDashed = false; dashCd = 0; empower = false; holdUsed = false;
             glow = 0; airHits = 0;
             f.flip.localRotation = Quaternion.identity;
@@ -241,7 +241,7 @@ namespace Cloudborne
             return any;
         }
 
-        /// <summary>He fell into a stream: a splash where he went in, health lost, and back on the bank he came from.</summary>
+        /// <summary>He fell into a stream: a splash where he went in, health lost, and back where he last stood safely.</summary>
         void FellInWater()
         {
             var at = new Vector3(x, CbLevel.WaterLevel + 0.1f, -0.3f);
@@ -251,9 +251,9 @@ namespace Cloudborne
             hp = Mathf.Max(0, hp - WaterDamage);
             g.hud.Popup(new Vector3(x, 2.2f, 0), "-" + Mathf.RoundToInt(WaterDamage), CbHud.PopStyle.Hurt);
             g.hud.FlashHurt();
-            g.hud.SetTip("Into the water! Jump across - the stones and the log hold you");
-            x = CbLevel.BankFor(x, bankX);
-            y = 0; vx = vy = 0; air = false; jumps = 0; airDashed = false; flipT = 0;
+            g.hud.SetTip("Into the water! Pale stones sink, logs drift - jump on quickly");
+            x = safeX;
+            y = safeY; vx = vy = 0; air = false; jumps = 0; airDashed = false; flipT = 0;
             state = State.Idle; move = Move.None; combo = 0;
             inv = Mathf.Max(inv, 1f);
             if (hp <= 0) { state = State.Dead; t = 0; g.Invoke(nameof(CbGame.Defeated), 1.4f); }
@@ -470,9 +470,9 @@ namespace Cloudborne
                 }
             }
             else air = true;
-            if (!air && floor >= 0 && !CbLevel.InWater(x)) bankX = x;
-            // into the water: a splash, and back on the bank he came from
-            if (y < -0.4f && CbLevel.InWater(x)) FellInWater();
+            if (!air && (g.level == null || g.level.SafeAt(x, y))) { safeX = x; safeY = y; }
+            // into the water: a splash, and back where he last stood safely
+            if (y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater();
             float lo = g.lockZone != null ? g.lockZone.x - 10.5f : CbWorld.LevelMin;
             float hi = g.lockZone != null ? g.lockZone.x + 10.5f : CbWorld.LevelMax;
             x = Mathf.Clamp(x, lo, hi);

@@ -28,9 +28,11 @@ namespace Cloudborne
         static readonly Zone[] Zones =
         {
             new Zone { x = 16, label = "Iron Crown raiders!", tip = 1, spawn = new[] { (CbEnemy.Kind.Hyena, 12f), (CbEnemy.Kind.Hyena, -12f), (CbEnemy.Kind.Hyena, 14f) } },
-            new Zone { x = 46, label = "Shield bearers", tip = 3, spawn = new[] { (CbEnemy.Kind.Shield, 12f), (CbEnemy.Kind.Hyena, -12f), (CbEnemy.Kind.Hyena, 13.5f) } },
+            new Zone { x = 58, label = "Shield bearers", tip = 3, spawn = new[] { (CbEnemy.Kind.Shield, 12f), (CbEnemy.Kind.Hyena, -12f), (CbEnemy.Kind.Hyena, 13.5f) } },
             // those behind him come from the river's far bank, not out of the water
-            new Zone { x = 80, label = "Ambush at the shrine", tip = 4, spawn = new[] { (CbEnemy.Kind.Shield, 12f), (CbEnemy.Kind.Shield, -10.6f), (CbEnemy.Kind.Hyena, 13.5f), (CbEnemy.Kind.Hyena, -10.2f) } },
+            new Zone { x = 118, label = "Ambush at the shrine", tip = 4, spawn = new[] { (CbEnemy.Kind.Shield, 12f), (CbEnemy.Kind.Shield, -10.6f), (CbEnemy.Kind.Hyena, 13.5f), (CbEnemy.Kind.Hyena, -10.2f) } },
+            // down from the mountain, the raiders wait on the ridge
+            new Zone { x = 205, label = "On the ridge", tip = 1, spawn = new[] { (CbEnemy.Kind.Hyena, 12f), (CbEnemy.Kind.Shield, -12f), (CbEnemy.Kind.Hyena, 13.5f), (CbEnemy.Kind.Hyena, -13f) } },
         };
 
         /// <summary>The fight tips; the ki moves are staff techniques until Raja's fire wakes (the fire crystal).</summary>
@@ -52,7 +54,7 @@ namespace Cloudborne
         public static CbGame I { get; private set; }
 
         // Sergeant Snap, the mini-boss: his arena stands in front of the shrine gate
-        const float BossX = 124f;
+        const float BossX = 250f;
         static readonly Zone BossZone = new Zone { x = BossX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
         /// <summary>Sergeant Snap while he is on the stage.</summary>
         public CbEnemy boss;
@@ -477,7 +479,11 @@ namespace Cloudborne
                     hud.ShowGo(true);
                     hud.SetWave("Keep moving");
                     hud.Banner("CLEAR!");
-                    hud.SetTip(Tip(zoneIdx == 1 ? 2 : 4));
+                    // what lies ahead after each fight
+                    hud.SetTip(zoneIdx == 1 ? Tip(2)
+                        : zoneIdx == 2 ? "Ahead: the cracked wall, then a long river. Pale stones sink, logs drift"
+                        : zoneIdx == 3 ? "Climb the mountain! Cracked ledges crumble - and watch for falling rocks"
+                        : Tip(4));
                 }
             }
         }
@@ -927,6 +933,8 @@ namespace Cloudborne
                 else if (mode == Mode.Scene) scene?.Skip();
                 else if (!fade.Busy) TogglePause();
             }
+            // a tap during a drawn cutscene moves on to its next painting
+            else if (input.confirm && comic.Playing) comic.Tap();
             if (mode == Mode.Title)
             {
                 hero.Idle(raw);
@@ -984,7 +992,8 @@ namespace Cloudborne
             // in the menu Raja stands on the right of the screen, the menu on the left, the camera a little closer
             if (mode == Mode.Title) { tx = hero.x - 3.4f + Mathf.Sin(clock * 0.2f) * 0.3f; dist *= 0.72f; }
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
-            float ty = CamBase + hero.y * 0.5f;
+            // half his height on the path and in jumps; high up the mountain the camera climbs with him
+            float ty = CamBase + Mathf.Max(hero.y * 0.5f, hero.y - 2.5f);
             // a scene directs the camera itself: where it looks and how close it comes
             if (mode == Mode.Scene && scene != null) { tx = camX = scene.camX; ty = camY = scene.camY; dist *= scene.zoom; }
             camX += (tx - camX) * (1 - Mathf.Exp(-3.5f * dt));

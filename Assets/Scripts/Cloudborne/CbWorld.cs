@@ -15,7 +15,9 @@ namespace Cloudborne
     public class CbWorld
     {
         // the stage runs from LevelMin to LevelMax; it is cleared at the shrine gate at GoalX, once every fight is won
-        public const float LevelMin = -8f, LevelMax = 140f, GoalX = 136f;
+        public const float LevelMin = -8f, LevelMax = 270f, GoalX = 264f;
+        // the scenery runs on a little past the end of the stage
+        const float End = 290f;
         // the blue-teal haze of the painted backdrop: distant scenery fades into it, not into white
         public static readonly Color Horizon = CbArt.Hex("#7fc0cc");
 
@@ -39,8 +41,8 @@ namespace Cloudborne
         static readonly (string path, float from)[] BackdropParts =
         {
             ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
-            ("Cloudborne/Jungle/Backdrop/GorgeBackdrop", 34f),
-            ("Cloudborne/Jungle/Backdrop/TempleBackdrop", 66f),
+            ("Cloudborne/Jungle/Backdrop/GorgeBackdrop", 76f),
+            ("Cloudborne/Jungle/Backdrop/TempleBackdrop", 110f),
         };
         const float BackdropFade = 12f;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
@@ -85,27 +87,74 @@ namespace Cloudborne
         const string GroundDir = "Cloudborne/Jungle/Ground/";
         const string GroundFacePath = GroundDir + "GroundFace";
         // the painted grass repeats every GrassTile metres, the path every PathWidth (it is square)
-        const float GrassTile = 4f, PathWidth = 3.2f;
+        public const float GrassTile = 4f;
+        const float PathWidth = 3.2f;
         // the painted path is a strong orange; toned like the rest of the ground
         static readonly Color PathTone = new Color(0.86f, 0.8f, 0.78f);
         // the painted face shows its full height over FaceHeight metres, then repeats its bottom row (dark earth)
-        const float FaceHeight = 3.5f;
+        public const float FaceHeight = 3.5f;
+        // the ground runs from GroundFrom to GroundTo, cut where the streams cross it
+        const float GroundFrom = -80f, GroundTo = End + 50f;
+        readonly List<Material> waterMats = new List<Material>();
+
+        /// <summary>How wide one copy of the painted soil is (it keeps its proportions, FaceHeight tall).</summary>
+        public static float FaceTileWidth(Texture tex) => tex != null && tex.height > 0 ? FaceHeight * tex.width / (float)tex.height : 4f;
+
+        /// <summary>The soil of the ground's front face (the painting if it's in the project), for any earth face.</summary>
+        public static Material FaceMaterial()
+        {
+            var painted = Resources.Load<Texture2D>(GroundFacePath);
+            Material face;
+            if (painted != null)
+            {
+                painted.wrapModeU = TextureWrapMode.Repeat;
+                painted.wrapModeV = TextureWrapMode.Clamp;
+                face = CbArt.NewToon(SceneryTone, 0f, painted);
+            }
+            else face = CbArt.NewToon(GroundTone, 0f, CbArt.Soil);
+            face.SetFloat("_SpecStrength", 0f);
+            face.SetFloat("_RimStrength", 0f);
+            return face;
+        }
+
+        /// <summary>The ground's grass (the painting if it's in the project), for the top of any earth.</summary>
+        public static Material GrassMaterial()
+        {
+            var painted = Resources.Load<Texture2D>(GroundDir + "Grass");
+            var grass = CbArt.NewToon(GroundTone, 0f, painted != null ? painted : CbArt.Grass);
+            grass.SetFloat("_SpecStrength", 0f);
+            return grass;
+        }
+
+        /// <summary>The stretches of dry ground between the streams.</summary>
+        static List<(float a, float b)> DryGround()
+        {
+            var list = new List<(float, float)>();
+            float a = GroundFrom;
+            foreach (var (x0, x1) in CbLevel.Waters) { list.Add((a, x0)); a = x1; }
+            list.Add((a, GroundTo));
+            return list;
+        }
 
         void BuildGround(Transform far)
         {
-            var paintedGrass = Resources.Load<Texture2D>(GroundDir + "Grass");
-            var grass = CbArt.NewToon(GroundTone, 0f, paintedGrass != null ? paintedGrass : CbArt.Grass);
-            grass.mainTextureScale = paintedGrass != null ? new Vector2(260 / GrassTile, (GroundBack - GroundFront) / GrassTile) : new Vector2(70, 4);
-            grass.SetFloat("_SpecStrength", 0f);
-            CbArt.Box(grass, root, new Vector3(50, -GroundDepth / 2, (GroundFront + GroundBack) / 2),
-                new Vector3(260, GroundDepth, GroundBack - GroundFront));
-            BuildGroundFace();
+            // the ground is laid in stretches between the streams, each painting lined up with the world
+            var grass = GrassMaterial();
             var paintedPath = Resources.Load<Texture2D>(GroundDir + "Path");
             var path = CbArt.NewToon(paintedPath != null ? PathTone : Color.white, 0f, paintedPath != null ? paintedPath : CbArt.Path);
-            path.mainTextureScale = paintedPath != null ? new Vector2(260 / PathWidth, 1) : new Vector2(60, 1);
             path.SetFloat("_SpecStrength", 0f);
-            CbArt.Part(CbMesh.Quad, path, root, new Vector3(50, 0.01f, 0), new Vector3(260, 3.2f, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
-            CbArt.Part(CbMesh.Quad, CbArt.Toon("#3a7a33"), root, new Vector3(50, -0.3f, 68), new Vector3(520, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
+            var face = FaceMaterial();
+            foreach (var (a, b) in DryGround())
+            {
+                float w = b - a, c = (a + b) / 2;
+                var top = new Material(grass) { mainTextureScale = new Vector2(w / GrassTile, (GroundBack - GroundFront) / GrassTile), mainTextureOffset = new Vector2(a / GrassTile, 0) };
+                CbArt.Box(top, root, new Vector3(c, -GroundDepth / 2, (GroundFront + GroundBack) / 2), new Vector3(w, GroundDepth, GroundBack - GroundFront));
+                var strip = new Material(path) { mainTextureScale = new Vector2(paintedPath != null ? w / PathWidth : w / 4.3f, 1), mainTextureOffset = new Vector2(a / PathWidth, 0) };
+                CbArt.Part(CbMesh.Quad, strip, root, new Vector3(c, 0.01f, 0), new Vector3(w, 3.2f, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
+                FaceQuad(face, a, b, 0f, -GroundDepth);
+            }
+            BuildStreams(grass, face);
+            CbArt.Part(CbMesh.Quad, CbArt.Toon("#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
 
             // grass blades and fern fronds, merged straight into a few meshes
             var blade = CbMesh.Cone(3);
@@ -117,9 +166,9 @@ namespace Cloudborne
                 list.Add(new CombineInstance { mesh = mesh, transform = mat });
             }
             var grassMats = new[] { CbArt.Toon("#357a33"), CbArt.Toon("#468a3c"), CbArt.Toon("#2a6a30"), CbArt.Toon("#559443") };
-            for (int i = 0; i < 1800; i++)
+            for (int i = 0; i < 3600; i++)
             {
-                var p = new Vector3(Random.Range(-40f, 140f), 0, Random.Range(1.8f, 9.5f));
+                var p = new Vector3(Random.Range(-40f, End), 0, Random.Range(1.8f, 9.5f));
                 if (Wet(p.x, p.z)) continue;
                 var q = Quaternion.Euler(Random.Range(-17f, 17f), Random.Range(0f, 360f), Random.Range(-17f, 17f));
                 float k = Random.Range(0.6f, 1.6f);
@@ -128,19 +177,19 @@ namespace Cloudborne
             if (Has(FernModel))
             {
                 // a few small ferns lean over the front edge; the rest grow behind the path
-                for (int c = 0; c < 120; c++)
+                for (int c = 0; c < 240; c++)
                 {
                     bool front = Random.value < 0.25f;
-                    var at = new Vector3(Random.Range(-40f, 140f), 0, front ? Random.Range(GroundFront + 0.1f, GroundFront + 0.4f) : Random.Range(2.2f, 9.5f));
+                    var at = new Vector3(Random.Range(-40f, End), 0, front ? Random.Range(GroundFront + 0.1f, GroundFront + 0.4f) : Random.Range(2.2f, 9.5f));
                     if (Wet(at.x, at.z)) continue;
                     Place(FernModel, far, at, front ? Random.Range(0.45f, 0.6f) : Random.Range(0.8f, 1.3f));
                 }
             }
             var fernMats = new[] { CbArt.Toon("#2c6e30"), CbArt.Toon("#3a8a3c"), CbArt.Toon("#245c2a") };
-            for (int c = 0; c < (Has(FernModel) ? 0 : 300); c++)
+            for (int c = 0; c < (Has(FernModel) ? 0 : 600); c++)
             {
                 bool front = Random.value < 0.3f;
-                var center = new Vector3(Random.Range(-40f, 140f), 0, front ? Random.Range(GroundFront + 0.1f, GroundFront + 0.4f) : Random.Range(2.2f, 9.5f));
+                var center = new Vector3(Random.Range(-40f, End), 0, front ? Random.Range(GroundFront + 0.1f, GroundFront + 0.4f) : Random.Range(2.2f, 9.5f));
                 if (Wet(center.x, center.z)) continue;
                 float ck = front ? Random.Range(0.4f, 0.55f) : Random.Range(0.8f, 1.4f);
                 for (int f = 0; f < 7; f++)
@@ -153,40 +202,122 @@ namespace Cloudborne
             foreach (var kv in batches) MakeBatch(kv.Key, kv.Value, root, false);
         }
 
-        /// <summary>The platform's front face: the painted cross-section of earth if it's in the project, else speckled soil.</summary>
-        void BuildGroundFace()
+        /// <summary>
+        /// A stretch of the ground's front face from x a to b, between heights yTop and yBottom: the painted
+        /// cross-section of earth (its grassy top row at y = 0, lined up with the world), else speckled soil.
+        /// </summary>
+        void FaceQuad(Material face, float a, float b, float yTop, float yBottom)
         {
-            var painted = Resources.Load<Texture2D>(GroundFacePath);
-            Material face;
-            if (painted != null)
+            float w = b - a, h = yTop - yBottom;
+            float tileW = FaceTileWidth(face.mainTexture);
+            // as if the face ran from y = 0 down to -GroundDepth, so the earth lines up whatever piece of it this is
+            float rows = GroundDepth / FaceHeight;
+            var m = new Material(face)
             {
-                painted.wrapModeU = TextureWrapMode.Repeat;
-                painted.wrapModeV = TextureWrapMode.Clamp;
-                face = CbArt.NewToon(SceneryTone, 0f, painted);
-                // the painting keeps its proportions, FaceHeight tall; its top at the platform's edge, then its bottom row
-                float rows = GroundDepth / FaceHeight;
-                face.mainTextureScale = new Vector2(260 / (FaceHeight * painted.width / painted.height), rows);
-                face.mainTextureOffset = new Vector2(0, 1 - rows);
-            }
-            else
-            {
-                face = CbArt.NewToon(GroundTone, 0f, CbArt.Soil);
-                face.mainTextureScale = new Vector2(260 / 4f, GroundDepth / 4f);
-                // a dark green lip along the edge
-                CbArt.Box(CbArt.Toon("#2c6a2e"), root, new Vector3(50, -0.12f, GroundFront + 0.1f), new Vector3(260, 0.28f, 0.24f));
-            }
-            face.SetFloat("_SpecStrength", 0f);
-            face.SetFloat("_RimStrength", 0f);
-            var t = CbArt.Part(CbMesh.Quad, face, root, new Vector3(50, -GroundDepth / 2, GroundFront - 0.01f), new Vector3(260, GroundDepth, 1), shadows: false);
+                mainTextureScale = new Vector2(w / tileW, rows * h / GroundDepth),
+                mainTextureOffset = new Vector2(a / tileW, 1 - rows),
+            };
+            var t = CbArt.Part(CbMesh.Quad, m, root, new Vector3((a + b) / 2, (yTop + yBottom) / 2, GroundFront - 0.01f), new Vector3(w, h, 1), shadows: false);
             t.name = "groundFace";
         }
 
-        // ---------- plants ----------
+        /// <summary>
+        /// The streams cut across the ground: a channel with earth banks, the water's surface below them flowing towards
+        /// the camera, the river seen in cross-section at the front edge, and behind, where it comes out of the ground,
+        /// a little cascade framed by leaves.
+        /// </summary>
+        void BuildStreams(Material grass, Material face)
+        {
+            var paintedWater = Resources.Load<Texture2D>("Cloudborne/Jungle/Water/Water");
+            var waterTex = paintedWater != null ? paintedWater : WaterTexture();
+            waterTex.wrapMode = TextureWrapMode.Repeat;
+            float level = CbLevel.WaterLevel, back = CbLevel.WaterBack, bed = level - 0.55f;
+            foreach (var (x0, x1) in CbLevel.Waters)
+            {
+                float w = x1 - x0, c = (x0 + x1) / 2;
+                // the ground behind the channel's end, and under it
+                var behind = new Material(grass) { mainTextureScale = new Vector2(w / GrassTile, (GroundBack - back) / GrassTile), mainTextureOffset = new Vector2(x0 / GrassTile, 0) };
+                CbArt.Box(behind, root, new Vector3(c, -GroundDepth / 2, (back + GroundBack) / 2), new Vector3(w, GroundDepth, GroundBack - back));
+                CbArt.Box(CbArt.Toon("#2d4a3a"), root, new Vector3(c, bed - 1f, (GroundFront + back) / 2), new Vector3(w, 2f, back - GroundFront));
+                // the banks: earth walls from the grass down into the water
+                var bank = new Material(face);
+                float tileW = FaceTileWidth(face.mainTexture), rows = 1.2f / FaceHeight;
+                bank.mainTextureScale = new Vector2((back - GroundFront) / tileW, rows);
+                bank.mainTextureOffset = new Vector2(0, 1 - rows);
+                // (a hair inside the channel, so they don't flicker against the ground's own sides)
+                CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x0 + 0.01f, -0.6f, (GroundFront + back) / 2), new Vector3(back - GroundFront, 1.2f, 1), Quaternion.Euler(0, -90, 0), shadows: false);
+                CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x1 - 0.01f, -0.6f, (GroundFront + back) / 2), new Vector3(back - GroundFront, 1.2f, 1), Quaternion.Euler(0, 90, 0), shadows: false);
+                // the water: its surface, flowing towards the camera
+                var surface = CbArt.NewToon(new Color(0.9f, 0.97f, 1f), 0f, waterTex);
+                surface.SetFloat("_SpecStrength", 0.35f);
+                surface.mainTextureScale = new Vector2(w / 3f, (back - GroundFront) / 3f);
+                waterMats.Add(surface);
+                CbArt.Part(CbMesh.Quad, surface, root, new Vector3(c, level, (GroundFront + back) / 2), new Vector3(w, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "water";
+                // its cross-section at the front edge: deeper and darker towards the bed, a light line at the surface
+                CbArt.Part(CbMesh.Quad, WaterSide(), root, new Vector3(c, (level + bed) / 2, GroundFront - 0.012f), new Vector3(w, level - bed, 1), shadows: false).name = "waterSide";
+                // and the soil below the riverbed
+                FaceQuad(face, x0, x1, bed, -GroundDepth);
+                // where it comes out of the ground: a little cascade between leaves
+                var cascade = CbArt.NewToon(new Color(0.95f, 1f, 1f), 0f, waterTex);
+                cascade.SetFloat("_SpecStrength", 0f);
+                cascade.mainTextureScale = new Vector2(w / 3f, 0.4f);
+                waterMats.Add(cascade);
+                CbArt.Part(CbMesh.Quad, cascade, root, new Vector3(c, level / 2, back - 0.01f), new Vector3(w, -level, 1), shadows: false).name = "cascade";
+                if (Has(LeavesModel))
+                    for (float x = x0 - 0.4f; x <= x1 + 0.5f; x += Mathf.Max(1.4f, w / 6f))
+                        Place(LeavesModel, root, new Vector3(x + Random.Range(-0.3f, 0.3f), 0, back + Random.Range(0.1f, 0.6f)), Random.Range(0.7f, 1f));
+            }
+        }
+
+        /// <summary>A water texture drawn in code (until the painted one is approved): soft light ripples on teal.</summary>
+        static Texture2D WaterTexture()
+        {
+            const int S = 128;
+            var tex = new Texture2D(S, S, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Bilinear, name = "water" };
+            Color deep = CbArt.Hex("#1d7f8f"), mid = CbArt.Hex("#2f9fa8"), light = CbArt.Hex("#bfece6");
+            var px = new Color[S * S];
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    float u = x / (float)S * Mathf.PI * 2, v = y / (float)S * Mathf.PI * 2;
+                    // overlapping soft swells; whole periods across the tile so it repeats seamlessly
+                    float swell = Mathf.Sin(v * 2 + Mathf.Sin(u) * 0.8f) * 0.5f + Mathf.Sin(u * 3 + v + Mathf.Sin(v * 2) * 0.6f) * 0.3f;
+                    float glint = Mathf.Sin(v * 5 + Mathf.Sin(u * 2 + v) * 1.2f) * Mathf.Sin(u * 4 - v * 2);
+                    var col = Color.Lerp(deep, mid, 0.5f + 0.5f * swell);
+                    if (glint > 0.72f) col = Color.Lerp(col, light, Mathf.Clamp01((glint - 0.72f) / 0.28f) * 0.8f);
+                    px[y * S + x] = col;
+                }
+            tex.SetPixels(px);
+            tex.Apply();
+            return tex;
+        }
+
+        static Material waterSide;
+
+        /// <summary>The river's cross-section: a light line at the surface, then teal deepening to dark at the bed.</summary>
+        static Material WaterSide()
+        {
+            if (waterSide != null) return waterSide;
+            const int H = 32;
+            var tex = new Texture2D(2, H, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "waterSide" };
+            for (int y = 0; y < H; y++)
+            {
+                float k = y / (H - 1f);   // 0 bottom, 1 top
+                var c = Color.Lerp(CbArt.Hex("#0e3f4a"), CbArt.Hex("#2a95a3"), k * k);
+                if (k > 0.92f) c = CbArt.Hex("#c9f1ec");
+                tex.SetPixel(0, y, c); tex.SetPixel(1, y, c);
+            }
+            tex.Apply();
+            waterSide = CbArt.NewToon(Color.white, 0f, tex);
+            waterSide.SetFloat("_SpecStrength", 0f);
+            waterSide.SetFloat("_RimStrength", 0f);
+            return waterSide;
+        }
 
         void BuildPlants(Transform near, Transform far)
         {
             bool trees = Has(TreeModel), palms = Has(PalmModel);
-            for (float x = -30; x < 150; x += Random.Range(6f, 10f))
+            for (float x = -30; x < End; x += Random.Range(6f, 10f))
             {
                 // The level camera sees about 7 to 8 m up at the tree line: the modelled trees (9.5 m, crown from
                 // about half way) and palms (7.5 m) are sized to show whole. Leafy models cast no shadows (far): a
@@ -206,7 +337,7 @@ namespace Cloudborne
                 // two rows of forest behind the first, so the ground between the trees and the horizon is not an
                 // empty lawn; they fade into the haze with distance
                 foreach (var (z0, z1, s0, s1, step) in new[] { (15f, 24f, 0.6f, 0.8f, 4.5f), (26f, 42f, 0.7f, 0.95f, 5f) })
-                    for (float x = -40; x < 160; x += Random.Range(step, step * 1.6f))
+                    for (float x = -40; x < End + 10; x += Random.Range(step, step * 1.6f))
                     {
                         var at = new Vector3(x, 0, Random.Range(z0, z1));
                         if (palms && Random.value < 0.25f) Place(PalmModel, far, at, Random.Range(s0, s1) * 1.1f);
@@ -214,14 +345,15 @@ namespace Cloudborne
                     }
             }
             else
-                for (float x = -30; x < 150; x += Random.Range(7f, 11f))
+                for (float x = -30; x < End; x += Random.Range(7f, 11f))
                     JungleTree(far, x, Random.Range(17f, 28f), Random.Range(1.3f, 1.9f), 0f);
             // clumps of big leaves among the rocks between the path and the trees
             if (Has(LeavesModel))
-                for (float x = -25; x < 145; x += Random.Range(5f, 9f))
+                for (float x = -25; x < End; x += Random.Range(5f, 9f))
                 {
                     float lx = x + Random.Range(-1f, 1f);
-                    if (!Wet(lx, 4f, 1f)) Place(LeavesModel, far, new Vector3(lx, 0, Random.Range(2.8f, 6f)), Random.Range(0.75f, 1.15f));
+                    bool mountain = lx > CbLevel.MountainFrom - 1 && lx < CbLevel.MountainTo + 1;
+                    if (!Wet(lx, 4f, 1f) && !mountain) Place(LeavesModel, far, new Vector3(lx, 0, Random.Range(2.8f, 6f)), Random.Range(0.75f, 1.15f));
                 }
         }
 
@@ -232,7 +364,7 @@ namespace Cloudborne
         static bool Has(string name) => Resources.Load<GameObject>(ModelPath(name)) != null;
 
         /// <summary>Whether a spot near the path is in one of the streams (they run from the front edge back to z 10).</summary>
-        static bool Wet(float x, float z, float margin = 0.5f) => z < 11f && CbLevel.InWater(x, margin);
+        static bool Wet(float x, float z, float margin = 0.5f) => z < CbLevel.WaterBack + 1f && CbLevel.InWater(x, margin);
 
         /// <summary>
         /// Models with thin leaves, seen from both sides (the boulders have sprigs of moss and leaves). They get no
@@ -324,9 +456,11 @@ namespace Cloudborne
         void BuildRocksAndRuins(Transform near)
         {
             bool boulders = Has(BoulderModel);
-            for (float x = -20; x < 140; x += Random.Range(4f, 8f))
+            for (float x = -20; x < End; x += Random.Range(4f, 8f))
             {
                 float s = Random.Range(0.25f, 0.6f), z = Random.Range(2.4f, 4.5f);
+                // the mountain stands here: its own rocks
+                if (x > CbLevel.MountainFrom - 2 && x < CbLevel.MountainTo + 2) continue;
                 if (Wet(x, z, 0.8f)) continue;
                 if (boulders)
                 {
@@ -337,14 +471,20 @@ namespace Cloudborne
                     new Vector3(s, s * 0.7f, s), Random.rotation);
                 CbArt.Part(CbMesh.Dome(0.5f, 8), CbArt.Toon("#5f9a50"), near, new Vector3(x, s * 0.45f, z), new Vector3(s * 0.8f, s * 0.36f, s * 0.8f));
             }
+            if (Has(KarstModel))
+            {
+                // the mountain: great rocks behind its terraces, so the climb reads as going up a mountainside
+                foreach (var (x, z, s) in new[] { (141f, 9f, 0.42f), (150f, 7.5f, 0.55f), (160f, 10f, 0.68f), (170f, 8f, 0.62f), (180f, 9.5f, 0.5f), (186f, 7f, 0.36f) })
+                    Place(KarstModel, near, new Vector3(x, -0.4f, z), s, CbArt.PropOutline, turn: 40f);
+            }
             if (Has(GateModel) && Has(PillarModel))
             {
                 // the shrine: its gate, lone pillars of different heights and a few fallen stones
-                Place(GateModel, near, new Vector3(74, 0, 4.2f), 1f, CbArt.PropOutline, turn: 8f);
-                Place(PillarModel, near, new Vector3(70.5f, 0, 5f), 0.5f, CbArt.PropOutline, turn: 20f);
-                Place(PillarModel, near, new Vector3(86, 0, 4.8f), 0.65f, CbArt.PropOutline, turn: 20f);
-                Place(PillarModel, near, new Vector3(91, 0, 4f), 0.85f, CbArt.PropOutline, turn: 20f);
-                foreach (var p in new[] { new Vector2(80, 3.2f), new Vector2(83, 3.6f), new Vector2(88, 3.1f) })
+                Place(GateModel, near, new Vector3(121, 0, 4.2f), 1f, CbArt.PropOutline, turn: 8f);
+                Place(PillarModel, near, new Vector3(110f, 0, 5f), 0.5f, CbArt.PropOutline, turn: 20f);
+                Place(PillarModel, near, new Vector3(127, 0, 4.8f), 0.65f, CbArt.PropOutline, turn: 20f);
+                Place(PillarModel, near, new Vector3(132, 0, 4f), 0.85f, CbArt.PropOutline, turn: 20f);
+                foreach (var p in new[] { new Vector2(114, 3.2f), new Vector2(124, 3.6f), new Vector2(129, 3.1f) })
                     Place(boulders ? BoulderModel : PillarModel, near, new Vector3(p.x, -0.05f, p.y), boulders ? 0.4f : 0.15f, CbArt.PropOutline, turn: 180f);
                 return;
             }
@@ -370,7 +510,7 @@ namespace Cloudborne
         {
             var fall = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.55f), CbArt.Shaft);
             bool karst = Has(KarstModel);
-            for (float x = -20; x < 160; x += Random.Range(15f, 24f))
+            for (float x = -20; x < End + 20; x += Random.Range(15f, 24f))
             {
                 float z = Random.Range(36f, 50f), h = Random.Range(16f, 28f), r = Random.Range(2.6f, 4.2f);
                 if (karst)
@@ -474,7 +614,7 @@ namespace Cloudborne
         {
             var dark = CbArt.Emissive(CbArt.Hex("#13221a"));
             bool leaves = Has(LeavesModel);
-            for (float x = -20; x < 150; x += Random.Range(14f, 22f))
+            for (float x = -20; x < End; x += Random.Range(14f, 22f))
             {
                 if (leaves)
                 {
@@ -488,7 +628,7 @@ namespace Cloudborne
                     CbArt.Part(CbMesh.Leaf(), dark, far, new Vector3(x + Random.Range(-0.8f, 0.8f), -1.3f, z), Vector3.one * Random.Range(0.6f, 1f),
                         CbArt.Rot(0, 0, (k / (float)(n - 1) - 0.5f) * 1.8f + Random.Range(-0.15f, 0.15f)), shadows: false);
             }
-            for (float x = -10; x < 150; x += Random.Range(18f, 28f))
+            for (float x = -10; x < End; x += Random.Range(18f, 28f))
             {
                 // vines hang in from the top of the view (the level camera sees about 5 m up this close)
                 float len = Random.Range(1.5f, 2.5f);
@@ -503,7 +643,7 @@ namespace Cloudborne
 
         void BuildLightAndAir()
         {
-            for (float x = -20; x < 150; x += Random.Range(7f, 12f))
+            for (float x = -20; x < End; x += Random.Range(7f, 12f))
             {
                 var holder = CbArt.Joint(root, x, 15, Random.Range(4f, 16f), "shaft");
                 holder.localRotation = CbArt.Rot(0, 0, Random.Range(0.42f, 0.55f));
@@ -515,7 +655,7 @@ namespace Cloudborne
             {
                 float s = Random.Range(24f, 46f);
                 var m = CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(0.95f, 0.97f, 0.9f, Random.Range(0.07f, 0.14f)), CbArt.Mist), root,
-                    new Vector3(Random.Range(-60f, 180f), Random.Range(0.8f, 4f), Random.Range(12f, 45f)), new Vector3(s, s * 0.28f, 1), shadows: false);
+                    new Vector3(Random.Range(-60f, End + 40f), Random.Range(0.8f, 4f), Random.Range(12f, 45f)), new Vector3(s, s * 0.28f, 1), shadows: false);
                 mists.Add(m);
             }
             // No sun disc: its glow sat just above the view and blew up into a big yellow flash through bloom
@@ -561,6 +701,9 @@ namespace Cloudborne
                 m.localPosition = p;
             }
             flies.localPosition = new Vector3(camX, 3.2f, 3.5f);
+            // the streams flow towards the camera; their cascades pour down
+            for (int i = 0; i < waterMats.Count; i++)
+                waterMats[i].mainTextureOffset = new Vector2(0, (i % 2 == 0 ? -0.12f : 0.6f) * t);
             if (backdrop != null)
             {
                 var p = backdrop.localPosition;
