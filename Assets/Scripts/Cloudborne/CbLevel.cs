@@ -187,8 +187,77 @@ namespace Cloudborne
         void AddRock(float x, float width, float top)
         {
             var t = CbArt.Joint(root, x, 0, 0, "riverRock");
-            EarthSlab(t, -width / 2, width / 2, WaterLevel - 0.6f, top, -0.8f, 1f, earth ??= EarthMat(), grass ??= GrassMat());
+            if (!Cliff(t, -width / 2, width / 2, WaterLevel - 0.6f, top, -0.8f, 1f))
+                EarthSlab(t, -width / 2, width / 2, WaterLevel - 0.6f, top, -0.8f, 1f, earth ??= EarthMat(), grass ??= GrassMat());
             blocks.Add(new Block { x0 = x - width / 2, x1 = x + width / 2, top = top, t = t });
+        }
+
+        // ---------- the cliff kit ----------
+
+        // Mossy stone drawn in Canva and built in Meshy (Resources/Cloudborne/Jungle/Cliff): a terrace block, a pillar,
+        // a floating ledge and a cracked one. Each is fitted to the box it stands for; big terraces are built of
+        // several blocks so the stone keeps its proportions.
+        const string CliffDir = "Cloudborne/Jungle/Cliff/";
+
+        /// <summary>
+        /// Stone filling the box x0..x1, y0..y1, zFront..zBack (relative to parent): terrace blocks, or a pillar's
+        /// stones for a narrow one. False if the kit isn't in the project.
+        /// </summary>
+        bool Cliff(Transform parent, float x0, float x1, float y0, float y1, float zFront, float zBack)
+        {
+            float w = x1 - x0, h = y1 - y0;
+            bool narrow = w < 1.8f;
+            string path = CliffDir + (narrow ? "Pillar/Pillar" : "Terrace/Terrace");
+            if (Resources.Load<GameObject>(path) == null) return false;
+            // a terrace block is about twice as wide as tall, a pillar about 2.7 times taller than wide
+            int cols = narrow ? 1 : Mathf.Max(1, Mathf.RoundToInt(w / 3f));
+            int rows = Mathf.Max(1, Mathf.RoundToInt(h / (narrow ? w * 2.7f : (w / cols) * 0.47f)));
+            float tw = w / cols, th = h / rows;
+            for (int i = 0; i < cols; i++)
+                for (int j = 0; j < rows; j++)
+                {
+                    // a hair of overlap so no seam shows between neighbours
+                    var lo = new Vector3(x0 + i * tw - 0.03f, y0 + j * th - 0.03f, zFront + (j % 2) * 0.05f);
+                    var hi = new Vector3(x0 + (i + 1) * tw + 0.03f, y0 + (j + 1) * th, zBack);
+                    Fit(path, parent, lo, hi);
+                }
+            return true;
+        }
+
+        /// <summary>A model placed and stretched so its bounds fill the box lo..hi of parent's space; null if missing.</summary>
+        static Transform Fit(string path, Transform parent, Vector3 lo, Vector3 hi)
+        {
+            var holder = CbArt.Joint(parent, 0, 0, 0, "fit");
+            var model = CbArt.Prop(path, holder, CbArt.PropOutline);
+            if (model == null) { Object.Destroy(holder.gameObject); return null; }
+            var b = LocalBounds(model, holder);
+            var size = hi - lo;
+            var s = new Vector3(size.x / Mathf.Max(0.01f, b.size.x), size.y / Mathf.Max(0.01f, b.size.y), size.z / Mathf.Max(0.01f, b.size.z));
+            holder.localScale = s;
+            holder.localPosition = lo - Vector3.Scale(b.min, s);
+            return holder;
+        }
+
+        /// <summary>The bounds of a model's meshes in the space of another transform (from the meshes, not the renderers).</summary>
+        static Bounds LocalBounds(Transform model, Transform space)
+        {
+            bool any = false;
+            var b = new Bounds();
+            foreach (var mf in model.GetComponentsInChildren<MeshFilter>())
+            {
+                var mesh = mf.sharedMesh;
+                if (mesh == null) continue;
+                var toSpace = space.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                var mb = mesh.bounds;
+                for (int k = 0; k < 8; k++)
+                {
+                    var corner = mb.center + Vector3.Scale(mb.extents, new Vector3((k & 1) == 0 ? -1 : 1, (k & 2) == 0 ? -1 : 1, (k & 4) == 0 ? -1 : 1));
+                    var p = toSpace.MultiplyPoint3x4(corner);
+                    if (!any) { b = new Bounds(p, Vector3.zero); any = true; }
+                    else b.Encapsulate(p);
+                }
+            }
+            return any ? b : new Bounds(Vector3.zero, Vector3.one);
         }
 
         // ---------- the mountain ----------
@@ -226,11 +295,13 @@ namespace Cloudborne
                 rocks.Add(new FallingRock { x = x, period = period, timer = period * Random.Range(0.3f, 1f) });
         }
 
-        /// <summary>A terrace of the mountain: solid earth from the ground up to top, depth metres deep.</summary>
+        /// <summary>A terrace of the mountain: solid stone (or earth) from the ground up to top, depth metres deep.</summary>
         void AddTerrace(float x0, float x1, float top, float depth)
         {
             var t = CbArt.Joint(root, (x0 + x1) / 2, 0, 0, "terrace");
-            EarthSlab(t, x0 - (x0 + x1) / 2, x1 - (x0 + x1) / 2, -0.3f, top, -0.9f, depth, earth, grass);
+            float cx = (x0 + x1) / 2;
+            if (!Cliff(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, depth))
+                EarthSlab(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, depth, earth, grass);
             blocks.Add(new Block { x0 = x0, x1 = x1, top = top, t = t });
         }
 
@@ -317,12 +388,15 @@ namespace Cloudborne
 
         void AddLedge(float x, float width, float top, bool crumbles, bool hidden = false)
         {
-            // a floating slab of earth, grass on top, its underside rough; a crumbling one paler and cracked
+            // a floating slab of mossy stone (the kit's ledge, its underside rough, vines hanging) - a crumbling one
+            // cracked; else a slab of earth with grass on top
             var t = CbArt.Joint(root, x, 0, 0.1f, crumbles ? "crumblingLedge" : "ledge");
             earth ??= EarthMat();
             grass ??= GrassMat();
-            EarthSlab(t, -width / 2, width / 2, top - 0.55f, top, -0.75f, 0.9f, crumbles ? (crackedEarth ?? earth) : earth, grass);
-            if (crumbles)
+            var kit = Fit(CliffDir + (crumbles ? "CrumblingLedge/CrumblingLedge" : "Ledge/Ledge"), t,
+                new Vector3(-width / 2 - 0.08f, top - Mathf.Max(0.34f, width * 0.27f), -0.7f), new Vector3(width / 2 + 0.08f, top + 0.04f, 0.9f));
+            if (kit == null) EarthSlab(t, -width / 2, width / 2, top - 0.55f, top, -0.75f, 0.9f, crumbles ? (crackedEarth ?? earth) : earth, grass);
+            if (crumbles && kit == null)
             {
                 var crack = CbArt.Toon("#2b2622");
                 for (int k = 0; k < 3; k++)

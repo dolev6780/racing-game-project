@@ -43,6 +43,8 @@ namespace UnityEditor
         public bool mipmapEnabled;
         public UnityEngine.TextureWrapMode wrapMode;
         public int maxTextureSize;
+        public bool mipMapsPreserveCoverage;
+        public float alphaTestReferenceValue;
     }
     public class AssetPostprocessor
     {

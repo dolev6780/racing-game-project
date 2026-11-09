@@ -322,6 +322,33 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator PaintedKitIsInTheProject()
+        {
+            // drawn in Canva and approved: grass and flower cards, the far jungle layer, the path, the water, the cliffs
+            foreach (var n in new[] { "Grass1", "Grass2", "Grass3", "Grass4", "Grass5", "Flower1", "Flower2", "Flower3", "Flower4", "Flower5" })
+            {
+                var card = Resources.Load<Texture2D>("Cloudborne/Jungle/Cards/" + n);
+                Assert.IsNotNull(card, $"The {n} card is missing");
+            }
+            foreach (var t in new[] { "Backdrop/JungleMid", "Ground/Path", "Water/Water" })
+                Assert.IsNotNull(Resources.Load<Texture2D>("Cloudborne/Jungle/" + t), $"The painted {t} is missing");
+            foreach (var m in new[] { "Terrace", "Pillar", "Ledge", "CrumblingLedge" })
+                Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/Cliff/{m}/{m}"), $"The cliff kit's {m} is missing");
+            var shader = Resources.Load<Shader>("Shaders/PaintedCutout");
+            Assert.IsNotNull(shader, "The cut-out shader is missing");
+            game = CbGame.Boot();
+            yield return Frames(3);
+            // the mountain is built of the kit's stone (fitted pieces under each terrace)
+            var level = game.transform.Find("Level");
+            Assert.IsNotNull(level);
+            int fitted = 0;
+            foreach (Transform t in level) if (t.name == "terrace") fitted += t.childCount;
+            Assert.Greater(fitted, 5, "The mountain's terraces are not built of the cliff kit");
+            // the painted layer stands behind the path wherever the shader can draw
+            if (shader.isSupported) Assert.IsNotNull(GameObject.Find("JungleMid"), "The far jungle layer was not put up");
+        }
+
+        [UnityTest]
         public IEnumerator StoryCastHaveTheirModels()
         {
             game = CbGame.Boot();
