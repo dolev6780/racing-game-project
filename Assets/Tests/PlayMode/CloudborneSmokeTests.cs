@@ -16,6 +16,10 @@ namespace RacingGame.Tests
     {
         CbGame game;
 
+        // every test starts from a fresh save: no coins, upgrades or opening seen
+        [SetUp]
+        public void FreshSave() => CbSave.ResetProgress();
+
         [UnityTearDown]
         public IEnumerator TearDown()
         {
@@ -108,6 +112,57 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(0.5f);
             game.TestInput = null;
             Assert.Greater(game.hero.x, x0 + 1f, "Raja doesn't run after the opening");
+        }
+
+        [UnityTest]
+        public IEnumerator MainMenuWorkshopAndBackToMenu()
+        {
+            CbSave.Coins = 100;
+            game = CbGame.Boot();
+            yield return Frames(3);
+            Assert.IsTrue(game.menu.Visible, "The main menu is not shown at start");
+            Assert.AreEqual(CbMenu.Page.Main, game.menu.Current);
+            // every page opens, and back (Esc) returns to the main page
+            foreach (var page in new[] { CbMenu.Page.Stages, CbMenu.Page.Settings, CbMenu.Page.Help, CbMenu.Page.Workshop })
+            {
+                game.menu.Show(page);
+                yield return Frames(2);
+                Assert.AreEqual(page, game.menu.Current);
+            }
+            // Baba's workshop: Tiger Heart costs 60, the next level 150
+            Assert.IsTrue(game.menu.Press("BUY"), "No BUY button in the workshop");
+            Assert.AreEqual(1, CbSave.Level(CbSave.Upgrades[0]), "Tiger Heart was not bought");
+            Assert.AreEqual(40, CbSave.Coins, "The price was not paid");
+            game.menu.Press("BUY");
+            Assert.AreEqual(1, CbSave.Level(CbSave.Upgrades[0]), "Bought without enough coins");
+            bool back = false;
+            game.TestInput = i => { if (!back) { i.pause = true; back = true; } };
+            yield return Frames(2);
+            game.TestInput = null;
+            Assert.AreEqual(CbMenu.Page.Main, game.menu.Current, "Back did not return to the main page");
+
+            // PLAY: the opening (skipped), then the stage with 20 more health
+            game.PlayStage("1-1");
+            Assert.IsFalse(game.menu.Visible);
+            Assert.AreEqual(CbGame.Mode.Scene, game.mode);
+            game.scene.Skip();
+            yield return Frames(2);
+            Assert.AreEqual(CbGame.Mode.Play, game.mode);
+            Assert.AreEqual(120f, game.hero.hp, 0.01f, "Tiger Heart did not raise Raja's health");
+
+            // pause, then MENU: the run ends and the menu is back
+            bool paused = false, quit = false;
+            game.TestInput = i => { if (!paused) { i.pause = true; paused = true; } };
+            yield return Frames(2);
+            Assert.AreEqual(CbGame.Mode.Paused, game.mode);
+            game.TestInput = i => { if (!quit) { i.menu = true; quit = true; } };
+            yield return Frames(2);
+            game.TestInput = null;
+            Assert.AreEqual(CbGame.Mode.Title, game.mode, "MENU did not leave the run");
+            Assert.IsTrue(game.menu.Visible, "The menu did not come back");
+            // the opening was seen: PLAY goes straight to the stage now
+            game.PlayStage("1-1");
+            Assert.AreEqual(CbGame.Mode.Play, game.mode);
         }
 
         [UnityTest]

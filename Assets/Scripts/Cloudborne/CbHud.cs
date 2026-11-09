@@ -24,8 +24,8 @@ namespace Cloudborne
         readonly Image hpFill, kiFill, kiFrame, hurtFlash, slowFx, speedLines, impactFlash;
         float speedT, speedDur, speedStrength, linesFlip, flashT, flashA, flashGap;
         readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt;
-        readonly RectTransform comboBox, pads, stickBase, stickKnob, title, paused, result, pauseBtn;
-        readonly Text resultTitle, resultStats, startLabel;
+        readonly RectTransform comboBox, pads, stickBase, stickKnob, paused, result, pauseBtn, pauseMenuBtn, resultMenuBtn;
+        readonly Text resultTitle, resultStats;
         // the play HUD (hidden in a cinematic) and the cinematic's own layer: black bars, the speech box, SKIP
         readonly RectTransform play, barTop, barBottom, bubble, skipBtn;
         readonly Text whoTxt, lineTxt, nextTxt;
@@ -152,26 +152,16 @@ namespace Cloudborne
             skipBtn.gameObject.SetActive(false);
 
             // screens
-            title = Overlay("title");
-            UIKit.Label(title, "DEMO BUILD · STAGE 1-1 — THE JUNGLE GATE", 13, Gold, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 128), new Vector2(700, 20), TextAnchor.MiddleCenter);
-            var logo = UIKit.Label(title, "RAJA", 76, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 78), new Vector2(800, 90), TextAnchor.MiddleCenter, true);
-            var logoShadow = logo.gameObject.AddComponent<Outline>();
-            logoShadow.effectColor = Ember; logoShadow.effectDistance = new Vector2(3, -4);
-            logo.transform.parent.localRotation = Quaternion.Euler(0, 0, 3);
-            UIKit.Label(title, "AND THE FOUR CRYSTALS", 22, Gold, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 26), new Vector2(500, 28), TextAnchor.MiddleCenter, true);
-            startLabel = BigButton(title, "START", new Vector2(0, -26));
-            var keys = UIKit.Label(title, "<color=#ffb03a>HIT</color> combo · <color=#ffb03a>↓ + HIT</color> sweep · <color=#ffb03a>HEAVY</color> staff smash · <color=#ffb03a>↑ + HEAVY</color> launcher · <color=#ffb03a>DASH → HEAVY</color> thrust · hold <color=#ffb03a>HEAVY</color> whirl · <color=#ffb03a>HEAVY</color> in the air slam\nhold <color=#ffb03a>GUARD</color> to block · <color=#ffb03a>↓</color> duck · <color=#ffb03a>FIRE</color> fireball · <color=#ffb03a>SPECIAL</color> flame cannon · keyboard: A/D W/S Space J K O U I L",
-                11, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -100), new Vector2(780, 44), TextAnchor.MiddleCenter);
-            keys.supportRichText = true;
-
             paused = Overlay("paused");
             UIKit.Label(paused, "PAUSED", 60, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 50), new Vector2(600, 70), TextAnchor.MiddleCenter, true);
             BigButton(paused, "RESUME", new Vector2(0, -30));
+            pauseMenuBtn = (RectTransform)BigButton(paused, "MENU", new Vector2(0, -98)).transform.parent;
 
             result = Overlay("result");
             resultTitle = UIKit.Label(result, "STAGE CLEAR", 64, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 80), new Vector2(700, 80), TextAnchor.MiddleCenter, true);
             resultStats = UIKit.Label(result, "", 18, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 10), new Vector2(700, 40), TextAnchor.MiddleCenter, true);
-            BigButton(result, "PLAY AGAIN", new Vector2(0, -62));
+            BigButton(result, "PLAY AGAIN", new Vector2(0, -50));
+            resultMenuBtn = (RectTransform)BigButton(result, "MENU", new Vector2(0, -118)).transform.parent;
 
             SetScreen(Screen.Title);
         }
@@ -256,13 +246,13 @@ namespace Cloudborne
         public void SetScreen(Screen s)
         {
             screen = s;
-            title.gameObject.SetActive(s == Screen.Title);
             paused.gameObject.SetActive(s == Screen.Paused);
             result.gameObject.SetActive(s == Screen.Result);
             bool playing = s == Screen.None;
             pads.gameObject.SetActive(playing && ShowPads);
             pauseBtn.gameObject.SetActive(playing);
-            play.gameObject.SetActive(s != Screen.Scene);
+            // the main menu draws itself over the title; the play HUD only shows in the stage
+            play.gameObject.SetActive(s != Screen.Scene && s != Screen.Title);
             skipBtn.gameObject.SetActive(s == Screen.Scene);
             if (s != Screen.Scene) HideLine();
         }
@@ -295,7 +285,8 @@ namespace Cloudborne
             if (bubble != null) bubble.gameObject.SetActive(false);
         }
 
-        public static bool ShowPads => Application.isMobilePlatform;
+        /// <summary>The touch buttons: on phones, unless the settings say always or never.</summary>
+        public static bool ShowPads => CbSave.Pads == 1 || (CbSave.Pads == 0 && Application.isMobilePlatform);
 
         public void ShowResult(bool won, int score, int maxCombo, float time)
         {
@@ -470,8 +461,12 @@ namespace Cloudborne
                 if (screen != Screen.None)
                 {
                     // in a cinematic SKIP jumps to its end (as pause does); a tap anywhere else moves the talk on
-                    if (fresh && screen == Screen.Scene && RectTransformUtility.RectangleContainsScreenPoint(skipBtn, p.Position, null)) input.pause = true;
-                    else if (fresh) input.confirm = true;
+                    // the main menu reads its own taps; MENU on pause and results goes back to it
+                    if (!fresh || screen == Screen.Title) continue;
+                    if (screen == Screen.Scene && RectTransformUtility.RectangleContainsScreenPoint(skipBtn, p.Position, null)) input.pause = true;
+                    else if ((screen == Screen.Paused && RectTransformUtility.RectangleContainsScreenPoint(pauseMenuBtn, p.Position, null)) ||
+                             (screen == Screen.Result && RectTransformUtility.RectangleContainsScreenPoint(resultMenuBtn, p.Position, null))) input.menu = true;
+                    else input.confirm = true;
                     continue;
                 }
                 if (p.Id == stickId)

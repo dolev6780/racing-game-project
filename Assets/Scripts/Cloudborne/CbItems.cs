@@ -233,7 +233,7 @@ namespace Cloudborne
             switch (it.kind)
             {
                 case Kind.Mango:
-                    hero.hp = Mathf.Min(100, hero.hp + MangoHeal);
+                    hero.hp = Mathf.Min(hero.MaxHp, hero.hp + MangoHeal);
                     g.hud.Popup(at + Vector3.up, "+" + MangoHeal, CbHud.PopStyle.Normal);
                     CbFx.Spark(at, new Color(0.5f, 1f, 0.5f) * 2f, 12, 3, 0.35f, 0.5f, -3);
                     break;
@@ -243,7 +243,7 @@ namespace Cloudborne
                     CbFx.Spark(at, CbFx.Fire, 12, 3, 0.35f, 0.5f, -3);
                     break;
                 case Kind.GoldenFruit:
-                    hero.hp = 100;
+                    hero.hp = hero.MaxHp;
                     hero.ki = 100;
                     g.hud.Banner("GOLDEN FRUIT!", true);
                     CbVfx.Ring(at, CbFx.Flame * 0.5f, 2f, 0.4f);

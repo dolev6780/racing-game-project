@@ -51,6 +51,8 @@ namespace Cloudborne
         public CbItems items;
         /// <summary>Things to climb and things in the way.</summary>
         public CbLevel level;
+        /// <summary>The main menu, shown in mode Title.</summary>
+        public CbMenu menu;
         /// <summary>The cinematic playing (mode Scene), else null.</summary>
         public CbScene scene;
         bool cleared, introSeen;
@@ -120,9 +122,13 @@ namespace Cloudborne
             actors.SetParent(transform, false);
             hero = new CbHero(this, actors);
             hud = new CbHud(transform);
+            menu = new CbMenu(this, transform);
+            introSeen = CbSave.IntroSeen;
+            AudioListener.volume = CbSave.Volume;
             ResetGame();
             mode = Mode.Title;
             hud.SetScreen(CbHud.Screen.Title);
+            menu.Open();
         }
 
         void OnDestroy()
@@ -244,10 +250,37 @@ namespace Cloudborne
         /// </summary>
         public void PlayOpening()
         {
+            menu?.Hide();
             ResetGame();
             mode = Mode.Scene;
             hud.SetScreen(CbHud.Screen.Scene);
             scene = CbStory.Opening(this);
+        }
+
+        /// <summary>PLAY (or a stage card) in the menu: the opening the first time, then the stage.</summary>
+        public void PlayStage(string id)
+        {
+            menu.Hide();
+            if (introSeen) StartGame();
+            else PlayOpening();
+        }
+
+        /// <summary>MENU on the pause or result screen: the run ends and the main menu comes back.</summary>
+        public void ToMenu()
+        {
+            CancelInvoke();
+            AudioListener.pause = false;
+            ResetGame();
+            mode = Mode.Title;
+            hud.SetScreen(CbHud.Screen.Title);
+            menu.Open();
+        }
+
+        /// <summary>The opening scene will play again on the next PLAY (settings).</summary>
+        public void ReplayOpening()
+        {
+            introSeen = false;
+            CbSave.IntroSeen = false;
         }
 
         /// <summary>A scene has ended (played through or skipped): back to the stage.</summary>
@@ -255,6 +288,7 @@ namespace Cloudborne
         {
             scene = null;
             introSeen = true;
+            CbSave.IntroSeen = true;
             mode = Mode.Play;
             hud.SetScreen(CbHud.Screen.None);
             hud.SetWave("Chase the raiders");
@@ -265,6 +299,7 @@ namespace Cloudborne
         /// <summary>Starts a run (also used by the play mode tests).</summary>
         public void StartGame()
         {
+            menu?.Hide();
             ResetGame();
             mode = Mode.Play;
             hud.SetScreen(CbHud.Screen.None);
@@ -289,6 +324,7 @@ namespace Cloudborne
             if (mode != Mode.Play) return;
             mode = Mode.Over;
             overT = 0;
+            CbSave.StageResult("1-1", won, score, time);
             hud.ShowResult(won, score, maxCombo, time);
         }
 
@@ -372,6 +408,7 @@ namespace Cloudborne
                 hud.Popup(new Vector3(e.x, e.y + 2.6f, 0), "GUARD BREAK", CbHud.PopStyle.Big);
                 CbFx.Sfx("heavy");
             }
+            if (fromPlayer) dmg *= CbSave.DamageMul;
             if (hero.empower && fromPlayer) { dmg *= 2; hero.empower = false; big = true; }
             e.hp -= dmg;
             e.flash = 0.12f;
@@ -758,7 +795,7 @@ namespace Cloudborne
             if (mode == Mode.Title)
             {
                 hero.Idle(raw);
-                if (input.confirm) { if (introSeen) StartGame(); else PlayOpening(); }
+                menu.Update(raw, input);
             }
             else if (mode == Mode.Scene)
             {
@@ -767,7 +804,8 @@ namespace Cloudborne
             }
             else if (mode == Mode.Paused)
             {
-                if (input.confirm) TogglePause();
+                if (input.menu) ToMenu();
+                else if (input.confirm) TogglePause();
             }
             else
             {
@@ -782,12 +820,13 @@ namespace Cloudborne
                     if (enemies[i].Update(edt)) { enemies[i].f.Destroy(); enemies.RemoveAt(i); }
                 UpdateShots(dt);
                 if (mode == Mode.Play) { UpdateFlow(dt); items.Update(dt, hero, cam); level.Update(dt, hero); }
-                hud.SetBars(hero.hp, hero.ki);
+                hud.SetBars(hero.hp / hero.MaxHp * 100f, hero.ki);
                 if (score != lastScore) { lastScore = score; hud.SetScore(score); }
                 if (mode == Mode.Over)
                 {
                     overT += raw;
-                    if (overT > 0.8f && input.confirm) StartGame();
+                    if (overT > 0.8f && input.menu) ToMenu();
+                    else if (overT > 0.8f && input.confirm) StartGame();
                 }
             }
             world.Update(clock, camX);
@@ -803,7 +842,8 @@ namespace Cloudborne
             float tanH = Mathf.Tan(BaseFov * 0.5f * Mathf.Deg2Rad);
             float dist = Mathf.Clamp(9.8f / (tanH * cam.aspect), 13f, 28f);
             float tx = hero.x + hero.facing * 1.6f;
-            if (mode == Mode.Title) tx = 2 + Mathf.Sin(clock * 0.15f) * 3;
+            // in the menu Raja stands on the right of the screen, the menu on the left, the camera a little closer
+            if (mode == Mode.Title) { tx = hero.x - 3.4f + Mathf.Sin(clock * 0.2f) * 0.3f; dist *= 0.72f; }
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
             float ty = CamBase + hero.y * 0.5f;
             // a scene directs the camera itself: where it looks and how close it comes
@@ -862,6 +902,7 @@ namespace Cloudborne
                 if (kb.uKey.wasPressedThisFrame || kb.fKey.wasPressedThisFrame) inp.kiTap = true;
                 if (kb.iKey.wasPressedThisFrame || kb.vKey.wasPressedThisFrame) inp.skill = true;
                 if (kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame) inp.pause = true;
+                if (kb.mKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame) inp.menu = true;
                 if (kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame) inp.confirm = true;
             }
             var pad = Gamepad.current;
@@ -882,6 +923,7 @@ namespace Cloudborne
                 if (pad.rightTrigger.wasPressedThisFrame) inp.kiTap = true;
                 if (pad.rightShoulder.wasPressedThisFrame) inp.skill = true;
                 if (pad.startButton.wasPressedThisFrame) inp.pause = true;
+                if (pad.selectButton.wasPressedThisFrame) inp.menu = true;
             }
 #else
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) inp.x -= 1;
@@ -898,6 +940,7 @@ namespace Cloudborne
             if (Input.GetKeyDown(KeyCode.U)) inp.kiTap = true;
             if (Input.GetKeyDown(KeyCode.I)) inp.skill = true;
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P)) inp.pause = true;
+            if (Input.GetKeyDown(KeyCode.M) || Input.GetKeyDown(KeyCode.Backspace)) inp.menu = true;
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.J)) inp.confirm = true;
 #endif
         }

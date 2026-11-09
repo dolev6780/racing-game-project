@@ -8,11 +8,11 @@ namespace Cloudborne
     {
         public float x, y;                 // stick, y > 0 is up
         // atk: HIT (light), heavy: HEAVY (the staff), kiTap: FIRE, skill: SPECIAL
-        public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm;
+        public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm, menu;
         public bool atkDown, heavyDown, guard;   // held
         public float atkHeldT, heavyHeldT;
 
-        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = false; }
+        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = menu = false; }
     }
 
     /// <summary>
@@ -67,6 +67,8 @@ namespace Cloudborne
         public readonly CbModel model;
         const string ModelPath = "Cloudborne/Raja/Raja";
         public float x, y, vx, vy, hp = 100, ki = 40, inv;
+        /// <summary>Full health: 100, more with Tiger Heart from Baba's workshop.</summary>
+        public float MaxHp => CbSave.MaxHp;
         public int facing = 1;
         public State state = State.Idle;
         public Move move = Move.None;
@@ -130,7 +132,7 @@ namespace Cloudborne
 
         public void Reset()
         {
-            x = y = vx = vy = 0; facing = 1; hp = 100; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
+            x = y = vx = vy = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
             flipT = 0; inv = 0; move = Move.None; staffHold = 0; sinceDash = 9; airDashed = false; dashCd = 0; empower = false; holdUsed = false;
             glow = 0; airHits = 0;
             f.flip.localRotation = Quaternion.identity;
@@ -237,7 +239,7 @@ namespace Cloudborne
             if (input.atk) buffer = 0.25f; else buffer = Mathf.Max(0, buffer - dt);
             if (input.heavy) heavyBuffer = 0.25f; else heavyBuffer = Mathf.Max(0, heavyBuffer - dt);
             if (!input.heavyDown) holdUsed = false;
-            if (state != State.Dead) ki = Mathf.Min(100, ki + KiRegen * dt);
+            if (state != State.Dead) ki = Mathf.Min(100, ki + KiRegen * CbSave.KiRegenMul * dt);
             blockT = Mathf.Max(0, blockT - dt);
             var pose = Pose.Base;
             float rate = 14f;
