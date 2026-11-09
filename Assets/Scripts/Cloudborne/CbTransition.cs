@@ -85,11 +85,13 @@ namespace Cloudborne
 
         void Begin(float o, float hold, float i, Action then, bool withLoading)
         {
+            // a fade begun while another runs (SKIP as the loading screen opens) goes on from the darkness it is at
+            float from = phase == Phase.Idle ? 0 : black.color.a;
             outTime = o; holdTime = hold; inTime = i; mid = then; showLoading = withLoading;
             phase = Phase.Out;
-            t = 0;
+            t = from * o;
             root.gameObject.SetActive(true);
-            SetAlpha(0);
+            SetAlpha(from);
             barFill.rectTransform.localScale = new Vector3(0, 1, 1);
         }
 

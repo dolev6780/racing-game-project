@@ -89,11 +89,14 @@ namespace Cloudborne
             new CbComic.Shot { image = "raja_angry", dur = 2.2f, from = new Vector3(0.5f, 0.5f, 1f), to = new Vector3(0.5f, 0.48f, 1.3f) },
         };
 
-        /// <summary>Drawn, as the opening ends: Raja sets out from the village with his staff, after Koda.</summary>
+        /// <summary>
+        /// Drawn, as the opening ends: at the village gate Raja ties his headband tight, staff in hand and a bundle on
+        /// his back, ready for the road and the fight. The view slowly closes in on his face.
+        /// </summary>
         public static readonly CbComic.Shot[] Journey =
         {
-            new CbComic.Shot { image = "raja_journey", dur = 4.4f, from = new Vector3(0.35f, 0.55f, 1.25f), to = new Vector3(0.55f, 0.5f, 1.05f),
-                caption = "With nothing but his staff, Raja set out after them." },
+            new CbComic.Shot { image = "raja_journey", dur = 4.4f, from = new Vector3(0.5f, 0.45f, 1f), to = new Vector3(0.47f, 0.7f, 1.4f),
+                caption = "No powers. Just a staff, and a friend to bring home." },
         };
 
         /// <summary>

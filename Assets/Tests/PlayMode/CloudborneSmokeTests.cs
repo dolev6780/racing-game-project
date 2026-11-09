@@ -197,8 +197,16 @@ namespace RacingGame.Tests
             game.TestInput = i => { if (!pressed) { i.confirm = true; pressed = true; } };
             yield return Frames(2);
             Assert.AreEqual(CbGame.Mode.Loading, game.mode, "PLAY did not go to the loading screen");
-            yield return WaitForMode(CbGame.Mode.Scene, 6f);
-            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "The loading screen did not open on the scene");
+            // the first time, the drawn prologue plays first; SKIP fades from it into the opening scene
+            yield return WaitForMode(CbGame.Mode.Comic, 6f);
+            Assert.AreEqual(CbGame.Mode.Comic, game.mode, "The loading screen did not open on the drawn prologue");
+            Assert.IsTrue(game.comic.Playing, "The prologue is not playing");
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(CbGame.Mode.Comic, game.mode, "The prologue ended by itself after a second");
+            bool skipped = false;
+            game.TestInput = i => { if (!skipped) { i.pause = true; skipped = true; } };
+            yield return WaitForMode(CbGame.Mode.Scene, 4f);
+            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "SKIP on the prologue did not lead into the opening scene");
             Assert.IsNotNull(game.scene);
             // tapping through the talk: every line shows, then goes on, and the stage begins
             Time.captureDeltaTime = 1f / 20f;
@@ -266,7 +274,9 @@ namespace RacingGame.Tests
 
             // PLAY: the opening (skipped), then the stage with 20 more health
             game.PlayStage("1-1");
-            yield return WaitForMode(CbGame.Mode.Scene, 6f);
+            yield return WaitForMode(CbGame.Mode.Comic, 6f);
+            game.comic.Skip();
+            yield return WaitForMode(CbGame.Mode.Scene, 4f);
             Assert.IsFalse(game.menu.Visible);
             Assert.AreEqual(CbGame.Mode.Scene, game.mode);
             game.scene.Skip();
@@ -296,7 +306,8 @@ namespace RacingGame.Tests
         public IEnumerator ApprovedStoryPaintingsLoad()
         {
             yield return null;
-            foreach (var name in new[] { "prologue_leap", "prologue_crown", "koda_boast", "koda_taken", "raja_angry" })
+            foreach (var name in new[] { "prologue_temple", "prologue_crown", "prologue_shatter", "prologue_leap", "prologue_jungle",
+                         "koda_boast", "koda_taken", "raja_angry", "raja_journey" })
             {
                 var tex = Resources.Load<Texture2D>("Cloudborne/Story/" + name);
                 Assert.IsNotNull(tex, $"The painting {name} is missing (Resources/Cloudborne/Story)");
@@ -304,6 +315,8 @@ namespace RacingGame.Tests
             }
             Assert.IsTrue(CbComic.Available(CbStory.KodaBoast), "Koda's boast can't be shown");
             Assert.IsTrue(CbComic.Available(CbStory.KodaTaken), "Koda being taken can't be shown");
+            Assert.IsTrue(CbComic.Available(CbStory.Journey), "Raja getting ready for the road can't be shown");
+            Assert.IsTrue(CbComic.Available(CbStory.Prologue), "The prologue can't be shown");
         }
 
         [UnityTest]
