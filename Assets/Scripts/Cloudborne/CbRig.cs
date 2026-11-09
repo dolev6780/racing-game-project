@@ -247,6 +247,46 @@ namespace Cloudborne
                 CbArt.Cone(gold, h, new Vector3(Mathf.Sin(k * 0.35f) * 0.22f, 0.42f, Mathf.Cos(k * 0.35f) * 0.13f), 0.03f, 0.1f, CbArt.Rot(0.3f), 4);
         }
 
+        /// <summary>
+        /// Koda's stand-in until his model is built: a wolf cub's head (pointed cream muzzle, amber eyes, tall ears, the
+        /// left one flopped over at the tip), his yellow scarf and a big fluffy tail.
+        /// </summary>
+        public static void WolfCub(Rig f)
+        {
+            var h = f.head;
+            var cream = f.M(CbArt.Hex("#efe3cc"));
+            CbArt.Sphere(f.fur, h, new Vector3(0, 0.2f, 0), 0.25f, new Vector3(1.05f, 0.98f, 1f));
+            CbArt.Capsule(cream, h, new Vector3(0, 0.12f, 0.22f), 0.085f, 0.14f, CbArt.Rot(Mathf.PI / 2));
+            CbArt.Sphere(f.M(CbArt.Hex("#1a1414"), 0f), h, new Vector3(0, 0.15f, 0.36f), 0.04f);
+            var eyeW = CbArt.Emissive(CbArt.Hex("#fffbea"));
+            var iris = CbArt.Emissive(CbArt.Hex("#f2b21c"));
+            var pupil = CbArt.Emissive(CbArt.Hex("#140c08"));
+            foreach (int sx in new[] { -1, 1 })
+            {
+                CbArt.Part(CbMesh.Sphere, eyeW, h, new Vector3(sx * 0.095f, 0.25f, 0.215f), new Vector3(0.1f, 0.115f, 0.05f), shadows: false);
+                CbArt.Part(CbMesh.Sphere, iris, h, new Vector3(sx * 0.094f, 0.245f, 0.238f), new Vector3(0.062f, 0.07f, 0.034f), shadows: false);
+                CbArt.Part(CbMesh.Sphere, pupil, h, new Vector3(sx * 0.093f, 0.245f, 0.25f), Vector3.one * 0.03f, shadows: false);
+                var ear = CbArt.Cone(f.fur, h, new Vector3(sx * 0.15f, 0.43f, -0.03f), 0.09f, sx > 0 ? 0.14f : 0.24f, CbArt.Rot(0, 0, -sx * 0.25f), 8);
+                ear.localScale = new Vector3(1, 1, 0.55f);
+            }
+            // the left ear's tip, flopped over
+            var tip = CbArt.Cone(f.fur, h, new Vector3(0.21f, 0.52f, -0.01f), 0.06f, 0.12f, CbArt.Rot(0, 0, -2.1f), 8);
+            tip.localScale = new Vector3(1, 1, 0.55f);
+            var yellow = f.M(CbArt.Hex("#f5c518"));
+            CbArt.Part(CbMesh.Torus(0.035f / 0.2f), yellow, f.chest, new Vector3(0, 0.64f, 0), Vector3.one * 0.2f, CbArt.Rot(0.1f));
+            var scarf = CbArt.Joint(f.chest, 0.08f, 0.63f, -0.16f, "scarfTail");
+            CbArt.Box(yellow, scarf, new Vector3(0, -0.02f, -0.2f), new Vector3(0.07f, 0.03f, 0.4f));
+            f.bandTails.Add(scarf);
+            var dark = f.M(CbArt.Hex("#4c5664"));
+            var parent = CbArt.Joint(f.hips, 0, -0.02f, -0.18f, "tail");
+            for (int k = 0; k < 4; k++)
+            {
+                f.tail.Add(parent);
+                CbArt.Sphere(k == 3 ? dark : f.fur, parent, new Vector3(0, 0, -0.12f), 0.09f + (k == 1 || k == 2 ? 0.03f : 0), new Vector3(1, 1, 1.6f));
+                parent = CbArt.Joint(parent, 0, 0, -0.2f, "tail");
+            }
+        }
+
         /// <summary>Bamboo staff along its local Y axis; the grip (origin) sits a third of the way along.</summary>
         public static Transform Staff()
         {

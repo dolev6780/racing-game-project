@@ -14,7 +14,7 @@ namespace Cloudborne
     public class CbHud
     {
         public enum PopStyle { Normal, Big, Burn, Hurt, Block }
-        public enum Screen { None, Title, Paused, Result }
+        public enum Screen { None, Title, Paused, Result, Scene }
 
         static readonly Color Paper = CbArt.Hex("#fff6e8"), Gold = CbArt.Hex("#ffc94a"), FireCol = CbArt.Hex("#ffb03a"),
             Ember = CbArt.Hex("#ff5a2e"), Ink = new Color(0.07f, 0.09f, 0.06f, 1f), Glass = new Color(0.07f, 0.09f, 0.06f, 0.55f);
@@ -26,6 +26,14 @@ namespace Cloudborne
         readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt;
         readonly RectTransform comboBox, pads, stickBase, stickKnob, title, paused, result, pauseBtn;
         readonly Text resultTitle, resultStats, startLabel;
+        // the play HUD (hidden in a cinematic) and the cinematic's own layer: black bars, the speech box, SKIP
+        readonly RectTransform play, barTop, barBottom, bubble, skipBtn;
+        readonly Text whoTxt, lineTxt, nextTxt;
+        string lineFull = "";
+        float lineShown, barsK, blipT;
+        /// <summary>How fast a line is typed into the speech box (characters per second).</summary>
+        public const float TypeSpeed = 40f;
+        const float BarHeight = 46f;
         readonly List<Pad> buttons = new List<Pad>();
         readonly Pad sp;
         readonly List<(RectTransform rt, Text t, float age, Vector2 from)> pops = new List<(RectTransform, Text, float, Vector2)>();
@@ -64,9 +72,10 @@ namespace Cloudborne
             speedLines.enabled = false;
             impactFlash = UIKit.Image(UIKit.Stretch(root, "impact"), null, Color.clear);
             impactFlash.enabled = false;
+            play = UIKit.Stretch(root, "play");
 
             // status: portrait, name, bars
-            var status = UIKit.Rect(root, "status", new Vector2(0, 1), new Vector2(0, 1), new Vector2(14, -12), new Vector2(300, 60));
+            var status = UIKit.Rect(play, "status", new Vector2(0, 1), new Vector2(0, 1), new Vector2(14, -12), new Vector2(300, 60));
             var portrait = UIKit.Rect(status, "portrait", new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(56, 56));
             UIKit.Image(portrait, UIKit.Circle, Paper);
             var face = UIKit.Rect(portrait, "face", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(50, 50));
@@ -78,9 +87,9 @@ namespace Cloudborne
             kiFill = Bar(status, new Vector2(66, -42), new Vector2(160, 9), FireCol, out kiFrame);
 
             // stage title, wave, tip
-            UIKit.Label(root, "STAGE 1-1 · THE JUNGLE GATE", 11, new Color(1, 1, 1, 0.9f), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -12), new Vector2(320, 16), TextAnchor.MiddleCenter);
-            waveTxt = UIKit.Label(root, "", 20, Paper, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -28), new Vector2(360, 26), TextAnchor.MiddleCenter, true);
-            var tipBox = UIKit.Panel(root, "tip", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -58), new Vector2(270, 34), Glass);
+            UIKit.Label(play, "STAGE 1-1 · THE JUNGLE GATE", 11, new Color(1, 1, 1, 0.9f), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -12), new Vector2(320, 16), TextAnchor.MiddleCenter);
+            waveTxt = UIKit.Label(play, "", 20, Paper, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -28), new Vector2(360, 26), TextAnchor.MiddleCenter, true);
+            var tipBox = UIKit.Panel(play, "tip", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -58), new Vector2(270, 34), Glass);
             tipTxt = UIKit.Label(tipBox.transform, "", 11, Paper, TextAnchor.MiddleCenter, false, false);
             tipTxt.supportRichText = true;
             tipTxt.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -88,20 +97,20 @@ namespace Cloudborne
             ((RectTransform)tipTxt.transform).offsetMax = new Vector2(-10, -2);
 
             // score, pause
-            UIKit.Label(root, "SCORE", 10, new Color(1, 1, 1, 0.8f), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -14), new Vector2(120, 14), TextAnchor.MiddleRight);
-            scoreTxt = UIKit.Label(root, "0", 24, Paper, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -28), new Vector2(160, 28), TextAnchor.MiddleRight, true);
-            coinTxt = UIKit.Label(root, "COINS 0", 20, Gold, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -58), new Vector2(160, 24), TextAnchor.MiddleRight, true);
+            UIKit.Label(play, "SCORE", 10, new Color(1, 1, 1, 0.8f), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -14), new Vector2(120, 14), TextAnchor.MiddleRight);
+            scoreTxt = UIKit.Label(play, "0", 24, Paper, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -28), new Vector2(160, 28), TextAnchor.MiddleRight, true);
+            coinTxt = UIKit.Label(play, "COINS 0", 20, Gold, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -58), new Vector2(160, 24), TextAnchor.MiddleRight, true);
             pauseBtn = UIKit.Rect(root, "pause", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -12), new Vector2(48, 48));
             UIKit.Image(pauseBtn, UIKit.Circle, Glass);
             UIKit.Image(UIKit.Rect(pauseBtn, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(48, 48)), UIKit.Ring, Paper);
             UIKit.Label(pauseBtn, "II", 18, Paper, TextAnchor.MiddleCenter, true, false);
 
             // combo, go
-            comboBox = UIKit.Rect(root, "combo", new Vector2(1, 0.62f), new Vector2(1, 0.5f), new Vector2(-28, 0), new Vector2(160, 100));
+            comboBox = UIKit.Rect(play, "combo", new Vector2(1, 0.62f), new Vector2(1, 0.5f), new Vector2(-28, 0), new Vector2(160, 100));
             comboN = UIKit.Label(comboBox, "0", 56, Gold, new Vector2(1, 1), new Vector2(1, 1), Vector2.zero, new Vector2(160, 64), TextAnchor.MiddleRight, true);
             UIKit.Label(comboBox, "HITS!", 20, Paper, new Vector2(1, 0), new Vector2(1, 0), new Vector2(0, 10), new Vector2(160, 26), TextAnchor.MiddleRight, true);
             comboBox.gameObject.SetActive(false);
-            goTxt = UIKit.Label(root, "GO ▶", 40, Gold, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-32, 0), new Vector2(160, 50), TextAnchor.MiddleRight, true);
+            goTxt = UIKit.Label(play, "GO ▶", 40, Gold, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-32, 0), new Vector2(160, 50), TextAnchor.MiddleRight, true);
             goTxt.gameObject.SetActive(false);
 
             // touch pads
@@ -121,14 +130,35 @@ namespace Cloudborne
             AddPad("ki", "FIRE", new Vector2(-14 - 186 - 32, 12 + 100 + 32), 64, CbArt.Hex("#e8642a"), 15);
             sp = AddPad("sp", "SPECIAL", new Vector2(-14 - 60 - 30, 12 + 196 + 30), 60, CbArt.Hex("#b8401f"), 12);
 
+            // cinematics: black bars that slide in at the top and bottom, a speech box over the lower one, SKIP
+            barTop = UIKit.Rect(root, "barTop", new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(4000, 0));
+            UIKit.Image(barTop, null, Color.black);
+            barBottom = UIKit.Rect(root, "barBottom", new Vector2(0.5f, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(4000, 0));
+            UIKit.Image(barBottom, null, Color.black);
+            bubble = UIKit.Rect(root, "speech", new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 14), new Vector2(620, 78));
+            UIKit.Image(bubble, UIKit.Rounded, new Color(0.07f, 0.09f, 0.06f, 0.88f));
+            UIKit.Image(UIKit.Rect(bubble, "edge", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620, 78)), UIKit.Rounded, new Color(1, 1, 1, 0.08f));
+            whoTxt = UIKit.Label(bubble, "", 15, Gold, new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -6), new Vector2(400, 22), TextAnchor.MiddleLeft, true);
+            var lineBox = UIKit.Rect(bubble, "line", Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero);
+            lineBox.anchorMin = Vector2.zero; lineBox.anchorMax = Vector2.one;
+            lineBox.offsetMin = new Vector2(18, 8); lineBox.offsetMax = new Vector2(-30, -30);
+            lineTxt = UIKit.Label(lineBox, "", 15, Paper, TextAnchor.UpperLeft, false, false);
+            lineTxt.horizontalOverflow = HorizontalWrapMode.Wrap;
+            nextTxt = UIKit.Label(bubble, "▼", 12, Gold, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-12, 8), new Vector2(20, 16), TextAnchor.MiddleCenter);
+            bubble.gameObject.SetActive(false);
+            skipBtn = UIKit.Rect(root, "skip", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -8), new Vector2(100, 30));
+            UIKit.Image(skipBtn, UIKit.Rounded, Glass);
+            UIKit.Label(skipBtn, "SKIP ▶▶", 13, Paper, TextAnchor.MiddleCenter, true, false);
+            skipBtn.gameObject.SetActive(false);
+
             // screens
             title = Overlay("title");
             UIKit.Label(title, "DEMO BUILD · STAGE 1-1 — THE JUNGLE GATE", 13, Gold, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 128), new Vector2(700, 20), TextAnchor.MiddleCenter);
-            var logo = UIKit.Label(title, "CLOUDBORNE", 76, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 72), new Vector2(800, 90), TextAnchor.MiddleCenter, true);
+            var logo = UIKit.Label(title, "RAJA", 76, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 78), new Vector2(800, 90), TextAnchor.MiddleCenter, true);
             var logoShadow = logo.gameObject.AddComponent<Outline>();
             logoShadow.effectColor = Ember; logoShadow.effectDistance = new Vector2(3, -4);
             logo.transform.parent.localRotation = Quaternion.Euler(0, 0, 3);
-            UIKit.Label(title, "RAJA, THE FIRE TIGER", 13, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 20), new Vector2(400, 20), TextAnchor.MiddleCenter);
+            UIKit.Label(title, "AND THE FOUR CRYSTALS", 22, Gold, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 26), new Vector2(500, 28), TextAnchor.MiddleCenter, true);
             startLabel = BigButton(title, "START", new Vector2(0, -26));
             var keys = UIKit.Label(title, "<color=#ffb03a>HIT</color> combo · <color=#ffb03a>↓ + HIT</color> sweep · <color=#ffb03a>HEAVY</color> staff smash · <color=#ffb03a>↑ + HEAVY</color> launcher · <color=#ffb03a>DASH → HEAVY</color> thrust · hold <color=#ffb03a>HEAVY</color> whirl · <color=#ffb03a>HEAVY</color> in the air slam\nhold <color=#ffb03a>GUARD</color> to block · <color=#ffb03a>↓</color> duck · <color=#ffb03a>FIRE</color> fireball · <color=#ffb03a>SPECIAL</color> flame cannon · keyboard: A/D W/S Space J K O U I L",
                 11, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -100), new Vector2(780, 44), TextAnchor.MiddleCenter);
@@ -232,6 +262,37 @@ namespace Cloudborne
             bool playing = s == Screen.None;
             pads.gameObject.SetActive(playing && ShowPads);
             pauseBtn.gameObject.SetActive(playing);
+            play.gameObject.SetActive(s != Screen.Scene);
+            skipBtn.gameObject.SetActive(s == Screen.Scene);
+            if (s != Screen.Scene) HideLine();
+        }
+
+        // ---------- cinematics ----------
+
+        /// <summary>A line in the speech box, typed in: who speaks (in their colour) and what they say.</summary>
+        public void Say(string who, Color color, string line)
+        {
+            bubble.gameObject.SetActive(true);
+            whoTxt.text = who;
+            whoTxt.color = color;
+            lineFull = line ?? "";
+            lineShown = 0;
+            lineTxt.text = "";
+            nextTxt.enabled = false;
+            bubble.localScale = new Vector3(1, 0.85f, 1);
+        }
+
+        /// <summary>The whole line is in the box.</summary>
+        public bool LineDone => lineShown >= lineFull.Length;
+
+        /// <summary>Shows the rest of the line at once (a tap while it is being typed).</summary>
+        public void CompleteLine() => lineShown = lineFull.Length;
+
+        public void HideLine()
+        {
+            lineFull = "";
+            lineShown = 0;
+            if (bubble != null) bubble.gameObject.SetActive(false);
         }
 
         public static bool ShowPads => Application.isMobilePlatform;
@@ -367,6 +428,26 @@ namespace Cloudborne
             flashGap = Mathf.Max(0, flashGap - dt);
             impactFlash.enabled = flashT > 0;
             if (flashT > 0) impactFlash.color = new Color(1, 1, 1, flashA * flashT / 0.08f);
+
+            // the black bars slide in for a cinematic and out after it; the line types in with a soft blip
+            barsK = Mathf.MoveTowards(barsK, screen == Screen.Scene ? 1 : 0, dt * 4f);
+            float bar = BarHeight * Mathf.SmoothStep(0, 1, barsK);
+            barTop.sizeDelta = new Vector2(4000, bar);
+            barBottom.sizeDelta = new Vector2(4000, bar);
+            if (bubble.gameObject.activeSelf)
+            {
+                bubble.localScale = Vector3.MoveTowards(bubble.localScale, Vector3.one, dt * 2f);
+                if (lineShown < lineFull.Length)
+                {
+                    int before = (int)lineShown;
+                    lineShown = Mathf.Min(lineFull.Length, lineShown + dt * TypeSpeed);
+                    lineTxt.text = lineFull.Substring(0, (int)lineShown);
+                    blipT -= dt;
+                    if ((int)lineShown != before && blipT <= 0) { blipT = 0.07f; CbFx.Sfx("talk", 0.25f); }
+                }
+                else if (lineTxt.text.Length != lineFull.Length) lineTxt.text = lineFull;
+                nextTxt.enabled = LineDone && Mathf.Repeat(Time.unscaledTime, 0.8f) < 0.55f;
+            }
         }
 
         // ---------- touch ----------
@@ -388,7 +469,9 @@ namespace Cloudborne
                 bool fresh = !seen.Contains(p.Id);
                 if (screen != Screen.None)
                 {
-                    if (fresh) input.confirm = true;
+                    // in a cinematic SKIP jumps to its end (as pause does); a tap anywhere else moves the talk on
+                    if (fresh && screen == Screen.Scene && RectTransformUtility.RectangleContainsScreenPoint(skipBtn, p.Position, null)) input.pause = true;
+                    else if (fresh) input.confirm = true;
                     continue;
                 }
                 if (p.Id == stickId)

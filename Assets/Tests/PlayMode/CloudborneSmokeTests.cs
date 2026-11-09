@@ -69,6 +69,67 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator OpeningSceneTakesKodaAndLeadsIntoTheChase()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            // START on the title plays the opening the first time
+            bool pressed = false;
+            game.TestInput = i => { if (!pressed) { i.confirm = true; pressed = true; } };
+            yield return Frames(2);
+            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "START did not open with the scene");
+            Assert.IsNotNull(game.scene);
+            // tapping through the talk: every line shows, then goes on, and the stage begins
+            Time.captureDeltaTime = 1f / 20f;
+            bool sawKoda = false, sawRaiders = false;
+            int frames = 0;
+            game.TestInput = i => i.confirm = Time.frameCount % 8 == 0;
+            while (game.mode == CbGame.Mode.Scene && frames++ < 2000)
+            {
+                yield return null;
+                var stage = game.transform.Find("Opening");
+                if (stage == null) continue;
+                sawKoda |= stage.Find("Koda") != null;
+                sawRaiders |= stage.Find("SgtSnap") != null && stage.Find("Raider") != null;
+            }
+            game.TestInput = null;
+            Time.captureDeltaTime = 0f;
+            // objects are removed at the end of the frame
+            yield return Frames(2);
+            Assert.AreEqual(CbGame.Mode.Play, game.mode, "The opening never handed over to the stage");
+            Assert.IsTrue(sawKoda, "Koda was not in the opening");
+            Assert.IsTrue(sawRaiders, "Sergeant Snap and his raiders never came");
+            Assert.IsNull(game.transform.Find("Opening"), "The scene's cast was left on the path");
+            Assert.IsNull(game.scene);
+            Assert.AreEqual(CbHero.State.Idle, game.hero.state);
+            // and Raja can move again
+            float x0 = game.hero.x;
+            game.TestInput = i => i.x = 1;
+            yield return new WaitForSeconds(0.5f);
+            game.TestInput = null;
+            Assert.Greater(game.hero.x, x0 + 1f, "Raja doesn't run after the opening");
+        }
+
+        [UnityTest]
+        public IEnumerator OpeningSceneCanBeSkipped()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.PlayOpening();
+            yield return Frames(10);
+            Assert.AreEqual(CbGame.Mode.Scene, game.mode);
+            bool skipped = false;
+            game.TestInput = i => { if (!skipped) { i.pause = true; skipped = true; } };
+            yield return Frames(3);
+            game.TestInput = null;
+            Assert.AreEqual(CbGame.Mode.Play, game.mode, "SKIP did not end the scene");
+            Assert.IsNull(game.transform.Find("Opening"), "The scene's cast was left on the path after SKIP");
+            // a later run starts straight in the stage
+            game.StartGame();
+            Assert.AreEqual(CbGame.Mode.Play, game.mode);
+        }
+
+        [UnityTest]
         public IEnumerator ShieldHyenaHasItsModelAndClips()
         {
             game = CbGame.Boot();

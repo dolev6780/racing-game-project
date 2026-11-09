@@ -743,6 +743,27 @@ namespace Cloudborne
             f.body.gameObject.SetActive(visible);
         }
 
+        /// <summary>
+        /// Directed by a scene: Raja stands at x facing his way and shows a clip, looped by seconds or at a moment of
+        /// it, with fire glowing in his fur. His moves and physics wait until the scene hands him back.
+        /// </summary>
+        public void Act(float dt, string clip, float time, bool loop, float fireGlow)
+        {
+            state = State.Idle; vx = vy = 0; y = 0; t = 0;
+            f.body.gameObject.SetActive(true);
+            var pose = Pose.Base;
+            pose.bob = Mathf.Sin(g.clock * 3) * 0.025f - 0.05f;
+            f.Apply(pose, dt, 10);
+            Place();
+            UpdateCloth(dt);
+            CbArt.SetGlow(furMat, new Color(1f, 0.48f, 0.1f) * fireGlow);
+            if (model == null) return;
+            CbArt.SetGlow(model.material, new Color(1f, 0.48f, 0.1f) * fireGlow * 0.35f);
+            if (loop) model.LoopSeconds(clip, time);
+            else model.Show(clip, time);
+            PlaceModelStaff(pose, dt);
+        }
+
         /// <summary>Title screen: idle stance, tail swaying.</summary>
         public void Idle(float dt)
         {

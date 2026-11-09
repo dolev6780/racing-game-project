@@ -123,6 +123,10 @@ namespace Cloudborne
                 // a bright two-note chime for a coin, a rising sparkle for anything else picked up
                 case "coin": c = Synth(type, 0.16f, (t, d) => Mathf.Sin(2 * Mathf.PI * (t < 0.05f ? 1320 : 1760) * t) * 0.12f * Band(t, 0.16f)); break;
                 case "pickup": c = Synth(type, 0.3f, (t, d) => (Mathf.Sin(2 * Mathf.PI * (520 + 1600 * t) * t) * 0.12f + Mathf.Sin(2 * Mathf.PI * (780 + 2400 * t) * t) * 0.06f) * Band(t, 0.3f)); break;
+                // the story's scenes: chainsaws starting up in the trees, the sergeant's whistle, a soft blip as a line types
+                case "saw": c = Synth(type, 1.1f, (t, d) => (Saw(t, 95 + 30 * Mathf.Sin(t * 22) + 60 * t) * 0.22f + Noise() * 0.12f) * (0.6f + 0.4f * Mathf.Sin(t * 40)) * Band(t, 1.1f)); break;
+                case "whistle": c = Synth(type, 0.55f, (t, d) => Mathf.Sin(2 * Mathf.PI * (2300 + 120 * Mathf.Sin(t * 60)) * t) * 0.13f * (t < 0.2f || t > 0.28f ? 1 : 0) * Band(t, 0.55f)); break;
+                case "talk": c = Synth(type, 0.035f, (t, d) => Mathf.Sin(2 * Mathf.PI * 820 * t) * 0.08f * Band(t, 0.035f)); break;
             }
             clips[type] = c;
             return c;

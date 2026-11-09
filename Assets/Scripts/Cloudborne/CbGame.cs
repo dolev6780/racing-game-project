@@ -15,7 +15,7 @@ namespace Cloudborne
     /// </summary>
     public class CbGame : MonoBehaviour
     {
-        public enum Mode { Title, Play, Paused, Over }
+        public enum Mode { Title, Play, Paused, Over, Scene }
 
         public class Zone
         {
@@ -51,7 +51,9 @@ namespace Cloudborne
         public CbItems items;
         /// <summary>Things to climb and things in the way.</summary>
         public CbLevel level;
-        bool cleared;
+        /// <summary>The cinematic playing (mode Scene), else null.</summary>
+        public CbScene scene;
+        bool cleared, introSeen;
         public readonly List<CbEnemy> enemies = new List<CbEnemy>();
         public Zone lockZone;
         public float clock, time, hitstop, shake, slow;
@@ -235,6 +237,29 @@ namespace Cloudborne
             hud.SetSlow(false);
             hud.SetScore(0);
             lastScore = 0;
+        }
+
+        /// <summary>
+        /// The first START: the opening scene (Koda carried off, Raja's fire waking), then the stage. Later runs skip it.
+        /// </summary>
+        public void PlayOpening()
+        {
+            ResetGame();
+            mode = Mode.Scene;
+            hud.SetScreen(CbHud.Screen.Scene);
+            scene = CbStory.Opening(this);
+        }
+
+        /// <summary>A scene has ended (played through or skipped): back to the stage.</summary>
+        public void EndScene()
+        {
+            scene = null;
+            introSeen = true;
+            mode = Mode.Play;
+            hud.SetScreen(CbHud.Screen.None);
+            hud.SetWave("Chase the raiders");
+            hud.SetTip("Your fire woke up! <color=#ffb03a>FIRE</color> shoots a fireball");
+            hud.Banner("SAVE KODA!");
         }
 
         /// <summary>Starts a run (also used by the play mode tests).</summary>
@@ -725,11 +750,20 @@ namespace Cloudborne
             clock += raw;
             ReadInput(raw);
 
-            if (input.pause) TogglePause();
+            if (input.pause)
+            {
+                if (mode == Mode.Scene) scene?.Skip();
+                else TogglePause();
+            }
             if (mode == Mode.Title)
             {
                 hero.Idle(raw);
-                if (input.confirm) StartGame();
+                if (input.confirm) { if (introSeen) StartGame(); else PlayOpening(); }
+            }
+            else if (mode == Mode.Scene)
+            {
+                scene?.Update(raw, input);
+                UpdateShots(raw);
             }
             else if (mode == Mode.Paused)
             {
@@ -771,8 +805,10 @@ namespace Cloudborne
             float tx = hero.x + hero.facing * 1.6f;
             if (mode == Mode.Title) tx = 2 + Mathf.Sin(clock * 0.15f) * 3;
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
-            camX += (tx - camX) * (1 - Mathf.Exp(-3.5f * dt));
             float ty = CamBase + hero.y * 0.5f;
+            // a scene directs the camera itself: where it looks and how close it comes
+            if (mode == Mode.Scene && scene != null) { tx = camX = scene.camX; ty = camY = scene.camY; dist *= scene.zoom; }
+            camX += (tx - camX) * (1 - Mathf.Exp(-3.5f * dt));
             camY += (ty - camY) * (1 - Mathf.Exp(-3 * dt));
             float sh = shake;
             cam.transform.position = new Vector3(camX + Random.Range(-1f, 1f) * sh * 0.4f, camY + CamRise + Random.Range(-1f, 1f) * sh * 0.4f, -dist);
