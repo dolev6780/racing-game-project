@@ -215,7 +215,7 @@ namespace Cloudborne
                 CbArt.Part(CbMesh.Quad, strip, root, new Vector3(c, 0.01f, 0), new Vector3(w, 3.2f, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
                 FaceQuad(face, a, b, 0f, -GroundDepth);
             }
-            BuildStreams(grass, face);
+            BuildStreams(grass, face, far);
             CbArt.Part(CbMesh.Quad, CbArt.Toon("#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
 
             // grass blades and fern fronds, merged straight into a few meshes
@@ -308,7 +308,7 @@ namespace Cloudborne
         /// the camera, the river seen in cross-section at the front edge, and behind, where it comes out of the ground,
         /// a little cascade framed by leaves.
         /// </summary>
-        void BuildStreams(Material grass, Material face)
+        void BuildStreams(Material grass, Material face, Transform far)
         {
             var paintedWater = Resources.Load<Texture2D>("Cloudborne/Jungle/Water/Water");
             var waterTex = paintedWater != null ? paintedWater : WaterTexture();
@@ -347,7 +347,7 @@ namespace Cloudborne
                 CbArt.Part(CbMesh.Quad, cascade, root, new Vector3(c, level / 2, back - 0.01f), new Vector3(w, -level, 1), shadows: false).name = "cascade";
                 if (Has(LeavesModel))
                     for (float x = x0 - 0.4f; x <= x1 + 0.5f; x += Mathf.Max(1.4f, w / 6f))
-                        Place(LeavesModel, root, new Vector3(x + Random.Range(-0.3f, 0.3f), 0, back + Random.Range(0.1f, 0.6f)), Random.Range(0.7f, 1f));
+                        Place(LeavesModel, far, new Vector3(x + Random.Range(-0.3f, 0.3f), 0, back + Random.Range(0.1f, 0.6f)), Random.Range(0.7f, 1f));
             }
         }
 
