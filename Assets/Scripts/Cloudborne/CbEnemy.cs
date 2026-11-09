@@ -186,6 +186,9 @@ namespace Cloudborne
             state = State.Hurt; t = 0;
         }
 
+        /// <summary>How long a beaten enemy lies there before he vanishes in a puff of smoke.</summary>
+        public const float DyingTime = 1.05f;
+
         public void Kill(int dir)
         {
             dead = true; state = State.Dying; t = 0;
@@ -359,14 +362,14 @@ namespace Cloudborne
             switch (state)
             {
                 case State.Dying:
+                    // thrown back, down on his back, dazed stars over him, blinking - then gone in a puff of smoke
+                    // (CbGame.EnemyPoof), what he carried bursting out of it
                     pose.lean = -1.3f; pose.sLz = 1.4f; pose.sRz = -1.4f; pose.hLx = -1; pose.hRx = 0.3f; pose.headX = -0.5f;
-                    f.flip.localRotation *= Quaternion.Euler(0, 0, facing * dt * 10 * Mathf.Max(0, 1 - t) * Mathf.Rad2Deg);
-                    if (t > 0.9f)
-                    {
-                        f.root.localScale = Vector3.one * Mathf.Max(0.01f, 1 - (t - 0.9f) / 0.5f);
-                        if (Random.value < 0.5f) CbFx.Spark(new Vector3(x, y + 1, -0.3f), CbFx.Purple, 1, 3, 0.4f, 0.5f, -3);
-                    }
-                    if (t > 1.4f) return true;
+                    if (model == null) f.flip.localRotation *= Quaternion.Euler(0, 0, facing * dt * 6 * Mathf.Max(0, 0.5f - t) * Mathf.Rad2Deg);
+                    if (t > 0.55f && y <= 0.01f && Random.value < 0.25f)
+                        CbFx.Spark(new Vector3(x + Random.Range(-0.4f, 0.4f), y + 0.9f, -0.4f), CbFx.Flame, 1, 1.2f, 0.18f, 0.45f, 0);
+                    if (t > 0.7f) flash = Mathf.Repeat(t, 0.12f) < 0.06f ? 0.06f : 0f;
+                    if (t > DyingTime) { g.EnemyPoof(this); return true; }
                     break;
                 case State.Hurt:
                     pose.lean = -0.6f; pose.headX = -0.5f; pose.sLz = 1.1f; pose.sRz = -1.1f; pose.sLx = 0.5f; pose.sRx = 0.5f;

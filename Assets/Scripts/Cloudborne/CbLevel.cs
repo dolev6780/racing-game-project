@@ -187,7 +187,7 @@ namespace Cloudborne
         void AddRock(float x, float width, float top)
         {
             var t = CbArt.Joint(root, x, 0, 0, "riverRock");
-            if (!Cliff(t, -width / 2, width / 2, WaterLevel - 0.6f, top, -0.8f, 1f))
+            if (Fit(CliffDir + "Pillar/Pillar", t, new Vector3(-width / 2, WaterLevel - 0.6f, -0.8f), new Vector3(width / 2, top, 1f)) == null)
                 EarthSlab(t, -width / 2, width / 2, WaterLevel - 0.6f, top, -0.8f, 1f, earth ??= EarthMat(), grass ??= GrassMat());
             blocks.Add(new Block { x0 = x - width / 2, x1 = x + width / 2, top = top, t = t });
         }
@@ -199,29 +199,119 @@ namespace Cloudborne
         // several blocks so the stone keeps its proportions.
         const string CliffDir = "Cloudborne/Jungle/Cliff/";
 
-        /// <summary>
-        /// Stone filling the box x0..x1, y0..y1, zFront..zBack (relative to parent): terrace blocks, or a pillar's
-        /// stones for a narrow one. False if the kit isn't in the project.
-        /// </summary>
-        bool Cliff(Transform parent, float x0, float x1, float y0, float y1, float zFront, float zBack)
+        // ---------- the mountain's rock ----------
+
+        // The mountain is one rock face, not blocks piled up: a painted cliff texture (Cliff/RockFace, drawn in Canva;
+        // until it is in the project, rock drawn in code) repeated across every face, lined up with the world, with
+        // the ground's own grassy lip along each top edge and grass on top.
+        const float RockTile = 4f;
+        static Texture2D rockTex;
+
+        static Texture2D RockTexture()
         {
-            float w = x1 - x0, h = y1 - y0;
-            bool narrow = w < 1.8f;
-            string path = CliffDir + (narrow ? "Pillar/Pillar" : "Terrace/Terrace");
-            if (Resources.Load<GameObject>(path) == null) return false;
-            // a terrace block is about twice as wide as tall, a pillar about 2.7 times taller than wide
-            int cols = narrow ? 1 : Mathf.Max(1, Mathf.RoundToInt(w / 3f));
-            int rows = Mathf.Max(1, Mathf.RoundToInt(h / (narrow ? w * 2.7f : (w / cols) * 0.47f)));
-            float tw = w / cols, th = h / rows;
-            for (int i = 0; i < cols; i++)
-                for (int j = 0; j < rows; j++)
+            if (rockTex != null) return rockTex;
+            rockTex = Resources.Load<Texture2D>(CliffDir + "RockFace");
+            if (rockTex == null)
+            {
+                // layered grey-brown rock: wavy strata, darker cracks between them, patches of moss
+                const int S = 128;
+                rockTex = new Texture2D(S, S, TextureFormat.RGBA32, true) { name = "rock" };
+                Color a = CbArt.Hex("#8a8072"), b = CbArt.Hex("#a69a86"), crack = CbArt.Hex("#4e463e"), moss = CbArt.Hex("#6f8f45");
+                var px = new Color[S * S];
+                for (int y = 0; y < S; y++)
+                    for (int x = 0; x < S; x++)
+                    {
+                        float u = x / (float)S * Mathf.PI * 2, v = y / (float)S * Mathf.PI * 2;
+                        float strata = Mathf.Sin(v * 4 + Mathf.Sin(u * 2) * 0.6f + Mathf.Sin(u * 5 + v) * 0.15f);
+                        var c = Color.Lerp(a, b, 0.5f + 0.5f * Mathf.Sin(u * 3 + v * 2) * 0.6f);
+                        if (strata > 0.86f) c = Color.Lerp(c, crack, (strata - 0.86f) / 0.14f);
+                        float m = Mathf.Sin(u * 2 + 1) * Mathf.Sin(v * 3 + Mathf.Sin(u)) ;
+                        if (m > 0.55f) c = Color.Lerp(c, moss, Mathf.Clamp01((m - 0.55f) / 0.2f) * 0.8f);
+                        px[y * S + x] = c;
+                    }
+                rockTex.SetPixels(px);
+                rockTex.Apply();
+            }
+            rockTex.wrapMode = TextureWrapMode.Repeat;
+            return rockTex;
+        }
+
+        /// <summary>The rock for a face w by h whose lower left corner is at world (wx, wy): the painting lined up with the world.</summary>
+        static Material RockMat(float w, float h, float wx, float wy, Color? tint = null)
+        {
+            var m = CbArt.NewToon(tint ?? new Color(0.8f, 0.78f, 0.82f), 0f, RockTexture());
+            m.SetFloat("_SpecStrength", 0f);
+            m.SetFloat("_RimStrength", 0f);
+            m.mainTextureScale = new Vector2(w / RockTile, h / RockTile);
+            m.mainTextureOffset = new Vector2(wx / RockTile, wy / RockTile);
+            return m;
+        }
+
+        /// <summary>
+        /// A block of the mountain filling x0..x1, y0..y1, zFront..zBack (relative to parent): rock on its front and
+        /// sides, a band of the ground's grassy lip along its front top edge, grass on top.
+        /// </summary>
+        void RockSlab(Transform parent, float x0, float x1, float y0, float y1, float zFront, float zBack)
+        {
+            earth ??= EarthMat();
+            grass ??= GrassMat();
+            float w = x1 - x0, h = y1 - y0, d = zBack - zFront, cx = (x0 + x1) / 2;
+            float wx = parent.position.x + x0, lip = Mathf.Min(1f, h * 0.45f);
+            CbArt.Part(CbMesh.Quad, RockMat(w, h, wx, y0), parent, new Vector3(cx, (y0 + y1) / 2, zFront), new Vector3(w, h, 1), shadows: false).name = "rock";
+            CbArt.Part(CbMesh.Quad, FaceMat(earth, w, lip, wx), parent, new Vector3(cx, y1 - lip / 2, zFront - 0.01f), new Vector3(w, lip, 1), shadows: false).name = "lip";
+            var side = RockMat(d, h, 0, y0);
+            CbArt.Part(CbMesh.Quad, side, parent, new Vector3(x0, (y0 + y1) / 2, zFront + d / 2), new Vector3(d, h, 1), Quaternion.Euler(0, 90, 0), shadows: false);
+            CbArt.Part(CbMesh.Quad, side, parent, new Vector3(x1, (y0 + y1) / 2, zFront + d / 2), new Vector3(d, h, 1), Quaternion.Euler(0, -90, 0), shadows: false);
+            var lid = new Material(grass) { mainTextureScale = new Vector2(w / CbWorld.GrassTile, d / CbWorld.GrassTile), mainTextureOffset = new Vector2(wx / CbWorld.GrassTile, 0) };
+            CbArt.Part(CbMesh.Quad, lid, parent, new Vector3(cx, y1, zFront + d / 2), new Vector3(w, d, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
+        }
+
+        /// <summary>
+        /// The mountain's body behind the terraces: one rock face whose jagged top rises from the path to peaks above
+        /// the summit and falls away beyond it, a grassy lip along its ridge; a little bluer, being farther back.
+        /// </summary>
+        void MountainBody()
+        {
+            var profile = new[] { (128f, 0f), (134f, 2.6f), (140f, 4.8f), (146f, 7f), (151f, 9f), (156f, 11f), (161f, 12.9f), (166f, 13.6f),
+                (170f, 13f), (175f, 15.2f), (179f, 14f), (184f, 10.4f), (189f, 6.4f), (194f, 2.8f), (199f, 0f) };
+            float Ridge(float x)
+            {
+                for (int i = 1; i < profile.Length; i++)
+                    if (x <= profile[i].Item1)
+                    {
+                        float k = (x - profile[i - 1].Item1) / (profile[i].Item1 - profile[i - 1].Item1);
+                        float y = Mathf.Lerp(profile[i - 1].Item2, profile[i].Item2, k * k * (3 - 2 * k));
+                        return y <= 0 ? y : y + Mathf.Sin(x * 1.7f) * 0.35f + Mathf.Sin(x * 3.1f + 1) * 0.2f;
+                    }
+                return 0;
+            }
+            const float Z = 5.6f, Bottom = -1f, LipDepth = 0.8f;
+            var v = new List<Vector3>(); var uv = new List<Vector2>(); var tri = new List<int>();
+            var lv = new List<Vector3>(); var luv = new List<Vector2>(); var ltri = new List<int>();
+            float tileW = CbWorld.FaceTileWidth((earth ??= EarthMat()).mainTexture);
+            for (float x = profile[0].Item1; x <= profile[profile.Length - 1].Item1 + 0.01f; x += 0.75f)
+            {
+                float top = Ridge(x);
+                v.Add(new Vector3(x, Bottom, Z)); uv.Add(new Vector2(x / RockTile, Bottom / RockTile));
+                v.Add(new Vector3(x, top, Z)); uv.Add(new Vector2(x / RockTile, top / RockTile));
+                lv.Add(new Vector3(x, top - LipDepth, Z - 0.02f)); luv.Add(new Vector2(x / tileW, 1 - LipDepth / CbWorld.FaceHeight));
+                lv.Add(new Vector3(x, top + 0.05f, Z - 0.02f)); luv.Add(new Vector2(x / tileW, 1));
+                int n = v.Count;
+                if (n >= 4)
                 {
-                    // a hair of overlap so no seam shows between neighbours
-                    var lo = new Vector3(x0 + i * tw - 0.03f, y0 + j * th - 0.03f, zFront + (j % 2) * 0.05f);
-                    var hi = new Vector3(x0 + (i + 1) * tw + 0.03f, y0 + (j + 1) * th, zBack);
-                    Fit(path, parent, lo, hi);
+                    tri.AddRange(new[] { n - 4, n - 3, n - 2, n - 2, n - 3, n - 1 });
+                    ltri.AddRange(new[] { n - 4, n - 3, n - 2, n - 2, n - 3, n - 1 });
                 }
-            return true;
+            }
+            var mesh = new Mesh { name = "mountain" };
+            mesh.SetVertices(v); mesh.SetUVs(0, uv); mesh.SetTriangles(tri, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            var rock = RockMat(1, 1, 0, 0, new Color(0.66f, 0.7f, 0.78f));
+            rock.mainTextureScale = Vector2.one; rock.mainTextureOffset = Vector2.zero;
+            CbArt.Part(mesh, rock, root, Vector3.zero, Vector3.one, shadows: false).name = "mountainBody";
+            var ridge = new Mesh { name = "mountainRidge" };
+            ridge.SetVertices(lv); ridge.SetUVs(0, luv); ridge.SetTriangles(ltri, 0); ridge.RecalculateNormals(); ridge.RecalculateBounds();
+            var lipMat = new Material(earth) { mainTextureScale = Vector2.one, mainTextureOffset = Vector2.zero, color = earth.color * new Color(0.85f, 0.9f, 0.95f) };
+            CbArt.Part(ridge, lipMat, root, Vector3.zero, Vector3.one, shadows: false).name = "mountainRidge";
         }
 
         /// <summary>A model placed and stretched so its bounds fill the box lo..hi of parent's space; null if missing.</summary>
@@ -272,6 +362,7 @@ namespace Cloudborne
             earth ??= EarthMat();
             grass ??= GrassMat();
             crackedEarth = new Material(earth) { color = earth.color * new Color(1.15f, 1.02f, 0.85f) };
+            MountainBody();
             AddTerrace(137f, 140f, 1.4f, 2.4f);
             AddTerrace(141.5f, 144f, 2.8f, 3.2f);
             AddLedge(146.25f, 1.5f, 4.2f, false);
@@ -300,8 +391,7 @@ namespace Cloudborne
         {
             var t = CbArt.Joint(root, (x0 + x1) / 2, 0, 0, "terrace");
             float cx = (x0 + x1) / 2;
-            if (!Cliff(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, depth))
-                EarthSlab(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, depth, earth, grass);
+            RockSlab(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, depth);
             blocks.Add(new Block { x0 = x0, x1 = x1, top = top, t = t });
         }
 
@@ -502,12 +592,17 @@ namespace Cloudborne
                 // it bursts into tumbling stones
                 b.broken = true;
                 b.t.gameObject.SetActive(false);
-                for (int k = 0; k < 10; k++)
+                // it bursts into tumbling rounded stones and a cloud of dust
+                var stone = CbArt.Toon("#8f9a8a", CbArt.PropOutline);
+                for (int k = 0; k < 9; k++)
                 {
-                    var chunk = CbArt.Part(CbMesh.Box(), CbArt.Toon("#8f9a8a"), g.transform, new Vector3((b.x0 + b.x1) / 2, Random.Range(0.3f, b.top), 0),
-                        Vector3.one * Random.Range(0.3f, 0.6f), Random.rotation, shadows: false);
+                    float s = Random.Range(0.22f, 0.5f);
+                    var chunk = CbArt.Part(CbMesh.Blob(6, 4), stone, g.transform, new Vector3((b.x0 + b.x1) / 2, Random.Range(0.3f, b.top), 0),
+                        new Vector3(s, s * Random.Range(0.6f, 0.9f), s), Random.rotation, shadows: false);
                     g.AddDebris(chunk, new Vector3(dir * Random.Range(2f, 7f), Random.Range(2f, 6f), Random.Range(-1f, 1f)), Random.Range(-400f, 400f));
                 }
+                for (int k = 0; k < 3; k++)
+                    CbFx.Puff(new Vector3((b.x0 + b.x1) / 2, b.top * (0.25f + k * 0.3f), -0.4f), new Color(0.78f, 0.74f, 0.66f), 6, 2f, 1.1f, 0.6f);
                 CbVfx.Burst(at, CbFx.Hit, 3f, 0.25f);
                 g.hud.ImpactFlash(0.3f);
                 g.hud.SetTip("The way is open!");

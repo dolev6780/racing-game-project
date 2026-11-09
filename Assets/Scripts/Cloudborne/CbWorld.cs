@@ -563,12 +563,6 @@ namespace Cloudborne
                     new Vector3(s, s * 0.7f, s), Random.rotation);
                 CbArt.Part(CbMesh.Dome(0.5f, 8), CbArt.Toon("#5f9a50"), near, new Vector3(x, s * 0.45f, z), new Vector3(s * 0.8f, s * 0.36f, s * 0.8f));
             }
-            if (Has(KarstModel))
-            {
-                // the mountain: great rocks behind its terraces, so the climb reads as going up a mountainside
-                foreach (var (x, z, s) in new[] { (141f, 9f, 0.42f), (150f, 7.5f, 0.55f), (160f, 10f, 0.68f), (170f, 8f, 0.62f), (180f, 9.5f, 0.5f), (186f, 7f, 0.36f) })
-                    Place(KarstModel, near, new Vector3(x, -0.4f, z), s, CbArt.PropOutline, turn: 40f);
-            }
             if (Has(GateModel) && Has(PillarModel))
             {
                 // the shrine: its gate, lone pillars of different heights and a few fallen stones

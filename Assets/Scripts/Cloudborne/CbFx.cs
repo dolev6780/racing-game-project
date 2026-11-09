@@ -17,7 +17,7 @@ namespace Cloudborne
         public static readonly Color Grey = new Color(0.84f, 0.87f, 0.91f) * 1.6f;
         public static readonly Color Water = new Color(0.72f, 0.92f, 1f) * 1.6f;
 
-        static ParticleSystem falling, rising, floating;
+        static ParticleSystem falling, rising, floating, puffs;
         static Transform holder;
 
         public static void Init(Transform parent)
@@ -27,6 +27,72 @@ namespace Cloudborne
             falling = Make("sparks", 0.6f);
             rising = Make("embers", -0.5f);
             floating = Make("trails", 0f);
+            puffs = MakePuffs();
+        }
+
+        /// <summary>
+        /// Soft round puffs of smoke or dust (alpha-blended, not glowing): they swell as they drift and fade. Used for
+        /// the poof a beaten enemy vanishes in, and for the dust of things breaking.
+        /// </summary>
+        static ParticleSystem MakePuffs()
+        {
+            var shader = Resources.Load<Shader>("Shaders/Smoke");
+            if (shader == null || !shader.isSupported) return null;
+            var go = new GameObject("puffs");
+            go.transform.SetParent(holder, false);
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.loop = true;
+            main.playOnAwake = false;
+            main.maxParticles = 300;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.gravityModifier = -0.05f;
+            main.startSpeed = 0;
+            var emission = ps.emission;
+            emission.enabled = false;
+            var shape = ps.shape;
+            shape.enabled = false;
+            var size = ps.sizeOverLifetime;
+            size.enabled = true;
+            size.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0, 0.45f), new Keyframe(0.35f, 1f), new Keyframe(1, 1.25f)));
+            var vel = ps.limitVelocityOverLifetime;
+            vel.enabled = true;
+            vel.dampen = 0.12f;
+            vel.limit = 0.5f;
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) },
+                new[] { new GradientAlphaKey(0.95f, 0), new GradientAlphaKey(0.8f, 0.5f), new GradientAlphaKey(0, 1) });
+            col.color = grad;
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            var m = new Material(shader);
+            m.SetFloat("_Softness", 0.55f);
+            r.sharedMaterial = m;
+            r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            ps.Play();
+            return ps;
+        }
+
+        /// <summary>A cloud of n soft puffs of colour c at pos, flung out at up to speed, size metres across, for life seconds.</summary>
+        public static void Puff(Vector3 pos, Color c, int n, float speed = 2f, float size = 0.8f, float life = 0.6f)
+        {
+            if (puffs == null) { Spark(pos, c, n, speed, size * 0.5f, life, 0); return; }
+            var p = new ParticleSystem.EmitParams { applyShapeToPosition = false };
+            for (int i = 0; i < n; i++)
+            {
+                var d = Random.insideUnitSphere;
+                d.z *= 0.3f;
+                p.position = pos + d * size * 0.3f;
+                p.velocity = d.normalized * speed * Random.Range(0.5f, 1f) + Vector3.up * speed * 0.2f;
+                p.startLifetime = life * Random.Range(0.75f, 1.2f);
+                p.startSize = size * Random.Range(0.7f, 1.2f);
+                p.startColor = new Color(c.r * Random.Range(0.92f, 1f), c.g * Random.Range(0.92f, 1f), c.b * Random.Range(0.92f, 1f), 1f);
+                puffs.Emit(p, 1);
+            }
         }
 
         static ParticleSystem Make(string name, float gravity)
@@ -128,6 +194,8 @@ namespace Cloudborne
                 case "saw": c = Synth(type, 1.1f, (t, d) => (Saw(t, 95 + 30 * Mathf.Sin(t * 22) + 60 * t) * 0.22f + Noise() * 0.12f) * (0.6f + 0.4f * Mathf.Sin(t * 40)) * Band(t, 1.1f)); break;
                 case "whistle": c = Synth(type, 0.55f, (t, d) => Mathf.Sin(2 * Mathf.PI * (2300 + 120 * Mathf.Sin(t * 60)) * t) * 0.13f * (t < 0.2f || t > 0.28f ? 1 : 0) * Band(t, 0.55f)); break;
                 case "talk": c = Synth(type, 0.035f, (t, d) => Mathf.Sin(2 * Mathf.PI * 820 * t) * 0.08f * Band(t, 0.035f)); break;
+                // a beaten enemy vanishing in a puff of smoke: a soft rising whoosh and a pop
+                case "poof": c = Synth(type, 0.35f, (t, d) => (Noise() * 0.22f * Mathf.Exp(-t * 9) + Mathf.Sin(2 * Mathf.PI * (320 + 900 * t) * t) * 0.1f * Mathf.Exp(-t * 14)) * Band(t, 0.35f)); break;
                 // falling into the river: a burst of water and a low plunk
                 case "splash": c = Synth(type, 0.5f, (t, d) => (Noise() * 0.32f * Mathf.Exp(-t * 7) + Mathf.Sin(2 * Mathf.PI * (190 - 140 * t) * t) * 0.12f * Mathf.Exp(-t * 9)) * Band(t, 0.5f)); break;
             }

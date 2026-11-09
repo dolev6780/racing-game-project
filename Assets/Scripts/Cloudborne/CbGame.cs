@@ -90,7 +90,8 @@ namespace Cloudborne
         int zoneIdx, lastScore = -1;
         readonly List<(float at, CbEnemy.Kind kind, float x, Zone zone)> pending = new List<(float, CbEnemy.Kind, float, Zone)>();
         readonly List<Shot> shots = new List<Shot>();
-        readonly List<(Transform t, Vector3 v, float spin, float life)> debris = new List<(Transform, Vector3, float, float)>();
+        // pieces of things broken: their transform, velocity, spin, time left and their own scale (they shrink from it)
+        readonly List<(Transform t, Vector3 v, float spin, float life, Vector3 scale)> debris = new List<(Transform, Vector3, float, float, Vector3)>();
         Beam beam;
         // A side-on view like 2.5D platformers: a narrow field of view from further back flattens the perspective,
         // and the camera looks almost level, so the path reads as the top of a platform with its front face below
@@ -555,19 +556,32 @@ namespace Cloudborne
             if (e.dead) return;
             e.Kill(dir);
             score += e.scoreValue;
-            items.Drop(new Vector3(e.x, e.HitHeight, 0));
-            if (e.Boss)
-            {
-                // the sergeant's purse: coins and a mango
-                for (int k = 0; k < 4; k++) items.Drop(new Vector3(e.x, e.HitHeight, 0));
-                items.Spawn(CbItems.Kind.Mango, new Vector3(e.x, e.HitHeight, 0));
-            }
             hitstop = Mathf.Max(hitstop, 0.06f);
             shake = Mathf.Max(shake, 0.4f);
             CbFx.Spark(new Vector3(e.x, e.HitHeight, -0.4f), e.burnT > 0 ? CbFx.Fire : CbFx.Purple, 26, 9, 0.6f, 0.6f, 2);
             CbVfx.Burst(new Vector3(e.x, e.HitHeight, -0.5f), CbFx.Hit, 3f, 0.25f);
             CbVfx.Ring(new Vector3(e.x, e.HitHeight, -0.5f), CbFx.Purple * 0.35f, 1.8f, 0.4f);
             hud.ImpactFlash(0.35f);
+        }
+
+        /// <summary>
+        /// A beaten enemy, having lain there a moment, vanishes in a puff of smoke with a pop and a few stars; what he
+        /// carried bursts out of it (the sergeant's purse: more coins and a mango).
+        /// </summary>
+        public void EnemyPoof(CbEnemy e)
+        {
+            var at = new Vector3(e.x, e.y + 0.7f, -0.4f);
+            CbFx.Puff(at, new Color(0.96f, 0.95f, 0.92f), e.Boss ? 22 : 14, e.Boss ? 3f : 2.2f, e.Boss ? 1.3f : 0.95f, 0.6f);
+            CbFx.Puff(at + Vector3.up * 0.3f, new Color(0.82f, 0.8f, 0.86f), 6, 1.2f, 0.7f, 0.5f);
+            CbFx.Spark(at, CbFx.Flame, 8, 5f, 0.22f, 0.5f, 2);
+            CbVfx.Burst(at, CbFx.Hit, e.Boss ? 2.2f : 1.4f, 0.16f);
+            CbFx.Sfx("poof", 0.8f);
+            items.Drop(new Vector3(e.x, e.y + 0.6f, 0));
+            if (e.Boss)
+            {
+                for (int k = 0; k < 4; k++) items.Drop(new Vector3(e.x, e.y + 0.6f, 0));
+                items.Spawn(CbItems.Kind.Mango, new Vector3(e.x, e.y + 0.6f, 0));
+            }
         }
 
         public void PerfectDodge()
@@ -858,7 +872,7 @@ namespace Cloudborne
             beam = null;
         }
 
-        public void AddDebris(Transform t, Vector3 velocity, float spinDeg) => debris.Add((t, velocity, spinDeg, 2.2f));
+        public void AddDebris(Transform t, Vector3 velocity, float spinDeg) => debris.Add((t, velocity, spinDeg, 1.6f, t.localScale));
 
         void UpdateShots(float dt)
         {
@@ -912,7 +926,8 @@ namespace Cloudborne
                 if (p.y < 0.1f) { p.y = 0.1f; d.v.y = 0; d.v.x *= 0.8f; d.spin *= 0.7f; }
                 d.t.position = p;
                 d.t.Rotate(0, 0, d.spin * dt, Space.World);
-                if (d.life < 0.4f) d.t.localScale = Vector3.one * Mathf.Max(0.01f, d.life / 0.4f);
+                // shrinking away in its own shape (scaling it to a cube made splinters into square pixels)
+                if (d.life < 0.4f) d.t.localScale = d.scale * Mathf.Max(0.01f, d.life / 0.4f);
                 if (d.life <= 0) { Destroy(d.t.gameObject); debris.RemoveAt(i); }
                 else debris[i] = d;
             }

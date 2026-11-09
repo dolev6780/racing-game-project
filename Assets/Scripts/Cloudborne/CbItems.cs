@@ -46,7 +46,7 @@ namespace Cloudborne
         readonly List<Item> items = new List<Item>();
         readonly List<Crate> crates = new List<Crate>();
         readonly Dictionary<Kind, Material> glowMats = new Dictionary<Kind, Material>();
-        Material crateMat;
+        Material crateMat, crateWood;
 
         /// <summary>Tiger coins picked up this run; every coin is also banked for upgrades (PlayerPrefs).</summary>
         public int Coins { get; private set; }
@@ -197,13 +197,20 @@ namespace Cloudborne
                 CbFx.Sfx("hit", 0.6f);
                 return;
             }
-            // burst: splinters fly and what was inside pops out
-            for (int k = 0; k < 6; k++)
+            // burst: boards and splinters of its own wood fly, a puff of dust, and what was inside pops out
+            if (crateWood == null)
             {
-                var chip = CbArt.Part(CbMesh.Box(), crateMat ?? CbArt.Toon("#a8783e"), g.transform, at + Random.insideUnitSphere * 0.3f,
-                    new Vector3(0.35f, 0.12f, 0.08f), Random.rotation, shadows: false);
+                var tex = Resources.Load<Texture2D>("Cloudborne/Items/Crate/Crate_Albedo");
+                crateWood = tex != null ? CbArt.AnimeToon(tex, CbArt.PropOutline) : crateMat ?? CbArt.Toon("#a8783e", CbArt.PropOutline);
+            }
+            for (int k = 0; k < 7; k++)
+            {
+                // two long boards, the rest thin splinters
+                var size = k < 2 ? new Vector3(0.62f, 0.13f, 0.05f) : new Vector3(Random.Range(0.22f, 0.4f), 0.05f, 0.035f);
+                var chip = CbArt.Part(CbMesh.Box(), crateWood, g.transform, at + Random.insideUnitSphere * 0.3f, size, Random.rotation, shadows: false);
                 g.AddDebris(chip, new Vector3(dir * Random.Range(1f, 5f), Random.Range(3f, 7f), Random.Range(-1f, 1f)), Random.Range(-600f, 600f));
             }
+            CbFx.Puff(at, new Color(0.85f, 0.76f, 0.6f), 7, 1.6f, 0.7f, 0.45f);
             foreach (var k in c.contents) Spawn(k, new Vector3(c.x, 0.6f, 0));
             CbVfx.Burst(at, CbFx.Hit, 1.6f, 0.15f);
             CbFx.Sfx("heavy", 0.6f);
