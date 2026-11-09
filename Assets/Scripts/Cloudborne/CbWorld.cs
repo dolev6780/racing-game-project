@@ -126,6 +126,68 @@ namespace Cloudborne
             return grass;
         }
 
+        // ---------- painted cards and layers ----------
+
+        // Painted in Canva and cut out of their white background (Resources/Cloudborne/Jungle/Cards and Backdrop):
+        // drawn in place of the code-built grass and the far rows of 3D trees when they are in the project.
+        const string CardDir = "Cloudborne/Jungle/Cards/";
+        static readonly string[] GrassCards = { "Grass1", "Grass2", "Grass3", "Grass4", "Grass5" };
+        static readonly string[] FlowerCards = { "Flower1", "Flower2", "Flower3", "Flower4", "Flower5" };
+        static Shader cutout;
+
+        /// <summary>An unlit cut-out material for a painting with a clear background; null if it can't be drawn.</summary>
+        static Material Cutout(Texture2D tex, float haze = 0f, Color? tint = null)
+        {
+            if (cutout == null) cutout = Resources.Load<Shader>("Shaders/PaintedCutout");
+            if (tex == null || cutout == null || !cutout.isSupported) return null;
+            var m = new Material(cutout) { mainTexture = tex, name = tex.name };
+            m.SetColor("_Color", tint ?? Color.white);
+            m.SetColor("_HazeColor", Horizon);
+            m.SetFloat("_Haze", haze);
+            m.SetFloat("_Cutoff", 0.5f);
+            return m;
+        }
+
+        /// <summary>The grass and flower cards in the project: their material, width over height, and whether a flower.</summary>
+        static List<(Material m, float aspect, bool flower)> LoadCards()
+        {
+            var list = new List<(Material, float, bool)>();
+            foreach (var (names, flower) in new[] { (GrassCards, false), (FlowerCards, true) })
+                foreach (var n in names)
+                {
+                    var tex = Resources.Load<Texture2D>(CardDir + n);
+                    // a little darker and bluer, like the rest of the painted ground under the toon light
+                    var m = Cutout(tex, 0f, new Color(0.86f, 0.88f, 0.86f));
+                    if (m != null) list.Add((m, tex.width / (float)tex.height, flower));
+                }
+            return list;
+        }
+
+        /// <summary>
+        /// A painted layer of jungle behind the path (cut out above the treetops), a strip along the whole stage at depth
+        /// z, height metres tall from bottom, repeated along it; the perspective camera gives it its parallax, and the
+        /// farther it is the more it fades into the haze. False if its painting isn't in the project.
+        /// </summary>
+        bool BuildLayer(string name, float z, float bottom, float height, float haze)
+        {
+            var tex = Resources.Load<Texture2D>("Cloudborne/Jungle/Backdrop/" + name);
+            var m = Cutout(tex, haze);
+            if (m == null) return false;
+            tex.wrapModeU = TextureWrapMode.Repeat;
+            tex.wrapModeV = TextureWrapMode.Clamp;
+            float from = -120f, to = End + 120f, w = to - from;
+            m.mainTextureScale = new Vector2(w / (height * tex.width / tex.height), 1);
+            var t = CbArt.Part(CbMesh.Quad, m, root, new Vector3((from + to) / 2, bottom + height / 2, z), new Vector3(w, height, 1), shadows: false);
+            t.name = name;
+            return true;
+        }
+
+        bool layers;
+
+        /// <summary>Whether the painted jungle layers are in the project (then the far rows of 3D trees aren't needed).</summary>
+        static bool PaintedLayers => Resources.Load<Texture2D>("Cloudborne/Jungle/Backdrop/JungleNear") != null
+            || Resources.Load<Texture2D>("Cloudborne/Jungle/Backdrop/JungleMid") != null;
+
         /// <summary>The stretches of dry ground between the streams.</summary>
         static List<(float a, float b)> DryGround()
         {
@@ -165,8 +227,28 @@ namespace Cloudborne
                 if (!batches.TryGetValue(m, out var list)) batches[m] = list = new List<CombineInstance>();
                 list.Add(new CombineInstance { mesh = mesh, transform = mat });
             }
+            var cards = LoadCards();
+            if (cards.Count > 0)
+            {
+                // painted tufts of grass and little flowering plants (Canva, cut out) behind the path and leaning over
+                // its front edge, turned a little this way and that, some mirrored
+                for (int i = 0; i < 1500; i++)
+                {
+                    bool front = Random.value < 0.18f;
+                    var p = new Vector3(Random.Range(-40f, End), 0, front ? Random.Range(GroundFront + 0.05f, GroundFront + 0.35f) : Random.Range(1.7f, 9.5f));
+                    if (Wet(p.x, p.z)) continue;
+                    // grass mostly, a flower now and then
+                    bool wantFlower = Random.value < 0.2f;
+                    var pick = cards.FindAll(c => c.flower == wantFlower);
+                    if (pick.Count == 0) pick = cards;
+                    var (m, aspect, flower) = pick[Random.Range(0, pick.Count)];
+                    float h = (flower ? Random.Range(0.3f, 0.5f) : Random.Range(0.4f, 0.8f)) * (front ? 0.8f : 1f);
+                    var at = p + new Vector3(0, h * 0.48f, 0);
+                    Add(CbMesh.Quad, m, Matrix4x4.TRS(at, Quaternion.Euler(0, Random.Range(-25f, 25f), 0), new Vector3(h * aspect * (Random.value < 0.5f ? -1 : 1), h, 1)));
+                }
+            }
             var grassMats = new[] { CbArt.Toon("#357a33"), CbArt.Toon("#468a3c"), CbArt.Toon("#2a6a30"), CbArt.Toon("#559443") };
-            for (int i = 0; i < 3600; i++)
+            for (int i = 0; i < (cards.Count > 0 ? 0 : 3600); i++)
             {
                 var p = new Vector3(Random.Range(-40f, End), 0, Random.Range(1.8f, 9.5f));
                 if (Wet(p.x, p.z)) continue;
@@ -314,9 +396,15 @@ namespace Cloudborne
             return waterSide;
         }
 
+        // trees of a few kinds and shades, so the forest doesn't look copied and pasted
+        static readonly string[] MoreTrees = { "Banyan", "Kapok", "Bamboo" };
+        static readonly Color[] TreeTints = { new Color(0.66f, 0.64f, 0.7f), new Color(0.58f, 0.64f, 0.6f), new Color(0.72f, 0.66f, 0.62f) };
+
         void BuildPlants(Transform near, Transform far)
         {
             bool trees = Has(TreeModel), palms = Has(PalmModel);
+            var kinds = new List<string> { TreeModel };
+            foreach (var k in MoreTrees) if (Has(k)) kinds.Add(k);
             for (float x = -30; x < End; x += Random.Range(6f, 10f))
             {
                 // The level camera sees about 7 to 8 m up at the tree line: the modelled trees (9.5 m, crown from
@@ -329,10 +417,11 @@ namespace Cloudborne
                     if (palms) Place(PalmModel, far, new Vector3(x, 0, z + 1f), Random.Range(0.65f, 0.8f));
                     else Palm(near, x, z, Random.Range(1f, 1.3f));
                 }
-                else if (trees) Place(TreeModel, near, new Vector3(x, 0, z + 1f), Random.Range(0.62f, 0.78f), CbArt.PropOutline);
+                else if (trees) Place(kinds[Random.Range(0, kinds.Count)], near, new Vector3(x, 0, z + 1f), Random.Range(0.62f, 0.78f), CbArt.PropOutline,
+                    TreeTints[Random.Range(0, TreeTints.Length)]);
                 else JungleTree(near, x, z, Random.Range(0.85f, 1.1f), CbArt.PropOutline);
             }
-            if (trees)
+            if (trees && !PaintedLayers)
             {
                 // two rows of forest behind the first, so the ground between the trees and the horizon is not an
                 // empty lawn; they fade into the haze with distance
@@ -508,6 +597,10 @@ namespace Cloudborne
 
         void BuildBackground(Transform far)
         {
+            // the painted jungle in layers: a near one of trunks and big leaves, a far one of hazy treetops
+            bool near = BuildLayer("JungleNear", 17f, -0.6f, 11f, 0.08f);
+            bool mid = BuildLayer("JungleMid", 34f, -1f, 16f, 0.32f);
+            layers = near || mid;
             var fall = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.55f), CbArt.Shaft);
             bool karst = Has(KarstModel);
             for (float x = -20; x < End + 20; x += Random.Range(15f, 24f))
