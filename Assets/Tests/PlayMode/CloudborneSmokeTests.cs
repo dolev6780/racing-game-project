@@ -272,7 +272,8 @@ namespace RacingGame.Tests
             Assert.AreEqual(CbGame.Mode.Play, game.mode);
             Assert.AreEqual(120f, game.hero.hp, 0.01f, "Tiger Heart did not raise Raja's health");
 
-            // pause, then MENU: the run ends and the menu is back
+            // pause, then MENU: the run ends and the menu is back (no pausing while the loading screen still fades open)
+            for (float waited = 0; game.fade.Busy && waited < 2f; waited += Time.unscaledDeltaTime) yield return null;
             bool paused = false, quit = false;
             game.TestInput = i => { if (!paused) { i.pause = true; paused = true; } };
             yield return Frames(2);
@@ -426,6 +427,7 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(0.5f);
 
             // HIT, HIT, KI: the staff cyclone (pressed by state, so a slow frame rate can't skip a press)
+            game.Teleport(0f);   // well short of the first fight
             game.hero.ki = 100;
             float t0 = Time.time;
             int hits = 0;
@@ -447,6 +449,7 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(1f);
 
             // the finisher + KI: the staff crash, a hop and the slam
+            game.Teleport(0f);   // well short of the first fight
             game.hero.ki = 100;
             t0 = Time.time;
             int presses = 0;
@@ -468,6 +471,7 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(1f);
 
             // SPECIAL: the staff storm, which runs its course and ends
+            game.Teleport(0f);   // well short of the first fight
             game.hero.ki = 100;
             pressed = false;
             bool sawStorm = false;
@@ -664,6 +668,7 @@ namespace RacingGame.Tests
 
             // one move every 0.8 s, timed in seconds so the test does not depend on the frame rate
             float t0 = Time.time, prev = -1;
+            bool sawSpecial = false;
             game.TestInput = i =>
             {
                 game.hero.hp = 100;   // keep Raja alive, this is about the moves
@@ -682,13 +687,14 @@ namespace RacingGame.Tests
                     case 4: i.jump = At(0); i.heavy = At(0.3f); break;                      // slam
                     case 5: game.hero.ki = 100; i.kiTap = At(0.1f) || At(0.5f); break;      // KI: staff lunges
                     case 6: i.guard = pt < 0.6f; break;                                     // guard
-                    case 7: game.hero.ki = 100; i.skill = At(0.1f); break;                  // special: the staff storm
+                    // special: the staff storm, pressed until it starts (a hyena behind him may have him reeling)
+                    case 7: game.hero.ki = 100; i.skill = pt >= 0.1f && !sawSpecial; break;
                 }
                 prev = pt;
             };
             int startScore = game.score;
             float t = 0;
-            bool sawStaff = false, sawWhirl = false, sawGuard = false, sawSpecial = false;
+            bool sawStaff = false, sawWhirl = false, sawGuard = false;
             while (t < 25f && game.mode == CbGame.Mode.Play && game.lockZone != null || t < 1f)
             {
                 t += Time.deltaTime;
