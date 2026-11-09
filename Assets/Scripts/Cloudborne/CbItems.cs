@@ -140,7 +140,10 @@ namespace Cloudborne
 
         // ---------- crates ----------
 
-        /// <summary>A blow (Raja's paws, kicks or staff) reaching from x towards dir: crates in reach crack, then burst.</summary>
+        /// <summary>
+        /// A blow (Raja's paws, kicks or staff) reaching from x towards dir: crates in reach crack, then burst. True if
+        /// a crate took the blow (once per blow, so its sound plays once).
+        /// </summary>
         public bool HitCrates(float x, float y, int dir, float range)
         {
             bool any = false;
@@ -149,9 +152,9 @@ namespace Cloudborne
                 var c = crates[i];
                 float dx = (c.x - x) * dir;
                 if (dx < -0.5f - CrateHalfWidth || dx > range + CrateHalfWidth || y > 1.6f) continue;
-                any = true;
                 // a blow lands on it every frame of its hit window: count it once
                 if (c.cooldown > 0) continue;
+                any = true;
                 c.cooldown = 0.2f;
                 Break(i, dir, wholly: false);
             }
@@ -256,9 +259,9 @@ namespace Cloudborne
                     CbFx.Spark(at, CbFx.Flame, 5, 2, 0.25f, 0.3f, -2);
                     break;
                 case Kind.Scroll:
-                    // the secret: the scroll teaches the flame cannon (SPECIAL)
+                    // the secret: the scroll teaches the special - the staff storm, or once his fire is awake the flame cannon
                     CbHero.SpecialUnlocked = true;
-                    g.hud.Banner("SECRET SCROLL! FLAME CANNON", true);
+                    g.hud.Banner(CbHero.FireAwake ? "SECRET SCROLL! FLAME CANNON" : "SECRET SCROLL! STAFF STORM", true);
                     CbVfx.Ring(at, CbFx.Fire * 0.5f, 2.2f, 0.45f);
                     CbFx.Spark(at, CbFx.Fire, 24, 5, 0.4f, 0.6f, -3);
                     break;

@@ -71,20 +71,45 @@ namespace Cloudborne
             new CbComic.Shot { title = "RAJA", subtitle = "AND THE FOUR CRYSTALS", dur = 3.2f, fx = "embers" },
         };
 
-        /// <summary>Drawn, in the opening: Koda calls out from the net, Raja's eyes catch fire, the fire bursts out of him.</summary>
-        public static readonly CbComic.Shot[] FireInsert =
+        /// <summary>Drawn, as the opening begins: Koda on a tree stump, puffed up with pride, and Raja not impressed.</summary>
+        public static readonly CbComic.Shot[] KodaBoast =
         {
-            new CbComic.Shot { image = "fire_koda", dur = 2.6f, from = new Vector3(0.5f, 0.5f, 1.05f), to = new Vector3(0.5f, 0.55f, 1.25f), shake = true,
+            new CbComic.Shot { image = "koda_boast", dur = 3.4f, from = new Vector3(0.62f, 0.45f, 1.3f), to = new Vector3(0.5f, 0.5f, 1.05f),
+                who = "KODA", caption = "Bow down, everyone! The child of the prophecy is here!" },
+        };
+
+        /// <summary>
+        /// Drawn, when Koda is carried off: Koda calls out from the net; Raja's anger, only a faint flicker of fire in his
+        /// eyes (he has no powers yet, and no one but Baba knows what he is).
+        /// </summary>
+        public static readonly CbComic.Shot[] KodaTaken =
+        {
+            new CbComic.Shot { image = "koda_taken", dur = 2.6f, from = new Vector3(0.5f, 0.5f, 1.05f), to = new Vector3(0.5f, 0.55f, 1.25f), shake = true,
                 who = "KODA", caption = "RAJAAA!" },
-            new CbComic.Shot { image = "fire_eyes", dur = 1.9f, from = new Vector3(0.5f, 0.5f, 1f), to = new Vector3(0.5f, 0.5f, 1.35f), fx = "embers", flash = true },
+            new CbComic.Shot { image = "raja_angry", dur = 2.2f, from = new Vector3(0.5f, 0.5f, 1f), to = new Vector3(0.5f, 0.48f, 1.3f) },
+        };
+
+        /// <summary>Drawn, as the opening ends: Raja sets out from the village with his staff, after Koda.</summary>
+        public static readonly CbComic.Shot[] Journey =
+        {
+            new CbComic.Shot { image = "raja_journey", dur = 4.4f, from = new Vector3(0.35f, 0.55f, 1.25f), to = new Vector3(0.55f, 0.5f, 1.05f),
+                caption = "With nothing but his staff, Raja set out after them." },
+        };
+
+        /// <summary>
+        /// Drawn, kept for stage 1-5: Raja touches the fire crystal and the fire bursts out of him for the first time,
+        /// his stripes lit gold. Until then he has no powers.
+        /// </summary>
+        public static readonly CbComic.Shot[] FireWakes =
+        {
             new CbComic.Shot { image = "fire_burst", dur = 2.8f, from = new Vector3(0.5f, 0.45f, 1.3f), to = new Vector3(0.5f, 0.5f, 1.05f), fx = "sparks",
                 flash = true, shake = true, sfx = "roar" },
         };
 
         /// <summary>
         /// Stage 1-1 opens (scenes 2 and 3 of the script): a morning in the village, Koda boasting that he is the child
-        /// of the prophecy; the Iron Crown raiders believe him and carry him off in a net; Raja's fire bursts out of him
-        /// for the first time, and the chase begins.
+        /// of the prophecy; the Iron Crown raiders believe him and carry him off in a net; Raja, angry but with no powers
+        /// (only his staff), sets out after them, and the chase begins.
         /// </summary>
         public static CbScene Opening(CbGame g)
         {
@@ -100,19 +125,21 @@ namespace Cloudborne
                 s.Cut(-3f, 1.35f, 0.62f);
                 s.Raja("Punch_Combo");
             });
-            // the morning: Raja trains by the path, Koda shows off
+            // the morning: Raja trains by the path, Koda shows off (drawn: Koda on a stump)
             s.Wait(1.6f);
-            s.Say("KODA", KodaCol, "The prophecy kid? That's me! Ever seen a wolf with an ear like this?",
+            s.Comic(KodaBoast);
+            s.Say("KODA", KodaCol, CbComic.Available(KodaBoast) ? "Ever seen a wolf with an ear like this?"
+                    : "The prophecy kid? That's me! Ever seen a wolf with an ear like this?",
                 () => { s.Raja("Combat_Stance"); koda.Play("Show_Both_Arm_Muscles"); },
                 t => { if (koda.model == null) koda.y = t < 1.2f ? Mathf.Abs(Mathf.Sin(t * 7)) * 0.18f : 0; });
-            s.Say("RAJA", RajaCol, "The prophecy is about a kid with fire, Koda. Not a kid with a floppy ear.");
-            // a spark jumps from his paw: Koda leaps back
-            s.Wait(0.9f, u => s.rajaGlow = 1.2f * (1 - u), () =>
+            s.Say("RAJA", RajaCol, "The prophecy kid is supposed to save the whole jungle, Koda. You fell out of a tree yesterday.");
+            // a little spark jumps from his paw (all he has: no one but Baba knows what it means); Koda leaps back
+            s.Wait(0.9f, u => s.rajaGlow = 0.6f * (1 - u), () =>
             {
                 var hand = hero.HandPoint() + new Vector3(0, 0, -0.3f);
-                CbFx.Spark(hand, CbFx.Fire, 14, 4, 0.3f, 0.45f);
-                CbVfx.Burst(hand, CbFx.Fire, 1.1f, 0.14f);
-                CbFx.Sfx("fire", 0.6f);
+                CbFx.Spark(hand, CbFx.Fire, 8, 3, 0.25f, 0.4f);
+                CbVfx.Burst(hand, CbFx.Fire, 0.7f, 0.12f);
+                CbFx.Sfx("fire", 0.4f);
                 s.RajaOnce("Hit_Reaction", 0.1f, 0.6f, 0.6f);
                 koda.Once("Hit_Reaction", 0.1f, 0.7f, 0.6f);
                 koda.WalkTo(-0.8f, 4f, null);
@@ -200,40 +227,24 @@ namespace Cloudborne
                 s.Camera(0.5f, 1.6f, 0.9f, 2f);
             });
             s.Say("RAJA", RajaCol, "KODA!", () => s.Camera(-1.6f, 1.4f, 0.62f, 3f));
-            // drawn: Koda calling out from the net, Raja's eyes, the fire bursting out of him
-            s.Comic(FireInsert);
+            // drawn: Koda calling out from the net, Raja's anger
+            s.Comic(KodaTaken);
 
-            // his fire wakes up: it gathers, then bursts out of him
-            s.Wait(1.0f, u =>
+            // he is angry, and that is all: only a flicker in his eyes (no powers yet), fists tight
+            s.Wait(1.1f, u => s.rajaGlow = 0.3f * Mathf.Sin(u * Mathf.PI), () =>
             {
-                s.rajaGlow = u * 2.5f;
-                g.shake = Mathf.Max(g.shake, u * 0.2f);
-                if (Random.value < 0.6f)
-                    CbFx.Spark(new Vector3(hero.x + Random.Range(-0.6f, 0.6f), Random.Range(0.1f, 1.6f), -0.4f), CbFx.Fire, 1, 2, 0.3f, 0.5f, -4);
-            }, () =>
-            {
-                s.RajaOnce("Power_Gather", 0f, 0.8f, 1f);
-                CbFx.Sfx("charge", 0.8f);
+                s.Raja("Combat_Stance");
+                s.Camera(hero.x + 0.4f, 1.5f, 0.5f, 3f);
+                var eyes = new Vector3(hero.x + hero.facing * 0.18f, 1.55f, -0.5f);
+                CbFx.Spark(eyes, CbFx.Fire, 3, 0.6f, 0.12f, 0.4f, -1);
             });
-            s.Wait(0.9f, u => s.rajaGlow = 2.5f * (1 - u) + 0.4f, () =>
-            {
-                var chest = new Vector3(hero.x, 1.1f, -0.5f);
-                CbVfx.Explosion(chest, 4f, 0.35f);
-                CbVfx.Ring(chest, CbFx.Fire * 0.6f, 3f, 0.45f);
-                CbVfx.Ring(new Vector3(hero.x, 0.05f, 0), CbFx.Fire * 0.6f, 3.4f, 0.5f, ground: true);
-                CbFx.Spark(chest, CbFx.Fire, 30, 9, 0.5f, 0.6f, 0, 6);
-                g.hud.ImpactFlash(0.45f);
-                g.hud.SpeedLines(0.9f, 0.8f);
-                g.shake = Mathf.Max(g.shake, 0.5f);
-                CbFx.Sfx("roar");
-                s.RajaOnce("Fire_Palms", 0.2f, 0.5f, 0.35f);
-            });
-            s.Say("RAJA", RajaCol, "Fire... from me?", () => s.Raja("Idle"));
             s.Say("RAJA", RajaCol, "Hang on, Koda. I'm coming!", () =>
             {
                 s.Raja("Combat_Stance");
                 s.Camera(hero.x + 1.6f, 1.5f, 1f, 2f);
             });
+            // drawn: he sets out with his staff
+            s.Comic(Journey);
 
             s.Finally(() =>
             {

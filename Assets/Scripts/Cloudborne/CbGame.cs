@@ -32,14 +32,21 @@ namespace Cloudborne
             new Zone { x = 80, label = "Ambush at the shrine", tip = 4, spawn = new[] { (CbEnemy.Kind.Shield, 12f), (CbEnemy.Kind.Shield, -12f), (CbEnemy.Kind.Hyena, 13.5f), (CbEnemy.Kind.Hyena, -13.5f) } },
         };
 
-        static readonly string[] Tips =
+        /// <summary>The fight tips; the ki moves are staff techniques until Raja's fire wakes (the fire crystal).</summary>
+        static string Tip(int i)
         {
-            "Tap <color=#ffb03a>HIT</color> four times for a combo, <color=#ffb03a>HEAVY</color> for the staff",
-            "Hold <color=#ffb03a>HEAVY</color> to whirl the staff. Hold <color=#ffb03a>GUARD</color> to block",
-            "<color=#ffb03a>FIRE</color> shoots a fireball. Duck under a slash with <color=#ffb03a>↓</color>",
-            "Shields stop paws. Use the staff: <color=#ffb03a>HEAVY</color>, <color=#ffb03a>↑ + HEAVY</color> or <color=#ffb03a>DASH → HEAVY</color>",
-            "<color=#ffb03a>DASH</color> just before a blow lands: slow motion, double damage. <color=#ffb03a>SPECIAL</color> when ki is high",
-        };
+            switch (i)
+            {
+                case 0: return "Tap <color=#ffb03a>HIT</color> four times for a combo, <color=#ffb03a>HEAVY</color> for the staff";
+                case 1: return "Hold <color=#ffb03a>HEAVY</color> to whirl the staff. Hold <color=#ffb03a>GUARD</color> to block";
+                case 2:
+                    return CbSave.FireAwake
+                        ? "<color=#ffb03a>FIRE</color> shoots a fireball. Duck under a slash with <color=#ffb03a>↓</color>"
+                        : "<color=#ffb03a>KI</color>: a staff lunge. <color=#ffb03a>HIT, HIT, KI</color>: the staff cyclone. Duck with <color=#ffb03a>↓</color>";
+                case 3: return "Shields stop paws. Use the staff: <color=#ffb03a>HEAVY</color>, <color=#ffb03a>↑ + HEAVY</color> or <color=#ffb03a>DASH → HEAVY</color>";
+                default: return "<color=#ffb03a>DASH</color> just before a blow lands: slow motion, double damage. <color=#ffb03a>SPECIAL</color> when ki is high";
+            }
+        }
 
         public static CbGame I { get; private set; }
 
@@ -252,7 +259,7 @@ namespace Cloudborne
             boss = null; bossStarted = bossDone = false;
             hud?.HideBoss();
             hud.SetWave("Chase the raiders");
-            hud.SetTip(Tips[0]);
+            hud.SetTip(Tip(0));
             hud.ShowGo(false);
             hud.SetCombo(0);
             hud.SetSlow(false);
@@ -261,7 +268,8 @@ namespace Cloudborne
         }
 
         /// <summary>
-        /// The first START: the opening scene (Koda carried off, Raja's fire waking), then the stage. Later runs skip it.
+        /// The first START: the opening scene (Koda carried off, Raja setting out after him), then the stage. Later runs
+        /// skip it.
         /// </summary>
         public void PlayOpening()
         {
@@ -330,7 +338,8 @@ namespace Cloudborne
             introSeen = true;
             CbSave.IntroSeen = true;
             hud.SetWave("Chase the raiders");
-            hud.SetTip("Your fire woke up! <color=#ffb03a>FIRE</color> shoots a fireball");
+            hud.SetTip(CbSave.FireAwake ? "<color=#ffb03a>FIRE</color> shoots a fireball"
+                : "No powers, only the staff: <color=#ffb03a>KI</color> for staff techniques, <color=#ffb03a>SPECIAL</color> when ki is high");
             hud.Banner("SAVE KODA!");
         }
 
@@ -352,7 +361,7 @@ namespace Cloudborne
             enemies.Add(boss);
             hud.ShowBoss("SGT. SNAP");
             hud.SetWave("Defeat Sergeant Snap");
-            hud.SetTip("<color=#ffb03a>GUARD</color> his three blows, then strike. Purple flash: get away! Fire stops his whistle");
+            hud.SetTip("<color=#ffb03a>GUARD</color> his three blows, then strike. Purple flash: get away! A <color=#ffb03a>KI</color> move stops his whistle");
             hud.Banner("SGT. SNAP!");
         }
 
@@ -448,7 +457,7 @@ namespace Cloudborne
                     hud.ShowGo(false);
                     hud.SetWave(z.label);
                     hud.Banner(z.label.ToUpperInvariant());
-                    hud.SetTip(Tips[z.tip]);
+                    hud.SetTip(Tip(z.tip));
                     for (int k = 0; k < z.spawn.Length; k++) pending.Add((time + 0.3f + k * 0.65f, z.spawn[k].kind, z.x + z.spawn[k].offset, z));
                 }
             }
@@ -467,7 +476,7 @@ namespace Cloudborne
                     hud.ShowGo(true);
                     hud.SetWave("Keep moving");
                     hud.Banner("CLEAR!");
-                    hud.SetTip(Tips[zoneIdx == 1 ? 2 : 4]);
+                    hud.SetTip(Tip(zoneIdx == 1 ? 2 : 4));
                 }
             }
         }
@@ -476,7 +485,11 @@ namespace Cloudborne
 
         // ---------- combat ----------
 
-        public bool HurtEnemy(CbEnemy e, float dmg, int dir, float kb, float up, bool big, bool breaker, bool fire, bool fromPlayer)
+        /// <summary>
+        /// A blow on an enemy. breaker: a staff blow (breaks a raised shield); fire: it sets him burning; ki: a ki move
+        /// (a staff technique or fire), which stops the sergeant's whistle.
+        /// </summary>
+        public bool HurtEnemy(CbEnemy e, float dmg, int dir, float kb, float up, bool big, bool breaker, bool fire, bool fromPlayer, bool ki = false)
         {
             if (e.dead) return false;
             bool frontal = dir == -e.facing;
@@ -501,8 +514,8 @@ namespace Cloudborne
                 CbFx.Sfx("heavy");
             }
             if (fromPlayer) dmg *= CbSave.DamageMul;
-            // fire on the sergeant while he whistles stops the call
-            if (fire && e.Whistling) e.BreakWhistle();
+            // a ki move (a staff technique, or fire) on the sergeant while he whistles stops the call
+            if ((fire || ki) && e.Whistling) e.BreakWhistle();
             if (hero.empower && fromPlayer) { dmg *= 2; hero.empower = false; big = true; }
             e.hp -= dmg;
             e.flash = 0.12f;
@@ -714,7 +727,7 @@ namespace Cloudborne
         // the ring runs round his middle
         const float RingHeight = 1.05f;
         // flame bursts still to go off along the ground (the flame wave): when, where, which way
-        readonly List<(float at, Vector3 pos, int dir)> waves = new List<(float, Vector3, int)>();
+        readonly List<(float at, Vector3 pos, int dir, bool fire)> waves = new List<(float, Vector3, int, bool)>();
 
         /// <summary>
         /// The fire whirl: a ring of fire round Raja's middle - a band of the painted beam's flames (its white-hot
@@ -790,23 +803,42 @@ namespace Cloudborne
         /// <summary>The flaming staff smash: six bursts of fire run along the ground ahead of him, 1.1 m and 0.06 s apart.</summary>
         public void FlameWave(Vector3 start, int dir)
         {
-            for (int i = 0; i < 6; i++) waves.Add((clock + i * 0.06f, start + new Vector3(dir * (0.6f + i * 1.1f), 0.5f, -0.3f), dir));
+            for (int i = 0; i < 6; i++) waves.Add((clock + i * 0.06f, start + new Vector3(dir * (0.6f + i * 1.1f), 0.5f, -0.3f), dir, true));
+        }
+
+        /// <summary>
+        /// The quake (KI in a staff smash, before Raja's fire wakes): the ground breaks in six bursts of dust and stones
+        /// ahead of him, 1.1 m and 0.06 s apart, throwing up whoever stands there.
+        /// </summary>
+        public void QuakeWave(Vector3 start, int dir)
+        {
+            for (int i = 0; i < 6; i++) waves.Add((clock + i * 0.06f, start + new Vector3(dir * (0.6f + i * 1.1f), 0.1f, -0.3f), dir, false));
         }
 
         void UpdateWaves()
         {
             for (int i = waves.Count - 1; i >= 0; i--)
             {
-                var (at, pos, dir) = waves[i];
+                var (at, pos, dir, fire) = waves[i];
                 if (clock < at) continue;
                 waves.RemoveAt(i);
-                CbVfx.Explosion(pos, 2f, 0.2f);
-                CbFx.Spark(pos, CbFx.Fire, 8, 5, 0.4f, 0.3f, -2);
+                if (fire)
+                {
+                    CbVfx.Explosion(pos, 2f, 0.2f);
+                    CbFx.Spark(pos, CbFx.Fire, 8, 5, 0.4f, 0.3f, -2);
+                }
+                else
+                {
+                    // broken ground: a jet of dust and stones, a ring on the ground
+                    CbFx.Spark(pos, CbFx.Dust, 12, 6, 0.55f, 0.45f, 8);
+                    CbFx.Spark(pos, CbFx.Grey, 6, 7, 0.3f, 0.5f, 14);
+                    CbVfx.Ring(new Vector3(pos.x, 0.05f, 0), CbFx.Dust * 0.6f, 1.4f, 0.3f, ground: true);
+                }
                 shake = Mathf.Max(shake, 0.15f);
                 foreach (var e in enemies.ToArray())
                 {
                     if (e.dead || Mathf.Abs(e.x - pos.x) > 1f + e.w * 0.5f || e.HitHeight > 2.6f) continue;
-                    HurtEnemy(e, 8, dir, 3, 5, false, true, true, true);
+                    HurtEnemy(e, 8, dir, 3, fire ? 5 : 7, false, true, fire, true, ki: true);
                 }
             }
         }

@@ -222,6 +222,8 @@ namespace RacingGame.Tests
             Assert.IsTrue(sawKoda, "Koda was not in the opening");
             Assert.IsTrue(sawRaiders, "Sergeant Snap and his raiders never came");
             Assert.IsTrue(sawNet, "Koda was never netted");
+            // no powers yet: his fire wakes only at the fire crystal (1-5)
+            Assert.IsFalse(CbHero.FireAwake, "Raja's fire woke in the opening");
             Assert.IsNull(game.transform.Find("Opening"), "The scene's cast was left on the path");
             Assert.IsNull(game.scene);
             Assert.AreEqual(CbHero.State.Idle, game.hero.state);
@@ -398,12 +400,98 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator StaffTechniquesBeforeTheFireCrystal()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            Assert.IsFalse(CbHero.FireAwake, "Raja's fire should sleep until the fire crystal");
+
+            // KI: the tiger lunge, forward with the staff out; no fireball
+            game.hero.ki = 100;
+            float x0 = game.hero.x;
+            bool pressed = false, sawLunge = false;
+            game.TestInput = i => { if (!pressed) { i.kiTap = true; pressed = true; } };
+            for (float w = 0; w < 0.6f; w += Time.deltaTime)
+            {
+                yield return null;
+                if (game.hero.move == CbHero.Move.Lunge) sawLunge = true;
+                Assert.IsNull(GameObject.Find("fireball"), "KI shot a fireball before the fire crystal");
+            }
+            game.TestInput = null;
+            Assert.IsTrue(sawLunge, "KI did not lunge with the staff");
+            Assert.Greater(game.hero.x, x0 + 2f, "The lunge did not carry Raja forward");
+            Assert.Less(game.hero.ki, 100f, "The lunge took no ki");
+            yield return new WaitForSeconds(0.5f);
+
+            // HIT, HIT, KI: the staff cyclone (pressed by state, so a slow frame rate can't skip a press)
+            game.hero.ki = 100;
+            float t0 = Time.time;
+            int hits = 0;
+            bool sawCyclone = false;
+            game.TestInput = i =>
+            {
+                if (hits == 0) { i.atk = true; hits = 1; return; }
+                if (hits == 1 && game.hero.state == CbHero.State.Atk && Time.time - t0 > 0.08f) { i.atk = true; hits = 2; }
+                if (game.hero.state == CbHero.State.Atk && game.hero.Combo >= 1) i.kiTap = true;
+            };
+            for (float w = 0; w < 1.5f && !sawCyclone; w += Time.deltaTime)
+            {
+                yield return null;
+                if (game.hero.move == CbHero.Move.Cyclone) sawCyclone = true;
+                Assert.AreNotEqual(CbHero.Move.FireWhirl, game.hero.move, "HIT, HIT, KI made fire before the fire crystal");
+            }
+            game.TestInput = null;
+            Assert.IsTrue(sawCyclone, "HIT, HIT, KI did not sweep the staff round him");
+            yield return new WaitForSeconds(1f);
+
+            // the finisher + KI: the staff crash, a hop and the slam
+            game.hero.ki = 100;
+            t0 = Time.time;
+            int presses = 0;
+            bool sawCrash = false;
+            game.TestInput = i =>
+            {
+                float tt = Time.time - t0;
+                if (presses < 4 && tt > presses * 0.12f) { i.atk = true; presses++; }
+                if (game.hero.state == CbHero.State.Atk && game.hero.Combo == 3) i.kiTap = true;
+            };
+            for (float w = 0; w < 2f && !sawCrash; w += Time.deltaTime)
+            {
+                yield return null;
+                if (game.hero.move == CbHero.Move.Slam || game.hero.move == CbHero.Move.Land) sawCrash = true;
+                Assert.AreNotEqual(CbHero.Move.BlazePalm, game.hero.move, "The finisher + KI made fire before the fire crystal");
+            }
+            game.TestInput = null;
+            Assert.IsTrue(sawCrash, "The finisher + KI did not bring the staff crashing down");
+            yield return new WaitForSeconds(1f);
+
+            // SPECIAL: the staff storm, which runs its course and ends
+            game.hero.ki = 100;
+            pressed = false;
+            bool sawStorm = false;
+            game.TestInput = i => { if (!pressed) { i.skill = true; pressed = true; } };
+            for (float w = 0; w < 1.8f; w += Time.deltaTime)
+            {
+                yield return null;
+                if (game.hero.state == CbHero.State.Special) sawStorm = true;
+            }
+            game.TestInput = null;
+            Assert.IsTrue(sawStorm, "SPECIAL did not start the staff storm");
+            Assert.AreNotEqual(CbHero.State.Special, game.hero.state, "The staff storm never ended");
+            Assert.Less(game.hero.ki, 70f, "The staff storm took no ki");
+        }
+
+        [UnityTest]
         public IEnumerator HitsThenFireMakeAFireWhirl()
         {
             game = CbGame.Boot();
             yield return Frames(3);
             game.StartGame();
             yield return Frames(2);
+            // the fire moves come with the fire crystal
+            CbSave.FireAwake = true;
             game.hero.ki = 100;
             float t0 = Time.time;
             int hits = 0;
@@ -592,9 +680,9 @@ namespace RacingGame.Tests
                     case 2: i.y = 1; i.heavy = At(0.1f); break;                             // launcher
                     case 3: i.dash = At(0.05f); i.heavy = At(0.12f); break;                 // dash, then thrust
                     case 4: i.jump = At(0); i.heavy = At(0.3f); break;                      // slam
-                    case 5: game.hero.ki = 100; i.kiTap = At(0.1f) || At(0.4f); break;      // fireballs
+                    case 5: game.hero.ki = 100; i.kiTap = At(0.1f) || At(0.5f); break;      // KI: staff lunges
                     case 6: i.guard = pt < 0.6f; break;                                     // guard
-                    case 7: game.hero.ki = 100; i.skill = At(0.1f); break;                  // special: flame cannon
+                    case 7: game.hero.ki = 100; i.skill = At(0.1f); break;                  // special: the staff storm
                 }
                 prev = pt;
             };
@@ -615,7 +703,7 @@ namespace RacingGame.Tests
             Assert.IsTrue(sawStaff, "No staff move was used");
             Assert.IsTrue(sawWhirl, "Holding HEAVY did not whirl the staff");
             Assert.IsTrue(sawGuard, "GUARD did not raise Raja's guard");
-            Assert.IsTrue(sawSpecial, "SPECIAL did not fire the flame cannon");
+            Assert.IsTrue(sawSpecial, "SPECIAL did not start the staff storm");
             Assert.IsNull(game.lockZone, "The first fight zone was not cleared in 25 seconds");
         }
     }

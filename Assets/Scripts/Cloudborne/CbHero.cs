@@ -7,7 +7,7 @@ namespace Cloudborne
     public class CbInput
     {
         public float x, y;                 // stick, y > 0 is up
-        // atk: HIT (light), heavy: HEAVY (the staff), kiTap: FIRE, skill: SPECIAL
+        // atk: HIT (light), heavy: HEAVY (the staff), kiTap: KI (FIRE once his fire is awake), skill: SPECIAL
         public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm, menu;
         public bool atkDown, heavyDown, guard;   // held
         public float atkHeldT, heavyHeldT;
@@ -16,15 +16,19 @@ namespace Cloudborne
     }
 
     /// <summary>
-    /// Raja, the fire tiger. HIT: paw and kick combo (down: a low sweep). HEAVY: the staff (a smash; up: launcher;
+    /// Raja, the tiger cub. HIT: paw and kick combo (down: a low sweep). HEAVY: the staff (a smash; up: launcher;
     /// in the air: slam; after a dash: thrust; held: whirl), which lives on his back and is drawn only for it.
-    /// GUARD blocks blows from the front, down ducks, FIRE shoots a fireball, SPECIAL the tiger flame cannon.
-    /// Ki fills by itself and with every hit; DASH just before a blow is a perfect dodge.
+    /// GUARD blocks blows from the front, down ducks. Ki fills by itself and with every hit; DASH just before a blow
+    /// is a perfect dodge.
+    /// Until he touches the fire crystal (CbSave.FireAwake) he has no powers, and his ki moves are staff techniques:
+    /// KI the tiger lunge, HIT, HIT, KI the staff cyclone, the finisher + KI the staff crash, KI in a smash the quake,
+    /// SPECIAL the staff storm. With his fire awake they become FIRE: the fireball, the fire whirl, the blazing palm,
+    /// the wave of fire and SPECIAL the tiger flame cannon.
     /// </summary>
     public class CbHero
     {
         public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo }
-        public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash, FireWhirl, BlazePalm }
+        public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash, FireWhirl, BlazePalm, Lunge, Cyclone }
 
         struct Attack { public float dur, a, b, range, dmg, kb, up; public bool fin; }
         static readonly Attack[] Paw =
@@ -46,8 +50,17 @@ namespace Cloudborne
         const float KiRegen = 1.5f, FireCost = 12f, SpecialCost = 50f;
         // SPECIAL: the tiger flame cannon. Gathered for SpecialWindup, then the beam (CbGame.SpecialBeam) runs
         const float SpecialWindup = 0.45f, SpecialTime = 1.35f;
-        /// <summary>The special shot unlocks later in the story; on for now so it can be tried.</summary>
+        /// <summary>The special unlocks later in the story (the scroll); on for now so it can be tried.</summary>
         public static bool SpecialUnlocked = true;
+        /// <summary>His fire is awake (the fire crystal, 1-5): the ki moves are fire. Before that, staff techniques.</summary>
+        public static bool FireAwake => CbSave.FireAwake;
+        // The staff techniques (before the fire crystal). The tiger lunge: he shoots forward with the staff out for
+        // LungeDrive s, through everything in his way. The cyclone: the staff swept round him, hitting on both sides.
+        // The crash: a hop, and the staff brought down with a shock on both sides. The storm (SPECIAL): the staff
+        // twirled overhead, a storm of thrusts StormStep apart, then a rising blow that throws them up.
+        const float LungeTime = 0.42f, LungeDrive = 0.24f, LungeSpeed = 15f, CycloneTime = 0.8f;
+        const float StormWindup = 0.3f, StormFlurry = 0.75f, StormTime = 1.4f, StormStep = 0.075f;
+        static readonly Color KiGlow = new Color(1f, 0.85f, 0.55f) * 0.55f;
         const float BlockReact = 0.25f;
         // Fire combos (FIRE in the middle of a combo): after a hit or two a fire whirl (flames wheel round him, hitting
         // all round), after the finisher a point-blank blazing palm, during a staff smash a wave of fire along the ground
@@ -103,7 +116,7 @@ namespace Cloudborne
         // below WalkSpeed he walks (a light push on the stick), above it he runs; the walk clip's own pace
         const float WalkSpeed = 4.2f, WalkClipPace = 1.4f;
         int combo, jumps, airHits, hits;
-        bool air, airDashed, holdUsed, fired, flameSmash;
+        bool air, airDashed, holdUsed, fired, flameSmash, kiCrash;
         readonly HashSet<CbEnemy> hitSet = new HashSet<CbEnemy>();
 
         public CbHero(CbGame game, Transform parent)
@@ -163,9 +176,21 @@ namespace Cloudborne
 
         void StartStaff(Move m)
         {
-            state = State.Staff; move = m; t = 0; hitSet.Clear(); buffer = 0; tick = 0; hits = 0;
+            state = State.Staff; move = m; t = 0; hitSet.Clear(); buffer = 0; tick = 0; hits = 0; kiCrash = false;
             SetStaff(true);
             if (m == Move.Thrust) vx = facing * 9;
+            if (m == Move.Lunge)
+            {
+                vx = facing * LungeSpeed; ghostT = 0;
+                g.hud.SpeedLines(0.5f, 0.3f);
+                CbFx.Sfx("dash", 0.7f);
+            }
+            if (m == Move.Cyclone)
+            {
+                vx = facing * 0.8f;
+                CbVfx.Ring(new Vector3(x, y + 0.05f, 0), CbFx.Hit * 0.5f, 2.6f, 0.4f, ground: true);
+                CbFx.Sfx("staff");
+            }
             if (m == Move.Launch) vx = facing * 1.5f;
             if (m == Move.Whirl) holdUsed = true;
             if (m == Move.Slam) { vy = 6; vx = facing * 2; }
@@ -181,9 +206,18 @@ namespace Cloudborne
             CbFx.Sfx("fire");
         }
 
-        void EndStaff() { state = air ? State.Air : State.Idle; move = Move.None; staffHold = 0.5f; combo = 0; }
+        /// <summary>The staff crash (the combo finisher + KI, no fire yet): a hop, then the staff comes down hard.</summary>
+        void StartCrash()
+        {
+            StartStaff(Move.Slam);
+            kiCrash = true;
+            vy = 9; vx = facing * 3; air = true;
+            CbFx.Sfx("jump", 0.6f);
+        }
 
-        bool MeleeHits(float range, float dmg, float kb, float up, bool big, bool breaker)
+        void EndStaff() { state = air ? State.Air : State.Idle; move = Move.None; staffHold = 0.5f; combo = 0; kiCrash = false; }
+
+        bool MeleeHits(float range, float dmg, float kb, float up, bool big, bool breaker, bool ki = false)
         {
             bool any = false;
             foreach (var e in g.enemies)
@@ -193,7 +227,7 @@ namespace Cloudborne
                 if (dx > -0.4f - e.w * 0.5f && dx < range + e.w && Mathf.Abs(e.HitHeight - (y + 1.2f)) < 1.5f)
                 {
                     hitSet.Add(e);
-                    if (g.HurtEnemy(e, dmg, facing, kb, up, big, breaker, fire: false, fromPlayer: true)) any = true;
+                    if (g.HurtEnemy(e, dmg, facing, kb, up, big, breaker, fire: false, fromPlayer: true, ki: ki)) any = true;
                 }
             }
             // crates in reach crack and burst too; the cracked wall only gives way to the staff
@@ -268,6 +302,7 @@ namespace Cloudborne
                     if (u >= 1) state = air ? State.Air : State.Idle;
                     break;
                 }
+                case State.Special when !FireAwake: UpdateStorm(ref pose, dt, ref rate); break;
                 case State.Special:
                 {
                     rate = 18;
@@ -354,8 +389,19 @@ namespace Cloudborne
                     if (!air && input.y < -0.5f) StartPaw(Sweep);
                     else if (!air || airHits < 3) StartPaw(0);
                 }
-                else if (input.kiTap && ki >= FireCost) { ki -= FireCost; state = State.Blast; t = 0; fired = false; if (!air) vx *= 0.3f; else vy = Mathf.Max(vy, 1); }
-                else if (input.skill && SpecialUnlocked && ki >= SpecialCost && !air) { ki -= SpecialCost; state = State.Special; t = 0; vx = 0; fired = false; }
+                else if (input.kiTap && ki >= FireCost)
+                {
+                    ki -= FireCost;
+                    // FIRE: the fireball; before the fire crystal, KI: the tiger lunge
+                    if (FireAwake) { state = State.Blast; t = 0; fired = false; if (!air) vx *= 0.3f; else vy = Mathf.Max(vy, 1); }
+                    else StartStaff(Move.Lunge);
+                }
+                else if (input.skill && SpecialUnlocked && ki >= SpecialCost && !air)
+                {
+                    ki -= SpecialCost; state = State.Special; t = 0; vx = 0; fired = false; tick = 0; hits = 0; hitSet.Clear();
+                    // the staff storm starts with the staff drawn and twirled
+                    if (!FireAwake) { SetStaff(true); CbFx.Sfx("charge", 0.6f); }
+                }
                 if (state == State.Idle || state == State.Run) state = Mathf.Abs(vx) > 0.6f ? State.Run : State.Idle;
             }
             else if (state == State.Special) vx *= 1 - Damp(12, dt);
@@ -466,6 +512,16 @@ namespace Cloudborne
                     else if (move == Move.Land) model.Window("Charged_Ground_Slam", 0.55f, 0.85f, t / 0.3f);
                     // the overhead swing lands at about 0.85 of the clip, inside the smash's hit window
                     else if (move == Move.Smash) model.Window("Heavy_Hammer_Swing", 0.25f, 0.92f, t / SmashTime);
+                    // the lunge: the thrust's stab, held out while he flies forward
+                    else if (move == Move.Lunge) model.Window("Thrust_Slash", 0f, 0.25f, Mathf.Min(1, t / 0.2f));
+                    // the cyclone: the whole-body spin, the staff swept round with it
+                    else if (move == Move.Cyclone) model.Window(WhirlClip, 0.05f, 0.85f, t / CycloneTime);
+                    break;
+                // the staff storm: a twirl, a storm of stabs (the thrust's stab over and over), the rising blow
+                case State.Special when !FireAwake:
+                    if (t < StormWindup) model.Window("Double_Blade_Spin", 0.05f, 0.2f, t / StormWindup);
+                    else if (t < StormWindup + StormFlurry) model.Window("Thrust_Slash", 0f, 0.25f, ((t - StormWindup) / StormStep) % 1f, 0.02f);
+                    else model.Window("Charged_Upward_Slash", 0.12f, 0.45f, (t - StormWindup - StormFlurry) / (StormTime - StormWindup - StormFlurry));
                     break;
                 // both palms thrust from the hip: the fireball leaves at 0.4 of the shot, as they reach full stretch
                 case State.Blast: model.Window(FireClip, 0.1f, 0.8f, t / BlastTime); break;
@@ -494,10 +550,17 @@ namespace Cloudborne
             rate = 30;
             var A = Paw[combo];
             float u = t / A.dur;
-            // FIRE in the middle of the combo: a fire whirl after the first hits, the blazing palm after the finisher
+            // KI in the middle of the combo: the staff cyclone after the first hits, the staff crash after the finisher;
+            // with his fire awake, the fire whirl and the blazing palm
             if (input.kiTap && !air && combo >= 1 && combo != Sweep && ki >= ComboFireCost)
             {
-                StartFire(combo >= 3 ? Move.BlazePalm : Move.FireWhirl);
+                if (FireAwake) StartFire(combo >= 3 ? Move.BlazePalm : Move.FireWhirl);
+                else
+                {
+                    ki -= ComboFireCost;
+                    if (combo >= 3) StartCrash();
+                    else StartStaff(Move.Cyclone);
+                }
                 return;
             }
             if (u > A.a && u < A.b) MeleeHits(A.range, A.dmg, A.kb, A.up, A.fin, false);
@@ -570,10 +633,12 @@ namespace Cloudborne
                     vx *= 1 - Damp(5, dt);
                     // HEAVY still held after the wind-up starts: the swing becomes the staff whirl
                     if (input.heavyDown && t > SmashToWhirl && !holdUsed) { StartStaff(Move.Whirl); break; }
-                    // FIRE while swinging: the staff blazes up and the smash sends a wave of fire along the ground
-                    if (input.kiTap && !flameSmash && !fired && ki >= ComboFireCost) { ki -= ComboFireCost; flameSmash = true; CbFx.Sfx("fire"); }
-                    if (flameSmash && Random.value < 0.8f) CbFx.Spark(staff.position, Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 1.5f, 0.4f, 0.3f, -2);
-                    if (u > 0.78f && u < 0.95f) MeleeHits(2.6f, 16, 6, 3, true, true);
+                    // KI while swinging: the smash sends the quake, a ripple of broken ground, ahead of him; with his fire
+                    // awake the staff blazes up and it is a wave of fire
+                    if (input.kiTap && !flameSmash && !fired && ki >= ComboFireCost) { ki -= ComboFireCost; flameSmash = true; CbFx.Sfx(FireAwake ? "fire" : "charge", 0.7f); }
+                    if (flameSmash && Random.value < 0.8f)
+                        CbFx.Spark(staff.position, FireAwake ? (Random.value < 0.5f ? CbFx.Fire : CbFx.Flame) : CbFx.Hit, 1, 1.5f, 0.4f, 0.3f, -2);
+                    if (u > 0.78f && u < 0.95f) MeleeHits(2.6f, 16, 6, 3, true, true, ki: flameSmash);
                     if (u > 0.82f && !fired)
                     {
                         // the staff hits the ground: dust, a shock ring, a jolt
@@ -583,7 +648,8 @@ namespace Cloudborne
                         CbVfx.Ring(at, CbFx.Hit * 0.5f, 2.4f, 0.35f, ground: true);
                         g.shake = Mathf.Max(g.shake, 0.3f);
                         CbFx.Sfx("heavy", 0.7f);
-                        if (flameSmash) g.FlameWave(at, facing);
+                        if (flameSmash && FireAwake) g.FlameWave(at, facing);
+                        else if (flameSmash) g.QuakeWave(at, facing);
                     }
                     if (u >= 1) EndStaff();
                     break;
@@ -627,23 +693,78 @@ namespace Cloudborne
                     if (u >= 1) EndStaff();
                     break;
                 }
+                case Move.Lunge:
+                {
+                    float u = t / LungeTime;
+                    pose.sRx = -1.57f; pose.sRz = 0; pose.eR = 0; pose.sLx = -0.9f; pose.eL = -1.2f; pose.twist = 0.65f; pose.lean = 0.55f;
+                    pose.hLx = -1.1f; pose.kL = 0.5f; pose.hRx = 0.8f; pose.kR = 0.2f; pose.bob = -0.25f; pose.staffX = Mathf.PI / 2;
+                    if (t < LungeDrive) { vx = facing * LungeSpeed; if (air) vy = 0.5f; }
+                    else vx *= 1 - Damp(10, dt);
+                    // through everything in his way, each once
+                    if (u < 0.8f) MeleeHits(1.9f, 14, 8, 2.5f, true, true, ki: true);
+                    // afterimages and a streak of dust behind him
+                    ghostT -= dt;
+                    if (model != null && ghostT <= 0 && t < LungeDrive)
+                    {
+                        ghostT = 0.035f;
+                        CbVfx.Ghost(model.skin, new Color(1.2f, 1f, 0.75f, 0.4f), 0.22f);
+                    }
+                    if (Random.value < 0.8f) CbFx.Spark(new Vector3(x - facing * 0.5f, y + Random.Range(0.1f, 0.4f), -0.2f), CbFx.Dust, 1, 2, 0.45f, 0.35f, -1, -facing * 3);
+                    if (u >= 1) EndStaff();
+                    break;
+                }
+                case Move.Cyclone:
+                {
+                    float u = t / CycloneTime;
+                    pose.sRx = -1.4f; pose.sRz = -0.6f; pose.eR = -0.1f; pose.sLz = 1.2f; pose.eL = -0.3f; pose.hLx = -0.5f; pose.kL = 0.6f;
+                    pose.hRx = 0.5f; pose.kR = 0.5f; pose.bob = -0.15f; pose.twist = t * 30; pose.spin = t * 30;
+                    vx *= 1 - Damp(6, dt);
+                    // the staff sweeps everything close round him, every 0.12 s, the last time hard
+                    tick -= dt;
+                    if (tick <= 0 && hits < 6)
+                    {
+                        tick = 0.12f; hits++;
+                        bool last = hits == 6;
+                        foreach (var e in g.enemies)
+                        {
+                            if (e.dead || Mathf.Abs(e.x - x) > 2.5f + e.w * 0.5f || Mathf.Abs(e.HitHeight - (y + 1f)) > 1.8f) continue;
+                            g.HurtEnemy(e, last ? 12 : 5, e.x >= x ? 1 : -1, last ? 7 : 1, last ? 5 : 0.5f, last, true, fire: false, fromPlayer: true, ki: true);
+                        }
+                        if (g.items != null) { g.items.HitCrates(x, y, 1, 2.5f); g.items.HitCrates(x, y, -1, 2.5f); }
+                        CbFx.Sfx("staff", 0.5f);
+                    }
+                    // a swirl of dust and leaves round him
+                    if (Random.value < 0.9f)
+                    {
+                        float a = Random.value * Mathf.PI * 2;
+                        var p = new Vector3(x + Mathf.Cos(a) * 1.9f, y + Random.Range(0.3f, 2f), Mathf.Sin(a) * 0.6f - 0.3f);
+                        CbFx.Spark(p, Random.value < 0.6f ? CbFx.Dust : CbFx.Hit, 1, 2, 0.35f, 0.3f, 0, -Mathf.Sin(a) * 7);
+                    }
+                    if (u >= 1) EndStaff();
+                    break;
+                }
                 case Move.Slam:
                     pose.sRx = -3f; pose.sLx = -3f; pose.sLz = 0.2f; pose.sRz = -0.2f; pose.eR = -0.2f; pose.eL = -0.2f; pose.lean = -0.1f;
                     pose.hLx = -1.2f; pose.kL = 1.4f; pose.hRx = -0.2f; pose.kR = 1.2f; pose.staffX = 0.4f;
-                    if (t > 0.15f) vy = Mathf.Min(vy, -24);
+                    // the crash hops higher first, then comes down
+                    if (t > (kiCrash ? 0.24f : 0.15f)) vy = Mathf.Min(vy, -24);
                     if (!air && t > 0.05f)
                     {
+                        // the crash: harder and wider, a shock on both sides
+                        float reach = kiCrash ? 3.8f : 3f;
                         foreach (var e in g.enemies)
                         {
-                            if (e.dead || Mathf.Abs(e.x - x) > 3f + e.w || e.HitHeight - y > 2.6f) continue;
-                            g.HurtEnemy(e, 14, e.x >= x ? 1 : -1, 5, 7, true, true, fire: false, fromPlayer: true);
+                            if (e.dead || Mathf.Abs(e.x - x) > reach + e.w || e.HitHeight - y > 2.6f) continue;
+                            g.HurtEnemy(e, kiCrash ? 22 : 14, e.x >= x ? 1 : -1, kiCrash ? 8 : 5, kiCrash ? 9 : 7, true, true, fire: false, fromPlayer: true, ki: kiCrash);
                         }
                         if (g.level != null) g.level.Strike(x, y, facing, 2f, staff: true);
-                        CbFx.Spark(new Vector3(x + facing * 1.1f, 0.1f, -0.4f), CbFx.Dust, 18, 6, 0.6f, 0.5f, 4);
-                        CbFx.Spark(new Vector3(x + facing * 1.1f, 0.2f, -0.4f), CbFx.Fire, 10, 6, 0.4f, 0.4f, 3);
-                        g.shake = Mathf.Max(g.shake, 0.4f);
+                        if (kiCrash && g.items != null) { g.items.HitCrates(x, y, 1, reach); g.items.HitCrates(x, y, -1, reach); }
+                        CbFx.Spark(new Vector3(x + facing * 1.1f, 0.1f, -0.4f), CbFx.Dust, kiCrash ? 30 : 18, 6, 0.6f, 0.5f, 4);
+                        CbFx.Spark(new Vector3(x + facing * 1.1f, 0.2f, -0.4f), FireAwake ? CbFx.Fire : CbFx.Hit, 10, 6, 0.4f, 0.4f, 3);
+                        g.shake = Mathf.Max(g.shake, kiCrash ? 0.55f : 0.4f);
                         CbFx.Sfx("heavy");
-                        CbVfx.Ring(new Vector3(x + facing * 1.1f, 0.05f, 0), CbFx.Hit * 0.6f, 3.5f, 0.4f, ground: true);
+                        CbVfx.Ring(new Vector3(x + facing * 1.1f, 0.05f, 0), CbFx.Hit * 0.6f, kiCrash ? 4.6f : 3.5f, 0.4f, ground: true);
+                        if (kiCrash) CbVfx.Ring(new Vector3(x, 0.05f, 0), CbFx.Dust * 0.6f, 5.5f, 0.5f, ground: true);
                         CbVfx.Burst(new Vector3(x + facing * 1.1f, 0.3f, -0.4f), CbFx.Hit, 2.6f, 0.18f);
                         g.hud.ImpactFlash(0.3f);
                         move = Move.Land; t = 0;
@@ -657,6 +778,70 @@ namespace Cloudborne
             }
         }
 
+        /// <summary>
+        /// SPECIAL before the fire crystal, the staff storm: the staff twirled overhead (dust drawn in), a storm of
+        /// thrusts at everything in front, StormStep apart, then a rising blow that throws them all up.
+        /// </summary>
+        void UpdateStorm(ref Pose pose, float dt, ref float rate)
+        {
+            rate = 30;
+            vx *= 1 - Damp(10, dt);
+            float flurryEnd = StormWindup + StormFlurry;
+            if (t < StormWindup)
+            {
+                pose.sRx = -2.6f; pose.sLx = -2.4f; pose.eR = -0.3f; pose.eL = -0.4f; pose.hLx = -0.5f; pose.kL = 0.7f; pose.hRx = 0.5f; pose.kR = 0.6f;
+                pose.bob = -0.2f; pose.spin = t * 34;
+                if (Random.value < 0.7f)
+                {
+                    var to = new Vector3(x, y + 1.2f, -0.3f);
+                    var from = to + new Vector3(Random.Range(-1.8f, 1.8f), Random.Range(-1f, 1.2f), Random.Range(-0.4f, 0.4f));
+                    CbFx.Spark(from, CbFx.Dust, 1, 0, 0.3f, 0.3f, 0, (to.x - from.x) * 3f);
+                }
+                g.hud.SpeedLines(0.3f, 0.12f);
+                g.shake = Mathf.Max(g.shake, 0.05f);
+            }
+            else if (t < flurryEnd)
+            {
+                float k = ((t - StormWindup) / StormStep) % 1f;
+                pose.sRx = -1.57f; pose.eR = 0; pose.sLx = -0.9f; pose.eL = -1.2f; pose.twist = 0.4f + Mathf.Sin(k * Mathf.PI) * 0.35f; pose.lean = 0.4f;
+                pose.hLx = -1f; pose.kL = 0.5f; pose.hRx = 0.75f; pose.kR = 0.2f; pose.bob = -0.2f; pose.staffX = Mathf.PI / 2;
+                vx = facing * 0.8f;
+                tick -= dt;
+                if (tick <= 0)
+                {
+                    tick = StormStep; hits++;
+                    hitSet.Clear();
+                    MeleeHits(3.2f, 4, 0.6f, 0.4f, false, true, ki: true);
+                    // a white streak where the staff's tip stabs
+                    var tip = new Vector3(x + facing * Random.Range(1.6f, 3f), y + Random.Range(0.8f, 1.7f), -0.5f);
+                    CbFx.Spark(tip, CbFx.Hit, 3, 3, 0.25f, 0.15f, 0, facing * 8);
+                    CbFx.Sfx("swing", 0.35f);
+                }
+                g.hud.SpeedLines(0.25f, 0.1f);
+            }
+            else
+            {
+                float k = Mathf.Min(1, (t - flurryEnd) / 0.15f);
+                pose.sRx = 0.6f - k * 3.1f; pose.sRz = -0.15f; pose.eR = -0.2f; pose.sLx = -0.4f; pose.eL = -1.5f; pose.twist = -0.3f + k * 0.7f;
+                pose.lean = 0.25f - k * 0.45f; pose.hLx = -0.6f; pose.kL = 0.5f - k * 0.3f; pose.hRx = 0.5f; pose.kR = 0.4f; pose.bob = -0.18f + k * 0.15f;
+                if (!fired && t > flurryEnd + 0.08f)
+                {
+                    // the rising blow
+                    fired = true;
+                    hitSet.Clear();
+                    MeleeHits(3.4f, 22, 6, 13, true, true, ki: true);
+                    var at = new Vector3(x + facing * 1.8f, y + 1.2f, -0.5f);
+                    CbVfx.Ring(at, CbFx.Hit * 0.6f, 3f, 0.4f);
+                    CbVfx.Burst(at, CbFx.Hit, 2.8f, 0.2f);
+                    CbFx.Spark(at, CbFx.Hit, 20, 9, 0.4f, 0.4f, 2, facing * 4);
+                    g.hud.ImpactFlash(0.4f);
+                    g.shake = Mathf.Max(g.shake, 0.4f);
+                    CbFx.Sfx("heavy");
+                }
+            }
+            if (t > StormTime) { state = State.Idle; staffHold = 0.5f; }
+        }
+
         void Place()
         {
             f.root.localPosition = new Vector3(x, y, 0);
@@ -668,7 +853,9 @@ namespace Cloudborne
 
         void UpdateStaffPlacement(Pose pose, float dt)
         {
-            if (state != State.Staff)
+            // the staff storm holds the staff too
+            bool holding = state == State.Staff || (state == State.Special && !FireAwake);
+            if (!holding)
             {
                 staffHold = Mathf.Max(0, staffHold - dt);
                 if (stowT > 0)
@@ -736,10 +923,13 @@ namespace Cloudborne
 
         void UpdateFire(float dt)
         {
-            float target = state == State.Special ? (t < SpecialWindup ? 1.6f + t / SpecialWindup * 1.6f : 3.2f) : empower ? 1.2f : 0f;
+            // fire glows in his fur only once it is awake; before that, a perfect dodge's power is a pale shine
+            bool fire = FireAwake;
+            float target = state == State.Special && fire ? (t < SpecialWindup ? 1.6f + t / SpecialWindup * 1.6f : 3.2f) : empower ? 1.2f : 0f;
             glow += (target - glow) * Damp(10, dt);
-            CbArt.SetGlow(furMat, new Color(1f, 0.48f, 0.1f) * glow);
-            if (model != null) CbArt.SetGlow(model.material, new Color(1f, 0.48f, 0.1f) * glow * 0.35f);
+            var col = fire ? new Color(1f, 0.48f, 0.1f) : KiGlow;
+            CbArt.SetGlow(furMat, col * glow);
+            if (model != null) CbArt.SetGlow(model.material, col * glow * 0.35f);
             // blink while invulnerable after a hit
             bool visible = !(inv > 0 && state != State.Dead && g.slow <= 0 && Mathf.FloorToInt(g.clock * 20) % 2 == 0);
             f.body.gameObject.SetActive(visible);

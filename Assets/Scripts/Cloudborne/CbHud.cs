@@ -39,7 +39,9 @@ namespace Cloudborne
         public const float TypeSpeed = 40f;
         const float BarHeight = 46f;
         readonly List<Pad> buttons = new List<Pad>();
-        readonly Pad sp;
+        readonly Pad sp, kiPad;
+        // the KI button: bamboo gold for the staff techniques, orange once it shoots fire
+        static readonly Color KiPadCol = CbArt.Hex("#c48a2c"), FirePadCol = CbArt.Hex("#e8642a");
         readonly List<(RectTransform rt, Text t, float age, Vector2 from)> pops = new List<(RectTransform, Text, float, Vector2)>();
         readonly List<(RectTransform rt, float age, float life)> banners = new List<(RectTransform, float, float)>();
         float comboPop, hurtT;
@@ -52,6 +54,7 @@ namespace Cloudborne
             public Image img;
             public float radius;
             public int pointer = int.MinValue;
+            public Text label;
         }
 
         public CbHud(Transform parent)
@@ -141,7 +144,8 @@ namespace Cloudborne
             AddPad("jump", "JUMP", new Vector2(-14 - 108 - 36, 12 + 36), 72, CbArt.Hex("#3aa862"), 17);
             AddPad("guard", "GUARD", new Vector2(-14 - 196 - 32, 12 + 32), 64, CbArt.Hex("#7d8a99"), 14);
             AddPad("dash", "DASH", new Vector2(-14 - 104 - 32, 12 + 86 + 32), 64, CbArt.Hex("#2f8ae0"), 15);
-            AddPad("ki", "FIRE", new Vector2(-14 - 186 - 32, 12 + 100 + 32), 64, CbArt.Hex("#e8642a"), 15);
+            // KI: the staff techniques; FIRE once Raja's fire is awake (SetBars keeps it right)
+            kiPad = AddPad("ki", "KI", new Vector2(-14 - 186 - 32, 12 + 100 + 32), 64, KiPadCol, 15);
             sp = AddPad("sp", "SPECIAL", new Vector2(-14 - 60 - 30, 12 + 196 + 30), 60, CbArt.Hex("#b8401f"), 12);
 
             // cinematics: black bars that slide in at the top and bottom, a speech box over the lower one, SKIP
@@ -199,8 +203,8 @@ namespace Cloudborne
             UIKit.Image(UIKit.Rect(rt, "shadow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -4), new Vector2(size, size)), UIKit.Circle, Ink);
             var img = UIKit.Image(UIKit.Rect(rt, "fill", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size, size)), UIKit.Circle, color);
             UIKit.Image(UIKit.Rect(rt, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(size, size)), UIKit.Ring, Paper);
-            UIKit.Label(rt, label, font, Paper, TextAnchor.MiddleCenter, true, true);
-            var p = new Pad { id = id, rt = rt, img = img, radius = size * 0.5f };
+            var text = UIKit.Label(rt, label, font, Paper, TextAnchor.MiddleCenter, true, true);
+            var p = new Pad { id = id, rt = rt, img = img, radius = size * 0.5f, label = text };
             buttons.Add(p);
             return p;
         }
@@ -318,6 +322,12 @@ namespace Cloudborne
             hpFill.rectTransform.localScale = new Vector3(Mathf.Clamp01(hp / 100f), 1, 1);
             kiFill.rectTransform.localScale = new Vector3(Mathf.Clamp01(ki / 100f), 1, 1);
             bool ready = ki >= 50 && CbHero.SpecialUnlocked;
+            bool fire = CbHero.FireAwake;
+            if (kiPad.label.text != (fire ? "FIRE" : "KI"))
+            {
+                kiPad.label.text = fire ? "FIRE" : "KI";
+                kiPad.img.color = fire ? FirePadCol : KiPadCol;
+            }
             kiFrame.color = ready ? Color.Lerp(Paper, FireCol, 0.5f + 0.5f * Mathf.Sin(Time.time * 8)) : Paper;
             sp.rt.localScale = Vector3.one * (ready ? 1f + 0.04f * Mathf.Sin(Time.time * 7) : 1f);
             sp.img.color = ready ? CbArt.Hex("#d9541f") : new Color(0.72f, 0.25f, 0.12f, 0.45f);

@@ -4,7 +4,7 @@ namespace Cloudborne
 {
     /// <summary>
     /// What the game keeps between sessions (PlayerPrefs): banked tiger coins, the workshop's upgrades, whether the
-    /// opening was seen, each stage's best result, and the settings.
+    /// opening was seen, whether Raja's fire is awake, each stage's best result, and the settings.
     /// </summary>
     public static class CbSave
     {
@@ -23,7 +23,7 @@ namespace Cloudborne
             new Upgrade { id = "claws", name = "IRON CLAWS", desc = "Every blow hits 10% harder", prices = new[] { 80, 180, 350 } },
         };
 
-        const string IntroKey = "cb_intro", VolumeKey = "cb_volume", PadsKey = "cb_pads", UpgradePrefix = "cb_upg_";
+        const string IntroKey = "cb_intro", FireKey = "cb_fire", VolumeKey = "cb_volume", PadsKey = "cb_pads", UpgradePrefix = "cb_upg_";
 
         public static int Coins
         {
@@ -57,6 +57,27 @@ namespace Cloudborne
             get => PlayerPrefs.GetInt(IntroKey, 0) == 1;
             set { PlayerPrefs.SetInt(IntroKey, value ? 1 : 0); PlayerPrefs.Save(); }
         }
+
+        /// <summary>
+        /// Raja's fire is awake: he has touched the fire crystal (stage 1-5). Until then he has no powers - paws and the
+        /// staff only, and his ki moves are staff techniques; only Baba knows what he is.
+        /// </summary>
+        public static bool FireAwake
+        {
+            // asked several times a frame (Raja's moves, the HUD): kept in memory after the first read
+            get
+            {
+                if (fireAwake < 0) fireAwake = PlayerPrefs.GetInt(FireKey, 0);
+                return fireAwake == 1;
+            }
+            set
+            {
+                fireAwake = value ? 1 : 0;
+                PlayerPrefs.SetInt(FireKey, fireAwake);
+                PlayerPrefs.Save();
+            }
+        }
+        static int fireAwake = -1;
 
         // ---------- stages ----------
 
@@ -94,11 +115,13 @@ namespace Cloudborne
             set { PlayerPrefs.SetInt(PadsKey, ((value % 3) + 3) % 3); PlayerPrefs.Save(); }
         }
 
-        /// <summary>Forgets coins, upgrades, the opening and every stage's results; settings stay.</summary>
+        /// <summary>Forgets coins, upgrades, the opening, the fire and every stage's results; settings stay.</summary>
         public static void ResetProgress()
         {
             PlayerPrefs.DeleteKey(CbItems.BankKey);
             PlayerPrefs.DeleteKey(IntroKey);
+            PlayerPrefs.DeleteKey(FireKey);
+            fireAwake = 0;
             foreach (var u in Upgrades) PlayerPrefs.DeleteKey(UpgradePrefix + u.id);
             foreach (var s in CbMenu.Stages)
                 foreach (var what in new[] { "clear", "best", "time" }) PlayerPrefs.DeleteKey(Key(s.id, what));

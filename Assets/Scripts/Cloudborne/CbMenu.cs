@@ -248,11 +248,11 @@ namespace Cloudborne
                 "<color=#ffc94a>HIT</color>  paw and kick combo   ·   <color=#ffc94a>↓ + HIT</color>  low sweep\n" +
                 "<color=#ffc94a>HEAVY</color>  staff smash   ·   <color=#ffc94a>↑ + HEAVY</color>  launcher   ·   hold <color=#ffc94a>HEAVY</color>  staff whirl\n" +
                 "<color=#ffc94a>DASH → HEAVY</color>  thrust   ·   <color=#ffc94a>HEAVY</color> in the air  slam   ·   <color=#ffc94a>JUMP</color> twice  double somersault\n" +
-                "<color=#ffc94a>FIRE</color>  fireball   ·   <color=#ffc94a>HIT, HIT, FIRE</color>  ring of fire   ·   <color=#ffc94a>SPECIAL</color>  flame cannon\n" +
+                "<color=#ffc94a>KI</color>  staff lunge   ·   <color=#ffc94a>HIT, HIT, KI</color>  staff cyclone   ·   <color=#ffc94a>SPECIAL</color>  staff storm   (fire comes with the fire crystal)\n" +
                 "hold <color=#ffc94a>GUARD</color>  block from the front   ·   <color=#ffc94a>↓</color>  duck   ·   <color=#ffc94a>DASH</color> just before a blow  slow motion\n\n" +
                 "Break crates for mangoes and coins. Cracked stone gives way only to the staff.\n" +
                 "Spend coins in Baba's workshop.\n\n" +
-                "<color=#ffffff99>Keyboard: A/D move · W/S up/down · Space jump · J hit · K heavy · O guard · U fire · I special · L dash · Esc pause</color>",
+                "<color=#ffffff99>Keyboard: A/D move · W/S up/down · Space jump · J hit · K heavy · O guard · U ki · I special · L dash · Esc pause</color>",
                 13, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 6), new Vector2(740, 230), TextAnchor.MiddleCenter);
             t.supportRichText = true;
             t.horizontalOverflow = HorizontalWrapMode.Wrap;

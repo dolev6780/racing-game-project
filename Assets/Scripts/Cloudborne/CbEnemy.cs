@@ -192,7 +192,7 @@ namespace Cloudborne
             vx = dir * 10; vy = 7;
         }
 
-        /// <summary>A fire hit stops his whistle before it calls anyone.</summary>
+        /// <summary>A ki move (a staff technique, or fire) stops his whistle before it calls anyone.</summary>
         public void BreakWhistle()
         {
             if (!Whistling) return;
@@ -239,7 +239,7 @@ namespace Cloudborne
         /// Sergeant Snap's attacks. The combo: three cleaver blows, each flashing white just before it lands (GUARD
         /// stops them), then he stands open. The chop: a purple flash (it goes through a guard: get out of reach),
         /// the cleaver bites the ground and sticks a moment. The leap: he jumps at Raja and lands with a shock that hits
-        /// anyone standing near (jump over it). The whistle: he calls two raiders, unless fire hits him first.
+        /// anyone standing near (jump over it). The whistle: he calls two raiders, unless a ki move hits him first.
         /// </summary>
         void BossAttack(ref Pose pose, float dt, CbHero hero)
         {

@@ -20,7 +20,7 @@ namespace Cloudborne
             "Break crates with two blows: mangoes heal, coins buy upgrades in Baba's workshop.",
             "Cracked stone gives way only to the staff (HEAVY).",
             "Hold GUARD to stop blows from the front.",
-            "HIT, HIT, FIRE spins a ring of fire around Raja.",
+            "HIT, HIT, KI sweeps the staff all around Raja.",
             "DASH just before a blow lands for slow motion and a double-strength hit.",
             "Some ledges only show themselves to those who climb high.",
             "The golden fruit restores everything. It is never in an easy place.",
