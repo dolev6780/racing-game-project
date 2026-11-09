@@ -80,6 +80,55 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator SergeantSnapGuardsTheShrineGate()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipToBoss();
+            yield return Frames(2);
+            // near the gate he steps out: a scene, then the fight in a shut arena
+            game.Teleport(118f);
+            yield return WaitForMode(CbGame.Mode.Scene, 3f);
+            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "Sergeant Snap's scene did not play");
+            game.scene.Skip();
+            yield return Frames(3);
+            Assert.AreEqual(CbGame.Mode.Play, game.mode);
+            var snap = game.boss;
+            Assert.IsNotNull(snap, "Sergeant Snap did not appear");
+            Assert.AreEqual(CbEnemy.Kind.Sergeant, snap.kind);
+            Assert.IsNotNull(snap.model, "Snap's model did not load");
+            Assert.IsNotNull(game.lockZone, "The arena is not shut");
+            // he attacks (Raja made tough enough to watch)
+            game.hero.hp = 9999;
+            bool attacked = false;
+            for (float waited = 0; waited < 6f && !attacked; waited += Time.deltaTime)
+            {
+                yield return null;
+                attacked |= snap.state == CbEnemy.State.Atk;
+            }
+            Assert.IsTrue(attacked, "Snap never attacked");
+            // the gate stays out of reach while he stands
+            game.Teleport(CbWorld.GoalX + 1f);
+            yield return Frames(2);
+            Assert.Less(game.hero.x, CbWorld.GoalX, "Raja left the arena past Snap");
+            // beaten (and anyone he whistled for): the way opens and the stage clears at the gate
+            for (int k = 0; k < 60 && game.enemies.Exists(e => !e.dead); k++)
+            {
+                foreach (var e in game.enemies.ToArray())
+                    if (!e.dead) game.HurtEnemy(e, 40, 1, 8, 2, true, true, false, true);
+                yield return Frames(2);
+            }
+            Assert.IsTrue(snap.dead, "Snap could not be beaten");
+            yield return Frames(3);
+            Assert.IsNull(game.lockZone, "The arena did not open after Snap was beaten");
+            game.Teleport(CbWorld.GoalX + 0.5f);
+            yield return WaitForMode(CbGame.Mode.Over, 4f);
+            Assert.AreEqual(CbGame.Mode.Over, game.mode, "The stage did not clear at the shrine gate");
+            Assert.Greater(game.hero.hp, 0f);
+        }
+
+        [UnityTest]
         public IEnumerator TheScrollHidesOnLedgesThatShowWhenYouClimb()
         {
             game = CbGame.Boot();

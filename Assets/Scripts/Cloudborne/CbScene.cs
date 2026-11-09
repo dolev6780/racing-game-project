@@ -28,7 +28,7 @@ namespace Cloudborne
         readonly List<CbActor> cast = new List<CbActor>();
         /// <summary>Holds the cast and props made for the scene; removed with it.</summary>
         public readonly Transform stage;
-        Action finish;
+        Action finish, after;
         int index = -1;
         float t;
 
@@ -93,6 +93,13 @@ namespace Cloudborne
         public CbScene Finally(Action a)
         {
             finish = a;
+            return this;
+        }
+
+        /// <summary>What happens once the game is back in play (the scene's cast already gone).</summary>
+        public CbScene Then(Action a)
+        {
+            after = a;
             return this;
         }
 
@@ -230,6 +237,7 @@ namespace Cloudborne
             g.hud.HideLine();
             finish?.Invoke();
             g.EndScene();
+            after?.Invoke();
         }
     }
 }

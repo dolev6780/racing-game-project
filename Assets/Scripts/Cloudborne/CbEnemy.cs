@@ -5,11 +5,14 @@ namespace Cloudborne
     /// <summary>
     /// Iron Crown hyena soldiers. The plain one walks up and swings a machete (white flash = wind-up);
     /// the shield variant blocks blows from the front until a staff move or the roar breaks its guard.
+    /// Sergeant Snap, the mini-boss at the end of stage 1-1, fights with a set of his own (see BossAttack).
     /// </summary>
     public class CbEnemy
     {
-        public enum Kind { Hyena, Shield }
+        public enum Kind { Hyena, Shield, Sergeant }
         public enum State { Move, Atk, Hurt, Dying }
+        /// <summary>Sergeant Snap's attacks.</summary>
+        public enum BossMove { Combo, Chop, Leap, Whistle }
 
         public readonly Kind kind;
         public readonly Rig f;
@@ -29,18 +32,31 @@ namespace Cloudborne
         float t, cd, runPh;
         bool hitDone;
 
+        // ---- Sergeant Snap ----
+        public bool Boss => kind == Kind.Sergeant;
+        public BossMove bossMove;
+        /// <summary>After his combo or his chop he stands open (panting, the cleaver in the ground): the time to hit back.</summary>
+        public float open;
+        public bool Whistling => Boss && state == State.Atk && bossMove == BossMove.Whistle && !hitDone;
+        int blow;
+        bool calledAt66, calledAt33, airborne, whistled, telePurple;
+        // how long each attack lasts, and when the combo's three blows land (seconds in)
+        const float ComboTime = 1.7f, ChopTime = 1.5f, ChopHit = 0.75f, LeapTime = 1.2f, WhistleTime = 1.6f;
+        static readonly float[] ComboBlows = { 0.42f, 0.78f, 1.14f };
+
         public CbEnemy(CbGame game, Kind k, float x0, Transform parent)
         {
             g = game;
             kind = k;
             x = x0;
-            bool shield = k == Kind.Shield;
-            hp = max = shield ? 46 : 34;
-            speed = shield ? 2.1f : 2.7f;
-            dmg = shield ? 10 : 8;
-            reach = shield ? 1.6f : 1.5f;
-            scoreValue = shield ? 500 : 300;
+            bool shield = k == Kind.Shield, sergeant = k == Kind.Sergeant;
+            hp = max = sergeant ? 320 : shield ? 46 : 34;
+            speed = sergeant ? 2.3f : shield ? 2.1f : 2.7f;
+            dmg = sergeant ? 9 : shield ? 10 : 8;
+            reach = sergeant ? 1.9f : shield ? 1.6f : 1.5f;
+            scoreValue = sergeant ? 3000 : shield ? 500 : 300;
             if (shield) w = 0.6f;
+            if (sergeant) { w = 0.7f; hy = 1.5f; }
             guard = shield;
             cd = Random.Range(0.5f, 1.4f);
             runPh = Random.Range(0f, 6f);
@@ -48,8 +64,9 @@ namespace Cloudborne
             f = RigBuilder.Build(new RigStyle
             {
                 fur = CbArt.Hex("#b8925a"), paw = CbArt.Hex("#8a6a40"), top = CbArt.Hex("#6b727d"), armor = CbArt.Hex("#7d8590"),
-                pants = CbArt.Hex("#4a3a2e"), belt = CbArt.Hex("#2a1f1a"), wrap = CbArt.Hex("#4a3a2e"), bulk = shield ? 1.12f : 1f,
-            }, shield ? "ShieldHyena" : "Hyena");
+                pants = CbArt.Hex("#4a3a2e"), belt = CbArt.Hex("#2a1f1a"), wrap = CbArt.Hex("#4a3a2e"), bulk = sergeant ? 1.25f : shield ? 1.12f : 1f,
+                scale = sergeant ? 1.15f : 1f,
+            }, sergeant ? "SgtSnap" : shield ? "ShieldHyena" : "Hyena");
             RigBuilder.HyenaHead(f);
             // the modelled machete and shield when they are in the project, else boxes as before
             blade = CbArt.Joint(f.R.hand, 0, -0.02f, 0.02f, "machete");
@@ -75,7 +92,8 @@ namespace Cloudborne
             f.body.localRotation = Quaternion.Euler(0, -115, 0);
 
             // The rig still places, turns and flips the hyena; with the model loaded only its machete and shield are drawn.
-            model = CbModel.Load(shield ? "Cloudborne/HyenaGuard/HyenaGuard" : "Cloudborne/HyenaRaider/HyenaRaider", shield ? 2.1f : 2.25f, f.body);
+            model = sergeant ? CbModel.Load("Cloudborne/HyenaSergeant/HyenaSergeant", 2.55f, f.body)
+                : CbModel.Load(shield ? "Cloudborne/HyenaGuard/HyenaGuard" : "Cloudborne/HyenaRaider/HyenaRaider", shield ? 2.1f : 2.25f, f.body);
             if (model != null)
             {
                 foreach (var r in f.body.GetComponentsInChildren<Renderer>(true))
@@ -107,6 +125,7 @@ namespace Cloudborne
         void Animate()
         {
             if (model == null) return;
+            if (Boss) { AnimateBoss(); return; }
             bool shield = kind == Kind.Shield;
             switch (state)
             {
@@ -128,10 +147,40 @@ namespace Cloudborne
             }
         }
 
+        void AnimateBoss()
+        {
+            switch (state)
+            {
+                case State.Dying: model.Window("dying_backwards", 0f, 0.85f, t); break;
+                case State.Hurt:
+                    if (y > 0.25f) model.Show("BeHit_FlyUp", vy > 0 ? 0.3f : 0.5f, 0.1f);
+                    else model.Window("Hit_Reaction", 0.1f, 0.6f, t / 0.3f);
+                    break;
+                case State.Atk:
+                    if (bossMove == BossMove.Combo) model.Window("Triple_Combo_Attack", 0f, 1f, t / ComboTime);
+                    else if (bossMove == BossMove.Chop) model.Window("Charged_Axe_Chop", 0f, 1f, t / ChopTime);
+                    else if (bossMove == BossMove.Leap) model.Window("Basic_Jump", 0f, 1f, t / LeapTime);
+                    else model.Window("Shouting_Angrily", 0f, 1f, t / WhistleTime);
+                    break;
+                default:
+                    if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh / (Mathf.PI * 2));
+                    else model.LoopSeconds("Combat_Stance", g.clock * (open > 0 ? 1.8f : 1f));
+                    break;
+            }
+        }
+
         void FaceTarget() => facing = g.hero.x >= x ? 1 : -1;
 
         public void Stagger(int dir, float kb, float up)
         {
+            if (Boss)
+            {
+                // armoured: he takes the blows and keeps going, unless he stands open or a big blow lands
+                if (open <= 0 && state == State.Atk) return;
+                if (open <= 0 && kb < 7) { vx = dir * kb * 0.3f; return; }
+                kb *= 0.5f;
+                up = Mathf.Min(up, 3);
+            }
             vx = dir * kb;
             vy = up;
             state = State.Hurt; t = 0;
@@ -141,6 +190,131 @@ namespace Cloudborne
         {
             dead = true; state = State.Dying; t = 0;
             vx = dir * 10; vy = 7;
+        }
+
+        /// <summary>A fire hit stops his whistle before it calls anyone.</summary>
+        public void BreakWhistle()
+        {
+            if (!Whistling) return;
+            hitDone = true;
+            state = State.Hurt; t = 0; vx = 0;
+            g.hud.Popup(new Vector3(x, y + 3f, 0), "WHISTLE BROKEN!", CbHud.PopStyle.Big);
+            CbFx.Sfx("block");
+        }
+
+        void StartBossMove(BossMove m)
+        {
+            state = State.Atk; bossMove = m; t = 0; hitDone = false; blow = 0; airborne = false; whistled = false; vx = 0;
+            FaceTarget();
+        }
+
+        /// <summary>Sergeant Snap between attacks: walks up, and picks his next one.</summary>
+        void BossThink(ref Pose pose, float dt, CbHero hero, float dx, float dist)
+        {
+            if (open > 0)
+            {
+                open -= dt;
+                vx = Mathf.MoveTowards(vx, 0, 20 * dt);
+                pose.lean = -0.25f; pose.bob = Mathf.Sin(g.clock * 8) * 0.04f - 0.08f;
+                return;
+            }
+            bool can = cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play;
+            float left = hp / max;
+            if (can && ((left < 0.66f && !calledAt66) || (left < 0.33f && !calledAt33)))
+            {
+                if (left < 0.33f) calledAt33 = true;
+                calledAt66 = true;
+                StartBossMove(BossMove.Whistle);
+                return;
+            }
+            if (can && dist > 5f) { StartBossMove(BossMove.Leap); return; }
+            if (can && dist <= reach + 0.4f) { StartBossMove(Random.value < 0.6f ? BossMove.Combo : BossMove.Chop); return; }
+            float want = dist > reach ? Mathf.Sign(dx) * speed : 0;
+            vx += (want - vx) * (1 - Mathf.Exp(-8 * dt));
+            if (Mathf.Abs(vx) > 0.4f) { runPh += dt * Mathf.Abs(vx) * 2.1f; Pose.Run(ref pose, runPh, 0.9f); }
+            else pose.bob = Mathf.Sin(g.clock * 3) * 0.02f - 0.05f;
+        }
+
+        /// <summary>
+        /// Sergeant Snap's attacks. The combo: three cleaver blows, each flashing white just before it lands (GUARD
+        /// stops them), then he stands open. The chop: a purple flash (it goes through a guard: get out of reach),
+        /// the cleaver bites the ground and sticks a moment. The leap: he jumps at Raja and lands with a shock that hits
+        /// anyone standing near (jump over it). The whistle: he calls two raiders, unless fire hits him first.
+        /// </summary>
+        void BossAttack(ref Pose pose, float dt, CbHero hero)
+        {
+            float ddx = (hero.x - x) * facing;
+            switch (bossMove)
+            {
+                case BossMove.Combo:
+                    if (blow < ComboBlows.Length)
+                    {
+                        float next = ComboBlows[blow];
+                        if (t > next - 0.28f && t < next) tele = Mathf.Sin(t * 50) > 0 ? 0.6f : 0;
+                        if (t >= next)
+                        {
+                            vx = facing * 2.5f;
+                            if (ddx > -0.3f && ddx < reach + 0.5f && hero.y < 2f) hero.TakeHit(dmg, facing);
+                            CbFx.Sfx("swing", 0.7f);
+                            CbFx.Spark(new Vector3(x + facing * 1.2f, 1.2f, -0.4f), CbFx.Grey, 4, 4, 0.3f, 0.2f);
+                            blow++;
+                        }
+                    }
+                    vx = Mathf.MoveTowards(vx, 0, 8 * dt);
+                    if (t >= ComboTime) { state = State.Move; open = 0.9f; cd = 1.2f; }
+                    break;
+                case BossMove.Chop:
+                    vx = 0;
+                    if (t < ChopHit) { tele = Mathf.Sin(t * 40) > 0 ? 0.8f : 0.3f; telePurple = true; }
+                    else if (!hitDone)
+                    {
+                        hitDone = true;
+                        var at = new Vector3(x + facing * 1.6f, 0.1f, -0.3f);
+                        CbVfx.Ring(at, CbFx.Purple * 0.5f, 2.2f, 0.35f, ground: true);
+                        CbFx.Spark(at, CbFx.Dust, 18, 6, 0.5f, 0.5f, 6);
+                        g.shake = Mathf.Max(g.shake, 0.45f);
+                        CbFx.Sfx("heavy");
+                        if (ddx > -0.3f && ddx < 2.6f && hero.y < 1.6f) hero.TakeHit(20, facing, unblockable: true);
+                    }
+                    if (t >= ChopTime) { state = State.Move; open = 1.1f; cd = 1.3f; }
+                    break;
+                case BossMove.Leap:
+                    if (!airborne && !hitDone && t > 0.25f)
+                    {
+                        airborne = true;
+                        vy = 9.5f;
+                        float air = 2 * vy / 30f;
+                        float target = hero.x;
+                        if (g.lockZone != null) target = Mathf.Clamp(target, g.lockZone.x - 9.5f, g.lockZone.x + 9.5f);
+                        vx = Mathf.Clamp((target - x) / air, -11f, 11f);
+                        CbFx.Sfx("jump", 0.8f);
+                    }
+                    else if (airborne && !hitDone && y <= 0.01f && vy <= 0)
+                    {
+                        hitDone = true;
+                        airborne = false;
+                        vx = 0;
+                        var at = new Vector3(x, 0.05f, 0);
+                        CbVfx.Ring(at, CbFx.Dust * 2f, 2.4f, 0.35f, ground: true);
+                        CbFx.Spark(at + new Vector3(0, 0.2f, -0.3f), CbFx.Dust, 20, 6, 0.5f, 0.5f, 6);
+                        g.shake = Mathf.Max(g.shake, 0.5f);
+                        CbFx.Sfx("heavy");
+                        if (Mathf.Abs(hero.x - x) < 1.9f && hero.y < 0.35f) hero.TakeHit(14, hero.x >= x ? 1 : -1);
+                    }
+                    if (t >= LeapTime && !airborne) { state = State.Move; cd = 1.0f; }
+                    break;
+                case BossMove.Whistle:
+                    vx = 0;
+                    if (t > 0.5f && !whistled)
+                    {
+                        whistled = true;
+                        CbFx.Sfx("whistle", 0.8f);
+                        g.hud.Popup(new Vector3(x, y + 3f, 0), "!", CbHud.PopStyle.Big);
+                    }
+                    if (t > 1.2f && !hitDone) { hitDone = true; g.SummonRaiders(); }
+                    if (t >= WhistleTime) { state = State.Move; cd = 0.8f; }
+                    break;
+            }
         }
 
         public void BreakGuard(int dir)
@@ -160,6 +334,7 @@ namespace Cloudborne
             cd -= dt;
             flash = Mathf.Max(0, flash - dt);
             tele = 0;
+            telePurple = false;
             if (burnT > 0 && !dead)
             {
                 burnT -= dt; burnTick -= dt;
@@ -195,7 +370,13 @@ namespace Cloudborne
                     break;
                 case State.Hurt:
                     pose.lean = -0.6f; pose.headX = -0.5f; pose.sLz = 1.1f; pose.sRz = -1.1f; pose.sLx = 0.5f; pose.sRx = 0.5f;
-                    if (t > 0.42f && y <= 0) state = State.Move;
+                    if (t > (Boss ? 0.3f : 0.42f) && y <= 0) state = State.Move;
+                    break;
+                case State.Atk when Boss:
+                    BossAttack(ref pose, dt, hero);
+                    break;
+                case State.Move when Boss:
+                    BossThink(ref pose, dt, hero, dx, dist);
                     break;
                 case State.Atk:
                 {
@@ -256,6 +437,8 @@ namespace Cloudborne
                 y = 0; vy = 0;
                 if (state != State.Move && state != State.Atk) vx *= 1 - (1 - Mathf.Exp(-6 * dt));
             }
+            // the sergeant keeps to his arena
+            if (Boss && g.lockZone != null) x = Mathf.Clamp(x, g.lockZone.x - 10f, g.lockZone.x + 10f);
             f.Apply(pose, dt, state == State.Atk ? 22 : 12);
             f.root.localPosition = new Vector3(x, y, 0);
             float target = facing * (90f + (model != null ? 8f : 25f));
@@ -266,7 +449,7 @@ namespace Cloudborne
             // white flash when hit, white blink on wind-up, orange while burning
             // white on a hit; the modelled hyenas take less, or bloom turns them into a white cut-out
             if (flash > 0) f.SetFlash(Color.white, model != null ? 0.45f : 0.9f);
-            else if (tele > 0) f.SetFlash(Color.white, tele);
+            else if (tele > 0) f.SetFlash(telePurple ? new Color(0.7f, 0.3f, 1f) : Color.white, tele);
             else if (burnT > 0) f.SetFlash(new Color(1f, 0.48f, 0.1f), 0.25f);
             else f.SetFlash(Color.black, 0);
             return false;

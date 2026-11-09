@@ -240,6 +240,40 @@ namespace Cloudborne
                 hero.x = Mathf.Max(hero.x, -1.8f);
                 hero.facing = 1;
             });
+            s.Then(g.OpeningDone);
+            return s;
+        }
+
+        /// <summary>
+        /// Before the fight at the end of 1-1 (scene 4 of the script): Sergeant Snap steps out in front of the shrine
+        /// gate and laughs at the kid with a stick. The fight begins where he stands.
+        /// </summary>
+        public static CbScene SnapIntro(CbGame g, float arenaX)
+        {
+            var s = new CbScene(g, "SnapIntro");
+            CbActor snap = null;
+            var hero = g.hero;
+            float stand = arenaX + 4f;
+            s.Do(() =>
+            {
+                hero.facing = 1;
+                s.Raja("Combat_Stance");
+                snap = s.Cast("SgtSnap", SnapModels, 2.55f, HyenaStyle(1.2f, 1.15f), RigBuilder.HyenaHead, arenaX + 11f, -1, Machete);
+                snap.Play("Combat_Stance");
+                snap.WalkTo(stand, 4.5f);
+                s.Camera((hero.x + stand) * 0.5f, 1.7f, 0.85f, 2f);
+            });
+            s.Wait(1.5f);
+            s.Say("SGT. SNAP", SnapCol, "A kid with a stick? I thought they'd send someone interesting.",
+                () => { snap.facing = -1; snap.Once("Shouting_Angrily", 0f, 1f, 2.2f); });
+            s.Say("RAJA", RajaCol, "Where is Koda?!", () => s.Raja("Combat_Stance"));
+            s.Say("SGT. SNAP", SnapCol, "Halfway to the General by now. And you're not going anywhere!", () =>
+            {
+                CbFx.Sfx("whistle", 0.6f);
+                snap.Play("Combat_Stance");
+            });
+            s.Finally(() => hero.facing = 1);
+            s.Then(() => g.SpawnBoss(stand));
             return s;
         }
     }

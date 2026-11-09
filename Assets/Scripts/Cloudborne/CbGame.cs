@@ -43,6 +43,13 @@ namespace Cloudborne
 
         public static CbGame I { get; private set; }
 
+        // Sergeant Snap, the mini-boss: his arena stands in front of the shrine gate
+        const float BossX = 124f;
+        static readonly Zone BossZone = new Zone { x = BossX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
+        /// <summary>Sergeant Snap while he is on the stage.</summary>
+        public CbEnemy boss;
+        bool bossStarted, bossDone;
+
         public Mode mode = Mode.Title;
         public CbHero hero;
         public CbHud hud;
@@ -242,6 +249,8 @@ namespace Cloudborne
             waves.Clear();
             hero.Reset();
             time = score = 0; combo = maxCombo = 0; comboT = 0; hitstop = shake = slow = 0; lockZone = null; zoneIdx = 0; fovKick = 0;
+            boss = null; bossStarted = bossDone = false;
+            hud?.HideBoss();
             hud.SetWave("Chase the raiders");
             hud.SetTip(Tips[0]);
             hud.ShowGo(false);
@@ -311,13 +320,60 @@ namespace Cloudborne
         public void EndScene()
         {
             scene = null;
-            introSeen = true;
-            CbSave.IntroSeen = true;
             mode = Mode.Play;
             hud.SetScreen(CbHud.Screen.None);
+        }
+
+        /// <summary>After the opening: it counts as seen, and the chase begins.</summary>
+        public void OpeningDone()
+        {
+            introSeen = true;
+            CbSave.IntroSeen = true;
             hud.SetWave("Chase the raiders");
             hud.SetTip("Your fire woke up! <color=#ffb03a>FIRE</color> shoots a fireball");
             hud.Banner("SAVE KODA!");
+        }
+
+        /// <summary>Raja reaches the arena: the gate is shut, and Sergeant Snap steps out (a scene, then the fight).</summary>
+        void StartBoss()
+        {
+            bossStarted = true;
+            lockZone = BossZone;
+            hud.ShowGo(false);
+            mode = Mode.Scene;
+            hud.SetScreen(CbHud.Screen.Scene);
+            scene = CbStory.SnapIntro(this, BossX);
+        }
+
+        /// <summary>The fight with Sergeant Snap begins, with him standing at x.</summary>
+        public void SpawnBoss(float x)
+        {
+            boss = new CbEnemy(this, CbEnemy.Kind.Sergeant, x, actors);
+            enemies.Add(boss);
+            hud.ShowBoss("SGT. SNAP");
+            hud.SetWave("Defeat Sergeant Snap");
+            hud.SetTip("<color=#ffb03a>GUARD</color> his three blows, then strike. Purple flash: get away! Fire stops his whistle");
+            hud.Banner("SGT. SNAP!");
+        }
+
+        /// <summary>His whistle: two raiders run in from the arena's sides.</summary>
+        public void SummonRaiders()
+        {
+            if (lockZone == null) return;
+            enemies.Add(new CbEnemy(this, CbEnemy.Kind.Hyena, lockZone.x - 9.5f, actors));
+            enemies.Add(new CbEnemy(this, CbEnemy.Kind.Hyena, lockZone.x + 9.5f, actors));
+            hud.Banner("REINFORCEMENTS!", true);
+        }
+
+        void BossBeaten()
+        {
+            bossDone = true;
+            lockZone = null;
+            hud.HideBoss();
+            hud.Banner("SNAP DEFEATED!");
+            hud.ShowGo(true);
+            hud.SetWave("Reach the shrine gate");
+            hud.SetTip("The way to the shrine gate is open");
         }
 
         /// <summary>Starts a run (also used by the play mode tests).</summary>
@@ -360,7 +416,24 @@ namespace Cloudborne
                 if (pending[i].zone == lockZone) enemies.Add(new CbEnemy(this, pending[i].kind, pending[i].x, actors));
                 pending.RemoveAt(i);
             }
-            if (lockZone == null && zoneIdx >= Zones.Length && !cleared && hero.x >= CbWorld.GoalX)
+            if (comboT > 0)
+            {
+                comboT -= dt;
+                if (comboT <= 0) { combo = 0; hud.SetCombo(0); }
+            }
+            // the sergeant waits in front of the gate once every fight on the way is won
+            if (lockZone == null && zoneIdx >= Zones.Length && !bossStarted && hero.x > BossX - 7f)
+            {
+                StartBoss();
+                return;
+            }
+            if (lockZone == BossZone)
+            {
+                if (boss != null) hud.SetBoss(boss.hp / boss.max);
+                if (boss != null && boss.dead && !enemies.Exists(e => !e.dead)) BossBeaten();
+                return;
+            }
+            if (lockZone == null && zoneIdx >= Zones.Length && bossDone && !cleared && hero.x >= CbWorld.GoalX)
             {
                 cleared = true;
                 hud.ShowGo(false);
@@ -397,11 +470,6 @@ namespace Cloudborne
                     hud.SetTip(Tips[zoneIdx == 1 ? 2 : 4]);
                 }
             }
-            if (comboT > 0)
-            {
-                comboT -= dt;
-                if (comboT <= 0) { combo = 0; hud.SetCombo(0); }
-            }
         }
 
         void Won() => EndGame(true);
@@ -433,6 +501,8 @@ namespace Cloudborne
                 CbFx.Sfx("heavy");
             }
             if (fromPlayer) dmg *= CbSave.DamageMul;
+            // fire on the sergeant while he whistles stops the call
+            if (fire && e.Whistling) e.BreakWhistle();
             if (hero.empower && fromPlayer) { dmg *= 2; hero.empower = false; big = true; }
             e.hp -= dmg;
             e.flash = 0.12f;
@@ -466,6 +536,12 @@ namespace Cloudborne
             e.Kill(dir);
             score += e.scoreValue;
             items.Drop(new Vector3(e.x, e.HitHeight, 0));
+            if (e.Boss)
+            {
+                // the sergeant's purse: coins and a mango
+                for (int k = 0; k < 4; k++) items.Drop(new Vector3(e.x, e.HitHeight, 0));
+                items.Spawn(CbItems.Kind.Mango, new Vector3(e.x, e.HitHeight, 0));
+            }
             hitstop = Mathf.Max(hitstop, 0.06f);
             shake = Mathf.Max(shake, 0.4f);
             CbFx.Spark(new Vector3(e.x, e.HitHeight, -0.4f), e.burnT > 0 ? CbFx.Fire : CbFx.Purple, 26, 9, 0.6f, 0.6f, 2);
@@ -986,6 +1062,16 @@ namespace Cloudborne
             enemies.Clear();
             lockZone = null;
             zoneIdx = Zones.Length;
+            bossStarted = bossDone = true;
+            boss = null;
+            hud.HideBoss();
+        }
+
+        /// <summary>Test hook: every fight on the way is won, and Sergeant Snap still waits at the gate.</summary>
+        public void SkipToBoss()
+        {
+            SkipFights();
+            bossStarted = bossDone = false;
         }
     }
 }

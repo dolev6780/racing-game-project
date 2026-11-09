@@ -203,14 +203,14 @@ namespace Cloudborne
             return any;
         }
 
-        /// <summary>The player was struck. Returns false if the blow was dodged.</summary>
-        public void TakeHit(float dmg, int dir)
+        /// <summary>The player was struck. An unblockable blow (a purple flash) goes through the guard.</summary>
+        public void TakeHit(float dmg, int dir, bool unblockable = false)
         {
             if (state == State.Dead || g.mode != CbGame.Mode.Play) return;
             if (state == State.Dash && t < 0.2f) { g.PerfectDodge(); return; }
             if (inv > 0) return;
             // guarding: a blow from in front is stopped (dir is the way it pushes him, so the attacker faces -dir)
-            if (state == State.Guard && facing == -dir)
+            if (state == State.Guard && facing == -dir && !unblockable)
             {
                 vx = dir * 3.5f;
                 blockT = BlockReact;

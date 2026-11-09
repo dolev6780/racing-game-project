@@ -29,6 +29,10 @@ namespace Cloudborne
         // the play HUD (hidden in a cinematic) and the cinematic's own layer: black bars, the speech box, SKIP
         readonly RectTransform play, barTop, barBottom, bubble, skipBtn;
         readonly Text whoTxt, lineTxt, nextTxt;
+        // a boss's name and health, at the top in the middle
+        readonly RectTransform bossBar;
+        readonly Image bossFill;
+        readonly Text bossName;
         string lineFull = "";
         float lineShown, barsK, blipT;
         /// <summary>How fast a line is typed into the speech box (characters per second).</summary>
@@ -104,6 +108,16 @@ namespace Cloudborne
             UIKit.Image(pauseBtn, UIKit.Circle, Glass);
             UIKit.Image(UIKit.Rect(pauseBtn, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(48, 48)), UIKit.Ring, Paper);
             UIKit.Label(pauseBtn, "II", 18, Paper, TextAnchor.MiddleCenter, true, false);
+
+            // a boss's health: his name over a long red bar, under the tip
+            bossBar = UIKit.Rect(play, "boss", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -98), new Vector2(340, 34));
+            bossName = UIKit.Label(bossBar, "", 14, Paper, new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(340, 18), TextAnchor.MiddleCenter, true);
+            var bossFrame = UIKit.Rect(bossBar, "bar", new Vector2(0.5f, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(340, 12));
+            UIKit.Image(bossFrame, UIKit.RoundedSmall, Paper);
+            var bossBg = UIKit.Rect(bossFrame, "bg", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(336, 8));
+            UIKit.Image(bossBg, UIKit.RoundedSmall, new Color(0.07f, 0.09f, 0.06f, 0.85f));
+            bossFill = UIKit.Image(UIKit.Rect(bossBg, "fill", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(336, 8)), null, Ember);
+            bossBar.gameObject.SetActive(false);
 
             // combo, go
             comboBox = UIKit.Rect(play, "combo", new Vector2(1, 0.62f), new Vector2(1, 0.5f), new Vector2(-28, 0), new Vector2(160, 100));
@@ -310,6 +324,18 @@ namespace Cloudborne
         }
 
         public void SetScore(int s) => scoreTxt.text = s.ToString("N0");
+
+        /// <summary>A boss's name and a full health bar.</summary>
+        public void ShowBoss(string name)
+        {
+            bossName.text = name;
+            bossBar.gameObject.SetActive(true);
+            SetBoss(1);
+        }
+
+        public void SetBoss(float left) => bossFill.rectTransform.localScale = new Vector3(Mathf.Clamp01(left), 1, 1);
+
+        public void HideBoss() => bossBar.gameObject.SetActive(false);
 
         /// <summary>Tiger coins picked up this run.</summary>
         public void SetCoins(int n) => coinTxt.text = "COINS " + n;
