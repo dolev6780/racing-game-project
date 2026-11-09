@@ -29,6 +29,58 @@ namespace Cloudborne
             pants = CbArt.Hex("#4a3a2e"), belt = CbArt.Hex("#2a1f1a"), wrap = CbArt.Hex("#4a3a2e"), bulk = bulk, scale = scale,
         };
 
+        // the net: a sack of rope (meridians and rings) around Koda, centred NetCentre above his feet; the pole it
+        // hangs from, carried by two raiders
+        const float NetCentre = 0.92f, NetRx = 0.7f, NetRy = 1.02f, PoleHeight = 2.2f;
+
+        /// <summary>A rope net sack wrapping a character whole, knotted at the top; a child of parent.</summary>
+        static Transform NetSack(Transform parent, Material rope)
+        {
+            var net = CbArt.Joint(parent, 0, NetCentre, 0, "net");
+            // eight loops round the up axis, crossing at the top and the bottom
+            for (int k = 0; k < 8; k++)
+                CbArt.Part(CbMesh.Torus(0.024f / NetRx), rope, net, Vector3.zero, new Vector3(NetRx, NetRx, NetRy),
+                    Quaternion.Euler(0, k * 22.5f, 0) * Quaternion.Euler(90, 0, 0), shadows: false);
+            // and rings round it at six heights
+            foreach (float deg in new[] { -62f, -38f, -13f, 12f, 37f, 60f })
+            {
+                float a = deg * Mathf.Deg2Rad, r = NetRx * Mathf.Cos(a);
+                CbArt.Part(CbMesh.Torus(0.024f / r), rope, net, new Vector3(0, NetRy * Mathf.Sin(a), 0), Vector3.one * r, shadows: false);
+            }
+            CbArt.Sphere(rope, net, new Vector3(0, NetRy, 0), 0.08f);
+            return net;
+        }
+
+        /// <summary>
+        /// The prologue, drawn (scene 1 of the script): the cloud temple and its Source, the iron crown's attack, the
+        /// Source shattering, Baba leaping from the falling temple with the newborn cub, the star falling to the
+        /// jungle; then the title. Plays before the first stage.
+        /// </summary>
+        public static readonly CbComic.Shot[] Prologue =
+        {
+            new CbComic.Shot { image = "prologue_temple", dur = 5f, from = new Vector3(0.5f, 0.42f, 1f), to = new Vector3(0.5f, 0.5f, 1.18f), fx = "stars",
+                caption = "Long ago, above the clouds, a temple kept the Source of all the elements." },
+            new CbComic.Shot { image = "prologue_crown", dur = 4f, from = new Vector3(0.45f, 0.5f, 1.3f), to = new Vector3(0.5f, 0.5f, 1.05f), fx = "purple",
+                shake = true, sfx = "roar", caption = "Then a crown of black iron came for it." },
+            new CbComic.Shot { image = "prologue_shatter", dur = 3.8f, from = new Vector3(0.5f, 0.55f, 1f), to = new Vector3(0.5f, 0.45f, 1.25f), fx = "sparks",
+                flash = true, sfx = "heavy", caption = "The Source broke. Its four crystals flew to the four corners of the world..." },
+            new CbComic.Shot { image = "prologue_leap", dur = 4.4f, from = new Vector3(0.35f, 0.55f, 1.2f), to = new Vector3(0.62f, 0.45f, 1.2f), fx = "embers",
+                shake = true, caption = "...and its last spark fell into the night, with a newborn cub." },
+            new CbComic.Shot { image = "prologue_jungle", dur = 5f, from = new Vector3(0.3f, 0.65f, 1.3f), to = new Vector3(0.45f, 0.5f, 1f), fx = "fireflies",
+                who = "BABA ORANG", caption = "There are things that fall from the sky. And there are things that are sent." },
+            new CbComic.Shot { title = "RAJA", subtitle = "AND THE FOUR CRYSTALS", dur = 3.2f, fx = "embers" },
+        };
+
+        /// <summary>Drawn, in the opening: Koda calls out from the net, Raja's eyes catch fire, the fire bursts out of him.</summary>
+        public static readonly CbComic.Shot[] FireInsert =
+        {
+            new CbComic.Shot { image = "fire_koda", dur = 2.6f, from = new Vector3(0.5f, 0.5f, 1.05f), to = new Vector3(0.5f, 0.55f, 1.25f), shake = true,
+                who = "KODA", caption = "RAJAAA!" },
+            new CbComic.Shot { image = "fire_eyes", dur = 1.9f, from = new Vector3(0.5f, 0.5f, 1f), to = new Vector3(0.5f, 0.5f, 1.35f), fx = "embers", flash = true },
+            new CbComic.Shot { image = "fire_burst", dur = 2.8f, from = new Vector3(0.5f, 0.45f, 1.3f), to = new Vector3(0.5f, 0.5f, 1.05f), fx = "sparks",
+                flash = true, shake = true, sfx = "roar" },
+        };
+
         /// <summary>
         /// Stage 1-1 opens (scenes 2 and 3 of the script): a morning in the village, Koda boasting that he is the child
         /// of the prophecy; the Iron Crown raiders believe him and carry him off in a net; Raja's fire bursts out of him
@@ -98,41 +150,58 @@ namespace Cloudborne
                 koda.WalkTo(0.6f, 3f, "Excited_Walk_M");
             });
 
-            // the net
-            Transform[] rings = null;
-            s.Wait(0.45f, u => { foreach (var r in rings) r.localScale = Vector3.one * 0.62f * u; }, () =>
+            // the net drops over him from above and closes: a rope sack that wraps him whole, curled up inside
+            Transform net = null;
+            s.Wait(0.5f, u =>
+            {
+                net.localPosition = new Vector3(0, NetCentre + 2.6f * (1 - u) * (1 - u), 0);
+                net.localScale = Vector3.one * Mathf.Lerp(1.3f, 1f, u);
+            }, () =>
             {
                 CbFx.Sfx("swing", 0.8f);
-                var rope = koda.f.M("#8a6a3a");
-                rings = new Transform[3];
-                for (int i = 0; i < 3; i++)
-                    rings[i] = CbArt.Part(CbMesh.Torus(0.06f), rope, koda.f.root, new Vector3(0, 0.95f, 0), Vector3.zero,
-                        CbArt.Rot(i * 1.05f, i * 0.6f, 0.4f + i * 0.5f));
+                net = NetSack(koda.f.root, koda.f.M(CbArt.Hex("#7a5a30"), 0f));
                 koda.struggle = true;
-                koda.Play("Hop_with_Arms_Raised");
+                koda.Play("Head_Hold_in_Pain");
                 r1.Once("Right_Hand_Sword_Slash", 0.1f, 0.5f, 0.4f);
             });
-            s.Say("KODA", KodaCol, "...wait, why the net?!", () => koda.Play("Look_Around_Dumbfounded"));
+            s.Say("KODA", KodaCol, "...wait, why the net?!");
             s.Say("SGT. SNAP", SnapCol, "The wolf comes with us. The General knows what to do with prophecy kids.",
-                () => { koda.Play("Hop_with_Arms_Raised"); snap.Once("Shouting_Angrily", 0.15f, 0.85f, 1.8f); });
+                () => snap.Once("Shouting_Angrily", 0.15f, 0.85f, 1.8f));
 
-            // they carry him off between two raiders; Raja runs after them
-            s.Wait(0.4f, null, () =>
+            // two raiders take him between them on a bamboo pole, the sack hanging from it, and run; Raja runs after them
+            Transform pole = null;
+            s.Wait(0.45f, u =>
             {
-                r1.WalkTo(koda.x - 0.7f, 6f);
-                r2.WalkTo(koda.x + 0.7f, 6f);
+                koda.y = Mathf.Lerp(0, PoleHeight - NetCentre - NetRy - 0.02f, u);
+                pole.localScale = new Vector3(Mathf.Abs(r2.x - r1.x) + 0.7f, 1, 1) * Mathf.Min(1, u * 3);
+            }, () =>
+            {
+                r1.WalkTo(koda.x - 0.85f, 6f);
+                r2.WalkTo(koda.x + 0.85f, 6f);
+                pole = CbArt.Joint(s.stage, koda.x, PoleHeight, 0.05f, "pole");
+                CbArt.Cylinder(koda.f.M(CbArt.Hex("#c9a24e")), pole, Vector3.zero, 0.05f, 1f, CbArt.Rot(0, 0, Mathf.PI / 2));
+                pole.localScale = Vector3.zero;
             });
             bool chasing = false;
             s.Wait(1.8f, u => { if (u > 0.35f && !chasing) { chasing = true; s.RajaRunTo(-1.8f, 5.5f); } }, () =>
             {
-                koda.y = 1.15f;
-                s.Always = () => { koda.x = (r1.x + r2.x) * 0.5f; koda.facing = 1; };
+                s.Always = () =>
+                {
+                    float mid = (r1.x + r2.x) * 0.5f;
+                    koda.x = mid;
+                    koda.facing = 1;
+                    koda.y = PoleHeight - NetCentre - NetRy - 0.02f + Mathf.Abs(Mathf.Sin(g.clock * 9)) * 0.05f;
+                    pole.localPosition = new Vector3(mid, PoleHeight, 0.05f);
+                    pole.localScale = new Vector3(Mathf.Abs(r2.x - r1.x) + 0.7f, 1, 1);
+                };
                 r1.WalkTo(24f, 6.5f);
-                r2.WalkTo(25.4f, 6.5f);
-                snap.WalkTo(27f, 7f);
+                r2.WalkTo(25.7f, 6.5f);
+                snap.WalkTo(27.5f, 7f);
                 s.Camera(0.5f, 1.6f, 0.9f, 2f);
             });
             s.Say("RAJA", RajaCol, "KODA!", () => s.Camera(-1.6f, 1.4f, 0.62f, 3f));
+            // drawn: Koda calling out from the net, Raja's eyes, the fire bursting out of him
+            s.Comic(FireInsert);
 
             // his fire wakes up: it gathers, then bursts out of him
             s.Wait(1.0f, u =>

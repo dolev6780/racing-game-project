@@ -83,19 +83,20 @@ namespace Cloudborne
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(4 + i * 0.9f, 1.2f + Mathf.Sin(i / 4f * Mathf.PI) * 1.6f, 0), resting: true);
             for (int i = 0; i < 6; i++) Spawn(Kind.Coin, new Vector3(30 + i * 0.8f, 0.7f, 0), resting: true);
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(50 + i * 0.9f, 1.4f + Mathf.Sin(i / 4f * Mathf.PI) * 2.2f, 0), resting: true);
-            // secrets: a golden fruit high above the path at the top of the climb (the last ledges crumble), the scroll
-            // behind the start
+            // secrets: a golden fruit high above the path at the top of the climb (the last ledges crumble), and the
+            // scroll on the highest of the hidden ledges up to the left of the climb (CbLevel)
             Spawn(Kind.GoldenFruit, new Vector3(111.6f, 8.3f, 0), resting: true);
-            Spawn(Kind.Scroll, new Vector3(CbWorld.LevelMin + 1.2f, 0.8f, 0), resting: true);
+            Spawn(Kind.Scroll, new Vector3(94.2f, 8.1f, 0), resting: true);
         }
 
         void AddCrate(float x, params Kind[] contents)
         {
-            var t = CbArt.Prop("Cloudborne/Items/Crate/Crate", root, CbArt.PropOutline);
-            if (t == null)
+            // the model sits in a joint that is turned and shaken, so the model's own root rotation (the axis
+            // conversion from Blender) stays and the crate stands on its base instead of lying half in the ground
+            var t = CbArt.Joint(root, x, 0, 0.1f, "crate");
+            if (CbArt.Prop("Cloudborne/Items/Crate/Crate", t, CbArt.PropOutline) == null)
             {
                 // stand-in: a bamboo-coloured box with dark bands
-                t = CbArt.Joint(root, 0, 0, 0, "crate");
                 if (crateMat == null) crateMat = CbArt.Toon("#a8783e", CbArt.PropOutline);
                 CbArt.Box(crateMat, t, new Vector3(0, 0.45f, 0), new Vector3(0.9f, 0.9f, 0.9f));
                 var band = CbArt.Toon("#5c7a2e");
@@ -103,7 +104,6 @@ namespace Cloudborne
                 CbArt.Box(band, t, new Vector3(0, 0.12f, -0.46f), new Vector3(0.95f, 0.08f, 0.04f));
                 CbArt.Box(band, t, new Vector3(0, 0.82f, -0.46f), new Vector3(0.95f, 0.08f, 0.04f));
             }
-            t.localPosition = new Vector3(x, 0, 0.1f);
             t.localRotation = Quaternion.Euler(0, Random.Range(-12f, 12f), 0);
             crates.Add(new Crate { t = t, x = x, hp = 2, contents = contents });
         }

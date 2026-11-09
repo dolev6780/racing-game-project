@@ -6,8 +6,8 @@ namespace Cloudborne
 {
     /// <summary>
     /// A cinematic played in the game engine: a list of beats run one after another. A beat is an instant action, a
-    /// timed stretch (with something happening every frame) or a line of dialogue in the speech box, which waits for
-    /// a tap (the first tap shows the whole line, the next goes on) or moves on by itself after reading time.
+    /// timed stretch (with something happening every frame), a drawn cutscene played inside it, or a line of dialogue
+    /// in the speech box, which waits for the player: the first tap shows the whole line, the next goes on.
     /// The scene directs the camera, Raja and its own cast; SKIP (or pause) jumps to the end, where
     /// <see cref="Finally"/> leaves the world as the scene would have.
     /// </summary>
@@ -20,6 +20,7 @@ namespace Cloudborne
             public Action<float> tick;
             public string who, line;
             public Color color;
+            public CbComic.Shot[] comic;
         }
 
         readonly CbGame g;
@@ -78,6 +79,13 @@ namespace Cloudborne
         public CbScene Say(string who, Color color, string line, Action start = null, Action<float> tick = null)
         {
             beats.Add(new Beat { who = who, color = color, line = line, start = start, tick = tick });
+            return this;
+        }
+
+        /// <summary>A drawn cutscene inside the scene, which waits for it; left out while its paintings are not in the project.</summary>
+        public CbScene Comic(CbComic.Shot[] shots)
+        {
+            beats.Add(new Beat { comic = shots });
             return this;
         }
 
@@ -140,12 +148,16 @@ namespace Cloudborne
             if (b.line != null)
             {
                 b.tick?.Invoke(t);
+                // the talk only moves on when the player taps
                 if (input.confirm)
                 {
                     if (!g.hud.LineDone) g.hud.CompleteLine();
                     else Next();
                 }
-                else if (g.hud.LineDone && t > ReadTime(b.line)) Next();
+            }
+            else if (b.comic != null)
+            {
+                if (!g.comic.Playing) Next();
             }
             else
             {
@@ -163,9 +175,6 @@ namespace Cloudborne
             zoom += (camToZoom - zoom) * k;
         }
 
-        /// <summary>How long a line stays up once it is all shown, if nobody taps.</summary>
-        static float ReadTime(string line) => 1.1f + line.Length * 0.045f + line.Length / CbHud.TypeSpeed;
-
         void Next()
         {
             while (true)
@@ -177,6 +186,13 @@ namespace Cloudborne
                 b.start?.Invoke();
                 if (b.line != null) { g.hud.Say(b.who, b.color, b.line); return; }
                 g.hud.HideLine();
+                if (b.comic != null)
+                {
+                    if (!CbComic.Available(b.comic)) continue;
+                    // a quick fade back to the game when the drawn part ends
+                    g.comic.Play(b.comic, () => g.fade.FadeThrough(() => g.comic.Hide(), 0.15f, 0.3f));
+                    return;
+                }
                 if (b.dur > 0) return;
             }
         }
@@ -207,6 +223,7 @@ namespace Cloudborne
         void End()
         {
             Done = true;
+            if (g.comic.Playing) g.comic.Hide();
             foreach (var a in cast) a.Destroy();
             cast.Clear();
             if (stage != null) UnityEngine.Object.Destroy(stage.gameObject);

@@ -15,7 +15,7 @@ namespace Cloudborne
     /// </summary>
     public class CbGame : MonoBehaviour
     {
-        public enum Mode { Title, Play, Paused, Over, Scene }
+        public enum Mode { Title, Play, Paused, Over, Scene, Loading, Comic }
 
         public class Zone
         {
@@ -53,6 +53,10 @@ namespace Cloudborne
         public CbLevel level;
         /// <summary>The main menu, shown in mode Title.</summary>
         public CbMenu menu;
+        /// <summary>Drawn, animated cutscenes (mode Comic, or inside a scene).</summary>
+        public CbComic comic;
+        /// <summary>Fades and the loading screen.</summary>
+        public CbTransition fade;
         /// <summary>The cinematic playing (mode Scene), else null.</summary>
         public CbScene scene;
         bool cleared, introSeen;
@@ -123,6 +127,8 @@ namespace Cloudborne
             hero = new CbHero(this, actors);
             hud = new CbHud(transform);
             menu = new CbMenu(this, transform);
+            comic = new CbComic(transform);
+            fade = new CbTransition(transform);
             introSeen = CbSave.IntroSeen;
             AudioListener.volume = CbSave.Volume;
             ResetGame();
@@ -257,12 +263,30 @@ namespace Cloudborne
             scene = CbStory.Opening(this);
         }
 
-        /// <summary>PLAY (or a stage card) in the menu: the opening the first time, then the stage.</summary>
+        /// <summary>
+        /// PLAY (or a stage card) in the menu: the loading screen, then the first time the drawn prologue and the
+        /// opening scene, later straight into the stage.
+        /// </summary>
         public void PlayStage(string id)
         {
-            menu.Hide();
-            if (introSeen) StartGame();
-            else PlayOpening();
+            if (mode == Mode.Loading || fade.Busy) return;
+            mode = Mode.Loading;
+            fade.Loading("STAGE 1-1 · THE JUNGLE GATE", 1.3f, () =>
+            {
+                menu.Hide();
+                if (introSeen) StartGame();
+                else if (CbComic.Available(CbStory.Prologue)) PlayPrologue();
+                else PlayOpening();
+            });
+        }
+
+        /// <summary>The drawn prologue (the night the cloud temple fell), then a fade into the opening scene.</summary>
+        void PlayPrologue()
+        {
+            ResetGame();
+            mode = Mode.Comic;
+            hud.SetScreen(CbHud.Screen.Scene);
+            comic.Play(CbStory.Prologue, () => fade.FadeThrough(() => { comic.Hide(); PlayOpening(); }));
         }
 
         /// <summary>MENU on the pause or result screen: the run ends and the main menu comes back.</summary>
@@ -789,8 +813,10 @@ namespace Cloudborne
 
             if (input.pause)
             {
-                if (mode == Mode.Scene) scene?.Skip();
-                else TogglePause();
+                // SKIP or pause: a drawn cutscene ends, else a scene, else the game pauses
+                if (comic.Playing) comic.Skip();
+                else if (mode == Mode.Scene) scene?.Skip();
+                else if (!fade.Busy) TogglePause();
             }
             if (mode == Mode.Title)
             {
@@ -800,12 +826,15 @@ namespace Cloudborne
             else if (mode == Mode.Scene)
             {
                 scene?.Update(raw, input);
+                comic.Update(raw);
                 UpdateShots(raw);
             }
+            else if (mode == Mode.Loading) hero.Idle(raw);
+            else if (mode == Mode.Comic) comic.Update(raw);
             else if (mode == Mode.Paused)
             {
-                if (input.menu) ToMenu();
-                else if (input.confirm) TogglePause();
+                if (input.menu && !fade.Busy) fade.FadeThrough(ToMenu);
+                else if (input.confirm && !fade.Busy) TogglePause();
             }
             else
             {
@@ -825,14 +854,15 @@ namespace Cloudborne
                 if (mode == Mode.Over)
                 {
                     overT += raw;
-                    if (overT > 0.8f && input.menu) ToMenu();
-                    else if (overT > 0.8f && input.confirm) StartGame();
+                    if (overT > 0.8f && !fade.Busy && input.menu) fade.FadeThrough(ToMenu);
+                    else if (overT > 0.8f && !fade.Busy && input.confirm) fade.FadeThrough(StartGame);
                 }
             }
             world.Update(clock, camX);
             UpdateCamera(raw);
             CbVfx.Update(cam, raw);
             hud.Tick(raw);
+            fade.Update(raw);
         }
 
         void UpdateCamera(float dt)

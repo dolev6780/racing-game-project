@@ -26,7 +26,9 @@ namespace Cloudborne
         {
             public float x0, x1, top;
             public bool crumbles, gone;
-            public float stood, respawn;
+            // a hidden ledge shows (and holds him) only once Raja has climbed up near it; then it stays
+            public bool hidden, found;
+            public float stood, respawn, reveal, glint;
             public Transform t;
             public Vector3 home;
         }
@@ -62,6 +64,10 @@ namespace Cloudborne
             AddLedge(105f, 1.8f, 3.9f, false);
             AddLedge(108.4f, 1.3f, 5.3f, true);
             AddLedge(111.6f, 1.1f, 6.5f, true);
+            // a secret: from the top of the tall pillar, two hidden ledges lead up and back to the left, to the scroll
+            // high above the path (a glint now and then gives them away)
+            AddLedge(97.6f, 1.3f, 5.2f, false, hidden: true);
+            AddLedge(94.2f, 1.4f, 7.3f, false, hidden: true);
             // the end of the stage: a shrine gate on the path to walk through
             var goal = CbArt.Joint(root, CbWorld.GoalX, 0, 0.8f, "goalGate");
             if (CbArt.Prop("Cloudborne/Jungle/Gate/Gate", goal, CbArt.PropOutline) is Transform gate) gate.localRotation = Quaternion.Euler(0, 180, 0) * gate.localRotation;
@@ -82,6 +88,9 @@ namespace Cloudborne
             {
                 l.gone = false;
                 l.stood = l.respawn = 0;
+                l.found = false;
+                l.reveal = l.hidden ? 0 : 1;
+                if (l.hidden) l.t.localScale = Vector3.zero;
                 l.t.localPosition = l.home;
                 l.t.gameObject.SetActive(true);
             }
@@ -105,7 +114,7 @@ namespace Cloudborne
             blocks.Add(new Block { x0 = x - width / 2, x1 = x + width / 2, top = height, breakable = breakable, hp = 2, t = t });
         }
 
-        void AddLedge(float x, float width, float top, bool crumbles)
+        void AddLedge(float x, float width, float top, bool crumbles, bool hidden = false)
         {
             // a flat mossy slab of rock (the boulder squashed), its top at `top`
             var t = CbArt.Joint(root, x, top - 0.35f, 0.1f, crumbles ? "crumblingLedge" : "ledge");
@@ -113,7 +122,9 @@ namespace Cloudborne
             holder.localScale = new Vector3(width / 1.3f, 0.3f, 1.1f);
             if (CbArt.Prop("Cloudborne/Jungle/Boulder/Boulder", holder, CbArt.PropOutline) == null)
                 CbArt.Box(CbArt.Toon(crumbles ? "#9a8f7a" : "#7f8a78", CbArt.PropOutline), holder, new Vector3(0, 0.6f, 0), new Vector3(1.3f, 1.2f, 1.2f));
-            ledges.Add(new Ledge { x0 = x - width / 2, x1 = x + width / 2, top = top, crumbles = crumbles, t = t, home = t.localPosition });
+            ledges.Add(new Ledge { x0 = x - width / 2, x1 = x + width / 2, top = top, crumbles = crumbles, t = t, home = t.localPosition,
+                hidden = hidden, reveal = hidden ? 0 : 1 });
+            if (hidden) t.localScale = Vector3.zero;
         }
 
         // ---------- what the hero's physics asks ----------
@@ -128,7 +139,7 @@ namespace Cloudborne
             foreach (var b in blocks)
                 if (!b.broken && x > b.x0 - HalfWidth * 0.5f && x < b.x1 + HalfWidth * 0.5f && b.top <= fromY + 0.05f && b.top > best) best = b.top;
             foreach (var l in ledges)
-                if (!l.gone && x > l.x0 - HalfWidth * 0.5f && x < l.x1 + HalfWidth * 0.5f && l.top <= fromY + 0.05f && l.top > best) best = l.top;
+                if (!l.gone && l.reveal > 0.5f && x > l.x0 - HalfWidth * 0.5f && x < l.x1 + HalfWidth * 0.5f && l.top <= fromY + 0.05f && l.top > best) best = l.top;
             return best;
         }
 
@@ -190,6 +201,28 @@ namespace Cloudborne
         {
             foreach (var l in ledges)
             {
+                if (l.hidden)
+                {
+                    float cx = (l.x0 + l.x1) / 2;
+                    // found once he is up high close by (on the tall pillar, or a jump near it)
+                    if (!l.found && Mathf.Abs(hero.x - cx) < 4.6f && hero.y > 1.8f && hero.y > l.top - 4.2f)
+                    {
+                        l.found = true;
+                        CbFx.Spark(new Vector3(cx, l.top, -0.4f), CbFx.Hit, 16, 4, 0.4f, 0.5f, -2);
+                        CbFx.Sfx("pickup", 0.6f);
+                        if (l.top < 6) g.hud.SetTip("A hidden path! Something is up there...");
+                    }
+                    l.reveal = Mathf.MoveTowards(l.reveal, l.found ? 1 : 0, dt * 3f);
+                    l.t.localScale = Vector3.one * Mathf.SmoothStep(0, 1, l.reveal);
+                    // a glint now and then where it hides
+                    l.glint -= dt;
+                    if (!l.found && l.glint <= 0)
+                    {
+                        l.glint = 2.4f + Random.value;
+                        CbFx.Spark(new Vector3(cx + Random.Range(-0.5f, 0.5f), l.top, -0.4f), CbFx.Hit * 0.5f, 3, 1, 0.25f, 0.7f, -1);
+                    }
+                    continue;
+                }
                 if (!l.crumbles) continue;
                 if (l.gone)
                 {

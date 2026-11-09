@@ -31,6 +31,72 @@ namespace RacingGame.Tests
 
         static IEnumerator Frames(int n) { for (int i = 0; i < n; i++) yield return null; }
 
+        /// <summary>Waits (real time) until the game is in the mode, or the time is up.</summary>
+        IEnumerator WaitForMode(CbGame.Mode mode, float seconds)
+        {
+            for (float waited = 0; game.mode != mode && waited < seconds; waited += Time.unscaledDeltaTime) yield return null;
+            // let a fade that was running finish its frame
+            yield return null;
+        }
+
+        [UnityTest]
+        public IEnumerator DrawnCutscenePlaysAndCanBeSkipped()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            Texture2D Paint(Color c)
+            {
+                var t = new Texture2D(64, 36);
+                var px = new Color[64 * 36];
+                for (int i = 0; i < px.Length; i++) px[i] = c;
+                t.SetPixels(px);
+                t.Apply();
+                return t;
+            }
+            var shots = new[]
+            {
+                new CbComic.Shot { texture = Paint(Color.blue), dur = 0.6f, fx = "stars", caption = "One", flash = true },
+                new CbComic.Shot { texture = Paint(Color.red), dur = 0.6f, fx = "sparks", shake = true, who = "RAJA", caption = "Two" },
+                new CbComic.Shot { title = "RAJA", subtitle = "AND THE FOUR CRYSTALS", dur = 0.5f, fx = "embers" },
+            };
+            Assert.IsTrue(CbComic.Available(shots));
+            Assert.IsFalse(CbComic.Available(new[] { new CbComic.Shot { image = "no_such_painting" } }), "A missing painting counts as there");
+            bool done = false;
+            game.comic.Play(shots, () => done = true);
+            Assert.IsTrue(game.comic.Playing);
+            for (float waited = 0; !done && waited < 5f; waited += Time.unscaledDeltaTime)
+            {
+                game.comic.Update(Time.unscaledDeltaTime);
+                yield return null;
+            }
+            Assert.IsTrue(done, "The drawn cutscene never finished");
+            Assert.IsFalse(game.comic.Playing);
+            // SKIP ends it at once
+            done = false;
+            game.comic.Play(shots, () => done = true);
+            game.comic.Skip();
+            Assert.IsTrue(done, "SKIP did not end the drawn cutscene");
+            game.comic.Hide();
+        }
+
+        [UnityTest]
+        public IEnumerator TheScrollHidesOnLedgesThatShowWhenYouClimb()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var level = game.level;
+            // hidden: nothing to stand on up there while Raja is on the path
+            Assert.AreEqual(0f, level.SupportAt(97.6f, 6f), 0.001f, "The hidden ledge holds him before it was found");
+            // up on the tall pillar, close by, the first hidden ledge shows itself
+            game.Teleport(101.8f);
+            game.hero.y = 2.6f;
+            for (float waited = 0; waited < 1f; waited += Time.deltaTime) yield return null;
+            Assert.AreEqual(5.2f, level.SupportAt(97.6f, 6f), 0.001f, "Climbing near did not reveal the hidden ledge");
+        }
+
         [UnityTest]
         public IEnumerator BuildsTheJungleAndRaja()
         {
@@ -81,11 +147,13 @@ namespace RacingGame.Tests
             bool pressed = false;
             game.TestInput = i => { if (!pressed) { i.confirm = true; pressed = true; } };
             yield return Frames(2);
-            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "START did not open with the scene");
+            Assert.AreEqual(CbGame.Mode.Loading, game.mode, "PLAY did not go to the loading screen");
+            yield return WaitForMode(CbGame.Mode.Scene, 6f);
+            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "The loading screen did not open on the scene");
             Assert.IsNotNull(game.scene);
             // tapping through the talk: every line shows, then goes on, and the stage begins
             Time.captureDeltaTime = 1f / 20f;
-            bool sawKoda = false, sawRaiders = false;
+            bool sawKoda = false, sawRaiders = false, sawNet = false;
             int frames = 0;
             game.TestInput = i => i.confirm = Time.frameCount % 8 == 0;
             while (game.mode == CbGame.Mode.Scene && frames++ < 2000)
@@ -95,6 +163,7 @@ namespace RacingGame.Tests
                 if (stage == null) continue;
                 sawKoda |= stage.Find("Koda") != null;
                 sawRaiders |= stage.Find("SgtSnap") != null && stage.Find("Raider") != null;
+                sawNet |= stage.Find("Koda/net") != null;
             }
             game.TestInput = null;
             Time.captureDeltaTime = 0f;
@@ -103,6 +172,7 @@ namespace RacingGame.Tests
             Assert.AreEqual(CbGame.Mode.Play, game.mode, "The opening never handed over to the stage");
             Assert.IsTrue(sawKoda, "Koda was not in the opening");
             Assert.IsTrue(sawRaiders, "Sergeant Snap and his raiders never came");
+            Assert.IsTrue(sawNet, "Koda was never netted");
             Assert.IsNull(game.transform.Find("Opening"), "The scene's cast was left on the path");
             Assert.IsNull(game.scene);
             Assert.AreEqual(CbHero.State.Idle, game.hero.state);
@@ -143,6 +213,7 @@ namespace RacingGame.Tests
 
             // PLAY: the opening (skipped), then the stage with 20 more health
             game.PlayStage("1-1");
+            yield return WaitForMode(CbGame.Mode.Scene, 6f);
             Assert.IsFalse(game.menu.Visible);
             Assert.AreEqual(CbGame.Mode.Scene, game.mode);
             game.scene.Skip();
@@ -156,12 +227,14 @@ namespace RacingGame.Tests
             yield return Frames(2);
             Assert.AreEqual(CbGame.Mode.Paused, game.mode);
             game.TestInput = i => { if (!quit) { i.menu = true; quit = true; } };
-            yield return Frames(2);
+            yield return WaitForMode(CbGame.Mode.Title, 4f);
             game.TestInput = null;
             Assert.AreEqual(CbGame.Mode.Title, game.mode, "MENU did not leave the run");
             Assert.IsTrue(game.menu.Visible, "The menu did not come back");
             // the opening was seen: PLAY goes straight to the stage now
+            for (float waited = 0; game.fade.Busy && waited < 2f; waited += Time.unscaledDeltaTime) yield return null;
             game.PlayStage("1-1");
+            yield return WaitForMode(CbGame.Mode.Play, 6f);
             Assert.AreEqual(CbGame.Mode.Play, game.mode);
         }
 

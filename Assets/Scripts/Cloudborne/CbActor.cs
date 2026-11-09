@@ -16,7 +16,7 @@ namespace Cloudborne
         public readonly CbModel model;
         public float x, y;
         public int facing = 1;
-        /// <summary>Arms up and legs kicking, as when caught in a net (the stand-in; the model holds its clip).</summary>
+        /// <summary>Curled up and wriggling, as when caught in a net (the stand-in; the model holds its clip).</summary>
         public bool struggle;
 
         readonly Transform prop;
@@ -95,9 +95,11 @@ namespace Cloudborne
             else pose.bob = Mathf.Sin(clock * 3 + x) * 0.02f - 0.04f;
             if (struggle)
             {
+                // curled up inside the net, paws at his head, wriggling
                 float w = Mathf.Sin(clock * 14);
-                pose.sLx = -2.6f + w * 0.4f; pose.sRx = -2.6f - w * 0.4f; pose.eL = pose.eR = -0.4f;
-                pose.hLx = Mathf.Sin(clock * 12) * 0.6f; pose.hRx = -pose.hLx; pose.kL = pose.kR = 0.6f;
+                pose.sLx = -1.9f + w * 0.2f; pose.sRx = -1.9f - w * 0.2f; pose.eL = pose.eR = -2.2f;
+                pose.hLx = -0.6f + Mathf.Sin(clock * 12) * 0.25f; pose.hRx = -0.6f - Mathf.Sin(clock * 12) * 0.25f; pose.kL = pose.kR = 1.1f;
+                pose.lean = 0.35f; pose.bob = -0.15f;
             }
             f.Apply(pose, Mathf.Max(dt, 0.001f), 12);
             for (int i = 0; i < f.tail.Count; i++)
