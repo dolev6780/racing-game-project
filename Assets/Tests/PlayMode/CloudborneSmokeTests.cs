@@ -111,6 +111,23 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator StoryCastHaveTheirModels()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            // Koda, Sergeant Snap and Baba Orang: built in Meshy from the approved drawings, each with 9 clips
+            foreach (var (path, clip) in new[] { ("Cloudborne/Koda/Koda", "Show_Both_Arm_Muscles"), ("Cloudborne/HyenaSergeant/HyenaSergeant", "Triple_Combo_Attack"), ("Cloudborne/Baba/Baba", "Dozing_Elderly") })
+            {
+                var holder = new GameObject("holder").transform;
+                var model = CbModel.Load(path, 1.75f, holder);
+                Assert.IsNotNull(model, $"{path} did not load (legacy animation, bones)");
+                Assert.AreEqual(9, model.ClipCount, $"{path} is missing animation clips");
+                model.Show(clip, 0.5f);
+                Object.Destroy(holder.gameObject);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator OpeningSceneCanBeSkipped()
         {
             game = CbGame.Boot();

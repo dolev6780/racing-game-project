@@ -43,15 +43,16 @@ namespace Cloudborne
             s.Do(() =>
             {
                 hero.x = -4.5f; hero.facing = 1;
-                koda = s.Cast("Koda", KodaModels, 1.7f, KodaStyle, RigBuilder.WolfCub, -1.6f, -1);
+                koda = s.Cast("Koda", KodaModels, 1.72f, KodaStyle, RigBuilder.WolfCub, -1.6f, -1);
+                koda.Play("Idle");
                 s.Cut(-3f, 1.35f, 0.62f);
                 s.Raja("Punch_Combo");
             });
             // the morning: Raja trains by the path, Koda shows off
             s.Wait(1.6f);
             s.Say("KODA", KodaCol, "The prophecy kid? That's me! Ever seen a wolf with an ear like this?",
-                () => s.Raja("Combat_Stance"),
-                t => koda.y = t < 1.2f ? Mathf.Abs(Mathf.Sin(t * 7)) * 0.18f : 0);
+                () => { s.Raja("Combat_Stance"); koda.Play("Show_Both_Arm_Muscles"); },
+                t => { if (koda.model == null) koda.y = t < 1.2f ? Mathf.Abs(Mathf.Sin(t * 7)) * 0.18f : 0; });
             s.Say("RAJA", RajaCol, "The prophecy is about a kid with fire, Koda. Not a kid with a floppy ear.");
             // a spark jumps from his paw: Koda leaps back
             s.Wait(0.9f, u => s.rajaGlow = 1.2f * (1 - u), () =>
@@ -61,11 +62,12 @@ namespace Cloudborne
                 CbVfx.Burst(hand, CbFx.Fire, 1.1f, 0.14f);
                 CbFx.Sfx("fire", 0.6f);
                 s.RajaOnce("Hit_Reaction", 0.1f, 0.6f, 0.6f);
+                koda.Once("Hit_Reaction", 0.1f, 0.7f, 0.6f);
                 koda.WalkTo(-0.8f, 4f, null);
                 koda.facing = -1;
             });
             s.Say("VILLAGE ELDER", ElderCol, "Keep away from that tiger. One day his spark will set us all on fire.",
-                () => { s.Raja("Idle"); koda.facing = -1; });
+                () => { s.Raja("Idle"); koda.facing = -1; koda.Play("Idle"); });
             s.Say("RAJA", RajaCol, "...I would never hurt anyone.");
 
             // the saws: the Iron Crown's raiders come running out of the trees, their sergeant in front
@@ -76,7 +78,7 @@ namespace Cloudborne
                 s.Camera(1.2f, 1.6f, 0.95f, 1.8f);
                 s.Raja("Combat_Stance");
                 koda.facing = 1;
-                snap = s.Cast("SgtSnap", SnapModels, 2.6f, HyenaStyle(1.2f, 1.15f), RigBuilder.HyenaHead, 15f, -1, Machete);
+                snap = s.Cast("SgtSnap", SnapModels, 2.55f, HyenaStyle(1.2f, 1.15f), RigBuilder.HyenaHead, 15f, -1, Machete);
                 r1 = s.Cast("Raider", RaiderModels, 2.25f, HyenaStyle(1f, 1f), RigBuilder.HyenaHead, 16.6f, -1, Machete);
                 r2 = s.Cast("Raider", RaiderModels, 2.25f, HyenaStyle(1f, 1f), RigBuilder.HyenaHead, 18.2f, -1, Machete);
                 foreach (var a in new[] { snap, r1, r2 }) a.Play("Combat_Stance");
@@ -84,8 +86,17 @@ namespace Cloudborne
                 r1.WalkTo(1.8f, 7f);
                 r2.WalkTo(3.1f, 7f);
             });
-            s.Say("SGT. SNAP", SnapCol, "Search the village! The prophecy kid is here somewhere!", () => CbFx.Sfx("whistle", 0.7f));
-            s.Say("KODA", KodaCol, "Looking for the prophecy kid? Here he is!", () => koda.WalkTo(0.6f, 3f, null));
+            s.Say("SGT. SNAP", SnapCol, "Search the village! The prophecy kid is here somewhere!", () =>
+            {
+                CbFx.Sfx("whistle", 0.7f);
+                snap.Once("Shouting_Angrily", 0f, 1f, 2.2f);
+            });
+            s.Say("KODA", KodaCol, "Looking for the prophecy kid? Here he is!", () =>
+            {
+                snap.Play("Combat_Stance");
+                koda.Play("Show_Both_Arm_Muscles");
+                koda.WalkTo(0.6f, 3f, "Excited_Walk_M");
+            });
 
             // the net
             Transform[] rings = null;
@@ -98,10 +109,12 @@ namespace Cloudborne
                     rings[i] = CbArt.Part(CbMesh.Torus(0.06f), rope, koda.f.root, new Vector3(0, 0.95f, 0), Vector3.zero,
                         CbArt.Rot(i * 1.05f, i * 0.6f, 0.4f + i * 0.5f));
                 koda.struggle = true;
+                koda.Play("Hop_with_Arms_Raised");
                 r1.Once("Right_Hand_Sword_Slash", 0.1f, 0.5f, 0.4f);
             });
-            s.Say("KODA", KodaCol, "...wait, why the net?!");
-            s.Say("SGT. SNAP", SnapCol, "The wolf comes with us. The General knows what to do with prophecy kids.");
+            s.Say("KODA", KodaCol, "...wait, why the net?!", () => koda.Play("Look_Around_Dumbfounded"));
+            s.Say("SGT. SNAP", SnapCol, "The wolf comes with us. The General knows what to do with prophecy kids.",
+                () => { koda.Play("Hop_with_Arms_Raised"); snap.Once("Shouting_Angrily", 0.15f, 0.85f, 1.8f); });
 
             // they carry him off between two raiders; Raja runs after them
             s.Wait(0.4f, null, () =>
