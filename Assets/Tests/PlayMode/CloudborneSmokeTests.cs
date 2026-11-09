@@ -624,6 +624,48 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator StreamsBridgesAndTheRiver()
+        {
+            foreach (var m in new[] { "RopeBridge", "StoneBridge", "Log", "SteppingStone" })
+                Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/{m}/{m}"), $"The {m} model is missing");
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var level = game.level;
+            // over a stream there is nothing to stand on...
+            Assert.Less(level.SupportAt(64.15f, 1f), -1f, "There is ground in the river between the stone and the log");
+            // ...but the rope bridge's planks hold him, walked onto from the bank and sagging in the middle
+            float mid = level.SupportAt(31f, 0f);
+            Assert.That(mid, Is.InRange(-0.3f, 0f), "The rope bridge does not hold him in the middle");
+            Assert.That(level.SupportAt(28.1f, 0f), Is.InRange(0f, 0.3f), "The rope bridge can't be walked onto from the bank");
+            // stepping stones and the log are landed on from above, not walked onto from the bank
+            Assert.Greater(level.SupportAt(63.3f, 1f), 0.1f, "The stepping stone does not hold him");
+            Assert.Less(level.SupportAt(63.3f, 0f), -1f, "The stepping stone is walked onto without a jump");
+            // the stone arch bridge is jumped onto and stood on
+            Assert.AreEqual(1.64f, level.SupportAt(94.6f, 2f), 0.001f, "The stone bridge does not hold him");
+
+            // falling in: a splash, health lost, and back on the bank he came from
+            float hp0 = game.hero.hp;
+            game.Teleport(64.15f);
+            game.hero.y = 1f;
+            game.hero.vy = 0;
+            yield return new WaitForSeconds(0.6f);
+            Assert.AreEqual(CbLevel.Waters[1].x0 - 0.8f, game.hero.x, 0.3f, "Falling into the river did not put Raja back on its near bank");
+            Assert.AreEqual(0f, game.hero.y, 0.05f);
+            Assert.AreEqual(hp0 - CbHero.WaterDamage, game.hero.hp, 0.01f, "Falling into the river cost no health");
+            // dropped onto the log he rides it, dipping a little
+            game.Teleport(65.4f);
+            game.hero.y = 1.2f;
+            game.hero.vy = 0;
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(game.hero.y, 0.1f, "Raja sank through the log");
+            Assert.AreEqual(65.4f, game.hero.x, 0.2f);
+            Assert.AreEqual(hp0 - CbHero.WaterDamage, game.hero.hp, 0.01f, "Standing on the log cost health");
+        }
+
+        [UnityTest]
         public IEnumerator DoubleJumpIsADoubleSomersault()
         {
             game = CbGame.Boot();

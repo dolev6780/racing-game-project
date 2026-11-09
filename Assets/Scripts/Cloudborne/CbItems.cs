@@ -77,12 +77,14 @@ namespace Cloudborne
             AddCrate(27f, Kind.Mango, Kind.Coin);
             AddCrate(38f, Kind.KiCrystal, Kind.Coin, Kind.Coin);
             AddCrate(57f, Kind.Mango, Kind.Coin);
-            AddCrate(62f, Kind.Coin, Kind.Coin, Kind.Coin);
-            AddCrate(94f, Kind.Mango, Kind.KiCrystal);
+            AddCrate(70.4f, Kind.Coin, Kind.Coin, Kind.Coin);
+            AddCrate(91.4f, Kind.Mango, Kind.KiCrystal);
             // coin trails: an arc to jump through, a row on the path
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(4 + i * 0.9f, 1.2f + Mathf.Sin(i / 4f * Mathf.PI) * 1.6f, 0), resting: true);
             for (int i = 0; i < 6; i++) Spawn(Kind.Coin, new Vector3(30 + i * 0.8f, 0.7f, 0), resting: true);
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(50 + i * 0.9f, 1.4f + Mathf.Sin(i / 4f * Mathf.PI) * 2.2f, 0), resting: true);
+            // over the river: one above each stepping stone and the log, for jumping across
+            foreach (var cx in new[] { 63.3f, 65.4f, 67.5f }) Spawn(Kind.Coin, new Vector3(cx, 1.3f, 0), resting: true);
             // secrets: a golden fruit high above the path at the top of the climb (the last ledges crumble), and the
             // scroll on the highest of the hidden ledges up to the left of the climb (CbLevel)
             Spawn(Kind.GoldenFruit, new Vector3(111.6f, 8.3f, 0), resting: true);

@@ -15,6 +15,7 @@ namespace Cloudborne
         public static readonly Color Purple = new Color(0.75f, 0.42f, 1f) * 3f;
         public static readonly Color Dust = new Color(0.79f, 0.69f, 0.54f) * 0.8f;
         public static readonly Color Grey = new Color(0.84f, 0.87f, 0.91f) * 1.6f;
+        public static readonly Color Water = new Color(0.72f, 0.92f, 1f) * 1.6f;
 
         static ParticleSystem falling, rising, floating;
         static Transform holder;
@@ -127,6 +128,8 @@ namespace Cloudborne
                 case "saw": c = Synth(type, 1.1f, (t, d) => (Saw(t, 95 + 30 * Mathf.Sin(t * 22) + 60 * t) * 0.22f + Noise() * 0.12f) * (0.6f + 0.4f * Mathf.Sin(t * 40)) * Band(t, 1.1f)); break;
                 case "whistle": c = Synth(type, 0.55f, (t, d) => Mathf.Sin(2 * Mathf.PI * (2300 + 120 * Mathf.Sin(t * 60)) * t) * 0.13f * (t < 0.2f || t > 0.28f ? 1 : 0) * Band(t, 0.55f)); break;
                 case "talk": c = Synth(type, 0.035f, (t, d) => Mathf.Sin(2 * Mathf.PI * 820 * t) * 0.08f * Band(t, 0.035f)); break;
+                // falling into the river: a burst of water and a low plunk
+                case "splash": c = Synth(type, 0.5f, (t, d) => (Noise() * 0.32f * Mathf.Exp(-t * 7) + Mathf.Sin(2 * Mathf.PI * (190 - 140 * t) * t) * 0.12f * Mathf.Exp(-t * 9)) * Band(t, 0.5f)); break;
             }
             clips[type] = c;
             return c;

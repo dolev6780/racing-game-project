@@ -29,7 +29,8 @@ namespace Cloudborne
         {
             new Zone { x = 16, label = "Iron Crown raiders!", tip = 1, spawn = new[] { (CbEnemy.Kind.Hyena, 12f), (CbEnemy.Kind.Hyena, -12f), (CbEnemy.Kind.Hyena, 14f) } },
             new Zone { x = 46, label = "Shield bearers", tip = 3, spawn = new[] { (CbEnemy.Kind.Shield, 12f), (CbEnemy.Kind.Hyena, -12f), (CbEnemy.Kind.Hyena, 13.5f) } },
-            new Zone { x = 80, label = "Ambush at the shrine", tip = 4, spawn = new[] { (CbEnemy.Kind.Shield, 12f), (CbEnemy.Kind.Shield, -12f), (CbEnemy.Kind.Hyena, 13.5f), (CbEnemy.Kind.Hyena, -13.5f) } },
+            // those behind him come from the river's far bank, not out of the water
+            new Zone { x = 80, label = "Ambush at the shrine", tip = 4, spawn = new[] { (CbEnemy.Kind.Shield, 12f), (CbEnemy.Kind.Shield, -10.6f), (CbEnemy.Kind.Hyena, 13.5f), (CbEnemy.Kind.Hyena, -10.2f) } },
         };
 
         /// <summary>The fight tips; the ki moves are staff techniques until Raja's fire wakes (the fire crystal).</summary>

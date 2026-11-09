@@ -120,6 +120,7 @@ namespace Cloudborne
             for (int i = 0; i < 1800; i++)
             {
                 var p = new Vector3(Random.Range(-40f, 140f), 0, Random.Range(1.8f, 9.5f));
+                if (Wet(p.x, p.z)) continue;
                 var q = Quaternion.Euler(Random.Range(-17f, 17f), Random.Range(0f, 360f), Random.Range(-17f, 17f));
                 float k = Random.Range(0.6f, 1.6f);
                 Add(blade, grassMats[i % 4], Matrix4x4.TRS(p, q, new Vector3(0.05f * k, 0.42f * k, 0.05f * k)));
@@ -131,6 +132,7 @@ namespace Cloudborne
                 {
                     bool front = Random.value < 0.25f;
                     var at = new Vector3(Random.Range(-40f, 140f), 0, front ? Random.Range(GroundFront + 0.1f, GroundFront + 0.4f) : Random.Range(2.2f, 9.5f));
+                    if (Wet(at.x, at.z)) continue;
                     Place(FernModel, far, at, front ? Random.Range(0.45f, 0.6f) : Random.Range(0.8f, 1.3f));
                 }
             }
@@ -139,6 +141,7 @@ namespace Cloudborne
             {
                 bool front = Random.value < 0.3f;
                 var center = new Vector3(Random.Range(-40f, 140f), 0, front ? Random.Range(GroundFront + 0.1f, GroundFront + 0.4f) : Random.Range(2.2f, 9.5f));
+                if (Wet(center.x, center.z)) continue;
                 float ck = front ? Random.Range(0.4f, 0.55f) : Random.Range(0.8f, 1.4f);
                 for (int f = 0; f < 7; f++)
                 {
@@ -189,6 +192,7 @@ namespace Cloudborne
                 // about half way) and palms (7.5 m) are sized to show whole. Leafy models cast no shadows (far): a
                 // thin leaf shadowing itself breaks up into dark specks.
                 float z = Random.Range(7.5f, 11f);
+                if (Wet(x, z, 1.5f)) continue;
                 if (Random.value < 0.35f)
                 {
                     if (palms) Place(PalmModel, far, new Vector3(x, 0, z + 1f), Random.Range(0.65f, 0.8f));
@@ -215,7 +219,10 @@ namespace Cloudborne
             // clumps of big leaves among the rocks between the path and the trees
             if (Has(LeavesModel))
                 for (float x = -25; x < 145; x += Random.Range(5f, 9f))
-                    Place(LeavesModel, far, new Vector3(x + Random.Range(-1f, 1f), 0, Random.Range(2.8f, 6f)), Random.Range(0.75f, 1.15f));
+                {
+                    float lx = x + Random.Range(-1f, 1f);
+                    if (!Wet(lx, 4f, 1f)) Place(LeavesModel, far, new Vector3(lx, 0, Random.Range(2.8f, 6f)), Random.Range(0.75f, 1.15f));
+                }
         }
 
         // ---------- modelled scenery ----------
@@ -223,6 +230,9 @@ namespace Cloudborne
         static string ModelPath(string name) => $"Cloudborne/Jungle/{name}/{name}";
 
         static bool Has(string name) => Resources.Load<GameObject>(ModelPath(name)) != null;
+
+        /// <summary>Whether a spot near the path is in one of the streams (they run from the front edge back to z 10).</summary>
+        static bool Wet(float x, float z, float margin = 0.5f) => z < 11f && CbLevel.InWater(x, margin);
 
         /// <summary>
         /// Models with thin leaves, seen from both sides (the boulders have sprigs of moss and leaves). They get no
@@ -317,6 +327,7 @@ namespace Cloudborne
             for (float x = -20; x < 140; x += Random.Range(4f, 8f))
             {
                 float s = Random.Range(0.25f, 0.6f), z = Random.Range(2.4f, 4.5f);
+                if (Wet(x, z, 0.8f)) continue;
                 if (boulders)
                 {
                     Place(BoulderModel, near, new Vector3(x, -0.08f * s, z), s * 1.5f, CbArt.PropOutline, turn: 180f);
@@ -330,7 +341,7 @@ namespace Cloudborne
             {
                 // the shrine: its gate, lone pillars of different heights and a few fallen stones
                 Place(GateModel, near, new Vector3(74, 0, 4.2f), 1f, CbArt.PropOutline, turn: 8f);
-                Place(PillarModel, near, new Vector3(66, 0, 5f), 0.5f, CbArt.PropOutline, turn: 20f);
+                Place(PillarModel, near, new Vector3(70.5f, 0, 5f), 0.5f, CbArt.PropOutline, turn: 20f);
                 Place(PillarModel, near, new Vector3(86, 0, 4.8f), 0.65f, CbArt.PropOutline, turn: 20f);
                 Place(PillarModel, near, new Vector3(91, 0, 4f), 0.85f, CbArt.PropOutline, turn: 20f);
                 foreach (var p in new[] { new Vector2(80, 3.2f), new Vector2(83, 3.6f), new Vector2(88, 3.1f) })
