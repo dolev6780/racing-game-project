@@ -403,8 +403,10 @@ namespace Cloudborne
         void BuildPlants(Transform near, Transform far)
         {
             bool trees = Has(TreeModel), palms = Has(PalmModel);
-            var kinds = new List<string> { TreeModel };
-            foreach (var k in MoreTrees) if (Has(k)) kinds.Add(k);
+            // the jungle tree and the banyan and kapok about as often as each other, the bamboo now and then
+            var kinds = new List<string> { TreeModel, TreeModel };
+            foreach (var k in MoreTrees)
+                if (Has(k)) { kinds.Add(k); if (k != "Bamboo") kinds.Add(k); }
             for (float x = -30; x < End; x += Random.Range(6f, 10f))
             {
                 // The level camera sees about 7 to 8 m up at the tree line: the modelled trees (9.5 m, crown from
@@ -459,7 +461,8 @@ namespace Cloudborne
         /// Models with thin leaves, seen from both sides (the boulders have sprigs of moss and leaves). They get no
         /// outline: the outline is drawn from the back faces, so a leaf showing its back would turn black.
         /// </summary>
-        static bool Leafy(string name) => name == LeavesModel || name == FernModel || name == PalmModel || name == BoulderModel || name == TreeModel;
+        static bool Leafy(string name) => name == LeavesModel || name == FernModel || name == PalmModel || name == BoulderModel || name == TreeModel
+            || System.Array.IndexOf(MoreTrees, name) >= 0;
 
         /// <summary>
         /// Places a copy of a scenery model standing at pos, its drawn front turned towards the camera give or take a
@@ -598,7 +601,8 @@ namespace Cloudborne
         void BuildBackground(Transform far)
         {
             // the painted jungle in layers: a near one of trunks and big leaves, a far one of hazy treetops
-            bool near = BuildLayer("JungleNear", 17f, -0.6f, 11f, 0.08f);
+            // (the near one low enough that the far one and the sky still show over it)
+            bool near = BuildLayer("JungleNear", 17f, -0.6f, 8.5f, 0.08f);
             bool mid = BuildLayer("JungleMid", 34f, -1f, 16f, 0.32f);
             layers = near || mid;
             var fall = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.55f), CbArt.Shaft);
