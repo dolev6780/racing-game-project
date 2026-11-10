@@ -184,7 +184,7 @@ namespace Cloudborne
 
         public void Reset()
         {
-            x = y = vx = vy = 0; safeX = safeY = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
+            x = y = vx = vy = 0; safeX = safeY = 0; squash = squashV = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
             flipT = 0; inv = 0; move = Move.None; staffHold = 0; sinceDash = 9; airDashed = false; dashCd = 0; empower = false; holdUsed = false;
             glow = 0; airHits = 0; grabCd = 0; downT = 0; downLanded = false; wallT = wallLockT = 0; sliding = false;
             f.flip.localRotation = Quaternion.identity;
@@ -561,7 +561,8 @@ namespace Cloudborne
                     if (jumps == 1) flipT = FlipTime;
                     jumps++; air = true; state = State.Air;
                     CbFx.Sfx("jump", 0.6f);
-                    if (jumps == 1) CbFx.Spark(new Vector3(x, 0.1f, -0.3f), CbFx.Dust, 8, 3, 0.5f, 0.4f, 2);
+                    Squash(jumps == 1 ? -0.17f : -0.1f);
+                    if (jumps == 1) CbFx.Spark(new Vector3(x, y + 0.1f, -0.3f), CbFx.Dust, 8, 3, 0.5f, 0.4f, 2);
                 }
                 if (input.dash && dashCd <= 0 && !(air && airDashed))
                 {
@@ -684,6 +685,7 @@ namespace Cloudborne
                 }
                 if (air)
                 {
+                    if (fall < -4f) Squash(Mathf.Clamp(-fall * 0.016f, 0.08f, 0.24f));
                     air = false; jumps = 0; airDashed = false; airHits = 0;
                     if (state == State.Air) state = State.Idle;
                     if (state == State.Atk) { state = State.Idle; combo = 0; }
@@ -1119,9 +1121,20 @@ namespace Cloudborne
             if (t > StormTime) { state = State.Idle; staffHold = 0.5f; }
         }
 
+        // squash and stretch: stretched tall as he springs up, squashed wide as he lands, springing back (>0 squashed)
+        float squash, squashV;
+
+        /// <summary>A jolt to his shape: negative stretches him, positive squashes him.</summary>
+        void Squash(float amount) { squash = amount; squashV = 0; }
+
         void Place()
         {
             f.root.localPosition = new Vector3(x, y, 0);
+            float dt = Time.deltaTime;
+            squashV += (-squash * 320f - squashV * 17f) * dt;
+            squash = Mathf.Clamp(squash + squashV * dt, -0.3f, 0.3f);
+            // about his feet, keeping his volume
+            f.body.localScale = new Vector3(1 + squash * 0.55f, 1 - squash, 1 + squash * 0.55f);
             // turned from side-on towards the camera (which looks along +Z): the modelled Raja shows his profile
             float target = facing * (90f + (model != null ? 8f : 25f));
             float cur = f.body.localEulerAngles.y;
