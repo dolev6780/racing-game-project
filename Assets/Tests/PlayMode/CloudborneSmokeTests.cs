@@ -1036,7 +1036,8 @@ namespace RacingGame.Tests
             game.StartGame();
             game.SkipFights();
             yield return Frames(2);
-            var cam = Camera.main;
+            // the game's own camera (Camera.main can be another scene's: the first pictures were of the kart race)
+            var cam = game.GetComponentInChildren<Camera>();
             Assert.IsNotNull(cam, "No game camera");
             // Only here is the game drawn in CI (into a picture): the shaders compile for the first time and any
             // error of theirs is told in the log ("SHOT ERROR"), not failing the run before the pictures are taken
@@ -1081,9 +1082,13 @@ namespace RacingGame.Tests
                 System.IO.File.WriteAllBytes($"artifacts/shots/{name}.jpg", jpg);
                 var b64 = System.Convert.ToBase64String(jpg);
                 Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
+                // a few lines a frame: logged all at once, some of them never reached the log
                 int n = 0;
                 for (int i = 0; i < b64.Length; i += 4000, n++)
+                {
                     Debug.Log($"SHOT {name} {n} {b64.Substring(i, Mathf.Min(4000, b64.Length - i))}");
+                    if (n % 3 == 2) yield return null;
+                }
                 Debug.Log($"SHOT {name} END {n}");
                 Application.SetStackTraceLogType(LogType.Log, oldTrace);
             }
