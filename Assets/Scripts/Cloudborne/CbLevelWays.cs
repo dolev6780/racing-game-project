@@ -49,16 +49,16 @@ namespace Cloudborne
         public class Zip { public float x0, y0, x1, y1; public float At(float x) => Mathf.Lerp(y0, y1, Mathf.InverseLerp(x0, x1, x)); }
         class Leaf { public float x, half, top, squash; public Transform t; }
         class Draft { public float x0, x1, y0, y1; }
-        class Raft { public float x, from, to, speed, sink; public Transform t; }
+        class Raft { public float x, from, to, speed, sink, baseY; public Transform t; }
         class Lift { public float x, half, top, lo, hi; public Transform deck, weight; }
         class Lantern { public float x; public bool lit; public Material light; }
         class Gate { public Block b; public float open; public bool wantOpen; public Vector3 home; }
         class Thorns { public Block b; public int hp = 2; public float cool; }
         class Pendulum { public float x, y, len, period, phase; public Transform t; }
-        class Snapper { public float x, y, timer, period = 2.2f, cool; public int hp = 3; public bool dead; public Transform t, jaw; }
+        class Snapper { public float x, y, timer, period = 2.2f, cool; public int hp = 3; public bool dead; public Transform t, jaw, model; }
         class Pit { public float x0, x1, stood; public bool open; public Transform cover; }
         class Dart { public float x, y, vx, gone; public Transform t; }
-        class Cage { public float x; public int hp = 3; public bool freed; public Transform t, animal; public float hop, cool; }
+        class Cage { public float x; public int hp = 3; public bool freed; public Transform t, animal, model; public float hop, cool; }
         class Boulder { public float x, vx, cool; public bool rolling; public Transform t; }
 
         const float LeafBounce = 19.5f, RaftTop = 0.1f, LogTop = 0.15f, LogRollBack = 1.4f, SeesawTop = 0.35f;
@@ -100,6 +100,22 @@ namespace Cloudborne
         public bool ThornsCut(int i) => thorns[i].b.broken;
 
         static Material M(string hex) => CbArt.Toon(hex, CbArt.PropOutline);
+
+        const string WaysDir = "Cloudborne/Jungle/Ways/";
+
+        /// <summary>
+        /// One of the long stage's modelled things (drawn in Canva, approved, built by Meshy), its foot at parent's
+        /// origin, turned yaw (Meshy's front is +Z, away from the camera: 180 faces it), sized to its own proportions;
+        /// null if it is not in the project (then the stand-in built in code shows).
+        /// </summary>
+        static Transform Model(string name, Transform parent, Vector3 size, float yaw)
+        {
+            var turn = CbArt.Joint(parent, 0, 0, 0, "model");
+            turn.localRotation = Quaternion.Euler(0, yaw, 0);
+            var fit = Fit(WaysDir + name + "/" + name, turn, new Vector3(-size.x / 2, 0, -size.z / 2), new Vector3(size.x / 2, size.y, size.z / 2));
+            if (fit == null) { Object.Destroy(turn.gameObject); return null; }
+            return turn;
+        }
         static Material Wood => M("#8a5a32");
         static Material Bamboo => M("#c9a45a");
         static Material VineGreen => M("#3f7a3a");
@@ -179,11 +195,17 @@ namespace Cloudborne
         void AddLantern(float x)
         {
             var t = CbArt.Joint(root, x, 0, 1.2f, "lantern");
-            CbArt.Box(StoneGrey, t, new Vector3(0, 0.15f, 0), new Vector3(0.7f, 0.3f, 0.7f));
-            CbArt.Box(StoneGrey, t, new Vector3(0, 0.75f, 0), new Vector3(0.3f, 0.9f, 0.3f));
             var light = new Material(CbArt.Emissive(new Color(0.15f, 0.12f, 0.1f)));
-            CbArt.Box(light, t, new Vector3(0, 1.4f, 0), new Vector3(0.5f, 0.4f, 0.5f));
-            CbArt.Cone(StoneGrey, t, new Vector3(0, 1.85f, 0), 0.5f, 0.5f, null, 4);
+            if (Model("Lantern", t, new Vector3(0.86f, 2.1f, 0.88f), 180f) != null)
+                // its windows: dark until he passes, then glowing
+                CbArt.Box(light, t, new Vector3(0, 1.42f, -0.45f), new Vector3(0.36f, 0.26f, 0.02f));
+            else
+            {
+                CbArt.Box(StoneGrey, t, new Vector3(0, 0.15f, 0), new Vector3(0.7f, 0.3f, 0.7f));
+                CbArt.Box(StoneGrey, t, new Vector3(0, 0.75f, 0), new Vector3(0.3f, 0.9f, 0.3f));
+                CbArt.Box(light, t, new Vector3(0, 1.4f, 0), new Vector3(0.5f, 0.4f, 0.5f));
+                CbArt.Cone(StoneGrey, t, new Vector3(0, 1.85f, 0), 0.5f, 0.5f, null, 4);
+            }
             lanterns.Add(new Lantern { x = x, light = light });
         }
 
@@ -326,6 +348,10 @@ namespace Cloudborne
         void AddSnapper(float x, float y)
         {
             var t = CbArt.Joint(root, x, y, 0.1f, "snapper");
+            // the model, its open mouth turned towards the way Raja comes (and a little to the camera); it snaps by
+            // squashing its head down
+            var model = Model("Snapper", t, new Vector3(1.19f, 1.7f, 1.19f), -120f);
+            if (model != null) { snappers.Add(new Snapper { x = x, y = y, t = t, jaw = model, model = model, timer = Random.Range(0f, 1.5f) }); return; }
             CbArt.Cylinder(VineGreen, t, new Vector3(0, 0.45f, 0), 0.08f, 0.9f);
             var head = CbArt.Joint(t, 0, 0.95f, 0, "head");
             CbArt.Part(CbMesh.Dome(0.5f, 10), M("#b8323a"), head, Vector3.zero, new Vector3(0.7f, 0.35f, 0.6f), Quaternion.Euler(180, 0, 0));
@@ -363,13 +389,17 @@ namespace Cloudborne
         void AddCage(float x)
         {
             var t = CbArt.Joint(root, x, 0, 0.3f, "cage");
-            for (int i = 0; i < 6; i++)
+            var model = Model("Cage", t, new Vector3(1.5f, 1.39f, 1.49f), 180f);
+            for (int i = 0; i < (model != null ? 0 : 6); i++)
             {
                 float a = i / 6f * Mathf.PI * 2;
                 CbArt.Cylinder(Bamboo, t, new Vector3(Mathf.Cos(a) * 0.55f, 0.7f, Mathf.Sin(a) * 0.55f), 0.05f, 1.4f);
             }
-            CbArt.Cylinder(Wood, t, new Vector3(0, 1.45f, 0), 0.65f, 0.12f);
-            CbArt.Cylinder(Wood, t, new Vector3(0, 0.05f, 0), 0.65f, 0.1f);
+            if (model == null)
+            {
+                CbArt.Cylinder(Wood, t, new Vector3(0, 1.45f, 0), 0.65f, 0.12f);
+                CbArt.Cylinder(Wood, t, new Vector3(0, 0.05f, 0), 0.65f, 0.1f);
+            }
             // a little monkey, a friend of Raja's, locked in by the raiders
             var animal = CbArt.Joint(t, 0, 0.1f, 0, "monkey");
             var fur = M("#7a5232"); var face = M("#e9c9a0");
@@ -378,7 +408,9 @@ namespace Cloudborne
             CbArt.Part(CbMesh.Sphere, face, animal, new Vector3(0, 0.73f, -0.13f), new Vector3(0.24f, 0.2f, 0.12f));
             foreach (float s in new[] { -1f, 1f })
                 CbArt.Part(CbMesh.Sphere, face, animal, new Vector3(s * 0.19f, 0.8f, 0), Vector3.one * 0.12f);
-            cages.Add(new Cage { x = x, t = t, animal = animal });
+            // with the model, its own monkey sits inside; this one hops out when the cage breaks
+            if (model != null) animal.gameObject.SetActive(false);
+            cages.Add(new Cage { x = x, t = t, animal = animal, model = model });
         }
 
         void BuildMud()
@@ -393,11 +425,17 @@ namespace Cloudborne
         void AddRaft(float from, float to, float offset)
         {
             var t = CbArt.Joint(root, from, RaftTop - 0.2f, 0.05f, "raft");
-            for (int k = 0; k < 4; k++)
-                CbArt.Cylinder(Wood, t, new Vector3(0, 0, -0.6f + k * 0.4f), 0.19f, 2.2f, Quaternion.Euler(0, 0, 90));
-            CbArt.Box(VineGreen, t, new Vector3(0.7f, 0.12f, 0), new Vector3(0.08f, 0.06f, 1.5f));
-            CbArt.Box(VineGreen, t, new Vector3(-0.7f, 0.12f, 0), new Vector3(0.08f, 0.06f, 1.5f));
-            var r = new Raft { from = from, to = to, speed = 1.5f, t = t };
+            // the model's top is its deck; the stand-in's logs are centred on the joint
+            float baseY = RaftTop - 0.45f;
+            if (Model("Raft", t, new Vector3(2.2f, 0.45f, 1.79f), 180f) == null)
+            {
+                baseY = RaftTop - 0.2f;
+                for (int k = 0; k < 4; k++)
+                    CbArt.Cylinder(Wood, t, new Vector3(0, 0, -0.6f + k * 0.4f), 0.19f, 2.2f, Quaternion.Euler(0, 0, 90));
+                CbArt.Box(VineGreen, t, new Vector3(0.7f, 0.12f, 0), new Vector3(0.08f, 0.06f, 1.5f));
+                CbArt.Box(VineGreen, t, new Vector3(-0.7f, 0.12f, 0), new Vector3(0.08f, 0.06f, 1.5f));
+            }
+            var r = new Raft { from = from, to = to, speed = 1.5f, t = t, baseY = baseY };
             r.x = Mathf.Repeat(offset, to - from) + from;
             rafts.Add(r);
         }
@@ -664,8 +702,7 @@ namespace Cloudborne
         void FreeCage(Cage c)
         {
             c.freed = true;
-            c.t.GetChild(0).gameObject.SetActive(false);
-            for (int i = 0; i < c.t.childCount; i++) if (c.t.GetChild(i) != c.animal) c.t.GetChild(i).gameObject.SetActive(false);
+            for (int i = 0; i < c.t.childCount; i++) c.t.GetChild(i).gameObject.SetActive(c.t.GetChild(i) == c.animal);
             CbFx.Puff(new Vector3(c.x, 0.8f, -0.3f), new Color(0.85f, 0.76f, 0.6f), 7, 1.6f, 0.7f, 0.45f);
             CbFx.Sfx("pickup");
             g.score += 300;
@@ -840,7 +877,8 @@ namespace Cloudborne
                 float before = s.timer;
                 s.timer = Mathf.Repeat(s.timer + dt, s.period);
                 bool snapping = s.timer > s.period - 0.35f;
-                s.jaw.localRotation = Quaternion.Euler(0, 0, snapping ? 0 : -50f * Mathf.Clamp01(s.timer * 3));
+                if (s.model != null) s.model.localScale = snapping ? new Vector3(1.15f, 0.82f, 1.15f) : Vector3.one * (1 + Mathf.Sin(Time.time * 4 + s.x) * 0.02f);
+                else s.jaw.localRotation = Quaternion.Euler(0, 0, snapping ? 0 : -50f * Mathf.Clamp01(s.timer * 3));
                 if (before < s.period - 0.35f && snapping && Mathf.Abs(hero.x - s.x) < 1.05f && hero.y < s.y + 1.3f && hero.y > s.y - 0.5f)
                     hero.TakeHit(10, hero.x >= s.x ? 1 : -1);
             }
@@ -888,7 +926,7 @@ namespace Cloudborne
                     if (on) hero.x += r.speed * dt;
                     if (r.x > r.to) r.sink = 0.01f;
                 }
-                r.t.localPosition = new Vector3(r.x, RaftTop - 0.2f - r.sink * 1.2f + Mathf.Sin(Time.time * 2 + r.from) * 0.03f, 0.05f);
+                r.t.localPosition = new Vector3(r.x, r.baseY - r.sink * 1.2f + Mathf.Sin(Time.time * 2 + r.from) * 0.03f, 0.05f);
             }
             // the spinning log rolls him back
             logSpin += dt * 160f;
@@ -937,7 +975,7 @@ namespace Cloudborne
             foreach (var c in cages)
             {
                 c.freed = false; c.hp = 3; c.hop = 0;
-                for (int i = 0; i < c.t.childCount; i++) c.t.GetChild(i).gameObject.SetActive(true);
+                for (int i = 0; i < c.t.childCount; i++) c.t.GetChild(i).gameObject.SetActive(c.model == null || c.t.GetChild(i) != c.animal);
                 c.animal.localPosition = new Vector3(0, 0.1f, 0);
                 c.t.localRotation = Quaternion.identity;
             }
