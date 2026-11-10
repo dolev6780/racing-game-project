@@ -134,7 +134,8 @@ namespace Cloudborne
         // A side-on view like 2.5D platformers: a narrow field of view from further back flattens the perspective,
         // and the camera looks almost level, so the path reads as the top of a platform with its front face below
         // and the scenery stands up behind it, instead of a green floor tilting away.
-        const float BaseFov = 26f, CamBase = 1.5f, CamRise = 0.6f;
+        // the camera looks a little above his head: the ground sits low in the view, the painted jungle fills it
+        const float BaseFov = 26f, CamBase = 2.1f, CamRise = 0.6f;
 
         class Shot { public Transform t, glow; public float x, y, vx, life, crackle; }
         /// <summary>The special shot's beam: its layers, how long it has run, where it starts and which way it points.</summary>

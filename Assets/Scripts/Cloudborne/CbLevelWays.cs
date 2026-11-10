@@ -26,6 +26,8 @@ namespace Cloudborne
     {
         /// <summary>The temple's hidden pits (x from, to): leaves over a pit of spikes.</summary>
         public static readonly (float x0, float x1)[] Pits = { (254f, 256.5f) };
+        // a pit's hole: from just behind the ground's front face back to PitBack, PitDepth deep
+        public const float PitDepth = 2.8f, PitFront = -1.68f, PitBack = 1.2f;
 
         /// <summary>Where the ground is cut, in order: the streams and the pits.</summary>
         public static IEnumerable<(float x0, float x1)> Gaps
@@ -310,13 +312,14 @@ namespace Cloudborne
         void AddPit(float x0, float x1)
         {
             var t = CbArt.Joint(root, (x0 + x1) / 2, 0, 0, "pit");
-            earth ??= EarthMat();
             float w = x1 - x0, cx = (x0 + x1) / 2;
-            const float Depth = 2.8f, Front = -1f, Back = 1.2f;
-            CbArt.Part(CbMesh.Quad, FaceMat(earth, w, Depth, x0), t, new Vector3(0, -Depth / 2, Back), new Vector3(w, Depth, 1), shadows: false).name = "pitBack";
-            var side = FaceMat(earth, Back - Front, Depth, 0);
-            CbArt.Part(CbMesh.Quad, side, t, new Vector3(-w / 2, -Depth / 2, (Front + Back) / 2), new Vector3(Back - Front, Depth, 1), Quaternion.Euler(0, -90, 0), shadows: false);
-            CbArt.Part(CbMesh.Quad, side, t, new Vector3(w / 2, -Depth / 2, (Front + Back) / 2), new Vector3(Back - Front, Depth, 1), Quaternion.Euler(0, 90, 0), shadows: false);
+            const float Depth = PitDepth, Front = PitFront, Back = PitBack;
+            // dark soil walls: the ground's front face runs on across the pit (CbWorld), so the trap can't be seen
+            // from the side; opened, it shows from above
+            var soil = M("#4a3326");
+            CbArt.Part(CbMesh.Quad, soil, t, new Vector3(0, -Depth / 2, Back), new Vector3(w, Depth, 1), shadows: false).name = "pitBack";
+            CbArt.Part(CbMesh.Quad, soil, t, new Vector3(-w / 2, -Depth / 2, (Front + Back) / 2), new Vector3(Back - Front, Depth, 1), Quaternion.Euler(0, -90, 0), shadows: false);
+            CbArt.Part(CbMesh.Quad, soil, t, new Vector3(w / 2, -Depth / 2, (Front + Back) / 2), new Vector3(Back - Front, Depth, 1), Quaternion.Euler(0, 90, 0), shadows: false);
             CbArt.Box(M("#3a2c22"), t, new Vector3(0, -Depth - 0.1f, (Front + Back) / 2), new Vector3(w, 0.2f, Back - Front));
             for (float x = x0 + 0.25f; x < x1; x += 0.42f)
                 for (float z = Front + 0.3f; z < Back; z += 0.55f)

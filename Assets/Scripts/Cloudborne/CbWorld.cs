@@ -201,15 +201,19 @@ namespace Cloudborne
             return true;
         }
 
-        /// <summary>The ground behind the path where the bushes stand: all of it but the streams and rivers.</summary>
-        static List<(float a, float b)> BushGround()
+        /// <summary>The ground from <paramref name="from"/> to <paramref name="to"/> cut only by the streams and rivers
+        /// (not the pits), each stretch pulled back from the banks by <paramref name="margin"/>.</summary>
+        static List<(float a, float b)> BankToBank(float from, float to, float margin)
         {
             var list = new List<(float, float)>();
-            float a = -120f;
-            foreach (var (x0, x1) in CbLevel.Waters) { list.Add((a, x0 - 0.3f)); a = x1 + 0.3f; }
-            list.Add((a, End + 120f));
+            float a = from;
+            foreach (var (x0, x1) in CbLevel.Waters) { list.Add((a, x0 - margin)); a = x1 + margin; }
+            list.Add((a, to));
             return list;
         }
+
+        /// <summary>The ground behind the path where the bushes stand: all of it but the streams and rivers.</summary>
+        static List<(float a, float b)> BushGround() => BankToBank(-120f, End + 120f, 0.3f);
 
         /// <summary>
         /// The hanging leaves along the top of the view (the new look), held in front of the camera; Update keeps them
@@ -283,8 +287,18 @@ namespace Cloudborne
                 CbArt.Box(top, root, new Vector3(c, -GroundDepth / 2, (GroundFront + GroundBack) / 2), new Vector3(w, GroundDepth, GroundBack - GroundFront));
                 var strip = new Material(path) { mainTextureScale = new Vector2(paintedPath != null ? w / PathWidth : w / 4.3f, 1), mainTextureOffset = new Vector2(a / PathWidth, 0) };
                 CbArt.Part(CbMesh.Quad, strip, root, new Vector3(c, 0.01f, 0), new Vector3(w, 3.2f, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
+            }
+            // the front face and its lip run on across the hidden pits (the trap showed from the side, the user saw
+            // a box in the ground); behind each pit's hole the grass goes on
+            foreach (var (a, b) in BankToBank(GroundFrom, GroundTo, 0f))
+            {
                 FaceQuad(face, a, b, 0f, -GroundDepth);
                 if (lip != null) LipQuad(lip, a, b);
+            }
+            foreach (var (x0, x1) in CbLevel.Pits)
+            {
+                var behind = new Material(grass) { mainTextureScale = new Vector2((x1 - x0) / GrassTile, (GroundBack - CbLevel.PitBack) / GrassTile), mainTextureOffset = new Vector2(x0 / GrassTile, 0) };
+                CbArt.Box(behind, root, new Vector3((x0 + x1) / 2, -GroundDepth / 2, (CbLevel.PitBack + GroundBack) / 2), new Vector3(x1 - x0, GroundDepth, GroundBack - CbLevel.PitBack));
             }
             BuildStreams(grass, face, far);
             CbArt.Part(CbMesh.Quad, CbArt.Toon("#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
