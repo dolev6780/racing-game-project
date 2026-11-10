@@ -24,7 +24,7 @@ namespace RacingGame.EditorTools
             EditorApplication.delayCall += () => Ensure(false);
         }
 
-        [MenuItem("Racing Game/Set Up URP (Universal Render Pipeline)")]
+        [MenuItem("Cloudborne/Set Up URP (Universal Render Pipeline)")]
         static void Menu() => Ensure(true, reapplySettings: true);
 
         public static UniversalRenderPipelineAsset Ensure(bool log, bool reapplySettings = false)
@@ -65,7 +65,7 @@ namespace RacingGame.EditorTools
             if (created || reapplySettings)
             {
                 AssetDatabase.SaveAssets();
-                if (log || created) Debug.Log("Racing Game: Universal Render Pipeline active (" + AssetPath + ").");
+                if (log || created) Debug.Log("Cloudborne: Universal Render Pipeline active (" + AssetPath + ").");
             }
             return asset;
         }
@@ -82,7 +82,7 @@ namespace RacingGame.EditorTools
             asset.supportsDynamicBatching = false;
             asset.maxAdditionalLightsCount = 2;
             asset.mainLightShadowmapResolution = 2048;
-            asset.shadowDistance = 170f;      // the isometric camera sits ~80-130 m from the kart
+            asset.shadowDistance = 170f;      // the game sets its own (CbGame: 45 m) when it starts
             asset.shadowCascadeCount = 2;
             asset.cascade2Split = 0.45f;
             asset.shadowDepthBias = 1.5f;

@@ -13,7 +13,7 @@ namespace RacingGame.EditorTools
     /// </summary>
     public static class BuildScript
     {
-        [MenuItem("Racing Game/Build Android APK")]
+        [MenuItem("Cloudborne/Build Android APK")]
         public static void BuildAndroid()
         {
             UrpSetup.Ensure(true);

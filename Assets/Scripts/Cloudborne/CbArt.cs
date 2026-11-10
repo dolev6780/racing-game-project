@@ -355,5 +355,22 @@ namespace Cloudborne
 
         /// <summary>Ellipsoid offset helper: a sphere stretched by a scale vector.</summary>
         public static Vector3 V(float x, float y, float z) => new Vector3(x, y, z);
+
+        static Material skyMat;
+
+        /// <summary>The sky: a gradient from the top down to the horizon (Shaders/SkyGradient); null if it can't be drawn.</summary>
+        public static Material Sky(Color top, Color horizon, Color bottom)
+        {
+            if (skyMat == null)
+            {
+                var shader = Resources.Load<Shader>("Shaders/SkyGradient");
+                if (shader == null || !shader.isSupported) return null;
+                skyMat = new Material(shader) { name = "Sky" };
+            }
+            skyMat.SetColor("_TopColor", top);
+            skyMat.SetColor("_HorizonColor", horizon);
+            skyMat.SetColor("_BottomColor", bottom);
+            return skyMat;
+        }
     }
 }

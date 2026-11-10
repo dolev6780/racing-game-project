@@ -274,7 +274,7 @@ namespace Cloudborne
             RenderSettings.fogColor = CbWorld.Horizon;
             RenderSettings.fogStartDistance = 24f;
             RenderSettings.fogEndDistance = 175f;
-            var sky = RacingGame.Core.ToonStyle.Sky(CbArt.Hex("#2a78a8"), CbWorld.Horizon, CbWorld.Horizon);
+            var sky = CbArt.Sky(CbArt.Hex("#2a78a8"), CbWorld.Horizon, CbWorld.Horizon);
             if (sky != null) RenderSettings.skybox = sky;
             else { cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = CbWorld.Horizon; }
         }

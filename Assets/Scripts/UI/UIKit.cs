@@ -16,7 +16,7 @@ namespace RacingGame.UI
     public static class UIKit
     {
         // ---------- Palette ----------
-        public static readonly Color Accent = new Color(1f, 0.78f, 0.1f);          // racing yellow
+        public static readonly Color Accent = new Color(1f, 0.78f, 0.1f);          // warm yellow
         public static readonly Color AccentHot = new Color(1f, 0.36f, 0.2f);       // orange-red
         public static readonly Color Nitro = new Color(0.3f, 0.75f, 1f);
         public static readonly Color Good = new Color(0.35f, 0.95f, 0.45f);
@@ -352,7 +352,8 @@ namespace RacingGame.UI
 
         public static string Time(float t) => $"{(int)(t / 60f)}:{t % 60f:00.00}";
 
-        public static void PlayClick() => ModelLibrary.PlayAt("impact", Vector3.zero, 0.25f, 2.2f, 0f);
+        /// <summary>A soft blip as a button is pressed.</summary>
+        public static void PlayClick() => Cloudborne.CbFx.Sfx("talk", 0.8f);
     }
 
     /// <summary>Press-scale animation and click sound for buttons (works while the game is paused).</summary>

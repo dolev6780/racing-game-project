@@ -17,14 +17,16 @@ namespace RacingGame.EditorTools
         const string Story = Folder + "Story/";
 
         const string Cards = Folder + "Jungle/Cards/", Layers = Folder + "Jungle/Backdrop/Jungle";
+        // the new look's cut-outs: the hanging leaves and the grass lip along the ground's edge
+        const string Canopy = Folder + "Jungle/Backdrop/Canopy", Lip = Folder + "Jungle/Ground/GroundLip";
 
-        public override uint GetVersion() => 3;
+        public override uint GetVersion() => 4;
 
         void OnPreprocessTexture()
         {
             // the cut-out grass cards and painted jungle layers: their mipmaps keep the painted shape's coverage, so they
             // don't thin out and vanish in the distance; a card doesn't repeat (its base would show at its top)
-            if (assetPath.StartsWith(Cards) || assetPath.StartsWith(Layers))
+            if (assetPath.StartsWith(Cards) || assetPath.StartsWith(Layers) || assetPath.StartsWith(Canopy) || assetPath.StartsWith(Lip))
             {
                 var cut = (TextureImporter)assetImporter;
                 cut.mipMapsPreserveCoverage = true;
