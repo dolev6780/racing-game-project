@@ -65,7 +65,8 @@ jobs:
   android-build:
     name: Android build
     needs: [compile-check, unity-tests]
-    if: always() && needs.compile-check.result == 'success'
+    # not when the run was cancelled (a newer push): then it only held up the newer run
+    if: ${{ !cancelled() && needs.compile-check.result == 'success' }}
     runs-on: ubuntu-latest
     env:
       UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
