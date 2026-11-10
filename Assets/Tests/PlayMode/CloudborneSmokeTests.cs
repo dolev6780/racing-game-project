@@ -377,6 +377,12 @@ namespace RacingGame.Tests
             }
             Assert.AreEqual(5, rock, "The mountain's terraces are not bare rock");
             Assert.Greater(kitLedges, 5, "The mountain's ledges are not the cliff kit's slabs");
+            // with the painted jungle behind the path, no modelled trees stand in front of it (faceted crowns)
+            var treeSkins = new[] { "Tree_Albedo", "Banyan_Albedo", "Kapok_Albedo", "Bamboo_Albedo" };
+            foreach (var r in game.world.root.GetComponentsInChildren<MeshRenderer>(true))
+                foreach (var m in r.sharedMaterials)
+                    if (m != null && m.mainTexture != null)
+                        Assert.IsFalse(treeSkins.Contains(m.mainTexture.name), $"A modelled tree ({m.mainTexture.name}) still stands in the jungle");
             // the painted layer stands behind the path wherever the shader can draw
             if (shader.isSupported) Assert.IsNotNull(GameObject.Find("JungleMid"), "The far jungle layer was not put up");
         }

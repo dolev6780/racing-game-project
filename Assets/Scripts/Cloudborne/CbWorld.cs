@@ -403,6 +403,10 @@ namespace Cloudborne
         void BuildPlants(Transform near, Transform far)
         {
             bool trees = Has(TreeModel), palms = Has(PalmModel);
+            // With the painted jungle layers behind the path no modelled trees stand in front of them: their faceted
+            // crowns and tall pale trunks looked out of place against the painting, worst up the mountain where the
+            // camera climbs among them (the user). Only palms, a little more often.
+            bool painted = PaintedLayers;
             // the jungle tree and the banyan and kapok about as often as each other, the bamboo now and then
             var kinds = new List<string> { TreeModel, TreeModel };
             foreach (var k in MoreTrees)
@@ -414,16 +418,17 @@ namespace Cloudborne
                 // thin leaf shadowing itself breaks up into dark specks.
                 float z = Random.Range(7.5f, 11f);
                 if (Wet(x, z, 1.5f)) continue;
-                if (Random.value < 0.35f)
+                if (Random.value < (painted ? 0.5f : 0.35f))
                 {
                     if (palms) Place(PalmModel, far, new Vector3(x, 0, z + 1f), Random.Range(0.65f, 0.8f));
                     else Palm(near, x, z, Random.Range(1f, 1.3f));
                 }
+                else if (painted) continue;
                 else if (trees) Place(kinds[Random.Range(0, kinds.Count)], near, new Vector3(x, 0, z + 1f), Random.Range(0.62f, 0.78f), CbArt.PropOutline,
                     TreeTints[Random.Range(0, TreeTints.Length)]);
                 else JungleTree(near, x, z, Random.Range(0.85f, 1.1f), CbArt.PropOutline);
             }
-            if (trees && !PaintedLayers)
+            if (trees && !painted)
             {
                 // two rows of forest behind the first, so the ground between the trees and the horizon is not an
                 // empty lawn; they fade into the haze with distance
@@ -435,7 +440,7 @@ namespace Cloudborne
                         else Place(TreeModel, far, at, Random.Range(s0, s1));
                     }
             }
-            else
+            else if (!painted)
                 for (float x = -30; x < End; x += Random.Range(7f, 11f))
                     JungleTree(far, x, Random.Range(17f, 28f), Random.Range(1.3f, 1.9f), 0f);
             // clumps of big leaves among the rocks between the path and the trees

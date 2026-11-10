@@ -252,20 +252,102 @@ namespace Cloudborne
         }
 
         /// <summary>
-        /// A block of the mountain filling x0..x1, y0..y1, zFront..zBack (relative to parent): bare rock all over, no
-        /// grass (the user: the rocks he climbs need no grass), its top a little lighter, catching the light.
+        /// A terrace's rock filling x0..x1, y0..y1 (relative to parent) from zFront back to zBack: not a box but a
+        /// block of natural rock (the user asked for the rocks and walls to look better). Its outline as the camera
+        /// sees it has rounded top corners and sides that bulge and dip a little, its top kept flat where Raja
+        /// stands; that outline is pushed back into a solid. The face is the painted rock, lined up with the world;
+        /// the sides are darker, turned from the light; the top is lighter; a dark line inks the face's edge, as the
+        /// characters are outlined. Where he can stand and climb stays the block's box.
         /// </summary>
-        void RockSlab(Transform parent, float x0, float x1, float y0, float y1, float zFront, float zBack)
+        void RockFormation(Transform parent, float x0, float x1, float y0, float y1, float zFront, float zBack, int seed)
         {
-            float w = x1 - x0, h = y1 - y0, d = zBack - zFront, cx = (x0 + x1) / 2;
-            float wx = parent.position.x + x0;
-            CbArt.Part(CbMesh.Quad, RockMat(w, h, wx, y0), parent, new Vector3(cx, (y0 + y1) / 2, zFront), new Vector3(w, h, 1), shadows: false).name = "rock";
-            var side = RockMat(d, h, 0, y0);
-            CbArt.Part(CbMesh.Quad, side, parent, new Vector3(x0, (y0 + y1) / 2, zFront + d / 2), new Vector3(d, h, 1), Quaternion.Euler(0, 90, 0), shadows: false);
-            CbArt.Part(CbMesh.Quad, side, parent, new Vector3(x1, (y0 + y1) / 2, zFront + d / 2), new Vector3(d, h, 1), Quaternion.Euler(0, -90, 0), shadows: false);
+            var rng = new System.Random(seed);
+            float R(float a, float b) => a + (float)rng.NextDouble() * (b - a);
+            const float Corner = 0.3f, Ink = 0.05f;
+            float h = y1 - y0, w = x1 - x0;
+            // the outline, clockwise as the camera sees it: up the left side, along the top, down the right side
+            var pts = new List<Vector2> { new Vector2(x0 + R(-0.02f, 0.04f), y0) };
+            int n = Mathf.Max(1, Mathf.RoundToInt((h - Corner) / 0.8f));
+            // the sides dip in more than they bulge out: the face stands in front of Raja, so a bulge would hide him
+            for (int i = 1; i < n; i++) pts.Add(new Vector2(x0 + R(-0.05f, 0.18f), y0 + (h - Corner) * i / n));
+            pts.Add(new Vector2(x0 + R(-0.02f, 0.03f), y1 - Corner));
+            pts.Add(new Vector2(x0 + Corner * 0.3f, y1 - Corner * 0.3f));
+            pts.Add(new Vector2(x0 + Corner, y1));
+            int m = Mathf.Max(1, Mathf.RoundToInt((w - 2 * Corner) / 0.9f));
+            for (int i = 1; i < m; i++) pts.Add(new Vector2(x0 + Corner + (w - 2 * Corner) * i / m, y1 - R(0f, 0.04f)));
+            pts.Add(new Vector2(x1 - Corner, y1));
+            pts.Add(new Vector2(x1 - Corner * 0.3f, y1 - Corner * 0.3f));
+            pts.Add(new Vector2(x1 + R(-0.03f, 0.02f), y1 - Corner));
+            for (int i = n - 1; i >= 1; i--) pts.Add(new Vector2(x1 + R(-0.18f, 0.05f), y0 + (h - Corner) * i / n));
+            pts.Add(new Vector2(x1 + R(-0.04f, 0.02f), y0));
+
+            float wx = parent.position.x;
+            var v = new List<Vector3>(); var uv = new List<Vector2>();
+            var face = new List<int>(); var sides = new List<int>(); var tops = new List<int>(); var ink = new List<int>();
+            // a triangle facing out along n, whatever order its corners came in
+            void Tri(List<int> into, int a, int b, int c, Vector3 n)
+            {
+                if (Vector3.Dot(Vector3.Cross(v[b] - v[a], v[c] - v[a]), n) < 0) (b, c) = (c, b);
+                into.Add(a); into.Add(b); into.Add(c);
+            }
+            // the face: a fan from the middle of the outline
+            var mid = Vector2.zero;
+            foreach (var p in pts) mid += p;
+            mid /= pts.Count;
+            int c0 = v.Count;
+            v.Add(new Vector3(mid.x, mid.y, zFront)); uv.Add(new Vector2((wx + mid.x) / RockTile, mid.y / RockTile));
+            foreach (var p in pts) { v.Add(new Vector3(p.x, p.y, zFront)); uv.Add(new Vector2((wx + p.x) / RockTile, p.y / RockTile)); }
+            for (int i = 0; i < pts.Count - 1; i++) Tri(face, c0, c0 + 1 + i, c0 + 2 + i, Vector3.back);
+            Tri(face, c0, c0 + pts.Count, c0 + 1, Vector3.back);
+            // the sides and the top: each edge of the outline (but the buried bottom one) pushed back
+            float run = 0;
+            for (int i = 0; i < pts.Count - 1; i++)
+            {
+                Vector2 a = pts[i], b = pts[i + 1], d = b - a;
+                var outward = new Vector3(-d.y, d.x, 0).normalized;
+                bool top = outward.y > 0.7f;
+                int k = v.Count;
+                float len = d.magnitude;
+                foreach (var (p, z, u) in new[] { (a, zFront, run), (b, zFront, run + len), (b, zBack, run + len), (a, zBack, run) })
+                {
+                    v.Add(new Vector3(p.x, p.y, z));
+                    uv.Add(top ? new Vector2((wx + p.x) / RockTile, z / RockTile) : new Vector2(u / RockTile, z / RockTile));
+                }
+                run += len;
+                var into = top ? tops : sides;
+                Tri(into, k, k + 1, k + 2, outward);
+                Tri(into, k, k + 2, k + 3, outward);
+                // the ink: a thin dark band over the face's edge
+                var off = (Vector3)(new Vector2(outward.x, outward.y) * (Ink / 2));
+                int q = v.Count;
+                foreach (var p in new[] { (Vector3)a - off, (Vector3)b - off, (Vector3)b + off, (Vector3)a + off })
+                {
+                    v.Add(new Vector3(p.x, p.y, zFront - 0.01f)); uv.Add(Vector2.zero);
+                }
+                Tri(ink, q, q + 1, q + 2, Vector3.back);
+                Tri(ink, q, q + 2, q + 3, Vector3.back);
+            }
+            var mesh = new Mesh { name = "rock", subMeshCount = 4 };
+            mesh.SetVertices(v); mesh.SetUVs(0, uv);
+            mesh.SetTriangles(face, 0); mesh.SetTriangles(sides, 1); mesh.SetTriangles(tops, 2); mesh.SetTriangles(ink, 3);
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+
             var tone = RockTone();
-            var top = RockMat(w, d, wx, zFront, new Color(Mathf.Min(1, tone.r * 1.15f), Mathf.Min(1, tone.g * 1.15f), Mathf.Min(1, tone.b * 1.12f)));
-            CbArt.Part(CbMesh.Quad, top, parent, new Vector3(cx, y1, zFront + d / 2), new Vector3(w, d, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "top";
+            Material Rock(Color tint)
+            {
+                var mat = RockMat(1, 1, 0, 0, tint);
+                mat.mainTextureScale = Vector2.one; mat.mainTextureOffset = Vector2.zero;
+                return mat;
+            }
+            var go = CbArt.Part(mesh, Rock(tone), parent, Vector3.zero, Vector3.one, shadows: false);
+            go.name = "rock";
+            go.GetComponent<MeshRenderer>().sharedMaterials = new[]
+            {
+                go.GetComponent<MeshRenderer>().sharedMaterial,
+                Rock(new Color(tone.r * 0.74f, tone.g * 0.76f, tone.b * 0.84f)),
+                Rock(new Color(Mathf.Min(1, tone.r * 1.15f), Mathf.Min(1, tone.g * 1.15f), Mathf.Min(1, tone.b * 1.12f))),
+                CbArt.Toon("#3b3029"),
+            };
         }
 
         /// <summary>A model placed and stretched so its bounds fill the box lo..hi of parent's space; null if missing.</summary>
@@ -343,7 +425,7 @@ namespace Cloudborne
         {
             var t = CbArt.Joint(root, (x0 + x1) / 2, 0, 0, "terrace");
             float cx = (x0 + x1) / 2;
-            RockSlab(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, depth);
+            RockFormation(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, depth, Mathf.RoundToInt(x0 * 10));
             blocks.Add(new Block { x0 = x0, x1 = x1, top = top, t = t });
         }
 
