@@ -25,9 +25,9 @@ namespace Cloudborne
     /// SPECIAL the staff storm. With his fire awake they become FIRE: the fireball, the fire whirl, the blazing palm,
     /// the wave of fire and SPECIAL the tiger flame cannon.
     /// </summary>
-    public class CbHero
+    public partial class CbHero
     {
-        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo, Hang, Climb, Swim, Down, Victory }
+        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo, Hang, Climb, Swim, Down, Victory, Swing, Vine, Bars, Zip }
         public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash, FireWhirl, BlazePalm, Lunge, Cyclone }
 
         struct Attack { public float dur, a, b, range, dmg, kb, up; public bool fin; }
@@ -387,7 +387,7 @@ namespace Cloudborne
         public void Celebrate()
         {
             if (state == State.Dead) return;
-            if (state == State.Hang || state == State.Climb || state == State.Swim) air = true;
+            if (state == State.Hang || state == State.Climb || state == State.Swim || Holding) air = true;
             state = State.Victory; t = 0; move = Move.None; combo = 0; flipT = 0;
             SetStaff(false, silent: true);
         }
@@ -460,6 +460,10 @@ namespace Cloudborne
                     if (t > 0.35f && !air) state = State.Idle;
                     break;
                 case State.Hang: UpdateHang(ref pose, input); break;
+                case State.Swing: UpdateSwing(ref pose, input, dt); break;
+                case State.Vine: UpdateVine(ref pose, input, dt); break;
+                case State.Bars: UpdateBars(ref pose, input, dt); break;
+                case State.Zip: UpdateZip(ref pose, input, dt); break;
                 case State.Climb: UpdateClimb(ref pose); break;
                 case State.Swim:
                     pose.sLx = -1.2f; pose.sRx = -1.2f; pose.eL = -0.6f; pose.eR = -0.6f; pose.hLx = -0.4f; pose.kL = 0.8f; pose.hRx = 0.3f; pose.kR = 0.6f;
@@ -539,16 +543,21 @@ namespace Cloudborne
                 // down on the stick ducks right where he stands (he can still turn round)
                 crouching = !air && input.y < -0.5f;
                 crouchT = crouching ? crouchT + dt : 0;
-                // just kicked off a wall, the stick can't pull him straight back for a moment
+                // just kicked off a wall, the stick can't pull him straight back for a moment; mud slows him, and so
+                // does pushing the stone block
+                bool mud = !air && CbLevel.MudAt(x, y);
+                pushing = !air && Mathf.Abs(input.x) > 0.3f && g.level != null && g.level.Push(x, y, input.x > 0 ? 1 : -1, dt);
                 if (wallLockT <= 0)
                 {
-                    vx += (input.x * (crouching ? 0f : 7f) - vx) * Damp(air ? 6 : 14, dt);
+                    float top = crouching ? 0f : pushing ? PushSpeed : mud ? MudSpeed : 7f;
+                    vx += (input.x * top - vx) * Damp(air ? 6 : 14, dt);
                     if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
                 }
+                if (mud && Random.value < 0.08f && Mathf.Abs(vx) > 0.5f) CbFx.Spark(new Vector3(x, 0.05f, -0.3f), new Color(0.35f, 0.25f, 0.15f), 2, 1.5f, 0.25f, 0.35f, 6);
                 if (input.jump && air && wallT > 0) WallJump();
                 else if (input.jump && jumps < 2)
                 {
-                    vy = jumps == 0 ? 11.5f : 10f;
+                    vy = jumps == 0 ? (mud ? 9.5f : 11.5f) : 10f;
                     if (jumps == 1) flipT = FlipTime;
                     jumps++; air = true; state = State.Air;
                     CbFx.Sfx("jump", 0.6f);
@@ -615,7 +624,7 @@ namespace Cloudborne
 
             // physics: the path, the stone blocks he can't walk through, the ledges he lands on (hanging from an edge,
             // pulling himself up or treading water, the game places him itself)
-            if (state != State.Hang && state != State.Climb && state != State.Swim) StepPhysics(input, dt);
+            if (state != State.Hang && state != State.Climb && state != State.Swim && !Holding) StepPhysics(input, dt);
             float lo = g.lockZone != null ? g.lockZone.x - 10.5f : CbWorld.LevelMin;
             float hi = g.lockZone != null ? g.lockZone.x + 10.5f : CbWorld.LevelMax;
             x = Mathf.Clamp(x, lo, hi);
@@ -629,6 +638,8 @@ namespace Cloudborne
                 f.flip.localRotation = CbArt.Rot(0, 0, -facing * p * FlipTurns * Mathf.PI * 2);
             }
             else f.flip.localRotation = Quaternion.identity;
+            // swinging on a vine he leans with it
+            if (state == State.Swing && swingVine != null) f.flip.localRotation = CbArt.Rot(0, 0, swingVine.angle);
 
             f.Apply(pose, dt, rate);
             Place();
@@ -638,9 +649,14 @@ namespace Cloudborne
             Animate();
         }
 
+        /// <summary>Holding on to a vine, a vine wall, a bar or a zipline: the game places him itself.</summary>
+        bool Holding => state == State.Swing || state == State.Vine || state == State.Bars || state == State.Zip;
+
         void StepPhysics(CbInput input, float dt)
         {
             if (state != State.Dash || !air) vy -= 30 * dt;
+            // an updraft carries him up
+            if (air && g.level != null) { float lift = g.level.LiftAt(x, y); if (lift > 0) vy = Mathf.Min(vy + lift * dt, 7.5f); }
             float prevX = x, prevY = y;
             y += vy * dt;
             x += vx * dt;
@@ -654,7 +670,18 @@ namespace Cloudborne
             if (y <= floor)
             {
                 if (air && vy < -6) CbFx.Spark(new Vector3(x, floor + 0.1f, -0.3f), CbFx.Dust, 10, 3, 0.5f, 0.4f, 2);
+                float fall = air ? vy : 0;
                 y = floor; vy = 0;
+                // landing on a springy leaf throws him high
+                float bounce = fall < -3f && g.level != null ? g.level.BounceAt(x, y) : 0;
+                if (bounce > 0)
+                {
+                    vy = bounce; air = true; jumps = 1; airDashed = false;
+                    if (state == State.Atk) { state = State.Air; combo = 0; }
+                    CbFx.Sfx("jump", 0.8f);
+                    CbFx.Spark(new Vector3(x, y + 0.1f, -0.3f), new Color(0.5f, 0.9f, 0.4f) * 1.5f, 10, 4, 0.35f, 0.4f, 4);
+                    return;
+                }
                 if (air)
                 {
                     air = false; jumps = 0; airDashed = false; airHits = 0;
@@ -688,6 +715,8 @@ namespace Cloudborne
                 int dir = input.x > 0.3f ? 1 : input.x < -0.3f ? -1 : facing;
                 if (g.level.FindEdge(x, y, dir, out float edgeX, out float top)) { StartHang(dir, edgeX, top); return; }
             }
+            // a vine, a bar, a zipline within reach of his hands; vines grown over rock to climb
+            if (g.level != null && (state == State.Air || state == State.Idle || state == State.Run) && TryCatch(input)) return;
             // into the water: a splash, a moment treading water, and back where he last stood safely
             if (y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater();
         }
@@ -699,6 +728,7 @@ namespace Cloudborne
         void Animate()
         {
             if (model == null) return;
+            if (AnimateWays()) return;
             switch (state)
             {
                 // ducking (a clip made in Meshy from a description): drops in 0.12 s into a low crouching guard, knees

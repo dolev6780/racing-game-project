@@ -34,6 +34,14 @@ namespace Cloudborne
 
         // ---- Sergeant Snap ----
         public bool Boss => kind == Kind.Sergeant;
+        /// <summary>
+        /// A soldier at his post along the way (CbGame): he keeps between minX and maxX (his own stretch of dry path),
+        /// goes for Raja only once he comes within Notice, and an asleep one waits until Raja is right by him or
+        /// strikes him.
+        /// </summary>
+        public float minX = float.NegativeInfinity, maxX = float.PositiveInfinity;
+        public bool asleep;
+        const float Notice = 10f, WakeAt = 2.2f;
         public BossMove bossMove;
         /// <summary>After his combo or his chop he stands open (panting, the cleaver in the ground): the time to hit back.</summary>
         public float open;
@@ -407,6 +415,15 @@ namespace Cloudborne
                 }
                 default:
                 {
+                    if (asleep)
+                    {
+                        // asleep at his post: slumped, a "z" now and then; Raja right by him wakes him
+                        vx = 0;
+                        pose.lean = 0.35f; pose.headX = 0.6f; pose.bob = -0.15f; pose.sLx = 0.2f; pose.sRx = 0.2f;
+                        if (Random.value < 0.01f) g.hud.Popup(new Vector3(x + 0.3f, HitHeight + 0.9f, 0), "z", CbHud.PopStyle.Block);
+                        if (dist < WakeAt) { asleep = false; g.hud.Popup(new Vector3(x, HitHeight + 1f, 0), "!", CbHud.PopStyle.Hurt); }
+                        break;
+                    }
                     float push = 0;
                     foreach (var o in g.enemies)
                     {
@@ -414,7 +431,7 @@ namespace Cloudborne
                         float d = x - o.x;
                         if (Mathf.Abs(d) < 1.1f) push += (d != 0 ? Mathf.Sign(d) : Random.Range(-1f, 1f)) * (1.1f - Mathf.Abs(d)) * 3;
                     }
-                    float want = dist > reach ? Mathf.Sign(dx) * speed : 0;
+                    float want = dist > reach && (Boss || dist < Notice) ? Mathf.Sign(dx) * speed : 0;
                     vx += (want + push - vx) * (1 - Mathf.Exp(-8 * dt));
                     if (dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)
                     {
@@ -440,8 +457,9 @@ namespace Cloudborne
                 y = 0; vy = 0;
                 if (state != State.Move && state != State.Atk) vx *= 1 - (1 - Mathf.Exp(-6 * dt));
             }
-            // the sergeant keeps to his arena
+            // the sergeant keeps to his arena, a soldier to his stretch of path
             if (Boss && g.lockZone != null) x = Mathf.Clamp(x, g.lockZone.x - 10f, g.lockZone.x + 10f);
+            else if (!Boss) x = Mathf.Clamp(x, minX, maxX);
             f.Apply(pose, dt, state == State.Atk ? 22 : 12);
             f.root.localPosition = new Vector3(x, y, 0);
             float target = facing * (90f + (model != null ? 8f : 25f));

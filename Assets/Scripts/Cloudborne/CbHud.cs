@@ -179,7 +179,7 @@ namespace Cloudborne
 
             result = Overlay("result");
             resultTitle = UIKit.Label(result, "STAGE CLEAR", 64, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 80), new Vector2(700, 80), TextAnchor.MiddleCenter, true);
-            resultStats = UIKit.Label(result, "", 18, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 10), new Vector2(700, 40), TextAnchor.MiddleCenter, true);
+            resultStats = UIKit.Label(result, "", 18, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 0), new Vector2(760, 64), TextAnchor.MiddleCenter, true);
             BigButton(result, "PLAY AGAIN", new Vector2(0, -50));
             resultMenuBtn = (RectTransform)BigButton(result, "MENU", new Vector2(0, -118)).transform.parent;
 
@@ -308,10 +308,12 @@ namespace Cloudborne
         /// <summary>The touch buttons: on phones, unless the settings say always or never.</summary>
         public static bool ShowPads => CbSave.Pads == 1 || (CbSave.Pads == 0 && Application.isMobilePlatform);
 
-        public void ShowResult(bool won, int score, int maxCombo, float time)
+        /// <summary>The results: score, combo, time; tiger tokens, friends freed, stars (and a badge for no hit taken).</summary>
+        public void ShowResult(bool won, int score, int maxCombo, float time, int tokens = 0, int friends = 0, int stars = 0, bool flawless = false)
         {
-            resultTitle.text = won ? "STAGE CLEAR" : "DEFEATED";
-            resultStats.text = $"SCORE {score:N0}    ·    MAX COMBO {maxCombo}    ·    TIME {(int)(time / 60)}:{(int)(time % 60):00}";
+            resultTitle.text = won ? "STAGE CLEAR  " + new string('★', stars) + new string('☆', 3 - stars) : "DEFEATED";
+            resultStats.text = $"SCORE {score:N0}    ·    MAX COMBO {maxCombo}    ·    TIME {(int)(time / 60)}:{(int)(time % 60):00}\n" +
+                $"TIGER TOKENS {tokens}/3    ·    FRIENDS FREED {friends}/3" + (flawless ? "    ·    NO HIT TAKEN!" : "");
             SetScreen(Screen.Result);
         }
 

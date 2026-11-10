@@ -22,7 +22,7 @@ namespace Cloudborne
     /// summit (and a hidden path to the scroll above); the fight on the ridge; a brook under a stone arch bridge;
     /// Sergeant Snap at the shrine gate.
     /// </summary>
-    public class CbLevel
+    public partial class CbLevel
     {
         class Block
         {
@@ -30,6 +30,10 @@ namespace Cloudborne
             public bool breakable, broken;
             public int hp;
             public Transform t;
+            // smooth: not caught or jumped off (the temple's gates, thorns); vines: its side (-1 left, 1 right) is
+            // grown over with vines he climbs
+            public bool smooth;
+            public int vines;
         }
 
         class Ledge
@@ -72,14 +76,15 @@ namespace Cloudborne
         const float CrumbleAfter = 0.5f, CrumbleBack = 3f;
 
         /// <summary>The streams across stage 1-1 (x from, to): the rope bridge's, the long river, the brook.</summary>
-        public static readonly (float x0, float x1)[] Waters = { (31.4f, 36.6f), (79f, 103f), (222.2f, 224.6f) };
+        public static readonly (float x0, float x1)[] Waters = { (31.4f, 36.6f), (79f, 103f), (200f, 232f), (300f, 312f), (345f, 395f), (522.2f, 524.6f) };
         /// <summary>The water's surface, below the banks: its channel is cut into the ground.</summary>
         public const float WaterLevel = -0.45f;
         /// <summary>How far back from the path the streams run before they come out of the ground.</summary>
         public const float WaterBack = 6.5f;
         // below the path where the water is: deep enough that falling in is falling in
         const float Deep = -50f, StepUp = 0.3f;
-        const float RopeBridgeX = 34f, RopeDeckHalf = 3f, StoneBridgeX = 223.4f;
+        const float RopeBridgeX = 34f, RopeDeckHalf = 3f;
+        public const float StoneBridgeX = 523.4f;
         // the mountain: where it stands, its summit's height
         public const float MountainFrom = 137f, MountainTo = 189f, SummitTop = 11.4f;
         // an edge he can catch: its top between these heights above his feet (his raised hands hang at
@@ -104,6 +109,7 @@ namespace Cloudborne
             root = new GameObject("Level").transform;
             root.SetParent(parent, false);
             Build();
+            BuildWays();
         }
 
         /// <summary>Whether x is over one of the streams (margin widens them, for keeping scenery off the water).</summary>
@@ -466,6 +472,7 @@ namespace Cloudborne
         public void Reset()
         {
             climbTold = false;
+            ResetWays();
             foreach (var b in blocks)
             {
                 if (!b.breakable) continue;
@@ -556,6 +563,7 @@ namespace Cloudborne
                 if (!b.broken && x > b.x0 - HalfWidth * 0.5f && x < b.x1 + HalfWidth * 0.5f && b.top <= fromY + 0.05f && b.top > best) best = b.top;
             foreach (var l in ledges)
                 if (!l.gone && l.reveal > 0.5f && x > l.x0 - HalfWidth * 0.5f && x < l.x1 + HalfWidth * 0.5f && l.top <= fromY + 0.05f && l.top > best) best = l.top;
+            WaysSupport(x, fromY, ref best);
             return best;
         }
 
@@ -565,6 +573,7 @@ namespace Cloudborne
         /// </summary>
         public bool SafeAt(float x, float y)
         {
+            if (!WaysSafe(x, y)) return false;
             if (!InWater(x)) return true;
             foreach (var b in blocks)
                 if (!b.broken && x > b.x0 - HalfWidth * 0.5f && x < b.x1 + HalfWidth * 0.5f && Mathf.Abs(y - b.top) < 0.05f) return true;
@@ -599,7 +608,7 @@ namespace Cloudborne
                 if (d < best) { best = d; bx = ex; bt = tp; }
             }
             foreach (var b in blocks)
-                if (!b.broken && !b.breakable) Try(dir > 0 ? b.x0 : b.x1, b.top);
+                if (!b.broken && !b.breakable && !b.smooth) Try(dir > 0 ? b.x0 : b.x1, b.top);
             foreach (var l in ledges)
                 if (!l.gone && l.reveal > 0.5f) Try(dir > 0 ? l.x0 : l.x1, l.top);
             edgeX = bx; top = bt;
@@ -622,7 +631,7 @@ namespace Cloudborne
         {
             foreach (var b in blocks)
             {
-                if (b.broken || b.breakable || y > b.top - 0.6f) continue;
+                if (b.broken || b.breakable || b.smooth || y > b.top - 0.6f) continue;
                 float side = dir > 0 ? b.x0 - HalfWidth : b.x1 + HalfWidth;
                 if (Mathf.Abs(x - side) < 0.06f) return true;
             }
@@ -657,6 +666,7 @@ namespace Cloudborne
         /// </summary>
         public bool Strike(float x, float y, int dir, float range, bool staff)
         {
+            if (StrikeWays(x, y, dir, range, staff)) return true;
             foreach (var b in blocks)
             {
                 if (!b.breakable || b.broken) continue;
@@ -705,6 +715,7 @@ namespace Cloudborne
         /// </summary>
         public void Update(float dt, CbHero hero)
         {
+            UpdateWays(dt, hero);
             // at the foot of the mountain, how to climb it
             if (!climbTold && hero.x > MountainFrom - 5f && hero.x < MountainFrom)
             {

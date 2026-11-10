@@ -12,7 +12,7 @@ namespace Cloudborne
     /// </summary>
     public class CbItems
     {
-        public enum Kind { Mango, KiCrystal, GoldenFruit, Coin, Scroll }
+        public enum Kind { Mango, KiCrystal, GoldenFruit, Coin, Scroll, Token, Key }
 
         class Item
         {
@@ -36,13 +36,14 @@ namespace Cloudborne
         // a crate is solid (the user: nothing should be walked through): Raja can't pass through one and can stand on
         // it; its body is the model's, 0.89 m across and 0.95 m tall
         const float CrateBody = 0.445f, CrateTop = 0.95f;
-        static readonly string[] ModelNames = { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll" };
+        // a tiger token is a big coin glowing orange; the chest's key is built in code
+        static readonly string[] ModelNames = { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll", "Coin", "Key" };
         static readonly Color[] Glows =
         {
             new Color(1f, 0.55f, 0.25f, 0.5f), new Color(1f, 0.6f, 0.15f, 0.6f), new Color(1f, 0.85f, 0.3f, 0.7f),
-            new Color(1f, 0.8f, 0.25f, 0.45f), new Color(1f, 0.35f, 0.25f, 0.6f),
+            new Color(1f, 0.8f, 0.25f, 0.45f), new Color(1f, 0.35f, 0.25f, 0.6f), new Color(1f, 0.5f, 0.1f, 0.8f), new Color(1f, 0.9f, 0.4f, 0.7f),
         };
-        static readonly float[] Sizes = { 0.5f, 0.55f, 0.55f, 0.45f, 0.65f };
+        static readonly float[] Sizes = { 0.5f, 0.55f, 0.55f, 0.45f, 0.65f, 0.8f, 0.6f };
 
         readonly CbGame g;
         readonly Transform root;
@@ -84,8 +85,12 @@ namespace Cloudborne
             AddCrate(105.5f, Kind.Mango, Kind.KiCrystal);
             AddCrate(134.5f, Kind.Mango, Kind.Coin);
             AddCrate(191f, Kind.KiCrystal, Kind.Coin, Kind.Coin);
-            AddCrate(228f, Kind.Mango, Kind.Coin);
-            AddCrate(234f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
+            AddCrate(244f, Kind.Mango, Kind.Coin);
+            AddCrate(334f, Kind.KiCrystal, Kind.Coin);
+            AddCrate(399.5f, Kind.Mango, Kind.Coin, Kind.Coin);
+            AddCrate(474f, Kind.Mango, Kind.KiCrystal);
+            AddCrate(528f, Kind.Mango, Kind.Coin);
+            AddCrate(534f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
             // coin trails: an arc to jump through, a row along the rope bridge, an arc in the second fight
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(4 + i * 0.9f, 1.2f + Mathf.Sin(i / 4f * Mathf.PI) * 1.6f, 0), resting: true);
             for (int i = 0; i < 6; i++) Spawn(Kind.Coin, new Vector3(31.8f + i * 0.85f, 0.7f, 0), resting: true);
@@ -97,6 +102,7 @@ namespace Cloudborne
             foreach (var (cx, top) in new[] { (146.25f, 4.2f), (149.2f, 5.6f), (154.7f, 7.8f), (157.3f, 9f), (171.5f, 10.8f), (181.7f, 8.6f), (184.7f, 5.8f), (187.7f, 3f) })
                 Spawn(Kind.Coin, new Vector3(cx, top + 1f, 0), resting: true);
             for (int i = 0; i < 6; i++) Spawn(Kind.Coin, new Vector3(160f + i * 1.2f, 11.2f, 0), resting: true);
+            LayOutWays();
             // secrets: a golden fruit on the mountain's summit (past the crumbling ledges), and
             // the scroll on the highest of the hidden ledges above the plateau (CbLevel)
             Spawn(Kind.GoldenFruit, new Vector3(177.5f, CbLevel.SummitTop + 1.2f, 0), resting: true);
@@ -122,6 +128,45 @@ namespace Cloudborne
             crates.Add(new Crate { t = t, x = x, hp = 2, contents = contents });
         }
 
+        /// <summary>
+        /// Coins, tokens and the key along the long middle of the stage (CbLevelWays): along each swing and bar, over
+        /// the traps, the bridge, the rafts and the log, up the canopy and down the zipline, behind the waterfall.
+        /// </summary>
+        void LayOutWays()
+        {
+            void C(float x, float y) => Spawn(Kind.Coin, new Vector3(x, y, 0), resting: true);
+            // the vine ravine
+            foreach (var x in new[] { 204f, 207.8f, 211.5f, 226.8f }) C(x, 3.4f);
+            for (float x = 216.5f; x < 223f; x += 1.3f) C(x, 3.6f);
+            for (int i = 0; i < 4; i++) C(235.5f + i * 0.6f, 2f + i * 1.3f);
+            Spawn(Kind.Token, new Vector3(238f, 7.3f, 0), resting: true);
+            // the temple of traps
+            foreach (var x in new[] { 250f, 252f, 258.5f, 260.5f, 267.8f, 271.5f, 279.5f, 286f }) C(x, 1.2f);
+            Spawn(Kind.Coin, new Vector3(255.2f, 2.2f, 0), resting: true);
+            // the gong's bridge, the hive, the cage
+            for (float x = 301f; x < 312f; x += 1.5f) C(x, 1f);
+            foreach (var x in new[] { 316f, 324f, 329f }) C(x, 1.2f);
+            // the raft river: over the rafts' way, the island, the log
+            foreach (var x in new[] { 340f, 349f, 353f, 357f, 361f, 365f, 371f, 373f, 375f, 377f, 382f, 386f, 390f }) C(x, 1.3f);
+            C(367.8f, 2f);
+            // the canopy: up the vine pillar, along the ledges and the bars, down the zipline
+            for (float y = 1.5f; y < 7.5f; y += 1.3f) C(407.4f, y);
+            C(411.6f, 9.4f); C(415.6f, 10.2f);
+            for (float x = 417.6f; x < 422f; x += 1.1f) C(x, 9.8f);
+            Spawn(Kind.Key, new Vector3(423.6f, 10.6f, 0), resting: true);
+            for (float x = 426.5f; x < 437f; x += 1.8f) C(x, Mathf.Lerp(11f, 3.4f, Mathf.InverseLerp(424.6f, 437.2f, x)) - 0.8f);
+            for (float y = 2.5f; y < 10f; y += 1.6f) C(429.5f, y);
+            for (float y = 1.5f; y < 8f; y += 1.5f) C(436.6f, y);
+            for (float x = 441f; x < 446f; x += 1.2f) C(x, 10.4f);
+            // behind the waterfall
+            C(447f, 3.6f); C(448.4f, 5.8f);
+            Spawn(Kind.Token, new Vector3(447.2f, 8.1f, 0), resting: true);
+            // the boulder road, the shaft on the ridge
+            foreach (var x in new[] { 454f, 457f, 460f, 463f }) C(x, 1.8f);
+            for (float y = 1.5f; y < 8f; y += 1.4f) C(506.3f, y);
+            Spawn(Kind.Mango, new Vector3(506.3f, 9.3f, 0), resting: true);
+        }
+
         // ---------- items ----------
 
         /// <summary>Puts an item at pos. A dropped one pops up and falls to the path; a resting one floats where it is.</summary>
@@ -129,8 +174,16 @@ namespace Cloudborne
         {
             string name = ModelNames[(int)kind];
             var t = CbArt.Joint(root, pos.x, pos.y, pos.z, name.ToLowerInvariant());
-            var model = CbArt.Prop($"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
-            if (model == null)
+            var model = kind == Kind.Key ? null : CbArt.Prop($"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
+            if (kind == Kind.Token && model != null) model.localScale *= 1.8f;
+            if (kind == Kind.Key)
+            {
+                var gold = CbArt.Toon("#e8b93a", CbArt.PropOutline);
+                CbArt.Part(CbMesh.Torus(0.25f), gold, t, new Vector3(0, 0.18f, 0), new Vector3(0.22f, 0.22f, 0.22f), Quaternion.Euler(90, 0, 0));
+                CbArt.Box(gold, t, new Vector3(0, -0.12f, 0), new Vector3(0.07f, 0.45f, 0.07f));
+                CbArt.Box(gold, t, new Vector3(0.08f, -0.28f, 0), new Vector3(0.14f, 0.06f, 0.07f));
+            }
+            else if (model == null)
             {
                 // stand-in: a glowing ball in the item's colour
                 var c = Glows[(int)kind];
@@ -299,6 +352,17 @@ namespace Cloudborne
                     g.score += 50;
                     PlayerPrefs.SetInt(BankKey, PlayerPrefs.GetInt(BankKey, 0) + 1);
                     CbFx.Spark(at, CbFx.Flame, 5, 2, 0.25f, 0.3f, -2);
+                    break;
+                case Kind.Token:
+                    g.TokenFound();
+                    g.score += 1000;
+                    CbVfx.Ring(at, CbFx.Fire * 0.5f, 2.2f, 0.45f);
+                    CbFx.Spark(at, CbFx.Fire, 24, 5, 0.4f, 0.6f, -3);
+                    break;
+                case Kind.Key:
+                    g.HasKey = true;
+                    g.hud.Banner("A KEY! (A CHEST WAITS BY THE WATERFALL)", true);
+                    CbFx.Spark(at, CbFx.Flame, 16, 4, 0.35f, 0.5f, -3);
                     break;
                 case Kind.Scroll:
                     // the secret: the scroll teaches the special - the staff storm, or once his fire is awake the flame cannon

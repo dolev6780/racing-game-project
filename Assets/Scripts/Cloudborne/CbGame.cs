@@ -25,15 +25,53 @@ namespace Cloudborne
             public int tip;
         }
 
-        static readonly Zone[] Zones =
+        /// <summary>
+        /// A soldier on his own along the way (the user: here and there one soldier, no warning that they come): he
+        /// steps out at his post as Raja draws near, keeps to his stretch of path (range either side), and an asleep
+        /// one waits until Raja is right by him. No arena: only Sergeant Snap shuts one.
+        /// </summary>
+        class Post { public float x, range; public CbEnemy.Kind kind; public bool asleep, spawned; public CbEnemy enemy; }
+        static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan =
         {
-            new Zone { x = 16, label = "Iron Crown raiders!", tip = 1, spawn = new[] { (CbEnemy.Kind.Hyena, 12f), (CbEnemy.Kind.Hyena, -12f), (CbEnemy.Kind.Hyena, 14f) } },
-            new Zone { x = 58, label = "Shield bearers", tip = 3, spawn = new[] { (CbEnemy.Kind.Shield, 12f), (CbEnemy.Kind.Hyena, -12f), (CbEnemy.Kind.Hyena, 13.5f) } },
-            // those behind him come from the river's far bank, not out of the water
-            new Zone { x = 118, label = "Ambush at the shrine", tip = 4, spawn = new[] { (CbEnemy.Kind.Shield, 12f), (CbEnemy.Kind.Shield, -10.6f), (CbEnemy.Kind.Hyena, 13.5f), (CbEnemy.Kind.Hyena, -10.2f) } },
-            // down from the mountain, the raiders wait on the ridge
-            new Zone { x = 205, label = "On the ridge", tip = 1, spawn = new[] { (CbEnemy.Kind.Hyena, 12f), (CbEnemy.Kind.Shield, -12f), (CbEnemy.Kind.Hyena, 13.5f), (CbEnemy.Kind.Hyena, -13f) } },
+            (22f, CbEnemy.Kind.Hyena, 6f, false), (48f, CbEnemy.Kind.Shield, 5f, false), (64f, CbEnemy.Kind.Hyena, 4f, true),
+            (108f, CbEnemy.Kind.Shield, 1.5f, false), (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
+            (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (250f, CbEnemy.Kind.Hyena, 2.4f, false), (318f, CbEnemy.Kind.Hyena, 3f, false),
+            (322f, CbEnemy.Kind.Shield, 3f, false), (341f, CbEnemy.Kind.Hyena, 2.5f, false), (398f, CbEnemy.Kind.Shield, 2f, false),
+            (476f, CbEnemy.Kind.Hyena, 4f, false), (486f, CbEnemy.Kind.Shield, 4f, false), (499f, CbEnemy.Kind.Hyena, 3f, true),
+            (515f, CbEnemy.Kind.Hyena, 3f, false),
         };
+        readonly List<Post> posts = new List<Post>();
+        const float PostWakes = 13f;
+
+        /// <summary>The stretches of the stage, named at the top of the screen as Raja reaches them.</summary>
+        static readonly (float x, string name)[] Sections =
+        {
+            (0f, "Save Koda"), (70f, "The cracked wall"), (79f, "The long river"), (106f, "The old shrine"), (136f, "The mountain"),
+            (194f, "The vine ravine"), (240f, "The temple of traps"), (292f, "The gong gorge"), (336f, "The raft river"),
+            (400f, "The canopy"), (438f, "The waterfall"), (470f, "The ridge"), (520f, "The shrine gate"),
+        };
+        /// <summary>Tips as Raja reaches them (tip: one of the fight tips; else text).</summary>
+        static readonly (float x, int tip, string text)[] Tips =
+        {
+            (17f, 1, null), (43f, 3, null), (60f, 2, null),
+            (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
+            (241f, -1, "The old temple: thorns need the staff, mind the floor, duck <color=#ffb03a>↓</color> the darts"),
+            (292f, -1, "Strike the gong!"),
+            (336f, -1, "Mud slows you. Ride the rafts; the spinning log rolls you back - keep walking"),
+            (400f, -1, "Climb the vines (hold <color=#ffb03a>↑</color>), ride the wind up to the treetops"),
+            (438f, -1, "Something glints behind the waterfall..."),
+            (450f, -1, "Boulders! Jump over them or smash them with <color=#ffb03a>HEAVY</color>"),
+            (470f, 4, null),
+            (530f, -1, "Sergeant Snap waits at the shrine gate"),
+        };
+        int sectionIdx, tipIdx;
+        float checkpointX, lastHp;
+        bool hurtOnce;
+        /// <summary>Tiger tokens found this run (three hidden on the stage).</summary>
+        public int Tokens { get; private set; }
+        /// <summary>The chest's key, found up in the treetops.</summary>
+        public bool HasKey { get; set; }
+        public float CheckpointX => checkpointX;
 
         /// <summary>The fight tips; the ki moves are staff techniques until Raja's fire wakes (the fire crystal).</summary>
         static string Tip(int i)
@@ -54,7 +92,7 @@ namespace Cloudborne
         public static CbGame I { get; private set; }
 
         // Sergeant Snap, the mini-boss: his arena stands in front of the shrine gate
-        const float BossX = 250f;
+        const float BossX = 550f;
         static readonly Zone BossZone = new Zone { x = BossX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
         /// <summary>Sergeant Snap while he is on the stage.</summary>
         public CbEnemy boss;
@@ -87,7 +125,7 @@ namespace Cloudborne
         Light sun;
         Transform actors;
         float comboT, camX, camY = CamBase, fovKick, overT, atkHeldT, heavyHeldT;
-        int zoneIdx, lastScore = -1;
+        int lastScore = -1;
         readonly List<(float at, CbEnemy.Kind kind, float x, Zone zone)> pending = new List<(float, CbEnemy.Kind, float, Zone)>();
         readonly List<Shot> shots = new List<Shot>();
         // pieces of things broken: their transform, velocity, spin, time left and their own scale (they shrink from it)
@@ -259,12 +297,15 @@ namespace Cloudborne
             EndWheel();
             waves.Clear();
             hero.Reset();
-            time = score = 0; combo = maxCombo = 0; comboT = 0; hitstop = shake = slow = 0; lockZone = null; zoneIdx = 0; fovKick = 0;
+            time = score = 0; combo = maxCombo = 0; comboT = 0; hitstop = shake = slow = 0; lockZone = null; fovKick = 0;
+            posts.Clear();
+            foreach (var (x, kind, range, asleep) in PostPlan) posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep });
+            sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false;
             hud?.HideBoss();
             hud.SetWave("Chase the raiders");
             hud.SetTip(Tip(0));
-            hud.ShowGo(false);
+            hud.ShowGo(true);
             hud.SetCombo(0);
             hud.SetSlow(false);
             hud.SetScore(0);
@@ -410,7 +451,44 @@ namespace Cloudborne
             if (paused && mode == Mode.Play) TogglePause();
         }
 
-        public void Defeated() => EndGame(false);
+        /// <summary>
+        /// Raja has fallen. The stage is long: he comes back at the last stone lantern he lit, whole again (a few
+        /// hundred points lost); the soldiers still standing go back to their posts, and Snap's fight starts over.
+        /// </summary>
+        public void Defeated()
+        {
+            if (mode != Mode.Play) return;
+            fade.FadeThrough(Respawn);
+        }
+
+        void Respawn()
+        {
+            foreach (var p in posts) if (p.enemy != null && !p.enemy.dead) { p.spawned = false; p.enemy = null; }
+            foreach (var e in enemies) e.f.Destroy();
+            enemies.Clear();
+            pending.Clear();
+            if (bossStarted && !bossDone) { bossStarted = false; boss = null; lockZone = null; hud.HideBoss(); hud.ShowGo(true); }
+            hero.RespawnAt(checkpointX);
+            lastHp = hero.hp;
+            score = Mathf.Max(0, score - 500);
+            hud.Banner("TRY AGAIN!", true);
+        }
+
+        /// <summary>A stone lantern lit: where Raja comes back after falling.</summary>
+        public void Checkpoint(float x)
+        {
+            if (x <= checkpointX) return;
+            checkpointX = x;
+            hud.Popup(new Vector3(x, 2.6f, 0), "CHECKPOINT", CbHud.PopStyle.Normal);
+            CbFx.Sfx("pickup", 0.5f);
+        }
+
+        /// <summary>A tiger token found (CbItems).</summary>
+        public void TokenFound()
+        {
+            Tokens++;
+            hud.Banner($"TIGER TOKEN {Tokens}/3", true);
+        }
 
         void EndGame(bool won)
         {
@@ -418,7 +496,9 @@ namespace Cloudborne
             mode = Mode.Over;
             overT = 0;
             CbSave.StageResult("1-1", won, score, time);
-            hud.ShowResult(won, score, maxCombo, time);
+            // stars: cleared, every tiger token, and under seven minutes; a badge for no hit taken
+            int stars = (won ? 1 : 0) + (Tokens >= 3 ? 1 : 0) + (won && time < 420f ? 1 : 0);
+            hud.ShowResult(won, score, maxCombo, time, Tokens, level.CagesFreed, stars, won && !hurtOnce);
         }
 
         void UpdateFlow(float dt)
@@ -434,8 +514,20 @@ namespace Cloudborne
                 comboT -= dt;
                 if (comboT <= 0) { combo = 0; hud.SetCombo(0); }
             }
-            // the sergeant waits in front of the gate once every fight on the way is won
-            if (lockZone == null && zoneIdx >= Zones.Length && !bossStarted && hero.x > BossX - 7f)
+            // the soldiers along the way: each steps out at his post as Raja draws near; no warning, no arena
+            if (lockZone == null)
+                foreach (var p in posts)
+                    if (!p.spawned && Mathf.Abs(hero.x - p.x) < PostWakes)
+                    {
+                        p.spawned = true;
+                        p.enemy = new CbEnemy(this, p.kind, p.x, actors) { minX = p.x - p.range, maxX = p.x + p.range, asleep = p.asleep };
+                        enemies.Add(p.enemy);
+                    }
+            // the stretch's name and a tip as he reaches them
+            while (sectionIdx < Sections.Length && hero.x >= Sections[sectionIdx].x) hud.SetWave(Sections[sectionIdx++].name);
+            while (tipIdx < Tips.Length && hero.x >= Tips[tipIdx].x) { var tip = Tips[tipIdx++]; hud.SetTip(tip.text ?? Tip(tip.tip)); }
+            // the sergeant waits in front of the gate
+            if (lockZone == null && !bossStarted && hero.x > BossX - 7f)
             {
                 StartBoss();
                 return;
@@ -446,7 +538,7 @@ namespace Cloudborne
                 if (boss != null && boss.dead && !enemies.Exists(e => !e.dead)) BossBeaten();
                 return;
             }
-            if (lockZone == null && zoneIdx >= Zones.Length && bossDone && !cleared && hero.x >= CbWorld.GoalX)
+            if (lockZone == null && bossDone && !cleared && hero.x >= CbWorld.GoalX)
             {
                 cleared = true;
                 hud.ShowGo(false);
@@ -454,40 +546,6 @@ namespace Cloudborne
                 // Raja cheers (a hop and a fist punched high) before the results come up
                 hero.Celebrate();
                 Invoke(nameof(Won), 2.2f);
-            }
-            if (lockZone == null)
-            {
-                if (zoneIdx < Zones.Length && hero.x > Zones[zoneIdx].x - 3)
-                {
-                    var z = lockZone = Zones[zoneIdx];
-                    hud.ShowGo(false);
-                    hud.SetWave(z.label);
-                    hud.Banner(z.label.ToUpperInvariant());
-                    hud.SetTip(Tip(z.tip));
-                    for (int k = 0; k < z.spawn.Length; k++) pending.Add((time + 0.3f + k * 0.65f, z.spawn[k].kind, z.x + z.spawn[k].offset, z));
-                }
-            }
-            else if (pending.Count == 0 && !enemies.Exists(e => !e.dead))
-            {
-                lockZone = null;
-                zoneIdx++;
-                if (zoneIdx >= Zones.Length)
-                {
-                    // the last fight is won: on to the shrine gate at the end of the stage
-                    hud.ShowGo(true);
-                    hud.SetWave("Reach the shrine gate");
-                }
-                else
-                {
-                    hud.ShowGo(true);
-                    hud.SetWave("Keep moving");
-                    hud.Banner("CLEAR!");
-                    // what lies ahead after each fight
-                    hud.SetTip(zoneIdx == 1 ? Tip(2)
-                        : zoneIdx == 2 ? "Ahead: the cracked wall, then a long river. Pale stones sink, logs drift"
-                        : zoneIdx == 3 ? "Climb the mountain! Cracked ledges crumble. Fell between the walls? JUMP off them to climb back"
-                        : Tip(4));
-                }
             }
         }
 
@@ -502,6 +560,7 @@ namespace Cloudborne
         public bool HurtEnemy(CbEnemy e, float dmg, int dir, float kb, float up, bool big, bool breaker, bool fire, bool fromPlayer, bool ki = false)
         {
             if (e.dead) return false;
+            e.asleep = false;
             bool frontal = dir == -e.facing;
             var at = new Vector3(e.x - dir * 0.3f, e.HitHeight, -0.5f);
             // a raised shield stops everything except staff blows and the special shot
@@ -979,6 +1038,9 @@ namespace Cloudborne
                 if (slow > 0) { slow -= raw; edt = dt * 0.3f; if (slow <= 0) hud.SetSlow(false); }
                 if (mode == Mode.Play) time += raw;
                 hero.Update(dt, input);
+                // a hit taken (for the no-damage badge)
+                if (hero.hp < lastHp - 0.01f) hurtOnce = true;
+                lastHp = hero.hp;
                 for (int i = enemies.Count - 1; i >= 0; i--)
                     if (enemies[i].Update(edt)) { enemies[i].f.Destroy(); enemies.RemoveAt(i); }
                 UpdateShots(dt);
@@ -1120,7 +1182,7 @@ namespace Cloudborne
             foreach (var e in enemies) e.f.Destroy();
             enemies.Clear();
             lockZone = null;
-            zoneIdx = Zones.Length;
+            foreach (var p in posts) p.spawned = true;
             bossStarted = bossDone = true;
             boss = null;
             hud.HideBoss();

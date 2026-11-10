@@ -15,9 +15,9 @@ namespace Cloudborne
     public class CbWorld
     {
         // the stage runs from LevelMin to LevelMax; it is cleared at the shrine gate at GoalX, once every fight is won
-        public const float LevelMin = -8f, LevelMax = 270f, GoalX = 264f;
+        public const float LevelMin = -8f, LevelMax = 570f, GoalX = 564f;
         // the scenery runs on a little past the end of the stage
-        const float End = 290f;
+        const float End = 590f;
         // the blue-teal haze of the painted backdrop: distant scenery fades into it, not into white
         public static readonly Color Horizon = CbArt.Hex("#7fc0cc");
 
@@ -193,7 +193,8 @@ namespace Cloudborne
         {
             var list = new List<(float, float)>();
             float a = GroundFrom;
-            foreach (var (x0, x1) in CbLevel.Waters) { list.Add((a, x0)); a = x1; }
+            // the streams, and the pits hidden in the temple (their spikes below)
+            foreach (var (x0, x1) in CbLevel.Gaps) { list.Add((a, x0)); a = x1; }
             list.Add((a, GroundTo));
             return list;
         }

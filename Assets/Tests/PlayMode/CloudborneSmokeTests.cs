@@ -173,9 +173,11 @@ namespace RacingGame.Tests
             Assert.AreEqual(CbGame.Mode.Title, game.mode);
             Assert.IsNotNull(game.hero.f.root, "Raja was not built");
             Assert.IsNotNull(game.hero.model, "Raja's model did not load (Resources/Cloudborne/Raja, legacy animation)");
-            Assert.AreEqual(34, game.hero.model.ClipCount, "Raja's model is missing animation clips");
-            // from Meshy's animation library: catching an edge, pulling up over it, treading water, getting up, cheering
-            foreach (var clip in new[] { "Jump_and_Grab_Wall", "Ladder_Climb_Finish", "Swim_Idle", "Stand_Up1", "Victory_Cheer" })
+            Assert.AreEqual(42, game.hero.model.ClipCount, "Raja's model is missing animation clips");
+            // from Meshy's animation library: catching an edge, pulling up over it, treading water, getting up, cheering;
+            // hanging from a vine, climbing it, along a bar, pushing, walking the log
+            foreach (var clip in new[] { "Jump_and_Grab_Wall", "Ladder_Climb_Finish", "Swim_Idle", "Stand_Up1", "Victory_Cheer",
+                "Rope_Hang_Idle", "Climb_Up_Rope", "Slow_Bar_Hang_Left", "Push_and_Walk_Forward", "Tightrope_Walk" })
                 Assert.IsTrue(game.hero.model.HasClip(clip), $"Raja's model has no {clip} clip");
             foreach (var prop in new[] { "Staff", "Machete", "Shield" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Props/{prop}/{prop}"), $"The {prop} model is missing");
@@ -375,7 +377,8 @@ namespace RacingGame.Tests
                 if (t.name == "terrace" && t.Find("rock") != null && t.Find("lip") == null) rock++;
                 if ((t.name == "ledge" || t.name == "crumblingLedge") && t.Find("fit") != null) kitLedges++;
             }
-            Assert.AreEqual(5, rock, "The mountain's terraces are not bare rock");
+            // the mountain's five, and the long stage's vine pillar, waterfall cliff and the ridge's shaft
+            Assert.AreEqual(9, rock, "The terraces are not bare rock");
             Assert.Greater(kitLedges, 5, "The mountain's ledges are not the cliff kit's slabs");
             // with the painted jungle behind the path, no modelled trees stand in front of it (faceted crowns)
             var treeSkins = new[] { "Tree_Albedo", "Banyan_Albedo", "Kapok_Albedo", "Bamboo_Albedo" };
@@ -722,7 +725,7 @@ namespace RacingGame.Tests
             Assert.Less(level.SupportAt(97.4f, CbLevel.WaterLevel), -1f, "The stepping stone is climbed onto from the water");
             // the rock in the river and the stone arch bridge are stood on
             Assert.AreEqual(1.3f, level.SupportAt(89f, 2f), 0.001f, "The rock in the river does not hold him");
-            Assert.AreEqual(1.64f, level.SupportAt(223.4f, 2f), 0.001f, "The stone bridge does not hold him");
+            Assert.AreEqual(1.64f, level.SupportAt(CbLevel.StoneBridgeX, 2f), 0.001f, "The stone bridge does not hold him");
 
             // standing on a steady stone, then falling in: a splash, health lost, and back on that stone
             game.Teleport(97.4f);
@@ -937,8 +940,9 @@ namespace RacingGame.Tests
 
             // wait for the three hyenas of the first zone
             float waited = 0;
-            while (game.enemies.Count < 3 && waited < 5f) { waited += Time.deltaTime; yield return null; }
-            Assert.AreEqual(3, game.enemies.Count, "The first fight zone did not spawn three hyenas");
+            // the first soldier, on his own (no arena, no warning)
+            while (game.enemies.Count < 1 && waited < 5f) { waited += Time.deltaTime; yield return null; }
+            Assert.AreEqual(1, game.enemies.Count, "The first post did not send out one hyena");
             foreach (var e in game.enemies)
                 Assert.IsNotNull(e.model, "A hyena raider's model did not load (Resources/Cloudborne/HyenaRaider)");
 
@@ -971,7 +975,7 @@ namespace RacingGame.Tests
             int startScore = game.score;
             float t = 0;
             bool sawStaff = false, sawWhirl = false, sawGuard = false;
-            while (t < 25f && game.mode == CbGame.Mode.Play && game.lockZone != null || t < 1f)
+            while (t < 9f && game.mode == CbGame.Mode.Play)
             {
                 t += Time.deltaTime;
                 if (game.hero.state == CbHero.State.Staff) sawStaff = true;
@@ -986,7 +990,150 @@ namespace RacingGame.Tests
             Assert.IsTrue(sawWhirl, "Holding HEAVY did not whirl the staff");
             Assert.IsTrue(sawGuard, "GUARD did not raise Raja's guard");
             Assert.IsTrue(sawSpecial, "SPECIAL did not start the staff storm");
-            Assert.IsNull(game.lockZone, "The first fight zone was not cleared in 25 seconds");
+            Assert.IsNull(game.lockZone, "A soldier on his own shut an arena");
+        }
+
+        [UnityTest]
+        public IEnumerator SoldiersStandAloneAndLanternsBringHimBack()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            // the first soldier steps out on his own as Raja draws near: no arena, no warning
+            game.Teleport(12f);
+            yield return Frames(3);
+            Assert.AreEqual(1, game.enemies.Count, "Not one soldier on his own at the first post");
+            Assert.IsNull(game.lockZone, "A soldier on his own shut an arena");
+            // a stone lantern passed: fallen, Raja comes back there, whole again
+            game.SkipFights();
+            game.Teleport(108.5f);
+            yield return Frames(3);
+            Assert.AreEqual(108f, game.CheckpointX, 0.01f, "Passing the lantern did not make it the checkpoint");
+            game.Teleport(125f);
+            yield return Frames(2);
+            game.hero.TakeHit(9999, 1);
+            for (float w = 0; w < 4f && !(game.hero.state == CbHero.State.Idle && Mathf.Abs(game.hero.x - 108f) < 0.5f); w += Time.deltaTime) yield return null;
+            Assert.AreEqual(CbGame.Mode.Play, game.mode, "Falling ended the run");
+            Assert.AreEqual(108f, game.hero.x, 0.5f, "Raja did not come back at the lantern");
+            Assert.AreEqual(game.hero.MaxHp, game.hero.hp, 0.01f, "Raja did not come back whole");
+        }
+
+        [UnityTest]
+        public IEnumerator VinesBarsAndTheZipline()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var level = game.level;
+            var hero = game.hero;
+            // a vine: reaching its end in a jump he takes hold and swings; JUMP lets go
+            var vine = level.vines[0];
+            game.Teleport(vine.ax + Mathf.Sin(vine.angle) * vine.len - 0.2f);
+            hero.y = vine.ay - Mathf.Cos(vine.angle) * vine.len - 1.48f;
+            hero.vx = 2f; hero.vy = 0;
+            hero.state = CbHero.State.Air;
+            yield return Frames(3);
+            Assert.AreEqual(CbHero.State.Swing, hero.state, "Raja did not take hold of the vine");
+            game.TestInput = i => i.x = 1;
+            yield return new WaitForSeconds(0.8f);
+            bool let = false;
+            game.TestInput = i => { if (!let) { i.jump = true; let = true; } };
+            yield return Frames(3);
+            game.TestInput = null;
+            Assert.AreEqual(CbHero.State.Air, hero.state, "JUMP did not let go of the vine");
+            // a bar: he hangs from it and goes along it hand over hand
+            var bar = level.bars[0];
+            game.Teleport(bar.x0 + 1f);
+            hero.y = bar.y - 1.71f;
+            hero.vx = hero.vy = 0;
+            hero.state = CbHero.State.Air;
+            yield return Frames(3);
+            Assert.AreEqual(CbHero.State.Bars, hero.state, "Raja did not take hold of the bar");
+            float from = hero.x;
+            game.TestInput = i => i.x = 1;
+            yield return new WaitForSeconds(0.8f);
+            game.TestInput = null;
+            Assert.Greater(hero.x, from + 1f, "Raja did not go along the bar");
+            // the zipline: he slides down it
+            var zip = level.zips[0];
+            game.Teleport(zip.x0 + 1.5f);
+            hero.y = zip.At(zip.x0 + 1.5f) - 1.48f;
+            hero.vx = hero.vy = 0;
+            hero.state = CbHero.State.Air;
+            yield return Frames(3);
+            Assert.AreEqual(CbHero.State.Zip, hero.state, "Raja did not take hold of the zipline");
+            float x0 = hero.x, y0 = hero.y;
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(hero.x, x0 + 1f, "Raja did not slide along the zipline");
+            Assert.Less(hero.y, y0, "Raja did not slide down the zipline");
+        }
+
+        [UnityTest]
+        public IEnumerator TempleTrapsAndPuzzles()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var level = game.level;
+            // thorns stop him; a paw clangs off them, two staff blows cut them
+            Assert.Less(level.BlockX(244f, 247f, 0f), 245.4f - CbLevel.HalfWidth + 0.01f, "Raja walks through the thorns");
+            level.Strike(244.9f, 0f, 1, 2.6f, staff: false);
+            Assert.IsFalse(level.ThornsCut(0), "A paw cut the thorns");
+            level.Strike(244.9f, 0f, 1, 2.6f, staff: true);
+            yield return new WaitForSeconds(0.35f);
+            level.Strike(244.9f, 0f, 1, 2.6f, staff: true);
+            Assert.IsTrue(level.ThornsCut(0), "Two staff blows did not cut the thorns");
+            // the hidden pit: stood on, its leaves give way
+            game.Teleport(255.2f);
+            game.hero.y = 0;
+            yield return new WaitForSeconds(0.5f);
+            Assert.IsTrue(level.PitOpen(0), "The leaves over the pit held");
+            // the lever opens the first gate
+            Assert.Less(level.BlockX(272f, 276f, 0f), 274.6f - CbLevel.HalfWidth + 0.01f, "The first gate does not stop him");
+            level.Strike(272.5f, 0f, 1, 1.7f, staff: false);
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(level.GateOpen(0), "The lever did not open the gate");
+            // the stone block pushed onto the plate opens the second gate
+            Assert.IsFalse(level.GateOpen(1), "The second gate stands open");
+            game.Teleport(276.5f);
+            game.hero.y = 0;
+            game.TestInput = i => i.x = 1;
+            for (float w = 0; w < 6f && !level.GateOpen(1); w += Time.deltaTime) yield return null;
+            game.TestInput = null;
+            Assert.Greater(level.PushBlockX, 278f, "Raja did not push the stone block");
+            Assert.IsTrue(level.GateOpen(1), "Pushing the block onto the plate did not open the second gate");
+            // the gong lays a bridge across the gorge
+            Assert.Less(level.SupportAt(306f, 1f), -1f, "The gorge has a bridge before the gong");
+            level.Strike(295.6f, 0f, 1, 1.7f, staff: false);
+            Assert.IsTrue(level.GongRung, "The gong was not struck");
+            yield return new WaitForSeconds(2f);
+            Assert.AreEqual(0f, level.SupportAt(306f, 1f), 0.01f, "The gong did not lay the bridge");
+        }
+
+        [UnityTest]
+        public IEnumerator TheKeyOpensTheChestAndATokenIsInside()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            // shut without the key
+            game.Teleport(466.6f);
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsFalse(game.level.ChestOpen, "The chest opened without its key");
+            // the key (up in the treetops) opens it, a tiger token inside
+            game.HasKey = true;
+            yield return new WaitForSeconds(0.3f);
+            Assert.IsTrue(game.level.ChestOpen, "The key did not open the chest");
+            int tokens = game.Tokens;
+            for (float w = 0; w < 2f && game.Tokens == tokens; w += Time.deltaTime) { game.Teleport(467.5f); yield return null; }
+            Assert.AreEqual(tokens + 1, game.Tokens, "No tiger token in the chest");
         }
     }
 }
