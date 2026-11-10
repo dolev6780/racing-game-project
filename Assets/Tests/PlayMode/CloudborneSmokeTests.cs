@@ -1057,12 +1057,13 @@ namespace RacingGame.Tests
                 game.hero.y = 0;
                 game.hero.vx = game.hero.vy = 0;
                 // the camera eases after him
-                for (float w = 0; w < 2.5f; w += Time.unscaledDeltaTime) yield return null;
-                // drawn by the pipeline as usual, for a frame, into the picture
+                yield return new WaitForSeconds(2.5f);
+                // drawn by the pipeline as usual, for a frame, into the picture (WaitForEndOfFrame never comes in
+                // batch mode: two plain frames, the second after the first was drawn)
                 cam.targetTexture = rt;
                 cam.aspect = W / (float)H;
                 yield return null;
-                yield return new WaitForEndOfFrame();
+                yield return null;
                 var prev = RenderTexture.active;
                 RenderTexture.active = rt;
                 var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
