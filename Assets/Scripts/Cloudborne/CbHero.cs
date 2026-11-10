@@ -85,6 +85,10 @@ namespace Cloudborne
         const float DownLie = 0.35f, GetUpTime = 0.85f, DownGuard = 2.4f;
         // the stage won: a hop and a fist punched high ("Victory Cheer"), then the fist held up
         const float CheerTime = 2f;
+        // Walls: pressing into one in the air he slides down it no faster than WallSlide; JUMP there (or just after
+        // leaving it) kicks him up and away from it, and for WallLock the stick can't pull him straight back, then it
+        // can: so he climbs a wall, or a shaft, jump by jump (the user was stuck at the foot of the mountain's walls)
+        const float WallSlide = 3.5f, WallCoyote = 0.12f, WallLock = 0.15f, WallKickUp = 11f, WallKickOut = 6.5f;
 
         static readonly Vector3 StaffBackPos = new Vector3(0.02f, 0.32f, -0.3f);
         static readonly Quaternion StaffBackRot = CbArt.Rot(-0.12f, 0, 0.82f);
@@ -109,6 +113,8 @@ namespace Cloudborne
         public int Combo => combo;
         /// <summary>Hanging from an edge (his weight on it: a crumbling ledge gives way).</summary>
         public bool Hanging => state == State.Hang;
+        /// <summary>Up against a wall in the air (or only just off it): a jump now kicks off it.</summary>
+        public bool OnWall => wallT > 0;
         /// <summary>The edge he hangs from or climbs over: its corner, and its top.</summary>
         public float GrabX => grabX;
         public float GrabTop => grabTop;
@@ -135,6 +141,10 @@ namespace Cloudborne
         float grabX, grabTop, hangX, hangY, grabCd, downT;
         int grabDir = 1;
         bool downLanded;
+        // against a wall: a moment's grace after leaving it, which side it is on, sliding down it, the kick's lock
+        float wallT, wallLockT;
+        int wallDir = 1;
+        bool sliding;
         // putting the staff away: standing, he swings it up over his shoulder onto his back (the raise of the hammer
         // swing clip, both hands up behind his head); it leaves his hand at StowAt of the way
         const float StowTime = 0.32f, StowAt = 0.6f;
@@ -176,7 +186,7 @@ namespace Cloudborne
         {
             x = y = vx = vy = 0; safeX = safeY = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
             flipT = 0; inv = 0; move = Move.None; staffHold = 0; sinceDash = 9; airDashed = false; dashCd = 0; empower = false; holdUsed = false;
-            glow = 0; airHits = 0; grabCd = 0; downT = 0; downLanded = false;
+            glow = 0; airHits = 0; grabCd = 0; downT = 0; downLanded = false; wallT = wallLockT = 0; sliding = false;
             f.flip.localRotation = Quaternion.identity;
             SetStaff(false, silent: true);
             if (model == null)
@@ -293,6 +303,16 @@ namespace Cloudborne
             inv = Mathf.Max(inv, 1f);
             CbFx.Spark(new Vector3(x, y + 0.8f, -0.3f), CbFx.Water, 10, 2.5f, 0.3f, 0.45f, 6);
             if (hp <= 0) { state = State.Dead; t = 0; g.Invoke(nameof(CbGame.Defeated), 1.4f); }
+        }
+
+        /// <summary>Off a wall: kicked up and away from it, with one more jump in the air after it.</summary>
+        void WallJump()
+        {
+            vy = WallKickUp; vx = -wallDir * WallKickOut; facing = -wallDir;
+            wallT = 0; wallLockT = WallLock; sliding = false;
+            jumps = 1; airDashed = false; flipT = 0; state = State.Air;
+            CbFx.Sfx("jump", 0.7f);
+            CbFx.Spark(new Vector3(x + wallDir * CbLevel.HalfWidth, y + 0.3f, -0.3f), CbFx.Dust, 8, 3, 0.45f, 0.35f, 2);
         }
 
         /// <summary>He catches an edge: hands on its corner, hanging against its face.</summary>
@@ -416,6 +436,8 @@ namespace Cloudborne
             inv = Mathf.Max(0, inv - dt);
             dashCd = Mathf.Max(0, dashCd - dt);
             grabCd = Mathf.Max(0, grabCd - dt);
+            wallT = Mathf.Max(0, wallT - dt);
+            wallLockT = Mathf.Max(0, wallLockT - dt);
             sinceDash += dt;
             if (input.atk) buffer = 0.25f; else buffer = Mathf.Max(0, buffer - dt);
             if (input.heavy) heavyBuffer = 0.25f; else heavyBuffer = Mathf.Max(0, heavyBuffer - dt);
@@ -517,9 +539,14 @@ namespace Cloudborne
                 // down on the stick ducks right where he stands (he can still turn round)
                 crouching = !air && input.y < -0.5f;
                 crouchT = crouching ? crouchT + dt : 0;
-                vx += (input.x * (crouching ? 0f : 7f) - vx) * Damp(air ? 6 : 14, dt);
-                if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
-                if (input.jump && jumps < 2)
+                // just kicked off a wall, the stick can't pull him straight back for a moment
+                if (wallLockT <= 0)
+                {
+                    vx += (input.x * (crouching ? 0f : 7f) - vx) * Damp(air ? 6 : 14, dt);
+                    if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
+                }
+                if (input.jump && air && wallT > 0) WallJump();
+                else if (input.jump && jumps < 2)
                 {
                     vy = jumps == 0 ? 11.5f : 10f;
                     if (jumps == 1) flipT = FlipTime;
@@ -635,11 +662,28 @@ namespace Cloudborne
             }
             else air = true;
             if (!air && (g.level == null || g.level.SafeAt(x, y))) { safeX = x; safeY = y; }
-            // jumping or falling at an edge, pressing towards it: he catches it
-            if (state == State.Air && vy < 2.5f && flipT <= 0 && grabCd <= 0 && g.level != null)
+            // up against a wall in the air, pressing into it: he slides down it slowly, and a jump kicks off it
+            sliding = false;
+            if (air && state == State.Air && g.level != null)
             {
-                int dir = input.x > 0.3f ? 1 : input.x < -0.3f ? -1 : 0;
-                if (dir != 0 && g.level.FindEdge(x, y, dir, out float edgeX, out float top)) { StartHang(dir, edgeX, top); return; }
+                int into = input.x > 0.3f ? 1 : input.x < -0.3f ? -1 : 0;
+                if (into != 0 && g.level.WallAt(x, y, into))
+                {
+                    wallT = WallCoyote; wallDir = into;
+                    if (vy < 0)
+                    {
+                        sliding = true; facing = into;
+                        vy = Mathf.Max(vy, -WallSlide);
+                        if (Random.value < 0.2f) CbFx.Spark(new Vector3(x + into * CbLevel.HalfWidth, y + 1.2f, -0.3f), CbFx.Dust, 1, 1f, 0.3f, 0.3f, -2);
+                    }
+                }
+            }
+            // jumping or falling at an edge he catches it: towards the way he presses, or with the stick let go the way
+            // he faces; in a somersault too (the user found he did not always catch it)
+            if (state == State.Air && vy < 3.5f && grabCd <= 0 && g.level != null)
+            {
+                int dir = input.x > 0.3f ? 1 : input.x < -0.3f ? -1 : facing;
+                if (g.level.FindEdge(x, y, dir, out float edgeX, out float top)) { StartHang(dir, edgeX, top); return; }
             }
             // into the water: a splash, a moment treading water, and back where he last stood safely
             if (y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater();
@@ -667,6 +711,8 @@ namespace Cloudborne
                 case State.Run when Mathf.Abs(vx) < WalkSpeed: model.LoopSeconds("Quick_Walk", walkT); break;
                 case State.Run: model.Loop("RunFast", runPh / (Mathf.PI * 2)); break;
                 // the somersault shows the tuck of the backflip clip (its hips' turn removed): the game turns him
+                // sliding down a wall: clinging to it, arms up and knees in (the reach of "Jump and Grab Wall")
+                case State.Air when sliding: model.Show("Jump_and_Grab_Wall", 0.62f, 0.1f); break;
                 case State.Air when flipT > 0: model.Window("Backflip_Jump", 0.3f, 0.52f, 1 - flipT / FlipTime, 0.06f); break;
                 case State.Air: model.Show("Regular_Jump", vy > 0 ? 0.32f : 0.5f, 0.12f); break;
                 case State.Atk:

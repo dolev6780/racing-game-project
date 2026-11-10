@@ -485,7 +485,7 @@ namespace Cloudborne
                     // what lies ahead after each fight
                     hud.SetTip(zoneIdx == 1 ? Tip(2)
                         : zoneIdx == 2 ? "Ahead: the cracked wall, then a long river. Pale stones sink, logs drift"
-                        : zoneIdx == 3 ? "Climb the mountain! Cracked ledges crumble - and watch for falling rocks"
+                        : zoneIdx == 3 ? "Climb the mountain! Cracked ledges crumble. Fell between the walls? JUMP off them to climb back"
                         : Tip(4));
                 }
             }

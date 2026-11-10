@@ -94,7 +94,7 @@ namespace Cloudborne
             foreach (var (cx, top) in new[] { (146.25f, 4.2f), (149.2f, 5.6f), (154.7f, 7.8f), (157.3f, 9f), (171.5f, 10.8f), (181.7f, 8.6f), (184.7f, 5.8f), (187.7f, 3f) })
                 Spawn(Kind.Coin, new Vector3(cx, top + 1f, 0), resting: true);
             for (int i = 0; i < 6; i++) Spawn(Kind.Coin, new Vector3(160f + i * 1.2f, 11.2f, 0), resting: true);
-            // secrets: a golden fruit on the mountain's summit (past the crumbling ledges and the falling rocks), and
+            // secrets: a golden fruit on the mountain's summit (past the crumbling ledges), and
             // the scroll on the highest of the hidden ledges above the plateau (CbLevel)
             Spawn(Kind.GoldenFruit, new Vector3(177.5f, CbLevel.SummitTop + 1.2f, 0), resting: true);
             Spawn(Kind.Scroll, new Vector3(160.3f, 15.8f, 0), resting: true);

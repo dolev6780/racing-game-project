@@ -369,10 +369,11 @@ namespace RacingGame.Tests
             int rock = 0, kitLedges = 0;
             foreach (Transform t in level)
             {
-                if (t.name == "terrace" && t.Find("rock") != null) rock++;
+                // bare rock, no band of grass along the top
+                if (t.name == "terrace" && t.Find("rock") != null && t.Find("lip") == null) rock++;
                 if ((t.name == "ledge" || t.name == "crumblingLedge") && t.Find("fit") != null) kitLedges++;
             }
-            Assert.AreEqual(5, rock, "The mountain's terraces are not faced with rock");
+            Assert.AreEqual(5, rock, "The mountain's terraces are not bare rock");
             Assert.Greater(kitLedges, 5, "The mountain's ledges are not the cliff kit's slabs");
             // the painted layer stands behind the path wherever the shader can draw
             if (shader.isSupported) Assert.IsNotNull(GameObject.Find("JungleMid"), "The far jungle layer was not put up");
@@ -785,6 +786,47 @@ namespace RacingGame.Tests
             Assert.IsTrue(climbed, "Raja did not pull himself up");
             Assert.AreEqual(2.8f, game.hero.y, 0.05f, "Raja is not standing on the terrace");
             Assert.Greater(game.hero.x, 141.5f, "Raja did not come up onto the terrace");
+        }
+
+        [UnityTest]
+        public IEnumerator WallJumpsGetHimOutOfAGapBetweenWalls()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var level = game.level;
+            // the cracked wall is not jumped off; a terrace's side is
+            Assert.IsFalse(level.WallAt(CbLevel.WallX - 0.65f - CbLevel.HalfWidth, 1f, 1), "Raja can wall-jump up the cracked wall");
+            Assert.IsTrue(level.WallAt(152.4f + CbLevel.HalfWidth, 1f, -1), "The terrace's side is not a wall to jump off");
+            // fallen to the foot of the mountain between a terrace (6.4 m) and the plateau (10.2 m), too high to jump:
+            // pressing into the terrace's side he jumps, slides down it, kicks off it again and again, catches its top
+            // edge and pulls himself up onto it
+            game.Teleport(153f);
+            game.hero.y = 0;
+            game.hero.vx = game.hero.vy = 0;
+            yield return Frames(2);
+            bool started = false, climbing = false;
+            int kicks = 0;
+            game.TestInput = i =>
+            {
+                climbing |= game.hero.state == CbHero.State.Climb;
+                i.x = climbing ? 0 : -1;
+                if (!started) { i.jump = true; started = true; }
+                else i.jump = game.hero.OnWall && game.hero.vy < 0;
+            };
+            float lastVy = 0;
+            for (float waited = 0; waited < 8f && !(climbing && game.hero.state == CbHero.State.Idle); waited += Time.deltaTime)
+            {
+                yield return null;
+                if (game.hero.vy > 9.5f && lastVy < 0 && game.hero.facing == 1) kicks++;
+                lastVy = game.hero.vy;
+            }
+            game.TestInput = null;
+            Assert.Greater(kicks, 0, "Raja never kicked off the wall");
+            Assert.IsTrue(climbing, "Raja never caught the terrace's top");
+            Assert.AreEqual(6.4f, game.hero.y, 0.05f, "Raja did not get up out of the gap onto the terrace");
         }
 
         [UnityTest]

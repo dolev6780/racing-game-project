@@ -13,11 +13,12 @@ namespace Cloudborne
     /// back on the last safe footing he stood on and costs health. What crosses them: a rope bridge (a deck walked onto
     /// from the bank, sagging in the middle), stepping stones (some sink when stood on), floating logs (some drift
     /// to and fro, carrying him), a rock, and a stone arch bridge.</item>
-    /// <item>Falling rocks on the mountain, a dust trail giving each away before it drops.</item>
+    /// <item>Walls: the sides of the blocks. Pressing into one in the air he slides down it slowly and can jump off
+    /// it; a terrace's top corner or a ledge's end within reach of his raised hands he catches and climbs.</item>
     /// </list>
     /// Stage 1-1, about 265 m: the village; the first fight; a stream under a rope bridge; the second fight; the
     /// cracked wall (only the staff breaks it); a long river of stones and logs; the ambush at the shrine; a
-    /// mountain climbed by terraces and ledges, crumbling ones and falling rocks, to the golden fruit on its
+    /// mountain climbed by terraces and ledges, crumbling ones, edges caught and walls jumped off, to the golden fruit on its
     /// summit (and a hidden path to the scroll above); the fight on the ridge; a brook under a stone arch bridge;
     /// Sergeant Snap at the shrine gate.
     /// </summary>
@@ -65,14 +66,6 @@ namespace Cloudborne
             }
         }
 
-        /// <summary>A rock that drops on the mountain path every so often, a trickle of dust warning of it.</summary>
-        class FallingRock
-        {
-            public float x, period, timer, y, vy;
-            public bool falling;
-            public Transform t;
-        }
-
         public const float HalfWidth = 0.35f;
         // the cracked wall: taller than a double jump, two staff blows break it
         public const float WallX = 76f, WallHeight = 4.6f;
@@ -89,12 +82,11 @@ namespace Cloudborne
         const float RopeBridgeX = 34f, RopeDeckHalf = 3f, StoneBridgeX = 223.4f;
         // the mountain: where it stands, its summit's height
         public const float MountainFrom = 137f, MountainTo = 189f, SummitTop = 11.4f;
-        // falling rocks: how hard they hit, how long the dust warns before one drops; a rock knocks him down
-        const float RockDamage = 8f, RockWarn = 0.9f, RockKnock = 2.5f;
         // an edge he can catch: its top between these heights above his feet (his raised hands hang at
-        // CbHero.HangReach), and its corner just ahead of him (he presses against a terrace's face at HalfWidth)
-        public const float GrabLow = 1.05f, GrabHigh = 1.85f;
-        const float GrabNear = HalfWidth - 0.2f, GrabFar = HalfWidth + 0.45f;
+        // CbHero.HangReach), and its corner just ahead of him (he presses against a terrace's face at HalfWidth).
+        // Wide, so a jump at an edge is caught (the user found he did not always catch it).
+        public const float GrabLow = 0.95f, GrabHigh = 1.95f;
+        const float GrabNear = HalfWidth - 0.2f, GrabFar = HalfWidth + 0.55f;
 
         readonly CbGame g;
         readonly Transform root;
@@ -102,7 +94,6 @@ namespace Cloudborne
         readonly List<Block> blocks = new List<Block>();
         readonly List<Ledge> ledges = new List<Ledge>();
         readonly List<Crossing> crossings = new List<Crossing>();
-        readonly List<FallingRock> rocks = new List<FallingRock>();
         Material earth, grass, crackedEarth;
 
         public bool WallStanding => blocks.Exists(b => b.breakable && !b.broken);
@@ -207,8 +198,7 @@ namespace Cloudborne
         // ---------- the mountain's rock ----------
 
         // The mountain is one rock face, not blocks piled up: a painted cliff texture (Cliff/RockFace, drawn in Canva;
-        // without it, rock drawn in code) repeated across every face, lined up with the world, with
-        // the ground's own grassy lip along each top edge and grass on top.
+        // without it, rock drawn in code) repeated across every face, lined up with the world; bare rock, no grass.
         const float RockTile = 4f;
         static Texture2D rockTex;
         static bool rockPainted;
@@ -262,27 +252,25 @@ namespace Cloudborne
         }
 
         /// <summary>
-        /// A block of the mountain filling x0..x1, y0..y1, zFront..zBack (relative to parent): rock on its front and
-        /// sides, a band of the ground's grassy lip along its front top edge, grass on top.
+        /// A block of the mountain filling x0..x1, y0..y1, zFront..zBack (relative to parent): bare rock all over, no
+        /// grass (the user: the rocks he climbs need no grass), its top a little lighter, catching the light.
         /// </summary>
         void RockSlab(Transform parent, float x0, float x1, float y0, float y1, float zFront, float zBack)
         {
-            earth ??= EarthMat();
-            grass ??= GrassMat();
             float w = x1 - x0, h = y1 - y0, d = zBack - zFront, cx = (x0 + x1) / 2;
-            float wx = parent.position.x + x0, lip = Mathf.Min(1f, h * 0.45f);
+            float wx = parent.position.x + x0;
             CbArt.Part(CbMesh.Quad, RockMat(w, h, wx, y0), parent, new Vector3(cx, (y0 + y1) / 2, zFront), new Vector3(w, h, 1), shadows: false).name = "rock";
-            CbArt.Part(CbMesh.Quad, FaceMat(earth, w, lip, wx), parent, new Vector3(cx, y1 - lip / 2, zFront - 0.01f), new Vector3(w, lip, 1), shadows: false).name = "lip";
             var side = RockMat(d, h, 0, y0);
             CbArt.Part(CbMesh.Quad, side, parent, new Vector3(x0, (y0 + y1) / 2, zFront + d / 2), new Vector3(d, h, 1), Quaternion.Euler(0, 90, 0), shadows: false);
             CbArt.Part(CbMesh.Quad, side, parent, new Vector3(x1, (y0 + y1) / 2, zFront + d / 2), new Vector3(d, h, 1), Quaternion.Euler(0, -90, 0), shadows: false);
-            var lid = new Material(grass) { mainTextureScale = new Vector2(w / CbWorld.GrassTile, d / CbWorld.GrassTile), mainTextureOffset = new Vector2(wx / CbWorld.GrassTile, 0) };
-            CbArt.Part(CbMesh.Quad, lid, parent, new Vector3(cx, y1, zFront + d / 2), new Vector3(w, d, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
+            var tone = RockTone();
+            var top = RockMat(w, d, wx, zFront, new Color(Mathf.Min(1, tone.r * 1.15f), Mathf.Min(1, tone.g * 1.15f), Mathf.Min(1, tone.b * 1.12f)));
+            CbArt.Part(CbMesh.Quad, top, parent, new Vector3(cx, y1, zFront + d / 2), new Vector3(w, d, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "top";
         }
 
         /// <summary>
-        /// The mountain's body behind the terraces: one rock face whose jagged top rises from the path to peaks above
-        /// the summit and falls away beyond it, a grassy lip along its ridge; a little bluer, being farther back.
+        /// The mountain's body behind the terraces: one face of bare rock whose jagged top rises from the path to peaks
+        /// above the summit and falls away beyond it; a little bluer, being farther back.
         /// </summary>
         void MountainBody()
         {
@@ -299,23 +287,15 @@ namespace Cloudborne
                     }
                 return 0;
             }
-            const float Z = 5.6f, Bottom = -1f, LipDepth = 0.8f;
+            const float Z = 5.6f, Bottom = -1f;
             var v = new List<Vector3>(); var uv = new List<Vector2>(); var tri = new List<int>();
-            var lv = new List<Vector3>(); var luv = new List<Vector2>(); var ltri = new List<int>();
-            float tileW = CbWorld.FaceTileWidth((earth ??= EarthMat()).mainTexture);
             for (float x = profile[0].Item1; x <= profile[profile.Length - 1].Item1 + 0.01f; x += 0.75f)
             {
                 float top = Ridge(x);
                 v.Add(new Vector3(x, Bottom, Z)); uv.Add(new Vector2(x / RockTile, Bottom / RockTile));
                 v.Add(new Vector3(x, top, Z)); uv.Add(new Vector2(x / RockTile, top / RockTile));
-                lv.Add(new Vector3(x, top - LipDepth, Z - 0.02f)); luv.Add(new Vector2(x / tileW, 1 - LipDepth / CbWorld.FaceHeight));
-                lv.Add(new Vector3(x, top + 0.05f, Z - 0.02f)); luv.Add(new Vector2(x / tileW, 1));
                 int n = v.Count;
-                if (n >= 4)
-                {
-                    tri.AddRange(new[] { n - 4, n - 3, n - 2, n - 2, n - 3, n - 1 });
-                    ltri.AddRange(new[] { n - 4, n - 3, n - 2, n - 2, n - 3, n - 1 });
-                }
+                if (n >= 4) tri.AddRange(new[] { n - 4, n - 3, n - 2, n - 2, n - 3, n - 1 });
             }
             var mesh = new Mesh { name = "mountain" };
             mesh.SetVertices(v); mesh.SetUVs(0, uv); mesh.SetTriangles(tri, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
@@ -324,10 +304,6 @@ namespace Cloudborne
             var rock = RockMat(1, 1, 0, 0, new Color(tone.r * 0.85f, tone.g * 0.9f, tone.b * 0.96f));
             rock.mainTextureScale = Vector2.one; rock.mainTextureOffset = Vector2.zero;
             CbArt.Part(mesh, rock, root, Vector3.zero, Vector3.one, shadows: false).name = "mountainBody";
-            var ridge = new Mesh { name = "mountainRidge" };
-            ridge.SetVertices(lv); ridge.SetUVs(0, luv); ridge.SetTriangles(ltri, 0); ridge.RecalculateNormals(); ridge.RecalculateBounds();
-            var lipMat = new Material(earth) { mainTextureScale = Vector2.one, mainTextureOffset = Vector2.zero, color = earth.color * new Color(0.85f, 0.9f, 0.95f) };
-            CbArt.Part(ridge, lipMat, root, Vector3.zero, Vector3.one, shadows: false).name = "mountainRidge";
         }
 
         /// <summary>A model placed and stretched so its bounds fill the box lo..hi of parent's space; null if missing.</summary>
@@ -369,8 +345,8 @@ namespace Cloudborne
         // ---------- the mountain ----------
 
         /// <summary>
-        /// The mountain after the shrine: terraces (solid) and ledges up to its summit, the higher ledges crumbling,
-        /// rocks falling on the way; a gap to jump at the top; ledges down the far side. Secret: from the high
+        /// The mountain after the shrine: terraces (solid) and ledges up to its summit, the higher ledges crumbling
+        /// (falling between them, he wall-jumps back up); a gap to jump at the top; ledges down the far side. Secret: from the high
         /// plateau two hidden ledges lead up and back to the scroll.
         /// </summary>
         void BuildMountain()
@@ -397,9 +373,6 @@ namespace Cloudborne
             // them away)
             AddLedge(163.5f, 1.3f, 12.8f, false, hidden: true);
             AddLedge(160.3f, 1.4f, 15f, false, hidden: true);
-            // rocks falling on the way up
-            foreach (var (x, period) in new[] { (146.6f, 3.4f), (152.2f, 4.1f), (157.6f, 3.7f), (176.5f, 4.6f) })
-                rocks.Add(new FallingRock { x = x, period = period, timer = period * Random.Range(0.3f, 1f) });
         }
 
         /// <summary>A terrace of the mountain: solid stone (or earth) from the ground up to top, depth metres deep.</summary>
@@ -444,7 +417,7 @@ namespace Cloudborne
 
         // ---------- blocks and ledges ----------
 
-        /// <summary>Puts everything back: the wall whole, the ledges in place, the stones up, the rocks waiting.</summary>
+        /// <summary>Puts everything back: the wall whole, the ledges in place, the stones up.</summary>
         public void Reset()
         {
             climbTold = false;
@@ -457,12 +430,6 @@ namespace Cloudborne
                 b.t.localRotation = Quaternion.identity;
             }
             foreach (var c in crossings) { c.dip = c.bob = c.dx = c.sunk = c.shake = c.stood = c.timer = 0; c.phase = 0; }
-            foreach (var r in rocks)
-            {
-                r.falling = false;
-                r.timer = r.period * Random.Range(0.3f, 1f);
-                if (r.t != null) r.t.gameObject.SetActive(false);
-            }
             foreach (var l in ledges)
             {
                 l.gone = false;
@@ -602,6 +569,21 @@ namespace Cloudborne
             return false;
         }
 
+        /// <summary>
+        /// Whether Raja at (x, y) is up against a wall on his dir side that he can slide down and jump off: a block's
+        /// side, with more of it above his feet than a step. Not the cracked wall (it is there to be broken).
+        /// </summary>
+        public bool WallAt(float x, float y, int dir)
+        {
+            foreach (var b in blocks)
+            {
+                if (b.broken || b.breakable || y > b.top - 0.6f) continue;
+                float side = dir > 0 ? b.x0 - HalfWidth : b.x1 + HalfWidth;
+                if (Mathf.Abs(x - side) < 0.06f) return true;
+            }
+            return false;
+        }
+
         /// <summary>Whether the edge he hangs from at (edgeX, top) is still there: a crumbling ledge may have dropped.</summary>
         public bool EdgeHolds(float edgeX, float top)
         {
@@ -674,7 +656,7 @@ namespace Cloudborne
 
         /// <summary>
         /// Crumbling ledges drop when stood on and come back; hidden ledges show when he climbs near; logs bob, dip
-        /// under him and drift, carrying him; sinking stones go under; the rope bridge bounces; rocks fall.
+        /// under him and drift, carrying him; sinking stones go under; the rope bridge bounces.
         /// </summary>
         public void Update(float dt, CbHero hero)
         {
@@ -682,10 +664,9 @@ namespace Cloudborne
             if (!climbTold && hero.x > MountainFrom - 5f && hero.x < MountainFrom)
             {
                 climbTold = true;
-                g.hud.SetTip("Jump at an edge holding towards it: Raja grabs it and pulls himself up");
+                g.hud.SetTip("Jump at an edge: Raja grabs it and pulls himself up. Against a wall, JUMP again to leap off it");
             }
             UpdateCrossings(dt, hero);
-            UpdateRocks(dt, hero);
             foreach (var l in ledges)
             {
                 if (l.hidden)
@@ -806,59 +787,5 @@ namespace Cloudborne
             c.dip = c.sunk * 0.95f;
         }
 
-        void UpdateRocks(float dt, CbHero hero)
-        {
-            // only while he is on the mountain
-            if (hero.x < MountainFrom - 6 || hero.x > MountainTo + 4) return;
-            foreach (var r in rocks)
-            {
-                if (!r.falling)
-                {
-                    r.timer -= dt;
-                    // a trickle of dust and pebbles from above warns of it
-                    if (r.timer < RockWarn && Random.value < 0.5f)
-                        CbFx.Spark(new Vector3(r.x + Random.Range(-0.3f, 0.3f), Random.Range(13f, 15f), -0.4f), CbFx.Dust, 1, 0.5f, 0.25f, 1f, 14);
-                    if (r.timer <= 0)
-                    {
-                        r.falling = true;
-                        r.y = 18f; r.vy = 0;
-                        if (r.t == null)
-                        {
-                            r.t = CbArt.Joint(root, r.x, r.y, -0.2f, "fallingRock");
-                            if (CbArt.Prop("Cloudborne/Jungle/Boulder/Boulder", r.t, CbArt.PropOutline) == null)
-                                CbArt.Part(CbMesh.Blob(6, 4), CbArt.Toon("#7f8a78", CbArt.PropOutline), r.t, new Vector3(0, 0.5f, 0), Vector3.one * 0.9f, Quaternion.identity);
-                            r.t.localScale = Vector3.one * 0.6f;
-                        }
-                        r.t.gameObject.SetActive(true);
-                    }
-                    continue;
-                }
-                r.vy -= 30 * dt;
-                r.y += r.vy * dt;
-                r.t.localPosition = new Vector3(r.x, r.y, -0.2f);
-                r.t.localRotation = Quaternion.Euler(0, 0, r.y * 40f);
-                // it strikes him if it passes through where he stands
-                if (Mathf.Abs(hero.x - r.x) < 0.75f && r.y < hero.y + 1.8f && r.y > hero.y - 0.2f)
-                {
-                    hero.TakeHit(RockDamage, hero.x >= r.x ? 1 : -1, knock: RockKnock);
-                    Shatter(r);
-                    continue;
-                }
-                // or breaks on whatever is under it
-                float floor = SupportAt(r.x, r.y + 0.1f);
-                if (r.y <= Mathf.Max(floor, -1f)) Shatter(r);
-            }
-        }
-
-        void Shatter(FallingRock r)
-        {
-            var at = new Vector3(r.x, r.y + 0.3f, -0.4f);
-            CbFx.Spark(at, CbFx.Dust, 14, 5, 0.45f, 0.5f, 8);
-            CbFx.Spark(at, CbFx.Grey, 6, 6, 0.3f, 0.4f, 12);
-            CbFx.Sfx("hit", 0.5f);
-            r.falling = false;
-            r.timer = r.period;
-            r.t.gameObject.SetActive(false);
-        }
     }
 }
