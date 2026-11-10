@@ -1048,6 +1048,8 @@ namespace RacingGame.Tests
             yield return Frames(3);
             game.TestInput = null;
             Assert.AreEqual(CbHero.State.Air, hero.state, "JUMP did not let go of the vine");
+            // a moment after letting go he can take hold again
+            yield return new WaitForSeconds(0.35f);
             // a bar: he hangs from it and goes along it hand over hand
             var bar = level.bars[0];
             game.Teleport(bar.x0 + 1f);

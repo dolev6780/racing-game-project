@@ -53,7 +53,7 @@ namespace Cloudborne
         class Lift { public float x, half, top, lo, hi; public Transform deck, weight; }
         class Lantern { public float x; public bool lit; public Material light; }
         class Gate { public Block b; public float open; public bool wantOpen, sinks; public Vector3 home; }
-        class Thorns { public Block b; public int hp = 2; public float cool; }
+        class Thorns { public Block b; public int hp = 2; public float cool, clang; }
         class Pendulum { public float x, y, len, period, phase; public Transform t; }
         class Snapper { public float x, y, timer, period = 2.2f, cool; public int hp = 3; public bool dead; public Transform t, jaw, model; }
         class Pit { public float x0, x1, stood; public bool open; public Transform cover; }
@@ -672,10 +672,14 @@ namespace Cloudborne
             {
                 if (th.b.broken || !InReach(dir > 0 ? th.b.x0 : th.b.x1, x, dir, range) || y > th.b.top) continue;
                 any = true;
-                // a blow lands every frame of its hit window: count it once
+                // paws clang off them (a hint); a blow lands every frame of its hit window: count each once
+                if (!staff)
+                {
+                    if (th.clang <= 0) { th.clang = 0.25f; g.hud.SetTip("Thorns! Cut them with the staff (<color=#ffb03a>HEAVY</color>)"); CbFx.Sfx("block", 0.6f); }
+                    continue;
+                }
                 if (th.cool > 0) continue;
                 th.cool = 0.25f;
-                if (!staff) { g.hud.SetTip("Thorns! Cut them with the staff (<color=#ffb03a>HEAVY</color>)"); CbFx.Sfx("block", 0.6f); continue; }
                 th.hp--;
                 CbFx.Spark(new Vector3((th.b.x0 + th.b.x1) / 2, 0.8f, -0.4f), new Color(0.3f, 0.6f, 0.25f) * 1.5f, 14, 5, 0.35f, 0.5f, 6);
                 CbFx.Sfx("hit", 0.7f);
@@ -793,7 +797,7 @@ namespace Cloudborne
                 if (Mathf.Abs(hero.x - (d.x0 + d.x1) / 2) < 14f && Random.value < 0.5f)
                     CbFx.Spark(new Vector3(Random.Range(d.x0, d.x1), Random.Range(d.y0, d.y0 + 3f), -0.3f), new Color(0.85f, 0.95f, 1f) * 1.4f, 1, 0, 0.25f, 1.6f, -6);
 
-            foreach (var th in thorns) th.cool = Mathf.Max(0, th.cool - dt);
+            foreach (var th in thorns) { th.cool = Mathf.Max(0, th.cool - dt); th.clang = Mathf.Max(0, th.clang - dt); }
             foreach (var c in cages) c.cool = Mathf.Max(0, c.cool - dt);
             foreach (var sn in snappers) sn.cool = Mathf.Max(0, sn.cool - dt);
             UpdateTraps(dt, hero);
