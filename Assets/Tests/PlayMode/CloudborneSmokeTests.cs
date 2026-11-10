@@ -64,12 +64,28 @@ namespace RacingGame.Tests
             bool done = false;
             game.comic.Play(shots, () => done = true);
             Assert.IsTrue(game.comic.Playing);
-            // each painting stays long enough to read its words (about 3 s here), and a tap moves on sooner
+            // each painting stays long enough to read its words (about 3 s here), and a tap moves on sooner; it shows
+            // whole, its own shape, inside the screen, and moving in it never loses more than a little of it
+            float least = 1;
             for (float waited = 0; !done && waited < 12f; waited += Time.unscaledDeltaTime)
             {
                 game.comic.Update(Time.unscaledDeltaTime);
+                // (a headless run may have no screen to measure)
+                if (waited < 1f && game.comic.ScreenSize.y > 1 && game.comic.ShownSize.y > 1)
+                {
+                    var size = game.comic.ShownSize;
+                    Assert.AreEqual(64f / 36f, size.x / size.y, 0.02f, "The painting is not shown in its own shape");
+                    Assert.LessOrEqual(size.x, game.comic.ScreenSize.x + 0.5f, "The painting is wider than the screen");
+                    Assert.LessOrEqual(size.y, game.comic.ScreenSize.y + 0.5f, "The painting is taller than the screen");
+                }
+                least = Mathf.Min(least, game.comic.Shown.width, game.comic.Shown.height);
                 yield return null;
             }
+            Assert.Greater(least, 0.9f, "Moving in, the cutscene cut away much of the painting");
+            // the story's own moves in keep nearly all of it too
+            foreach (var scene in new[] { CbStory.Prologue, CbStory.KodaBoast, CbStory.KodaTaken, CbStory.Journey, CbStory.FireWakes })
+                foreach (var shot in scene)
+                    if (shot.title == null) Assert.LessOrEqual(Mathf.Max(shot.from.z, shot.to.z), 1.5f, $"{shot.image} moves in too far");
             Assert.IsTrue(done, "The drawn cutscene never finished");
             Assert.IsFalse(game.comic.Playing);
             // SKIP ends it at once

@@ -22,7 +22,10 @@ namespace Cloudborne
             /// <summary>Used in place of the image (tests).</summary>
             public Texture2D texture;
             public float dur = 3.5f;
-            /// <summary>The view at the start and the end: the centre (0..1 across and up the painting) and the zoom (1 = the whole height fits).</summary>
+            /// <summary>
+            /// The view at the start and the end: the centre (0..1 across and up the painting) and how far it moves in
+            /// (1 = the whole painting). The move in is kept gentle (Gentle): the painting always shows nearly whole.
+            /// </summary>
             public Vector3 from = new Vector3(0.5f, 0.5f, 1f), to = new Vector3(0.5f, 0.5f, 1.12f);
             public string who, caption;
             /// <summary>What drifts over it: stars, embers, purple, sparks, fireflies.</summary>
@@ -42,11 +45,15 @@ namespace Cloudborne
         }
 
         static readonly Color Paper = CbArt.Hex("#fff6e8"), Gold = CbArt.Hex("#ffc94a");
-        const float Cross = 0.6f, Bar = 34f;
+        const float Cross = 0.6f, Strip = 58f;
+        // The user saw only half of each painting: it was cut to cover the (wider) phone screen, moved in up to 1.4
+        // times and had bars over its top and bottom. Now the whole painting fits the screen (black at the sides of a
+        // wide one), and a shot's move in is a fifth of what it asks: 1.4 shows 93% of the painting across.
+        const float Gentle = 0.2f;
 
         readonly RectTransform root, frame;
         readonly RawImage below, above;
-        readonly Image flash;
+        readonly Image flash, strip;
         readonly Text whoTxt, captionTxt, titleTxt, subtitleTxt;
         readonly List<Mote> motes = new List<Mote>();
         Shot[] shots;
@@ -85,9 +92,8 @@ namespace Cloudborne
                 motes.Add(new Mote { rt = rt, img = img });
             }
             flash = UIKit.Image(UIKit.Stretch(root, "flash"), null, Color.clear);
-            // black bars and the narration over the lower one
-            UIKit.Image(UIKit.Rect(root, "barTop", new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(4000, Bar)), null, Color.black);
-            UIKit.Image(UIKit.Rect(root, "barBottom", new Vector2(0.5f, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(4000, Bar + 22)), null, Color.black);
+            // the narration over the painting's foot, on a see-through dark strip that comes and goes with the words
+            strip = UIKit.Image(UIKit.Rect(root, "strip", new Vector2(0.5f, 0), new Vector2(0.5f, 0), Vector2.zero, new Vector2(4000, Strip)), null, Color.clear);
             whoTxt = UIKit.Label(root, "", 12, Gold, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 34), new Vector2(700, 16), TextAnchor.MiddleCenter, true);
             captionTxt = UIKit.Label(root, "", 15, Paper, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(760, 26), TextAnchor.MiddleCenter);
             captionTxt.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -95,7 +101,7 @@ namespace Cloudborne
             titleTxt.gameObject.AddComponent<Outline>().effectColor = CbArt.Hex("#ff5a2e");
             subtitleTxt = UIKit.Label(root, "", 20, Gold, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -28), new Vector2(800, 28), TextAnchor.MiddleCenter, true);
             var skip = UIKit.Rect(root, "skip", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -2), new Vector2(100, 30));
-            UIKit.Label(skip, "SKIP ▶▶", 13, new Color(1, 1, 1, 0.8f), TextAnchor.MiddleCenter, true, false);
+            UIKit.Label(skip, "SKIP ▶▶", 13, new Color(1, 1, 1, 0.8f), TextAnchor.MiddleCenter, true, false).gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, 0.6f);
             root.gameObject.SetActive(false);
         }
 
@@ -193,10 +199,11 @@ namespace Cloudborne
             float k = Mathf.Clamp01(t / dur);
             float ease = k * k * (3 - 2 * k);
 
-            // the painting: covering the screen, its view easing from `from` to `to`
+            // the painting: whole on the screen, its view easing gently from `from` to `to`
             var view = Vector3.Lerp(s.from, s.to, ease);
             var tex = above.texture;
-            if (tex != null) above.uvRect = Cover(tex, view);
+            if (tex != null) { above.uvRect = View(view); Fit(above, tex); }
+            if (belowTex != null) Fit(below, belowTex);
             crossT = Mathf.Max(0, crossT - dt);
             float fadeIn = 1 - crossT / Cross;
             above.color = tex != null ? new Color(1, 1, 1, fadeIn) : Color.clear;
@@ -214,6 +221,7 @@ namespace Cloudborne
             flash.color = new Color(1, 1, 1, flashT / 0.45f * 0.9f);
             float words = Mathf.Clamp01((t - 0.5f) / 0.5f) * Mathf.Clamp01((dur - t) / 0.4f);
             SetAlpha(whoTxt, words); SetAlpha(captionTxt, words);
+            strip.color = new Color(0, 0, 0, string.IsNullOrEmpty(s.caption) ? 0 : 0.55f * words);
             float title = s.title != null ? Mathf.Clamp01(t / 0.8f) * Mathf.Clamp01((dur - t) / 0.5f) : 0;
             SetAlpha(titleTxt, title); SetAlpha(subtitleTxt, Mathf.Clamp01((t - 0.5f) / 0.6f) * Mathf.Clamp01((dur - t) / 0.5f));
             titleTxt.transform.localScale = Vector3.one * (1.15f - 0.15f * Mathf.Clamp01(t / 0.8f));
@@ -241,17 +249,31 @@ namespace Cloudborne
             if (t >= dur) Next();
         }
 
-        /// <summary>The part of the painting to show so it covers the screen, around a centre, zoomed in by view.z.</summary>
-        Rect Cover(Texture tex, Vector3 view)
+        /// <summary>The part of the painting to show: all of it, moved in gently (Gentle) around a centre.</summary>
+        static Rect View(Vector3 view)
         {
-            float screen = root.rect.width / Mathf.Max(1f, root.rect.height);
-            float image = tex.width / (float)Mathf.Max(1, tex.height);
-            float w = screen > image ? 1 : screen / image, h = screen > image ? image / screen : 1;
-            float z = Mathf.Max(1, view.z);
-            w /= z; h /= z;
+            float z = 1 + Mathf.Max(0, view.z - 1) * Gentle;
+            float w = 1 / z, h = 1 / z;
             float x = Mathf.Clamp(view.x - w / 2, 0, 1 - w), y = Mathf.Clamp(view.y - h / 2, 0, 1 - h);
             return new Rect(x, y, w, h);
         }
+
+        /// <summary>Sizes a painting to fit the screen whole, keeping its shape, in the middle.</summary>
+        void Fit(RawImage img, Texture tex)
+        {
+            float sw = root.rect.width, sh = root.rect.height;
+            float aspect = tex.width / (float)Mathf.Max(1, tex.height);
+            var size = sw / Mathf.Max(1f, sh) > aspect ? new Vector2(sh * aspect, sh) : new Vector2(sw, sw / aspect);
+            var rt = img.rectTransform;
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = size;
+        }
+
+        /// <summary>The painting on screen: the part of it shown (uv), and its size on the screen (tests).</summary>
+        public Rect Shown => above.uvRect;
+        public Vector2 ShownSize => above.rectTransform.rect.size;
+        public Vector2 ScreenSize => root.rect.size;
 
         void Spawn(string fx, bool burst)
         {
