@@ -197,6 +197,8 @@ Shader "RacingGame/Toon"
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+            // Shadows.hlsl uses LerpWhiteTo without including where it lives (failed to compile on desktop OpenGL)
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/CommonMaterial.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 
             float3 _LightDirection;

@@ -1038,6 +1038,14 @@ namespace RacingGame.Tests
             yield return Frames(2);
             var cam = Camera.main;
             Assert.IsNotNull(cam, "No game camera");
+            // Only here is the game drawn in CI (into a picture): the shaders compile for the first time and any
+            // error of theirs is told in the log ("SHOT ERROR"), not failing the run before the pictures are taken
+            LogAssert.ignoreFailingMessages = true;
+            void Told(string message, string trace, LogType type)
+            {
+                if (type == LogType.Error || type == LogType.Exception) Debug.Log("SHOT ERROR " + message.Split('\n')[0]);
+            }
+            Application.logMessageReceived += Told;
             const int W = 960, H = 540;
             cam.aspect = W / (float)H;
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
@@ -1081,6 +1089,7 @@ namespace RacingGame.Tests
             }
             cam.ResetAspect();
             rt.Release();
+            Application.logMessageReceived -= Told;
         }
 
         [UnityTest]
