@@ -36,7 +36,7 @@ namespace Cloudborne
         // a crate is solid (the user: nothing should be walked through): Raja can't pass through one and can stand on
         // it; its body is the model's, 0.89 m across and 0.95 m tall
         const float CrateBody = 0.445f, CrateTop = 0.95f;
-        // a tiger token is a big coin glowing orange; the chest's key is built in code
+        // a tiger token is a big coin glowing orange
         static readonly string[] ModelNames = { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll", "Coin", "Key" };
         static readonly Color[] Glows =
         {
@@ -174,9 +174,11 @@ namespace Cloudborne
         {
             string name = ModelNames[(int)kind];
             var t = CbArt.Joint(root, pos.x, pos.y, pos.z, name.ToLowerInvariant());
-            var model = kind == Kind.Key ? null : CbArt.Prop($"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
+            var model = CbArt.Prop($"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
             if (kind == Kind.Token && model != null) model.localScale *= 1.8f;
-            if (kind == Kind.Key)
+            // the key model lies flat: stood up, its face to the camera
+            if (kind == Kind.Key && model != null) model.localRotation = Quaternion.Euler(90, 0, 0) * model.localRotation;
+            if (kind == Kind.Key && model == null)
             {
                 var gold = CbArt.Toon("#e8b93a", CbArt.PropOutline);
                 CbArt.Part(CbMesh.Torus(0.25f), gold, t, new Vector3(0, 0.18f, 0), new Vector3(0.22f, 0.22f, 0.22f), Quaternion.Euler(90, 0, 0));

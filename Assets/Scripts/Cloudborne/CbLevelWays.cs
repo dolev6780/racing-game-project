@@ -52,7 +52,7 @@ namespace Cloudborne
         class Raft { public float x, from, to, speed, sink, baseY; public Transform t; }
         class Lift { public float x, half, top, lo, hi; public Transform deck, weight; }
         class Lantern { public float x; public bool lit; public Material light; }
-        class Gate { public Block b; public float open; public bool wantOpen; public Vector3 home; }
+        class Gate { public Block b; public float open; public bool wantOpen, sinks; public Vector3 home; }
         class Thorns { public Block b; public int hp = 2; public float cool; }
         class Pendulum { public float x, y, len, period, phase; public Transform t; }
         class Snapper { public float x, y, timer, period = 2.2f, cool; public int hp = 3; public bool dead; public Transform t, jaw, model; }
@@ -65,6 +65,8 @@ namespace Cloudborne
         const float StatueX = 262.5f, PlateX = 281.5f, LeverX = 273f, GongX = 296.5f, BridgeFrom = 300f, BridgeTo = 312f;
         const float HiveX = 320f, HiveY = 4.4f, ChestX = 467.5f, SeesawX = 430f, MudFrom = 338f, MudTo = 344f;
         const float LogFrom = 370f, LogTo = 378f;
+        // the darts fly from the guardian's mouth: over a ducking Raja, into a standing one
+        const float DartY = 1.35f;
 
         public readonly List<Vine> vines = new List<Vine>();
         public readonly List<Bar> bars = new List<Bar>();
@@ -84,8 +86,8 @@ namespace Cloudborne
         readonly List<Boulder> boulders = new List<Boulder>();
         Block pushBlock;
         float pushHome, dartT, bridge, hiveFall = -1, hiveY, bees, beeTick, logSpin, seesawT = -1, boulderT;
-        bool lever, gong, chestOpen;
-        Transform leverHandle, gongDisc, hive, chestLid, logT, plank, stone, bridgeT;
+        bool lever, gong, chestOpen, leverModel;
+        Transform leverHandle, gongDisc, hive, chestLid, chestModel, logT, plank, stone, bridgeT;
 
         /// <summary>The stone lanterns where he comes back after falling.</summary>
         public IEnumerable<float> Checkpoints { get { foreach (var l in lanterns) yield return l.x; } }
@@ -243,6 +245,13 @@ namespace Cloudborne
 
         void AddLeaf(float x, float top)
         {
+            // the model: a great leaf on a curved stem, its pad 1.25 m up (jumped onto, it throws him high)
+            var stem = CbArt.Joint(root, x, 0, 0f, "springLeaf");
+            if (Model("Leaf", stem, new Vector3(1.38f, 1.36f, 1.45f), 180f) != null)
+            {
+                leaves.Add(new Leaf { x = x, half = 0.65f, top = 1.25f, t = stem });
+                return;
+            }
             var t = CbArt.Joint(root, x, top, 0f, "springLeaf");
             CbArt.Part(CbMesh.Leaf(), M("#5fb04a"), t, Vector3.zero, new Vector3(2.4f, 0.2f, 1.6f), Quaternion.Euler(0, 90, 0), shadows: false);
             CbArt.Cylinder(VineGreen, t, new Vector3(0, -top / 2, 0.2f), 0.08f, top);
@@ -287,6 +296,12 @@ namespace Cloudborne
         void BuildStatue()
         {
             var t = CbArt.Joint(root, StatueX, 0, 0.3f, "dartStatue");
+            // the model: a guardian's head on a pillar, its open mouth turned towards the way Raja comes
+            if (Model("Statue", t, new Vector3(0.79f, 1.9f, 0.81f), -110f) != null)
+            {
+                blocks.Add(new Block { x0 = StatueX - 0.42f, x1 = StatueX + 0.42f, top = 1.9f, t = t, smooth = true });
+                return;
+            }
             CbArt.Box(StoneGrey, t, new Vector3(0, 0.6f, 0), new Vector3(0.9f, 1.2f, 0.9f));
             CbArt.Box(M("#9aa594"), t, new Vector3(0, 1.45f, 0), new Vector3(0.8f, 0.7f, 0.8f));
             CbArt.Box(M("#2a2420"), t, new Vector3(-0.41f, 1.15f, 0), new Vector3(0.05f, 0.14f, 0.3f));
@@ -308,6 +323,9 @@ namespace Cloudborne
         void BuildLever()
         {
             var t = CbArt.Joint(root, LeverX, 0, 0.2f, "lever");
+            // the model: pulled, it is mirrored, so its handle leans the other way
+            leverHandle = Model("Lever", t, new Vector3(0.92f, 1.2f, 0.73f), 180f);
+            if (leverHandle != null) { leverModel = true; return; }
             CbArt.Box(StoneGrey, t, new Vector3(0, 0.3f, 0), new Vector3(0.5f, 0.6f, 0.5f));
             leverHandle = CbArt.Joint(t, 0, 0.6f, 0, "handle");
             CbArt.Cylinder(Wood, leverHandle, new Vector3(0, 0.45f, 0), 0.06f, 0.9f);
@@ -318,6 +336,17 @@ namespace Cloudborne
         void AddGate(float x)
         {
             var t = CbArt.Joint(root, x, 0, 0f, "gate");
+            // the model: stone posts and bamboo bars in one, standing just behind the path; opened, it sinks into the
+            // ground
+            var model = Model("Gate", t, new Vector3(3.45f, 3.6f, 1.24f), 180f);
+            if (model != null)
+            {
+                model.localPosition = new Vector3(0, 0, 0.6f);
+                var mb = new Block { x0 = x - 0.4f, x1 = x + 0.4f, top = 3.6f, t = t, smooth = true };
+                blocks.Add(mb);
+                gates.Add(new Gate { b = mb, home = t.localPosition, sinks = true });
+                return;
+            }
             for (float z = -0.6f; z <= 0.61f; z += 0.3f)
                 CbArt.Cylinder(Bamboo, t, new Vector3(0, 1.8f, z), 0.08f, 3.6f);
             CbArt.Box(Wood, t, new Vector3(0, 3.5f, 0), new Vector3(0.25f, 0.25f, 1.6f));
@@ -365,20 +394,26 @@ namespace Cloudborne
         void BuildGong()
         {
             var t = CbArt.Joint(root, GongX, 0, 0.4f, "gong");
+            bridgeT = CbArt.Joint(root, BridgeFrom, -0.08f, 0.1f, "gongBridge");
+            for (float x = 0.3f; x < BridgeTo - BridgeFrom; x += 0.62f)
+                CbArt.Box(Wood, bridgeT, new Vector3(x, 0, 0), new Vector3(0.55f, 0.14f, 1.4f)).gameObject.SetActive(false);
+            // the model: the golden gong in its wooden frame; struck, it shakes
+            gongDisc = Model("Gong", t, new Vector3(2.55f, 2.6f, 0.86f), 180f);
+            if (gongDisc != null) return;
             CbArt.Cylinder(Wood, t, new Vector3(-0.8f, 1.3f, 0), 0.1f, 2.6f);
             CbArt.Cylinder(Wood, t, new Vector3(0.8f, 1.3f, 0), 0.1f, 2.6f);
             CbArt.Cylinder(Wood, t, new Vector3(0, 2.6f, 0), 0.1f, 1.8f, Quaternion.Euler(0, 0, 90));
             gongDisc = CbArt.Joint(t, 0, 1.6f, 0, "disc");
             CbArt.Cylinder(new Material(CbArt.Emissive(new Color(0.9f, 0.62f, 0.15f))), gongDisc, Vector3.zero, 0.7f, 0.08f, Quaternion.Euler(90, 0, 0));
-            bridgeT = CbArt.Joint(root, BridgeFrom, -0.08f, 0.1f, "gongBridge");
-            for (float x = 0.3f; x < BridgeTo - BridgeFrom; x += 0.62f)
-                CbArt.Box(Wood, bridgeT, new Vector3(x, 0, 0), new Vector3(0.55f, 0.14f, 1.4f)).gameObject.SetActive(false);
         }
 
         void BuildHive()
         {
-            CbArt.Cylinder(Wood, root, new Vector3(HiveX, HiveY + 1.6f, 0.2f), 0.2f, 3f, Quaternion.Euler(0, 0, 90));
             hive = CbArt.Joint(root, HiveX, HiveY, 0f, "beehive");
+            hiveY = HiveY;
+            // the model: the hive hanging from its own branch
+            if (Model("Hive", hive, new Vector3(0.73f, 1.4f, 1.07f), 180f) != null) return;
+            CbArt.Cylinder(Wood, root, new Vector3(HiveX, HiveY + 1.6f, 0.2f), 0.2f, 3f, Quaternion.Euler(0, 0, 90));
             CbArt.Part(CbMesh.Blob(8, 6), M("#d9a640"), hive, Vector3.zero, new Vector3(0.6f, 0.8f, 0.6f));
             for (int k = -1; k <= 1; k++)
                 CbArt.Part(CbMesh.Torus(0.12f), M("#7a5220"), hive, new Vector3(0, k * 0.22f, 0), new Vector3(0.32f, 0.3f, 0.32f));
@@ -497,6 +532,13 @@ namespace Cloudborne
         void BuildChest()
         {
             var t = CbArt.Joint(root, ChestX, 0, 0.2f, "chest");
+            // the model: opened, it glows and bursts with what was inside
+            chestModel = Model("Chest", t, new Vector3(1f, 0.81f, 0.88f), 180f);
+            if (chestModel != null)
+            {
+                blocks.Add(new Block { x0 = ChestX - 0.5f, x1 = ChestX + 0.5f, top = 0.81f, t = t });
+                return;
+            }
             CbArt.Box(Wood, t, new Vector3(0, 0.3f, 0), new Vector3(1f, 0.6f, 0.7f));
             CbArt.Box(M("#d9a640"), t, new Vector3(0, 0.3f, -0.36f), new Vector3(0.18f, 0.25f, 0.04f));
             chestLid = CbArt.Joint(t, 0, 0.6f, 0.35f, "lid");
@@ -642,7 +684,8 @@ namespace Cloudborne
             if (!lever && InReach(LeverX, x, dir, range) && y < 1.5f)
             {
                 lever = true; any = true;
-                leverHandle.localRotation = Quaternion.Euler(0, 0, -35);
+                if (leverModel) leverHandle.localScale = new Vector3(-1, 1, 1);
+                else leverHandle.localRotation = Quaternion.Euler(0, 0, -35);
                 gates[0].wantOpen = true;
                 CbFx.Sfx("block", 0.8f);
                 g.hud.SetTip("The gate opens!");
@@ -762,15 +805,18 @@ namespace Cloudborne
                 bridge = Mathf.MoveTowards(bridge, 1, dt / 1.6f);
                 int shown = Mathf.CeilToInt(bridge * bridgeT.childCount);
                 for (int i = 0; i < bridgeT.childCount; i++) bridgeT.GetChild(i).gameObject.SetActive(i < shown);
-                if (gongDisc != null) gongDisc.localRotation = Quaternion.Euler(Mathf.Sin(Time.time * 30) * 6 * (1 - bridge), 0, 0);
+                if (gongDisc != null) gongDisc.localRotation = Quaternion.Euler(0, 180, Mathf.Sin(Time.time * 30) * 2.5f * (1 - bridge));
             }
             // gates slide up when opened; the second opens while its plate is pressed
             bool pressed = (Mathf.Abs(hero.x - PlateX) < 0.6f && hero.y < 0.1f) || (pushBlock.x0 < PlateX && pushBlock.x1 > PlateX);
             if (gates.Count > 1) gates[1].wantOpen = pressed || (gates[1].open > 0 && Mathf.Abs(hero.x - (gates[1].b.x0 + gates[1].b.x1) / 2) < 0.8f);
             foreach (var gt in gates)
             {
+                float was = gt.open;
                 gt.open = Mathf.MoveTowards(gt.open, gt.wantOpen ? 1 : 0, dt * 1.5f);
-                gt.b.t.localPosition = gt.home + Vector3.up * gt.open * 3.4f;
+                gt.b.t.localPosition = gt.home + Vector3.up * gt.open * (gt.sinks ? -3.7f : 3.4f);
+                if (gt.sinks && gt.open != was && Random.value < 0.5f)
+                    CbFx.Puff(gt.home + new Vector3(Random.Range(-1.4f, 1.4f), 0.2f, -0.2f), new Color(0.8f, 0.75f, 0.65f), 1, 1f, 0.8f, 0.6f);
                 gt.b.broken = gt.open > 0.8f;
             }
             // the beehive: it falls, and the bees go for the raiders near it
@@ -805,7 +851,8 @@ namespace Cloudborne
                 if (g.HasKey)
                 {
                     chestOpen = true;
-                    chestLid.localRotation = Quaternion.Euler(-70, 0, 0);
+                    if (chestLid != null) chestLid.localRotation = Quaternion.Euler(-70, 0, 0);
+                    if (chestModel != null) { chestModel.localScale = Vector3.one * 1.06f; CbVfx.Ring(new Vector3(ChestX, 0.6f, -0.5f), CbFx.Flame * 0.6f, 1.6f, 0.4f); }
                     g.items.Spawn(CbItems.Kind.Token, new Vector3(ChestX, 1.2f, 0), resting: true);
                     for (int k = 0; k < 3; k++) g.items.Spawn(CbItems.Kind.Coin, new Vector3(ChestX, 0.8f, 0));
                     CbFx.Spark(new Vector3(ChestX, 0.8f, -0.4f), CbFx.Flame, 16, 4, 0.35f, 0.5f, -3);
@@ -847,8 +894,8 @@ namespace Cloudborne
             if (dartT <= 0 && Mathf.Abs(hero.x - StatueX) < 16f)
             {
                 dartT = 2.4f;
-                var t = CbArt.Cylinder(M("#3a2a1a"), root, new Vector3(StatueX - 0.5f, 1.15f, 0), 0.03f, 0.5f, Quaternion.Euler(0, 0, 90));
-                darts.Add(new Dart { x = StatueX - 0.5f, y = 1.15f, vx = -9f, t = t });
+                var t = CbArt.Cylinder(M("#3a2a1a"), root, new Vector3(StatueX - 0.5f, DartY, 0), 0.03f, 0.5f, Quaternion.Euler(0, 0, 90));
+                darts.Add(new Dart { x = StatueX - 0.5f, y = DartY, vx = -9f, t = t });
                 CbFx.Sfx("dash", 0.4f);
             }
             for (int i = darts.Count - 1; i >= 0; i--)
@@ -981,13 +1028,15 @@ namespace Cloudborne
             }
             foreach (var b in boulders) { b.rolling = false; b.cool = 0; b.x = 466f; if (b.t != null) b.t.gameObject.SetActive(false); }
             lever = gong = chestOpen = chestHinted = seesawLaunched = false;
-            leverHandle.localRotation = Quaternion.Euler(0, 0, 35);
+            if (leverModel) leverHandle.localScale = Vector3.one;
+            else leverHandle.localRotation = Quaternion.Euler(0, 0, 35);
             bridge = 0;
             for (int i = 0; i < bridgeT.childCount; i++) bridgeT.GetChild(i).gameObject.SetActive(false);
             foreach (var gt in gates) { gt.open = 0; gt.wantOpen = false; gt.b.broken = false; gt.b.t.localPosition = gt.home; }
             pushBlock.x0 = pushHome - 0.5f; pushBlock.x1 = pushHome + 0.5f; pushBlock.t.localPosition = new Vector3(pushHome, 0, 0);
             hiveFall = -1; hiveY = HiveY; bees = 0; hive.localPosition = new Vector3(HiveX, HiveY, 0);
-            chestLid.localRotation = Quaternion.identity;
+            if (chestLid != null) chestLid.localRotation = Quaternion.identity;
+            if (chestModel != null) chestModel.localScale = Vector3.one;
             seesawT = -1;
             foreach (var l in lifts) l.top = l.lo;
             foreach (var r in rafts) r.sink = 0;
