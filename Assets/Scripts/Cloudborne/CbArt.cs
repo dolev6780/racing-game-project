@@ -51,11 +51,12 @@ namespace Cloudborne
             var m = NewToon(Color.white, outline, texture);
             m.SetFloat("_Bands", 1);
             m.SetFloat("_BandSoftness", 0.02f);
-            m.SetColor("_ShadowColor", new Color(0.62f, 0.55f, 0.76f));
+            // a light shadow and a strong warm rim: against the bright painted jungle the characters looked dim
+            m.SetColor("_ShadowColor", new Color(0.78f, 0.72f, 0.88f));
             m.SetFloat("_SpecStrength", 0);
-            m.SetColor("_RimColor", new Color(1f, 0.9f, 0.78f));
-            m.SetFloat("_RimPower", 3.5f);
-            m.SetFloat("_RimStrength", 0.45f);
+            m.SetColor("_RimColor", new Color(1f, 0.92f, 0.8f));
+            m.SetFloat("_RimPower", 3f);
+            m.SetFloat("_RimStrength", 0.6f);
             return m;
         }
 

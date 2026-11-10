@@ -25,7 +25,13 @@ namespace Cloudborne
         // The clean painted look (the user's reference: a bright storybook platformer): a soft misty backdrop, a row
         // of big painted trees, a hedge of bushes and flowers right behind the path, a thick grass lip on the ground's
         // front edge and leaves hanging into the top of the view. On when its paintings are in the project.
-        const string CanopyPath = "Cloudborne/Jungle/Backdrop/Canopy", LipPath = "Cloudborne/Jungle/Ground/GroundLip";
+        const string CanopyPath = "Cloudborne/Jungle/Backdrop/Canopy", LipPath = "Cloudborne/Jungle/Ground/GroundLip",
+            WaterSidePath = "Cloudborne/Jungle/Water/WaterSide", ClumpPath = "Cloudborne/Jungle/Backdrop/BushClump";
+        // the painted river cross-section: SideDepth tall (all of the painting), its foam crests SideCrest over the
+        // water's surface, repeating every SideTile metres
+        const float SideDepth = 3.4f, SideCrest = 0.23f, SideTile = SideDepth * 1563f / 846f;
+        // a rounded clump of bushes where the hedge meets a river, ClumpHeight tall
+        const float ClumpHeight = 2.1f;
         static bool NewLook => Resources.Load<Texture2D>(CanopyPath) != null;
         // the painted ground drawn as painted (unlit), a touch darker so the characters stand out from it
         static readonly Color PaintTint = new Color(0.93f, 0.92f, 0.95f);
@@ -417,6 +423,13 @@ namespace Cloudborne
             var waterTex = paintedWater != null ? paintedWater : WaterTexture();
             waterTex.wrapMode = TextureWrapMode.Repeat;
             float level = CbLevel.WaterLevel, back = CbLevel.WaterBack, bed = level - 0.55f;
+            var sideTex = NewLook ? Resources.Load<Texture2D>(WaterSidePath) : null;
+            var paintedSide = sideTex != null ? Cutout(sideTex, 0f, PaintTint) : null;
+            if (paintedSide != null)
+            {
+                sideTex.wrapModeU = TextureWrapMode.Repeat;
+                sideTex.wrapModeV = TextureWrapMode.Clamp;
+            }
             foreach (var (x0, x1) in CbLevel.Waters)
             {
                 float w = x1 - x0, c = (x0 + x1) / 2;
@@ -438,10 +451,19 @@ namespace Cloudborne
                 surface.mainTextureScale = new Vector2(w / 3f, (back - GroundFront) / 3f);
                 waterMats.Add(surface);
                 CbArt.Part(CbMesh.Quad, surface, root, new Vector3(c, level, (GroundFront + back) / 2), new Vector3(w, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "water";
-                // its cross-section at the front edge: deeper and darker towards the bed, a light line at the surface
-                CbArt.Part(CbMesh.Quad, WaterSide(), root, new Vector3(c, (level + bed) / 2, GroundFront - 0.012f), new Vector3(w, level - bed, 1), shadows: false).name = "waterSide";
-                // and the soil below the riverbed
-                FaceQuad(face, x0, x1, bed, -GroundDepth);
+                // its cross-section at the front edge: the new look's painting (foamy crests, light rays, pebbles on
+                // sand, as deep as the soil it replaces), or deeper and darker towards the bed with a light line on top
+                float under = bed;
+                if (paintedSide != null)
+                {
+                    float top = level + SideCrest, depth = SideDepth;
+                    var side = new Material(paintedSide) { mainTextureScale = new Vector2(w / SideTile, 1), mainTextureOffset = new Vector2(x0 / SideTile, 0) };
+                    CbArt.Part(CbMesh.Quad, side, root, new Vector3(c, top - depth / 2, GroundFront - 0.012f), new Vector3(w, depth, 1), shadows: false).name = "waterSide";
+                    under = top - depth;
+                }
+                else CbArt.Part(CbMesh.Quad, WaterSide(), root, new Vector3(c, (level + bed) / 2, GroundFront - 0.012f), new Vector3(w, level - bed, 1), shadows: false).name = "waterSide";
+                // and the soil below
+                FaceQuad(face, x0, x1, under, -GroundDepth);
                 // where it comes out of the ground: a little cascade between leaves
                 var cascade = CbArt.NewToon(new Color(0.95f, 1f, 1f), 0f, waterTex);
                 cascade.SetFloat("_SpecStrength", 0f);
@@ -712,7 +734,24 @@ namespace Cloudborne
                 // the new look: a row of big painted trees in a light haze, and right behind the path a hedge of
                 // bushes and flowers (it hides the flat lawn that ran back to the trees), broken by the rivers
                 mid = BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
-                near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, BushGround(), PaintTint);
+                var hedge = BushGround();
+                near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, PaintTint);
+                // where it meets a river, a rounded clump closes it (it ended in a straight cut)
+                var clumpTex = Resources.Load<Texture2D>(ClumpPath);
+                var clump = clumpTex != null ? Cutout(clumpTex, 0f, PaintTint) : null;
+                if (near && clump != null)
+                {
+                    clumpTex.wrapMode = TextureWrapMode.Clamp;
+                    float cw = ClumpHeight * clumpTex.width / clumpTex.height;
+                    foreach (var (a, b) in hedge)
+                        foreach (var (end, inward) in new[] { (a, 1f), (b, -1f) })
+                        {
+                            if (end < -100f || end > End + 100f) continue;
+                            var t = CbArt.Part(CbMesh.Quad, clump, root, new Vector3(end + inward * (cw / 2 - 0.8f), ClumpHeight / 2 - 0.2f, 2.9f),
+                                new Vector3(cw * (inward > 0 ? -1 : 1), ClumpHeight, 1), shadows: false);
+                            t.name = "bushClump";
+                        }
+                }
             }
             else
             {
