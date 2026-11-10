@@ -639,7 +639,14 @@ namespace RacingGame.Tests
             game.items.Spawn(CbItems.Kind.Mango, new Vector3(game.hero.x, 0.6f, 0), resting: true);
             yield return new WaitForSeconds(0.4f);
             Assert.AreEqual(50 + CbItems.MangoHeal, game.hero.hp, 0.01f, "The mango did not heal Raja");
-            // two blows break the first crate (at 9 m) and what was in it pops out
+            // a crate is solid: walking into the first one (at 9 m) stops him at its side; he can stand on it
+            game.Teleport(7f);
+            game.TestInput = i => i.x = 1;
+            yield return new WaitForSeconds(0.6f);
+            game.TestInput = null;
+            Assert.Less(game.hero.x, 9f - 0.44f - CbLevel.HalfWidth + 0.02f, "Raja walked through a crate");
+            Assert.AreEqual(0.95f, game.items.SupportAt(9f, 1.2f), 0.01f, "A crate can't be stood on");
+            // two blows break the first crate and what was in it pops out
             game.Teleport(7.9f);
             game.hero.facing = 1;
             int crates = game.items.CrateCount, things = game.items.ItemCount;

@@ -33,6 +33,9 @@ namespace Cloudborne
 
         public const float MangoHeal = 25f, KiCrystalKi = 40f;
         const float PickupX = 0.75f, PickupY = 1.7f, CrateHalfWidth = 0.55f;
+        // a crate is solid (the user: nothing should be walked through): Raja can't pass through one and can stand on
+        // it; its body is the model's, 0.89 m across and 0.95 m tall
+        const float CrateBody = 0.445f, CrateTop = 0.95f;
         static readonly string[] ModelNames = { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll" };
         static readonly Color[] Glows =
         {
@@ -170,6 +173,27 @@ namespace Cloudborne
                 Break(i, dir, wholly: false);
             }
             return any;
+        }
+
+        /// <summary>Moving from x0 to x1 at height y: a crate stops him at its side, like a block.</summary>
+        public float BlockX(float x0, float x1, float y)
+        {
+            foreach (var c in crates)
+            {
+                if (c.hp <= 0 || y >= CrateTop - 0.05f) continue;
+                float left = c.x - CrateBody - CbLevel.HalfWidth, right = c.x + CrateBody + CbLevel.HalfWidth;
+                if (x0 <= left + 0.01f && x1 > left) x1 = left;
+                else if (x0 >= right - 0.01f && x1 < right) x1 = right;
+            }
+            return x1;
+        }
+
+        /// <summary>The top of a crate under x that a body at fromY can land on; far below if there is none.</summary>
+        public float SupportAt(float x, float fromY)
+        {
+            foreach (var c in crates)
+                if (c.hp > 0 && Mathf.Abs(x - c.x) < CrateBody + CbLevel.HalfWidth * 0.5f && CrateTop <= fromY + 0.05f) return CrateTop;
+            return float.NegativeInfinity;
         }
 
         /// <summary>A shot (fireball, beam) at x: a crate there bursts at once. True if one was hit.</summary>

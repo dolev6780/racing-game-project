@@ -645,7 +645,10 @@ namespace Cloudborne
             y += vy * dt;
             x += vx * dt;
             if (g.level != null) x = g.level.BlockX(prevX, x, y);
+            // crates are solid too: walked into, stood on
+            if (g.items != null) x = g.items.BlockX(prevX, x, y);
             float floor = g.level != null ? g.level.SupportAt(x, prevY) : 0;
+            if (g.items != null) floor = Mathf.Max(floor, g.items.SupportAt(x, prevY));
             // still standing: down a sagging bridge, a bobbing log or off a plank's end he keeps his feet
             if (!air && y > floor && y - floor < 0.3f && vy <= 0.01f) y = floor;
             if (y <= floor)
