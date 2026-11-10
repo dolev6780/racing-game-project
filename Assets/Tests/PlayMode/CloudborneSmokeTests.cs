@@ -360,12 +360,14 @@ namespace RacingGame.Tests
             Assert.IsNotNull(shader, "The cut-out shader is missing");
             game = CbGame.Boot();
             yield return Frames(3);
-            // the mountain is one rock face (not blocks piled up): a body behind, terraces faced with rock, ledges of the kit
+            // the mountain: terraces of rock (not blocks piled up), ledges of the kit
             var level = game.transform.Find("Level");
             Assert.IsNotNull(level);
-            var body = level.Find("mountainBody");
-            Assert.IsNotNull(body, "The mountain's body is missing");
-            Assert.AreEqual("RockFace", body.GetComponent<MeshRenderer>().sharedMaterial.mainTexture.name, "The mountain is not faced with the painted rock");
+            // no wall of rock behind the climb: its terraces stand against the jungle, faced with the painted rock
+            Assert.IsNull(level.Find("mountainBody"), "A wall of rock still fills the background behind the climb");
+            var face = level.Find("terrace/rock");
+            Assert.IsNotNull(face, "A terrace has no rock face");
+            Assert.AreEqual("RockFace", face.GetComponent<MeshRenderer>().sharedMaterial.mainTexture.name, "The terraces are not faced with the painted rock");
             int rock = 0, kitLedges = 0;
             foreach (Transform t in level)
             {

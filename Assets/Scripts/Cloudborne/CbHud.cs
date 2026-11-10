@@ -67,8 +67,10 @@ namespace Cloudborne
             var scaler = go.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(844, 390);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 1f;
+            // the whole 844 x 390 layout always fits: on a long phone it fills the height (as it was laid out), on a
+            // squarer screen (4:3: a tablet, a folding phone) it fills the width and gains height, instead of being cut
+            // at the sides with the buttons covering half the screen (the user's 4:3 phone)
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
             root = (RectTransform)go.transform;
 
             hurtFlash = UIKit.Image(UIKit.Stretch(root, "hurt"), UIKit.Vignette, new Color(1f, 0.2f, 0.15f, 0f));

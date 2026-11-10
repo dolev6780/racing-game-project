@@ -49,8 +49,8 @@ namespace Cloudborne
             var scaler = go.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(844, 390);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 1f;
+            // the whole layout always fits, on a long phone or a squarer one (see CbHud)
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
             root = (RectTransform)go.transform;
             black = UIKit.Image(UIKit.Stretch(root, "black"), null, Ink);
 

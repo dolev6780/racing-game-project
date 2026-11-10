@@ -197,7 +197,7 @@ namespace Cloudborne
 
         // ---------- the mountain's rock ----------
 
-        // The mountain is one rock face, not blocks piled up: a painted cliff texture (Cliff/RockFace, drawn in Canva;
+        // The mountain's terraces are rock, not blocks piled up: a painted cliff texture (Cliff/RockFace, drawn in Canva;
         // without it, rock drawn in code) repeated across every face, lined up with the world; bare rock, no grass.
         const float RockTile = 4f;
         static Texture2D rockTex;
@@ -268,44 +268,6 @@ namespace Cloudborne
             CbArt.Part(CbMesh.Quad, top, parent, new Vector3(cx, y1, zFront + d / 2), new Vector3(w, d, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "top";
         }
 
-        /// <summary>
-        /// The mountain's body behind the terraces: one face of bare rock whose jagged top rises from the path to peaks
-        /// above the summit and falls away beyond it; a little bluer, being farther back.
-        /// </summary>
-        void MountainBody()
-        {
-            var profile = new[] { (128f, 0f), (134f, 2.6f), (140f, 4.8f), (146f, 7f), (151f, 9f), (156f, 11f), (161f, 12.9f), (166f, 13.6f),
-                (170f, 13f), (175f, 15.2f), (179f, 14f), (184f, 10.4f), (189f, 6.4f), (194f, 2.8f), (199f, 0f) };
-            float Ridge(float x)
-            {
-                for (int i = 1; i < profile.Length; i++)
-                    if (x <= profile[i].Item1)
-                    {
-                        float k = (x - profile[i - 1].Item1) / (profile[i].Item1 - profile[i - 1].Item1);
-                        float y = Mathf.Lerp(profile[i - 1].Item2, profile[i].Item2, k * k * (3 - 2 * k));
-                        return y <= 0 ? y : y + Mathf.Sin(x * 1.7f) * 0.35f + Mathf.Sin(x * 3.1f + 1) * 0.2f;
-                    }
-                return 0;
-            }
-            const float Z = 5.6f, Bottom = -1f;
-            var v = new List<Vector3>(); var uv = new List<Vector2>(); var tri = new List<int>();
-            for (float x = profile[0].Item1; x <= profile[profile.Length - 1].Item1 + 0.01f; x += 0.75f)
-            {
-                float top = Ridge(x);
-                v.Add(new Vector3(x, Bottom, Z)); uv.Add(new Vector2(x / RockTile, Bottom / RockTile));
-                v.Add(new Vector3(x, top, Z)); uv.Add(new Vector2(x / RockTile, top / RockTile));
-                int n = v.Count;
-                if (n >= 4) tri.AddRange(new[] { n - 4, n - 3, n - 2, n - 2, n - 3, n - 1 });
-            }
-            var mesh = new Mesh { name = "mountain" };
-            mesh.SetVertices(v); mesh.SetUVs(0, uv); mesh.SetTriangles(tri, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
-            // a little darker and bluer than the terraces in front, being farther back
-            var tone = RockTone();
-            var rock = RockMat(1, 1, 0, 0, new Color(tone.r * 0.85f, tone.g * 0.9f, tone.b * 0.96f));
-            rock.mainTextureScale = Vector2.one; rock.mainTextureOffset = Vector2.zero;
-            CbArt.Part(mesh, rock, root, Vector3.zero, Vector3.one, shadows: false).name = "mountainBody";
-        }
-
         /// <summary>A model placed and stretched so its bounds fill the box lo..hi of parent's space; null if missing.</summary>
         static Transform Fit(string path, Transform parent, Vector3 lo, Vector3 hi)
         {
@@ -354,7 +316,8 @@ namespace Cloudborne
             earth ??= EarthMat();
             grass ??= GrassMat();
             crackedEarth = new Material(earth) { color = earth.color * new Color(1.15f, 1.02f, 0.85f) };
-            MountainBody();
+            // no wall of rock behind it any more (the user saw a flat picture of rock filling the screen): the climb's
+            // terraces stand on their own against the jungle
             AddTerrace(137f, 140f, 1.4f, 2.4f);
             AddTerrace(141.5f, 144f, 2.8f, 3.2f);
             AddLedge(146.25f, 1.5f, 4.2f, false);
