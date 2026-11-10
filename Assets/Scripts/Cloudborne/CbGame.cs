@@ -176,6 +176,7 @@ namespace Cloudborne
             CbFx.Init(transform);
             CbVfx.Init(transform);
             world = new CbWorld(transform);
+            world.AttachCanopy(cam);
             items = new CbItems(this, transform);
             level = new CbLevel(this, transform);
             actors = new GameObject("Actors").transform;

@@ -22,6 +22,19 @@ namespace Cloudborne
         public static readonly Color Horizon = CbArt.Hex("#7fc0cc");
 
         public Transform root;
+        // The clean painted look (the user's reference: a bright storybook platformer): a soft misty backdrop, a row
+        // of big painted trees, a hedge of bushes and flowers right behind the path, a thick grass lip on the ground's
+        // front edge and leaves hanging into the top of the view. On when its paintings are in the project.
+        const string CanopyPath = "Cloudborne/Jungle/Backdrop/Canopy", LipPath = "Cloudborne/Jungle/Ground/GroundLip";
+        static bool NewLook => Resources.Load<Texture2D>(CanopyPath) != null;
+        // the painted ground drawn as painted (unlit), a touch darker so the characters stand out from it
+        static readonly Color PaintTint = new Color(0.93f, 0.92f, 0.95f);
+        // the hanging leaves: CanopyShare of the view's height at the top, CanopyDist in front of the camera, sliding
+        // a little faster than the path as the camera follows him (they are nearer)
+        const float CanopyShare = 0.24f, CanopyDist = 6f, CanopyDrift = 0.4f;
+        Transform canopy;
+        Material canopyMat;
+        Camera canopyCam;
         readonly List<(Transform t, Material m, float ph, float baseA)> shafts = new List<(Transform, Material, float, float)>();
         readonly List<Transform> mists = new List<Transform>();
         Transform flies;
@@ -31,9 +44,9 @@ namespace Cloudborne
             BoulderModel = "Boulder", PillarModel = "Pillar", GateModel = "Gate", KarstModel = "Karst";
         // The backdrop is a painting on a wall far behind everything. It follows the camera along the level and its
         // picture slides only a little, so it reads as very far away. The painting (ImageHeight tall, its top at
-        // ImageTop) puts the treetops in its lower quarter just above eye level, so a forest, not a lawn, runs to the
-        // horizon; its sky and karst pillars fill the view above. The wall goes on up to BackdropTop with the
-        // painting's top row of sky, so no screen shape ever sees past it.
+        // ImageTop) is the soft, misty forest of tall pale trunks and sunbeams, its clearing at about eye level and
+        // its top above the view; the wall goes on up to BackdropTop with the painting's top row, so no screen shape
+        // ever sees past it.
         const string BackdropPath = "Cloudborne/Jungle/Backdrop/JungleBackdrop";
         // The stage changes scenery on the way: the jungle, then a waterfall gorge from GorgeAt, then temple ruins at
         // sunset from TempleAt, each painting cross-fading into the next over BackdropFade metres. A part whose
@@ -47,8 +60,8 @@ namespace Cloudborne
         const float BackdropFade = 12f;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         int shownPart = -1;
-        const float BackdropZ = 150f, ImageTop = 36f, ImageHeight = 45f, BackdropTop = 80f, BackdropWidth = 300f,
-            BackdropStretch = 1.7f, BackdropSlide = 0.15f;
+        const float BackdropZ = 150f, ImageTop = 44f, ImageHeight = 46f, BackdropTop = 80f, BackdropWidth = 300f,
+            BackdropStretch = 1.5f, BackdropSlide = 0.15f;
         Transform backdrop;
         Material backdropMat;
         static readonly Color ForegroundShade = new Color(0.16f, 0.24f, 0.2f);
@@ -168,18 +181,64 @@ namespace Cloudborne
         /// z, height metres tall from bottom, repeated along it; the perspective camera gives it its parallax, and the
         /// farther it is the more it fades into the haze. False if its painting isn't in the project.
         /// </summary>
-        bool BuildLayer(string name, float z, float bottom, float height, float haze)
+        bool BuildLayer(string name, float z, float bottom, float height, float haze, List<(float a, float b)> spans = null, Color? tint = null)
         {
             var tex = Resources.Load<Texture2D>("Cloudborne/Jungle/Backdrop/" + name);
-            var m = Cutout(tex, haze);
+            var m = Cutout(tex, haze, tint);
             if (m == null) return false;
             tex.wrapModeU = TextureWrapMode.Repeat;
             tex.wrapModeV = TextureWrapMode.Clamp;
-            float from = -120f, to = End + 120f, w = to - from;
-            m.mainTextureScale = new Vector2(w / (height * tex.width / tex.height), 1);
-            var t = CbArt.Part(CbMesh.Quad, m, root, new Vector3((from + to) / 2, bottom + height / 2, z), new Vector3(w, height, 1), shadows: false);
-            t.name = name;
+            float tileW = height * tex.width / tex.height;
+            spans ??= new List<(float, float)> { (-120f, End + 120f) };
+            foreach (var (from, to) in spans)
+            {
+                // each piece lined up with the world, so the painting runs on unbroken where pieces meet
+                float w = to - from;
+                var piece = new Material(m) { mainTextureScale = new Vector2(w / tileW, 1), mainTextureOffset = new Vector2(from / tileW, 0) };
+                var t = CbArt.Part(CbMesh.Quad, piece, root, new Vector3((from + to) / 2, bottom + height / 2, z), new Vector3(w, height, 1), shadows: false);
+                t.name = name;
+            }
             return true;
+        }
+
+        /// <summary>The ground behind the path where the bushes stand: all of it but the streams and rivers.</summary>
+        static List<(float a, float b)> BushGround()
+        {
+            var list = new List<(float, float)>();
+            float a = -120f;
+            foreach (var (x0, x1) in CbLevel.Waters) { list.Add((a, x0 - 0.3f)); a = x1 + 0.3f; }
+            list.Add((a, End + 120f));
+            return list;
+        }
+
+        /// <summary>
+        /// The hanging leaves along the top of the view (the new look), held in front of the camera; Update keeps them
+        /// the right size for the view and slides them as the camera follows him.
+        /// </summary>
+        public void AttachCanopy(Camera cam)
+        {
+            if (!NewLook || cam == null) return;
+            var tex = Resources.Load<Texture2D>(CanopyPath);
+            canopyMat = Cutout(tex, 0f, PaintTint);
+            if (canopyMat == null) return;
+            tex.wrapModeU = TextureWrapMode.Repeat;
+            tex.wrapModeV = TextureWrapMode.Clamp;
+            canopyCam = cam;
+            canopy = CbArt.Part(CbMesh.Quad, canopyMat, cam.transform, new Vector3(0, 0, CanopyDist), Vector3.one, shadows: false);
+            canopy.name = "canopy";
+        }
+
+        void UpdateCanopy(float camX)
+        {
+            float halfH = Mathf.Tan(canopyCam.fieldOfView * 0.5f * Mathf.Deg2Rad) * CanopyDist;
+            float h = halfH * 2 * CanopyShare, w = halfH * canopyCam.aspect * 2.3f;
+            canopy.localPosition = new Vector3(0, halfH - h / 2 + h * 0.03f, CanopyDist);
+            canopy.localRotation = Quaternion.identity;
+            canopy.localScale = new Vector3(w, h, 1);
+            var tex = canopyMat.mainTexture;
+            float tileW = h * tex.width / tex.height;
+            canopyMat.mainTextureScale = new Vector2(w / tileW, 1);
+            canopyMat.mainTextureOffset = new Vector2(camX * CanopyDrift * CanopyDist / 24f / tileW, 0);
         }
 
         bool layers;
@@ -207,6 +266,16 @@ namespace Cloudborne
             var path = CbArt.NewToon(paintedPath != null ? PathTone : Color.white, 0f, paintedPath != null ? paintedPath : CbArt.Path);
             path.SetFloat("_SpecStrength", 0f);
             var face = FaceMaterial();
+            // the new look: the front face drawn as painted, and its grass lip of leaves and flowers over the edge
+            var lipTex = NewLook ? Resources.Load<Texture2D>(LipPath) : null;
+            var lip = lipTex != null ? Cutout(lipTex, 0f, PaintTint) : null;
+            if (lip != null)
+            {
+                var flat = Cutout(face.mainTexture as Texture2D, 0f, PaintTint);
+                if (flat != null) { flat.SetFloat("_Cutoff", 0f); face = flat; }
+                lipTex.wrapModeU = TextureWrapMode.Repeat;
+                lipTex.wrapModeV = TextureWrapMode.Clamp;
+            }
             foreach (var (a, b) in DryGround())
             {
                 float w = b - a, c = (a + b) / 2;
@@ -215,6 +284,7 @@ namespace Cloudborne
                 var strip = new Material(path) { mainTextureScale = new Vector2(paintedPath != null ? w / PathWidth : w / 4.3f, 1), mainTextureOffset = new Vector2(a / PathWidth, 0) };
                 CbArt.Part(CbMesh.Quad, strip, root, new Vector3(c, 0.01f, 0), new Vector3(w, 3.2f, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
                 FaceQuad(face, a, b, 0f, -GroundDepth);
+                if (lip != null) LipQuad(lip, a, b);
             }
             BuildStreams(grass, face, far);
             CbArt.Part(CbMesh.Quad, CbArt.Toon("#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
@@ -302,6 +372,24 @@ namespace Cloudborne
             };
             var t = CbArt.Part(CbMesh.Quad, m, root, new Vector3((a + b) / 2, (yTop + yBottom) / 2, GroundFront - 0.01f), new Vector3(w, h, 1), shadows: false);
             t.name = "groundFace";
+        }
+
+        // the lip: drawn a little smaller than the face, so the leaves rise only a hand's breadth over the path's edge
+        const float LipScale = 0.7f;
+
+        /// <summary>The leaves and flowers of the grass lip along the front edge from a to b, over the face's top.</summary>
+        void LipQuad(Material lip, float a, float b)
+        {
+            var tex = lip.mainTexture;
+            var faceTex = Resources.Load<Texture2D>(GroundFacePath);
+            // metres per pixel of the face, as FaceQuad draws it
+            float mpp = faceTex != null ? FaceHeight / faceTex.height : 0.0055f;
+            float h = tex.height * mpp * LipScale, tileW = tex.width * mpp * LipScale;
+            // the painting's last 40 rows are the face's solid grass: they overlap the face's top
+            float below = 40 * mpp * LipScale;
+            var m = new Material(lip) { mainTextureScale = new Vector2((b - a) / tileW, 1), mainTextureOffset = new Vector2(a / tileW, 0) };
+            var t = CbArt.Part(CbMesh.Quad, m, root, new Vector3((a + b) / 2, h / 2 - below, GroundFront - 0.03f), new Vector3(b - a, h, 1), shadows: false);
+            t.name = "groundLip";
         }
 
         /// <summary>
@@ -403,6 +491,8 @@ namespace Cloudborne
 
         void BuildPlants(Transform near, Transform far)
         {
+            // the new look's painted trees and hedge stand in for the modelled palms and leaf clumps
+            if (NewLook) return;
             bool trees = Has(TreeModel), palms = Has(PalmModel);
             // With the painted jungle layers behind the path no modelled trees stand in front of them: their faceted
             // crowns and tall pale trunks looked out of place against the painting, worst up the mountain where the
@@ -602,9 +692,24 @@ namespace Cloudborne
         {
             // the painted jungle in layers: a near one of trunks and big leaves, a far one of hazy treetops
             // (the near one low enough that the far one and the sky still show over it)
-            bool near = BuildLayer("JungleNear", 17f, -0.6f, 8.5f, 0.08f);
-            bool mid = BuildLayer("JungleMid", 34f, -1f, 16f, 0.32f);
+            bool near, mid;
+            if (NewLook)
+            {
+                // the new look: a row of big painted trees in a light haze, and right behind the path a hedge of
+                // bushes and flowers (it hides the flat lawn that ran back to the trees), broken by the rivers
+                mid = BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
+                near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, BushGround(), PaintTint);
+            }
+            else
+            {
+                near = BuildLayer("JungleNear", 17f, -0.6f, 8.5f, 0.08f);
+                mid = BuildLayer("JungleMid", 34f, -1f, 16f, 0.32f);
+            }
             layers = near || mid;
+            if (NewLook)
+            {
+                if (BuildBackdrop()) return;
+            }
             var fall = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.55f), CbArt.Shaft);
             bool karst = Has(KarstModel);
             for (float x = -20; x < End + 20; x += Random.Range(15f, 24f))
@@ -709,6 +814,8 @@ namespace Cloudborne
 
         void BuildForeground(Transform far)
         {
+            // the new look frames the view with its painted canopy, not dark leaves and vines in front of the camera
+            if (NewLook) return;
             var dark = CbArt.Emissive(CbArt.Hex("#13221a"));
             bool leaves = Has(LeavesModel);
             for (float x = -20; x < End; x += Random.Range(14f, 22f))
@@ -798,6 +905,7 @@ namespace Cloudborne
                 m.localPosition = p;
             }
             flies.localPosition = new Vector3(camX, 3.2f, 3.5f);
+            if (canopy != null) UpdateCanopy(camX);
             // the streams flow towards the camera; their cascades pour down
             for (int i = 0; i < waterMats.Count; i++)
                 waterMats[i].mainTextureOffset = new Vector2(0, (i % 2 == 0 ? -0.12f : 0.6f) * t);

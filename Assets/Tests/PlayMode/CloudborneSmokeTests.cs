@@ -1023,6 +1023,66 @@ namespace RacingGame.Tests
             Assert.AreEqual(game.hero.MaxHp, game.hero.hp, 0.01f, "Raja did not come back whole");
         }
 
+        /// <summary>
+        /// Not a check: pictures of the stage as the game camera sees it, for looking at the art from CI. Each is saved
+        /// in artifacts/shots and written to the log in base64 lines ("SHOT name i data", then "SHOT name END n").
+        /// Where nothing can be drawn (no graphics device) it says so and passes.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ZzPicturesOfTheStage()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var cam = Camera.main;
+            Assert.IsNotNull(cam, "No game camera");
+            const int W = 960, H = 540;
+            cam.aspect = W / (float)H;
+            var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
+            var oldTrace = Application.GetStackTraceLogType(LogType.Log);
+            foreach (var (name, x) in new[] { ("start", 6f), ("path", 46f), ("river", 75f), ("mountain", 152f), ("lantern", 196f), ("temple", 262f) })
+            {
+                game.Teleport(x);
+                game.hero.y = 0;
+                game.hero.vx = game.hero.vy = 0;
+                // the camera eases after him
+                for (float w = 0; w < 2.5f; w += Time.unscaledDeltaTime) yield return null;
+                // drawn by the pipeline as usual, for a frame, into the picture
+                cam.targetTexture = rt;
+                cam.aspect = W / (float)H;
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                var prev = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, W, H), 0, 0);
+                tex.Apply();
+                RenderTexture.active = prev;
+                cam.targetTexture = null;
+                // a blank picture: nothing was drawn
+                var px = tex.GetPixels32();
+                bool blank = true;
+                for (int i = 1; i < px.Length && blank; i += 997)
+                    blank = px[i].r == px[0].r && px[i].g == px[0].g && px[i].b == px[0].b;
+                if (blank) { Debug.Log($"SHOT {name} BLANK (nothing drawn)"); Object.Destroy(tex); continue; }
+                var jpg = tex.EncodeToJPG(82);
+                Object.Destroy(tex);
+                System.IO.Directory.CreateDirectory("artifacts/shots");
+                System.IO.File.WriteAllBytes($"artifacts/shots/{name}.jpg", jpg);
+                var b64 = System.Convert.ToBase64String(jpg);
+                Application.SetStackTraceLogType(LogType.Log, StackTraceLogType.None);
+                int n = 0;
+                for (int i = 0; i < b64.Length; i += 4000, n++)
+                    Debug.Log($"SHOT {name} {n} {b64.Substring(i, Mathf.Min(4000, b64.Length - i))}");
+                Debug.Log($"SHOT {name} END {n}");
+                Application.SetStackTraceLogType(LogType.Log, oldTrace);
+            }
+            cam.ResetAspect();
+            rt.Release();
+        }
+
         [UnityTest]
         public IEnumerator VinesBarsAndTheZipline()
         {
