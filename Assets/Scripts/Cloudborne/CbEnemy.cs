@@ -277,7 +277,7 @@ namespace Cloudborne
                         CbFx.Spark(at, CbFx.Dust, 18, 6, 0.5f, 0.5f, 6);
                         g.shake = Mathf.Max(g.shake, 0.45f);
                         CbFx.Sfx("heavy");
-                        if (ddx > -0.3f && ddx < 2.6f && hero.y < 1.6f) hero.TakeHit(20, facing, unblockable: true);
+                        if (ddx > -0.3f && ddx < 2.6f && hero.y < 1.6f) hero.TakeHit(20, facing, unblockable: true, knock: 6.5f);
                     }
                     if (t >= ChopTime) { state = State.Move; open = 1.1f; cd = 1.3f; }
                     break;
@@ -302,7 +302,7 @@ namespace Cloudborne
                         CbFx.Spark(at + new Vector3(0, 0.2f, -0.3f), CbFx.Dust, 20, 6, 0.5f, 0.5f, 6);
                         g.shake = Mathf.Max(g.shake, 0.5f);
                         CbFx.Sfx("heavy");
-                        if (Mathf.Abs(hero.x - x) < 1.9f && hero.y < 0.35f) hero.TakeHit(14, hero.x >= x ? 1 : -1);
+                        if (Mathf.Abs(hero.x - x) < 1.9f && hero.y < 0.35f) hero.TakeHit(14, hero.x >= x ? 1 : -1, knock: 5f);
                     }
                     if (t >= LeapTime && !airborne) { state = State.Move; cd = 1.0f; }
                     break;

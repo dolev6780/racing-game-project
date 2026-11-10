@@ -27,6 +27,7 @@ namespace Cloudborne
         float yaw, yawTarget;
 
         public int ClipCount => clips.Count;
+        public bool HasClip(string clip) => clips.ContainsKey(clip);
 
         /// <summary>Where the face points, flattened to the ground (world space).</summary>
         public Vector3 Facing

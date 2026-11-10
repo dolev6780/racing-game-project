@@ -127,6 +127,7 @@ namespace RacingGame.Tests
             yield return WaitForMode(CbGame.Mode.Over, 4f);
             Assert.AreEqual(CbGame.Mode.Over, game.mode, "The stage did not clear at the shrine gate");
             Assert.Greater(game.hero.hp, 0f);
+            Assert.AreEqual(CbHero.State.Victory, game.hero.state, "Raja did not cheer at the shrine gate");
         }
 
         [UnityTest]
@@ -156,7 +157,10 @@ namespace RacingGame.Tests
             Assert.AreEqual(CbGame.Mode.Title, game.mode);
             Assert.IsNotNull(game.hero.f.root, "Raja was not built");
             Assert.IsNotNull(game.hero.model, "Raja's model did not load (Resources/Cloudborne/Raja, legacy animation)");
-            Assert.AreEqual(29, game.hero.model.ClipCount, "Raja's model is missing animation clips");
+            Assert.AreEqual(34, game.hero.model.ClipCount, "Raja's model is missing animation clips");
+            // from Meshy's animation library: catching an edge, pulling up over it, treading water, getting up, cheering
+            foreach (var clip in new[] { "Jump_and_Grab_Wall", "Ladder_Climb_Finish", "Swim_Idle", "Stand_Up1", "Victory_Cheer" })
+                Assert.IsTrue(game.hero.model.HasClip(clip), $"Raja's model has no {clip} clip");
             foreach (var prop in new[] { "Staff", "Machete", "Shield" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Props/{prop}/{prop}"), $"The {prop} model is missing");
             var scenery = new[] { "Tree", "Palm", "Fern", "Leaves", "Boulder", "Pillar", "Gate", "Karst" };
@@ -698,14 +702,21 @@ namespace RacingGame.Tests
             game.Teleport(96.3f);
             game.hero.y = 1f;
             game.hero.vy = 0;
-            yield return new WaitForSeconds(0.7f);
+            // in he goes: a moment treading water, then back on the stone
+            bool swam = false;
+            for (float waited = 0; waited < 1.7f; waited += Time.deltaTime)
+            {
+                yield return null;
+                swam |= game.hero.state == CbHero.State.Swim;
+            }
+            Assert.IsTrue(swam, "Raja did not tread water in the river");
             Assert.AreEqual(97.4f, game.hero.x, 0.3f, "Falling into the river did not put Raja back on the stone he stood on");
             Assert.AreEqual(hp0 - CbHero.WaterDamage, game.hero.hp, 0.01f, "Falling into the river cost no health");
             // a sinking stone goes under him after a moment, into the water he goes
             game.Teleport(95.2f);
             game.hero.y = 0.6f;
             game.hero.vy = 0;
-            yield return new WaitForSeconds(2.2f);
+            yield return new WaitForSeconds(3.4f);
             Assert.AreEqual(hp0 - 2 * CbHero.WaterDamage, game.hero.hp, 0.01f, "The pale stone did not sink under him");
             // a drifting log carries him along with it
             game.Teleport(level.CrossingAt(92.2f));
@@ -721,6 +732,69 @@ namespace RacingGame.Tests
             }
             Assert.Greater(carried, 0.1f, "The drifting log did not carry him");
             Assert.Greater(game.hero.y, -0.3f, "Raja fell off the drifting log standing still");
+        }
+
+        [UnityTest]
+        public IEnumerator RajaCatchesAnEdgeAndPullsHimselfUp()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var level = game.level;
+            // a terrace's top corner is caught; the cracked wall is there to be broken, not climbed
+            Assert.IsTrue(level.FindEdge(141.5f - CbLevel.HalfWidth, 2.8f - CbHero.HangReach, 1, out float edgeX, out float top),
+                "The second terrace's corner can't be caught");
+            Assert.AreEqual(141.5f, edgeX, 0.001f);
+            Assert.AreEqual(2.8f, top, 0.001f);
+            float wallLeft = CbLevel.WallX - 0.65f - CbLevel.HalfWidth;
+            Assert.IsFalse(level.FindEdge(wallLeft, CbLevel.WallHeight - CbHero.HangReach, 1, out _, out _), "Raja can climb over the cracked wall");
+            // on the path under the second terrace: a jump at it, holding towards it; he catches its edge on the way
+            // down, hangs, and pulls himself up onto it
+            game.Teleport(141f);
+            game.hero.y = 0;
+            game.hero.vx = game.hero.vy = 0;
+            yield return Frames(2);
+            bool jumped = false, hung = false, climbed = false;
+            game.TestInput = i => { i.x = 1; if (!jumped) { i.jump = true; jumped = true; } };
+            for (float waited = 0; waited < 3f && !(climbed && game.hero.state != CbHero.State.Climb); waited += Time.deltaTime)
+            {
+                yield return null;
+                hung |= game.hero.state == CbHero.State.Hang;
+                climbed |= game.hero.state == CbHero.State.Climb;
+            }
+            game.TestInput = null;
+            Assert.IsTrue(hung, "Raja did not catch the terrace's edge");
+            Assert.IsTrue(climbed, "Raja did not pull himself up");
+            Assert.AreEqual(2.8f, game.hero.y, 0.05f, "Raja is not standing on the terrace");
+            Assert.Greater(game.hero.x, 141.5f, "Raja did not come up onto the terrace");
+        }
+
+        [UnityTest]
+        public IEnumerator HeavyBlowKnocksHimDownAndHeGetsUp()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            game.Teleport(10f);
+            yield return Frames(2);
+            float hp0 = game.hero.hp;
+            game.hero.TakeHit(5, 1, knock: 6f);
+            Assert.AreEqual(CbHero.State.Down, game.hero.state, "A heavy blow did not knock Raja down");
+            // down, he can't be hurt again until he is up
+            yield return Frames(2);
+            game.hero.TakeHit(5, 1);
+            Assert.AreEqual(hp0 - 5, game.hero.hp, 0.01f, "Raja was hurt again while knocked down");
+            bool landed = false;
+            for (float waited = 0; waited < 3f && game.hero.state == CbHero.State.Down; waited += Time.deltaTime)
+            {
+                yield return null;
+                landed |= game.hero.y < 0.01f;
+            }
+            Assert.IsTrue(landed, "Raja never came down");
+            Assert.AreEqual(CbHero.State.Idle, game.hero.state, "Raja did not get up again");
         }
 
         [UnityTest]

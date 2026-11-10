@@ -27,7 +27,7 @@ namespace Cloudborne
     /// </summary>
     public class CbHero
     {
-        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo }
+        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo, Hang, Climb, Swim, Down, Victory }
         public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash, FireWhirl, BlazePalm, Lunge, Cyclone }
 
         struct Attack { public float dur, a, b, range, dmg, kb, up; public bool fin; }
@@ -70,6 +70,21 @@ namespace Cloudborne
         // cupped hands drawn back to the hip. Both turned in Blender to face forward (meshy_character.py --take).
         const string FireClip = "Fire_Palms", GatherClip = "Power_Gather", WhirlClip = "Motion_Whirl", CrouchClip = "Motion_Crouch";
         const float BlastTime = 0.4f;
+        // Clips from Meshy's animation library. Hanging from an edge: the catch and the hang of "Jump and Grab Wall",
+        // the pull-up of "Ladder Climb Finish" (in place; the game lifts him). Measured on the model at its game size,
+        // hanging he has his hands HangReach above his feet and HangAhead in front of him.
+        public const float HangReach = 1.43f;
+        const float HangAhead = 0.38f, ClimbOnto = 0.45f, CatchTime = 0.18f, ClimbTime = 0.6f, GrabRest = 0.35f;
+        // how far through the pull-up he has risen, and come forward, by each moment of it (the clip's own hips)
+        static readonly float[] ClimbU = { 0f, 0.083f, 0.25f, 0.417f, 0.583f, 0.75f, 0.917f, 1f };
+        static readonly float[] ClimbRise = { 0f, 0.145f, 0.42f, 0.52f, 0.97f, 0.98f, 1f, 1f };
+        static readonly float[] ClimbFwd = { 0f, 0.013f, 0.12f, 0.2f, 0.49f, 0.8f, 0.99f, 1f };
+        // treading water ("Swim Idle") a moment before he is put back on the bank, the water at his shoulders
+        const float SwimTime = 0.9f, SwimDepth = 1.12f;
+        // knocked down by a heavy blow: thrown on his back ("Knock Down"), lying a moment, up again ("Stand Up 1")
+        const float DownLie = 0.35f, GetUpTime = 0.85f, DownGuard = 2.4f;
+        // the stage won: a hop and a fist punched high ("Victory Cheer"), then the fist held up
+        const float CheerTime = 2f;
 
         static readonly Vector3 StaffBackPos = new Vector3(0.02f, 0.32f, -0.3f);
         static readonly Quaternion StaffBackRot = CbArt.Rot(-0.12f, 0, 0.82f);
@@ -92,6 +107,11 @@ namespace Cloudborne
         public bool Guarding => state == State.Guard;
         /// <summary>Which blow of the HIT combo is out (0 to 3, 4 the sweep).</summary>
         public int Combo => combo;
+        /// <summary>Hanging from an edge (his weight on it: a crumbling ledge gives way).</summary>
+        public bool Hanging => state == State.Hang;
+        /// <summary>The edge he hangs from or climbs over: its corner, and its top.</summary>
+        public float GrabX => grabX;
+        public float GrabTop => grabTop;
 
         /// <summary>
         /// Where a shot leaves him: just past the palm of his right hand (it thrusts forward in the casting clips),
@@ -110,6 +130,11 @@ namespace Cloudborne
         readonly Transform staff;
         bool staffInHand;
         float t, buffer, heavyBuffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, ghostT, blockT, crouchT, walkT, stowT;
+        // the edge he hangs from (its corner and top, which way it is) and where he hangs; a moment before he can catch
+        // one again after letting go; knocked down, the time since he landed on his back
+        float grabX, grabTop, hangX, hangY, grabCd, downT;
+        int grabDir = 1;
+        bool downLanded;
         // putting the staff away: standing, he swings it up over his shoulder onto his back (the raise of the hammer
         // swing clip, both hands up behind his head); it leaves his hand at StowAt of the way
         const float StowTime = 0.32f, StowAt = 0.6f;
@@ -151,7 +176,7 @@ namespace Cloudborne
         {
             x = y = vx = vy = 0; safeX = safeY = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
             flipT = 0; inv = 0; move = Move.None; staffHold = 0; sinceDash = 9; airDashed = false; dashCd = 0; empower = false; holdUsed = false;
-            glow = 0; airHits = 0;
+            glow = 0; airHits = 0; grabCd = 0; downT = 0; downLanded = false;
             f.flip.localRotation = Quaternion.identity;
             SetStaff(false, silent: true);
             if (model == null)
@@ -241,7 +266,10 @@ namespace Cloudborne
             return any;
         }
 
-        /// <summary>He fell into a stream: a splash where he went in, health lost, and back where he last stood safely.</summary>
+        /// <summary>
+        /// He fell into a stream: a splash where he went in, health lost, a moment treading water with his shoulders
+        /// under, then back where he last stood safely (LeaveWater).
+        /// </summary>
         void FellInWater()
         {
             var at = new Vector3(x, CbLevel.WaterLevel + 0.1f, -0.3f);
@@ -252,17 +280,106 @@ namespace Cloudborne
             g.hud.Popup(new Vector3(x, 2.2f, 0), "-" + Mathf.RoundToInt(WaterDamage), CbHud.PopStyle.Hurt);
             g.hud.FlashHurt();
             g.hud.SetTip("Into the water! Pale stones sink, logs drift - jump on quickly");
-            x = safeX;
-            y = safeY; vx = vy = 0; air = false; jumps = 0; airDashed = false; flipT = 0;
-            state = State.Idle; move = Move.None; combo = 0;
+            state = State.Swim; t = 0; move = Move.None; combo = 0;
+            vx = vy = 0; air = false; jumps = 0; airDashed = false; flipT = 0;
+            y = CbLevel.WaterLevel - SwimDepth;
+        }
+
+        /// <summary>Out of the water: back where he last stood safely, dripping.</summary>
+        void LeaveWater()
+        {
+            x = safeX; y = safeY; vx = vy = 0; air = false;
+            state = State.Idle; t = 0;
             inv = Mathf.Max(inv, 1f);
+            CbFx.Spark(new Vector3(x, y + 0.8f, -0.3f), CbFx.Water, 10, 2.5f, 0.3f, 0.45f, 6);
             if (hp <= 0) { state = State.Dead; t = 0; g.Invoke(nameof(CbGame.Defeated), 1.4f); }
         }
 
-        /// <summary>The player was struck. An unblockable blow (a purple flash) goes through the guard.</summary>
-        public void TakeHit(float dmg, int dir, bool unblockable = false)
+        /// <summary>He catches an edge: hands on its corner, hanging against its face.</summary>
+        void StartHang(int dir, float edgeX, float top)
         {
-            if (state == State.Dead || g.mode != CbGame.Mode.Play) return;
+            state = State.Hang; t = 0; move = Move.None; combo = 0;
+            facing = grabDir = dir; grabX = edgeX; grabTop = top;
+            hangX = edgeX - dir * HangAhead; hangY = top - HangReach;
+            x = hangX; y = hangY; vx = vy = 0; air = true; jumps = 0; airDashed = false; airHits = 0; flipT = 0;
+            CbFx.Spark(new Vector3(edgeX, top + 0.05f, -0.4f), CbFx.Dust, 6, 2, 0.35f, 0.35f, 3);
+            CbFx.Sfx("block", 0.4f);
+        }
+
+        /// <summary>Hanging: up, a jump or still pressing towards the edge pulls him up; down or away lets go.</summary>
+        void UpdateHang(ref Pose pose, CbInput input)
+        {
+            x = hangX; y = hangY; vx = vy = 0;
+            pose.sLx = -2.9f; pose.sRx = -2.9f; pose.eL = -0.2f; pose.eR = -0.2f; pose.hLx = -0.6f; pose.kL = 0.9f; pose.hRx = -0.4f; pose.kR = 0.7f;
+            // a crumbling ledge gave way under his hands
+            if (g.level != null && !g.level.EdgeHolds(grabX, grabTop)) { LetGo(); return; }
+            if (t < CatchTime) return;
+            float toward = input.x * grabDir;
+            if (input.y < -0.5f || toward < -0.3f) LetGo();
+            else if (toward > 0.3f || input.y > 0.5f || input.jump) { state = State.Climb; t = 0; CbFx.Sfx("jump", 0.4f); }
+        }
+
+        void LetGo()
+        {
+            state = State.Air; t = 0; air = true; jumps = 1; vy = 0; vx = -grabDir * 1.5f;
+            grabCd = GrabRest;
+        }
+
+        /// <summary>Pulling himself up over the edge: lifted and brought forward along the clip's own path, onto the top.</summary>
+        void UpdateClimb(ref Pose pose)
+        {
+            if (g.level != null && !g.level.EdgeHolds(grabX, grabTop)) { LetGo(); return; }
+            float u = Mathf.Clamp01(t / ClimbTime);
+            int k = 1;
+            while (k < ClimbU.Length - 1 && u > ClimbU[k]) k++;
+            float s = Mathf.InverseLerp(ClimbU[k - 1], ClimbU[k], u);
+            float rise = Mathf.Lerp(ClimbRise[k - 1], ClimbRise[k], s), fwd = Mathf.Lerp(ClimbFwd[k - 1], ClimbFwd[k], s);
+            x = hangX + grabDir * (HangAhead + ClimbOnto) * fwd;
+            y = hangY + HangReach * rise;
+            vx = vy = 0;
+            pose.lean = 0.45f; pose.sLx = -1.3f; pose.sRx = -1.3f; pose.eL = -0.4f; pose.eR = -0.4f;
+            pose.hLx = -1.4f * (1 - u); pose.kL = 1.6f * (1 - u); pose.hRx = 0.2f; pose.kR = 0.6f * (1 - u);
+            if (u < 1) return;
+            x = grabX + grabDir * ClimbOnto; y = grabTop;
+            state = State.Idle; t = 0; air = false; jumps = 0; airDashed = false; airHits = 0;
+            CbFx.Spark(new Vector3(x, y + 0.05f, -0.3f), CbFx.Dust, 6, 2, 0.4f, 0.35f, 2);
+        }
+
+        /// <summary>Knocked down: flying back onto his back, lying a moment (a jump or a blow cuts it short), then up.</summary>
+        void UpdateDown(ref Pose pose, CbInput input, float dt)
+        {
+            pose.lean = -1.2f; pose.bob = -0.4f; pose.headX = -0.4f; pose.sLz = 1.1f; pose.sRz = -1.1f; pose.sLx = 0; pose.sRx = 0;
+            pose.hLx = -0.9f; pose.hRx = -0.7f; pose.kL = 0.3f; pose.kR = 0.5f;
+            if (!downLanded)
+            {
+                if (air) return;
+                downLanded = true; downT = 0;
+                CbFx.Spark(new Vector3(x, y + 0.1f, -0.3f), CbFx.Dust, 12, 3, 0.5f, 0.45f, 3);
+                g.shake = Mathf.Max(g.shake, 0.2f);
+            }
+            vx *= 1 - Damp(10, dt);
+            downT += dt;
+            if (downT > 0.1f && downT < DownLie && (input.jump || input.atk)) downT = DownLie;
+            if (downT >= DownLie + GetUpTime) { state = State.Idle; t = 0; }
+        }
+
+        /// <summary>The stage is won: he cheers, a hop and a fist punched high, and keeps his fist up.</summary>
+        public void Celebrate()
+        {
+            if (state == State.Dead) return;
+            if (state == State.Hang || state == State.Climb || state == State.Swim) air = true;
+            state = State.Victory; t = 0; move = Move.None; combo = 0; flipT = 0;
+            SetStaff(false, silent: true);
+        }
+
+        /// <summary>
+        /// The player was struck. An unblockable blow (a purple flash) goes through the guard; a heavy one (knock, how
+        /// hard it throws him) knocks him down on his back, and he can't be hurt again until he is up.
+        /// </summary>
+        public void TakeHit(float dmg, int dir, bool unblockable = false, float knock = 0f)
+        {
+            // not in the water, nor halfway over an edge (a blow there would leave him inside the rock)
+            if (state == State.Dead || state == State.Victory || state == State.Swim || state == State.Climb || g.mode != CbGame.Mode.Play) return;
             if (state == State.Dash && t < 0.2f) { g.PerfectDodge(); return; }
             if (inv > 0) return;
             // guarding: a blow from in front is stopped (dir is the way it pushes him, so the attacker faces -dir)
@@ -277,6 +394,13 @@ namespace Cloudborne
             inv = 0.9f;
             vx = dir * 6; vy = 4; air = true;
             state = State.Hurt; t = 0; move = Move.None;
+            grabCd = GrabRest;
+            if (knock > 0)
+            {
+                state = State.Down; downLanded = false; downT = 0; combo = 0; flipT = 0;
+                vx = dir * knock; vy = 6.5f;
+                inv = DownGuard;
+            }
             g.shake = Mathf.Max(g.shake, 0.35f);
             g.hitstop = Mathf.Max(g.hitstop, 0.04f);
             CbFx.Spark(new Vector3(x, y + 1.4f, -0.4f), CbFx.Red, 14, 7, 0.4f);
@@ -291,6 +415,7 @@ namespace Cloudborne
             t += dt;
             inv = Mathf.Max(0, inv - dt);
             dashCd = Mathf.Max(0, dashCd - dt);
+            grabCd = Mathf.Max(0, grabCd - dt);
             sinceDash += dt;
             if (input.atk) buffer = 0.25f; else buffer = Mathf.Max(0, buffer - dt);
             if (input.heavy) heavyBuffer = 0.25f; else heavyBuffer = Mathf.Max(0, heavyBuffer - dt);
@@ -311,6 +436,19 @@ namespace Cloudborne
                     pose.lean = -0.45f; pose.headX = -0.4f; pose.sLz = 1f; pose.sRz = -1f; pose.sLx = 0.4f; pose.sRx = 0.4f; pose.eL = -0.5f; pose.eR = -0.5f;
                     pose.hLx = 0.3f; pose.hRx = -0.3f;
                     if (t > 0.35f && !air) state = State.Idle;
+                    break;
+                case State.Hang: UpdateHang(ref pose, input); break;
+                case State.Climb: UpdateClimb(ref pose); break;
+                case State.Swim:
+                    pose.sLx = -1.2f; pose.sRx = -1.2f; pose.eL = -0.6f; pose.eR = -0.6f; pose.hLx = -0.4f; pose.kL = 0.8f; pose.hRx = 0.3f; pose.kR = 0.6f;
+                    y = CbLevel.WaterLevel - SwimDepth + Mathf.Sin(t * 6f) * 0.05f;
+                    if (Random.value < 0.25f) CbFx.Spark(new Vector3(x + Random.Range(-0.5f, 0.5f), CbLevel.WaterLevel + 0.05f, -0.4f), CbFx.Water, 1, 1.2f, 0.25f, 0.35f, 2);
+                    if (t > SwimTime) LeaveWater();
+                    break;
+                case State.Down: UpdateDown(ref pose, input, dt); break;
+                case State.Victory:
+                    vx *= 1 - Damp(10, dt);
+                    pose.sRx = -2.8f; pose.eR = -0.3f; pose.sLx = -0.4f; pose.eL = -1.2f; pose.bob = t < 0.4f ? Mathf.Sin(t / 0.4f * Mathf.PI) * 0.2f : 0;
                     break;
                 case State.Atk: UpdatePaw(ref pose, input, ref rate); break;
                 case State.Staff: UpdateStaff(ref pose, input, dt, ref rate); break;
@@ -448,7 +586,33 @@ namespace Cloudborne
                 pose.sLx += Mathf.Sin(g.clock * 3) * 0.05f;
             }
 
-            // physics: the path, the stone blocks he can't walk through, the ledges he lands on
+            // physics: the path, the stone blocks he can't walk through, the ledges he lands on (hanging from an edge,
+            // pulling himself up or treading water, the game places him itself)
+            if (state != State.Hang && state != State.Climb && state != State.Swim) StepPhysics(input, dt);
+            float lo = g.lockZone != null ? g.lockZone.x - 10.5f : CbWorld.LevelMin;
+            float hi = g.lockZone != null ? g.lockZone.x + 10.5f : CbWorld.LevelMax;
+            x = Mathf.Clamp(x, lo, hi);
+
+            if (flipT > 0)
+            {
+                flipT = Mathf.Max(0, flipT - dt);
+                // eased: a quick tuck-and-turn in the middle, slower out of the jump and into the opening
+                float p = 1 - flipT / FlipTime;
+                p = p * p * (3 - 2 * p);
+                f.flip.localRotation = CbArt.Rot(0, 0, -facing * p * FlipTurns * Mathf.PI * 2);
+            }
+            else f.flip.localRotation = Quaternion.identity;
+
+            f.Apply(pose, dt, rate);
+            Place();
+            UpdateStaffPlacement(pose, dt);
+            UpdateCloth(dt);
+            UpdateFire(dt);
+            Animate();
+        }
+
+        void StepPhysics(CbInput input, float dt)
+        {
             if (state != State.Dash || !air) vy -= 30 * dt;
             float prevX = x, prevY = y;
             y += vy * dt;
@@ -471,28 +635,14 @@ namespace Cloudborne
             }
             else air = true;
             if (!air && (g.level == null || g.level.SafeAt(x, y))) { safeX = x; safeY = y; }
-            // into the water: a splash, and back where he last stood safely
-            if (y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater();
-            float lo = g.lockZone != null ? g.lockZone.x - 10.5f : CbWorld.LevelMin;
-            float hi = g.lockZone != null ? g.lockZone.x + 10.5f : CbWorld.LevelMax;
-            x = Mathf.Clamp(x, lo, hi);
-
-            if (flipT > 0)
+            // jumping or falling at an edge, pressing towards it: he catches it
+            if (state == State.Air && vy < 2.5f && flipT <= 0 && grabCd <= 0 && g.level != null)
             {
-                flipT = Mathf.Max(0, flipT - dt);
-                // eased: a quick tuck-and-turn in the middle, slower out of the jump and into the opening
-                float p = 1 - flipT / FlipTime;
-                p = p * p * (3 - 2 * p);
-                f.flip.localRotation = CbArt.Rot(0, 0, -facing * p * FlipTurns * Mathf.PI * 2);
+                int dir = input.x > 0.3f ? 1 : input.x < -0.3f ? -1 : 0;
+                if (dir != 0 && g.level.FindEdge(x, y, dir, out float edgeX, out float top)) { StartHang(dir, edgeX, top); return; }
             }
-            else f.flip.localRotation = Quaternion.identity;
-
-            f.Apply(pose, dt, rate);
-            Place();
-            UpdateStaffPlacement(pose, dt);
-            UpdateCloth(dt);
-            UpdateFire(dt);
-            Animate();
+            // into the water: a splash, a moment treading water, and back where he last stood safely
+            if (y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater();
         }
 
         /// <summary>
@@ -568,6 +718,26 @@ namespace Cloudborne
                     break;
                 case State.Dash: model.Window("Quick_Step_and_Spin_Dodge", 0.1f, 0.75f, t / 0.2f); break;
                 case State.Hurt: model.Window("Hit_Reaction", 0.1f, 0.6f, t / 0.35f); break;
+                // hanging from an edge: the catch of "Jump and Grab Wall" (arms flung up, knees drawn in), then its hang,
+                // swaying a little; the pull-up: "Ladder Climb Finish" from hands on the top (0.25) to standing (0.85)
+                case State.Hang:
+                    if (t < CatchTime) model.Window("Jump_and_Grab_Wall", 0.45f, 0.75f, t / CatchTime, 0.05f);
+                    else model.Show("Jump_and_Grab_Wall", 0.82f + Mathf.PingPong(t * 0.08f, 0.12f));
+                    break;
+                case State.Climb: model.Window("Ladder_Climb_Finish", 0.25f, 0.85f, t / ClimbTime, 0.06f); break;
+                case State.Swim: model.LoopSeconds("Swim_Idle", t); break;
+                // knocked down: flung back onto the ground (Knock_Down), then up from lying on his back (Stand_Up1 from
+                // 0.22, lying, to 0.76, standing)
+                case State.Down:
+                    if (!downLanded) model.Window("Knock_Down", 0f, 0.5f, t / 0.5f);
+                    else if (downT < DownLie) model.Window("Knock_Down", 0.5f, 1f, downT / DownLie);
+                    else model.Window("Stand_Up1", 0.22f, 0.76f, (downT - DownLie) / GetUpTime, 0.1f);
+                    break;
+                // the stage won: up to 0.55 of the cheer (the fist high), then holding it up
+                case State.Victory:
+                    if (t < CheerTime) model.Window("Victory_Cheer", 0.03f, 0.55f, t / CheerTime);
+                    else model.Show("Victory_Cheer", 0.5f + Mathf.PingPong((t - CheerTime) * 0.04f, 0.06f));
+                    break;
                 case State.Dead: model.Window("Knock_Down", 0f, 1f, t / 1.4f); break;
             }
         }

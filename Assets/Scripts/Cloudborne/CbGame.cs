@@ -451,7 +451,9 @@ namespace Cloudborne
                 cleared = true;
                 hud.ShowGo(false);
                 hud.Banner("STAGE CLEAR");
-                Invoke(nameof(Won), 1.2f);
+                // Raja cheers (a hop and a fist punched high) before the results come up
+                hero.Celebrate();
+                Invoke(nameof(Won), 2.2f);
             }
             if (lockZone == null)
             {

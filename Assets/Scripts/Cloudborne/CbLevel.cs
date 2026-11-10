@@ -89,11 +89,16 @@ namespace Cloudborne
         const float RopeBridgeX = 34f, RopeDeckHalf = 3f, StoneBridgeX = 223.4f;
         // the mountain: where it stands, its summit's height
         public const float MountainFrom = 137f, MountainTo = 189f, SummitTop = 11.4f;
-        // falling rocks: how hard they hit, how long the dust warns before one drops
-        const float RockDamage = 8f, RockWarn = 0.9f;
+        // falling rocks: how hard they hit, how long the dust warns before one drops; a rock knocks him down
+        const float RockDamage = 8f, RockWarn = 0.9f, RockKnock = 2.5f;
+        // an edge he can catch: its top between these heights above his feet (his raised hands hang at
+        // CbHero.HangReach), and its corner just ahead of him (he presses against a terrace's face at HalfWidth)
+        public const float GrabLow = 1.05f, GrabHigh = 1.85f;
+        const float GrabNear = HalfWidth - 0.2f, GrabFar = HalfWidth + 0.45f;
 
         readonly CbGame g;
         readonly Transform root;
+        bool climbTold;
         readonly List<Block> blocks = new List<Block>();
         readonly List<Ledge> ledges = new List<Ledge>();
         readonly List<Crossing> crossings = new List<Crossing>();
@@ -442,6 +447,7 @@ namespace Cloudborne
         /// <summary>Puts everything back: the wall whole, the ledges in place, the stones up, the rocks waiting.</summary>
         public void Reset()
         {
+            climbTold = false;
             foreach (var b in blocks)
             {
                 if (!b.breakable) continue;
@@ -564,6 +570,48 @@ namespace Cloudborne
             return best;
         }
 
+        /// <summary>
+        /// An edge Raja can catch, at x and y going towards dir: the top corner of a terrace or rock, or the end of a
+        /// ledge, within reach of his raised hands. Not the cracked wall (it is there to be broken), nothing standing in
+        /// the water (the river is crossed on its stones) and no corner up against something higher.
+        /// </summary>
+        public bool FindEdge(float x, float y, int dir, out float edgeX, out float top)
+        {
+            float bx = 0, bt = 0, best = float.MaxValue;
+            void Try(float ex, float tp)
+            {
+                float ahead = (ex - x) * dir, above = tp - y;
+                if (ahead < GrabNear || ahead > GrabFar || above < GrabLow || above > GrabHigh) return;
+                if (InWater(ex, 0.4f) || Covered(ex + dir * 0.25f, tp)) return;
+                float d = Mathf.Abs(above - CbHero.HangReach);
+                if (d < best) { best = d; bx = ex; bt = tp; }
+            }
+            foreach (var b in blocks)
+                if (!b.broken && !b.breakable) Try(dir > 0 ? b.x0 : b.x1, b.top);
+            foreach (var l in ledges)
+                if (!l.gone && l.reveal > 0.5f) Try(dir > 0 ? l.x0 : l.x1, l.top);
+            edgeX = bx; top = bt;
+            return best < float.MaxValue;
+        }
+
+        /// <summary>Whether something solid stands over (x, above top): a higher block there.</summary>
+        bool Covered(float x, float top)
+        {
+            foreach (var b in blocks)
+                if (!b.broken && x > b.x0 && x < b.x1 && b.top > top + 0.1f) return true;
+            return false;
+        }
+
+        /// <summary>Whether the edge he hangs from at (edgeX, top) is still there: a crumbling ledge may have dropped.</summary>
+        public bool EdgeHolds(float edgeX, float top)
+        {
+            foreach (var b in blocks)
+                if (!b.broken && Mathf.Abs(b.top - top) < 0.02f && edgeX >= b.x0 - 0.01f && edgeX <= b.x1 + 0.01f) return true;
+            foreach (var l in ledges)
+                if (!l.gone && Mathf.Abs(l.top - top) < 0.02f && edgeX >= l.x0 - 0.01f && edgeX <= l.x1 + 0.01f) return true;
+            return false;
+        }
+
         /// <summary>Moving from x0 to x1 at height y: solid blocks stop him at their side.</summary>
         public float BlockX(float x0, float x1, float y)
         {
@@ -630,6 +678,12 @@ namespace Cloudborne
         /// </summary>
         public void Update(float dt, CbHero hero)
         {
+            // at the foot of the mountain, how to climb it
+            if (!climbTold && hero.x > MountainFrom - 5f && hero.x < MountainFrom)
+            {
+                climbTold = true;
+                g.hud.SetTip("Jump at an edge holding towards it: Raja grabs it and pulls himself up");
+            }
             UpdateCrossings(dt, hero);
             UpdateRocks(dt, hero);
             foreach (var l in ledges)
@@ -673,7 +727,9 @@ namespace Cloudborne
                     }
                     continue;
                 }
-                bool on = Mathf.Abs(hero.y - l.top) < 0.02f && hero.x > l.x0 - HalfWidth * 0.5f && hero.x < l.x1 + HalfWidth * 0.5f;
+                // standing on it, or hanging from its end, his weight is on it
+                bool on = Mathf.Abs(hero.y - l.top) < 0.02f && hero.x > l.x0 - HalfWidth * 0.5f && hero.x < l.x1 + HalfWidth * 0.5f
+                    || hero.Hanging && Mathf.Abs(hero.GrabTop - l.top) < 0.02f && hero.GrabX >= l.x0 - 0.01f && hero.GrabX <= l.x1 + 0.01f;
                 l.stood = on ? l.stood + dt : Mathf.Max(0, l.stood - dt);
                 // shaking more and more, then it drops
                 float shake = l.stood > 0 ? Mathf.Sin(Time.time * 60) * 0.04f * (l.stood / CrumbleAfter) : 0;
@@ -784,7 +840,7 @@ namespace Cloudborne
                 // it strikes him if it passes through where he stands
                 if (Mathf.Abs(hero.x - r.x) < 0.75f && r.y < hero.y + 1.8f && r.y > hero.y - 0.2f)
                 {
-                    hero.TakeHit(RockDamage, hero.x >= r.x ? 1 : -1);
+                    hero.TakeHit(RockDamage, hero.x >= r.x ? 1 : -1, knock: RockKnock);
                     Shatter(r);
                     continue;
                 }
