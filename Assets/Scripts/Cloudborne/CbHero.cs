@@ -919,7 +919,7 @@ namespace Cloudborne
                     {
                         // the staff hits the ground: dust, a shock ring, a jolt
                         fired = true;
-                        var at = new Vector3(x + facing * 1.5f, 0.05f, 0);
+                        var at = new Vector3(x + facing * 1.5f, y + 0.05f, 0);
                         CbFx.Spark(at + new Vector3(0, 0.1f, -0.4f), CbFx.Dust, 14, 5, 0.6f, 0.5f, 3);
                         CbVfx.Ring(at, CbFx.Hit * 0.5f, 2.4f, 0.35f, ground: true);
                         g.shake = Mathf.Max(g.shake, 0.3f);
@@ -1030,18 +1030,19 @@ namespace Cloudborne
                         float reach = kiCrash ? 3.8f : 3f;
                         foreach (var e in g.enemies)
                         {
-                            if (e.dead || Mathf.Abs(e.x - x) > reach + e.w || e.HitHeight - y > 2.6f) continue;
+                            // only those on the ground he lands on (not the ones far below a ledge he lands on)
+                            if (e.dead || Mathf.Abs(e.x - x) > reach + e.w || Mathf.Abs(e.y - y) > 1.2f) continue;
                             g.HurtEnemy(e, kiCrash ? 22 : 14, e.x >= x ? 1 : -1, kiCrash ? 8 : 5, kiCrash ? 9 : 7, true, true, fire: false, fromPlayer: true, ki: kiCrash);
                         }
                         if (g.level != null) g.level.Strike(x, y, facing, 2f, staff: true);
                         if (kiCrash && g.items != null) { g.items.HitCrates(x, y, 1, reach); g.items.HitCrates(x, y, -1, reach); }
-                        CbFx.Spark(new Vector3(x + facing * 1.1f, 0.1f, -0.4f), CbFx.Dust, kiCrash ? 30 : 18, 6, 0.6f, 0.5f, 4);
-                        CbFx.Spark(new Vector3(x + facing * 1.1f, 0.2f, -0.4f), FireAwake ? CbFx.Fire : CbFx.Hit, 10, 6, 0.4f, 0.4f, 3);
+                        CbFx.Spark(new Vector3(x + facing * 1.1f, y + 0.1f, -0.4f), CbFx.Dust, kiCrash ? 30 : 18, 6, 0.6f, 0.5f, 4);
+                        CbFx.Spark(new Vector3(x + facing * 1.1f, y + 0.2f, -0.4f), FireAwake ? CbFx.Fire : CbFx.Hit, 10, 6, 0.4f, 0.4f, 3);
                         g.shake = Mathf.Max(g.shake, kiCrash ? 0.55f : 0.4f);
                         CbFx.Sfx("heavy");
-                        CbVfx.Ring(new Vector3(x + facing * 1.1f, 0.05f, 0), CbFx.Hit * 0.6f, kiCrash ? 4.6f : 3.5f, 0.4f, ground: true);
-                        if (kiCrash) CbVfx.Ring(new Vector3(x, 0.05f, 0), CbFx.Dust * 0.6f, 5.5f, 0.5f, ground: true);
-                        CbVfx.Burst(new Vector3(x + facing * 1.1f, 0.3f, -0.4f), CbFx.Hit, 2.6f, 0.18f);
+                        CbVfx.Ring(new Vector3(x + facing * 1.1f, y + 0.05f, 0), CbFx.Hit * 0.6f, kiCrash ? 4.6f : 3.5f, 0.4f, ground: true);
+                        if (kiCrash) CbVfx.Ring(new Vector3(x, y + 0.05f, 0), CbFx.Dust * 0.6f, 5.5f, 0.5f, ground: true);
+                        CbVfx.Burst(new Vector3(x + facing * 1.1f, y + 0.3f, -0.4f), CbFx.Hit, 2.6f, 0.18f);
                         g.hud.ImpactFlash(0.3f);
                         move = Move.Land; t = 0;
                     }

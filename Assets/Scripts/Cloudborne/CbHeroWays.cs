@@ -13,7 +13,7 @@ namespace Cloudborne
     {
         // his hands above his feet hanging from a rope or vine, and from a bar (measured on the model at its game size)
         const float RopeReach = 1.48f, BarReach = 1.71f;
-        const float VineClimbSpeed = 2.6f, BarSpeed = 2.4f, ZipTop = 13f, PitDamage = 10f, MudSpeed = 3.2f, PushSpeed = 1.6f;
+        const float MaxSwing = 1.1f, VineClimbSpeed = 2.6f, BarSpeed = 2.4f, ZipTop = 13f, PitDamage = 10f, MudSpeed = 3.2f, PushSpeed = 1.6f;
 
         CbLevel.Vine swingVine;
         CbLevel.Bar bar;
@@ -76,9 +76,13 @@ namespace Cloudborne
         void UpdateSwing(ref Pose pose, CbInput input, float dt)
         {
             var v = swingVine;
-            float acc = -(30f / v.len) * Mathf.Sin(v.angle) + input.x * 2.4f;
-            v.speed = (v.speed + acc * dt) * (1 - 0.12f * dt);
-            v.angle = Mathf.Clamp(v.angle + v.speed * dt, -1.25f, 1.25f);
+            float acc = -(30f / v.len) * Mathf.Sin(v.angle) + input.x * 1.8f;
+            v.speed = (v.speed + acc * dt) * (1 - 0.15f * dt);
+            // at the top of the swing it stops and comes back (the user found him stuck there a moment: the speed went
+            // on pushing against the limit)
+            float next = v.angle + v.speed * dt;
+            if (Mathf.Abs(next) > MaxSwing) { next = Mathf.Sign(next) * MaxSwing; v.speed = 0; }
+            v.angle = next;
             x = v.ax + Mathf.Sin(v.angle) * v.len;
             y = v.ay - Mathf.Cos(v.angle) * v.len - RopeReach;
             vx = vy = 0;

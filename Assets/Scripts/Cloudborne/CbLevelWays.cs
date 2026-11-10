@@ -51,7 +51,7 @@ namespace Cloudborne
         class Draft { public float x0, x1, y0, y1; }
         class Raft { public float x, from, to, speed, sink, baseY; public Transform t; }
         class Lift { public float x, half, top, lo, hi; public Transform deck, weight; }
-        class Lantern { public float x; public bool lit; public Material light; }
+        class Lantern { public float x; public bool lit; public Material light; public Renderer window; }
         class Gate { public Block b; public float open; public bool wantOpen, sinks; public Vector3 home; }
         class Thorns { public Block b; public int hp = 2; public float cool, clang; }
         class Pendulum { public float x, y, len, period, phase; public Transform t; }
@@ -122,6 +122,16 @@ namespace Cloudborne
         static Material Bamboo => M("#c9a45a");
         static Material VineGreen => M("#3f7a3a");
         static Material StoneGrey => M("#8f9a8a");
+        static Material leafMat;
+        /// <summary>Leaves: drawn from both sides, without outlines (an outline round a thin leaf turns it black).</summary>
+        static Material LeafMat
+        {
+            get
+            {
+                if (leafMat == null) { leafMat = CbArt.NewToon(CbArt.Hex("#5aa548"), 0f); leafMat.SetFloat("_Cull", 0f); leafMat.SetFloat("_RimStrength", 0.15f); }
+                return leafMat;
+            }
+        }
 
         // ---------- building ----------
 
@@ -198,9 +208,13 @@ namespace Cloudborne
         {
             var t = CbArt.Joint(root, x, 0, 1.2f, "lantern");
             var light = new Material(CbArt.Emissive(new Color(0.15f, 0.12f, 0.1f)));
+            Renderer window = null;
             if (Model("Lantern", t, new Vector3(0.86f, 2.1f, 0.88f), 180f) != null)
-                // its windows: dark until he passes, then glowing
-                CbArt.Box(light, t, new Vector3(0, 1.42f, -0.45f), new Vector3(0.36f, 0.26f, 0.02f));
+            {
+                // its window glows once he has passed (unlit, the painting's own window shows)
+                window = CbArt.Box(light, t, new Vector3(0, 1.42f, -0.45f), new Vector3(0.36f, 0.26f, 0.02f)).GetComponent<Renderer>();
+                window.enabled = false;
+            }
             else
             {
                 CbArt.Box(StoneGrey, t, new Vector3(0, 0.15f, 0), new Vector3(0.7f, 0.3f, 0.7f));
@@ -208,17 +222,28 @@ namespace Cloudborne
                 CbArt.Box(light, t, new Vector3(0, 1.4f, 0), new Vector3(0.5f, 0.4f, 0.5f));
                 CbArt.Cone(StoneGrey, t, new Vector3(0, 1.85f, 0), 0.5f, 0.5f, null, 4);
             }
-            lanterns.Add(new Lantern { x = x, light = light });
+            lanterns.Add(new Lantern { x = x, light = light, window = window });
         }
 
+        /// <summary>
+        /// A liana hanging from a thick branch: a twisted dark-green rope with a few small leaves, and at its end a
+        /// knot with a soft glow, so it reads as a thing to take hold of and swing on.
+        /// </summary>
         void AddVine(float ax, float ay, float len)
         {
-            var branch = CbArt.Joint(root, ax, ay, 0.4f, "branch");
-            CbArt.Cylinder(Wood, branch, new Vector3(0, 0.15f, 0.2f), 0.22f, 3.2f, Quaternion.Euler(0, 0, 90));
+            var branch = CbArt.Joint(root, ax, ay, 0.3f, "branch");
+            CbArt.Cylinder(Wood, branch, new Vector3(0, 0.25f, 0.2f), 0.26f, 4f, Quaternion.Euler(0, 0, 90));
+            for (int k = -1; k <= 1; k++)
+                CbArt.Part(CbMesh.Leaf(), LeafMat, branch, new Vector3(k * 1.3f, 0.55f, 0.1f), Vector3.one * 0.5f, Quaternion.Euler(-30, k * 40f, k * 25f), shadows: false);
             var t = CbArt.Joint(root, ax, ay, 0.05f, "vine");
-            CbArt.Cylinder(VineGreen, t, new Vector3(0, -len / 2, 0), 0.06f, len);
-            for (float d = 0.8f; d < len; d += 0.9f)
-                CbArt.Part(CbMesh.Leaf(), M("#4f9a45"), t, new Vector3(0.08f, -d, -0.05f), Vector3.one * 0.35f, Quaternion.Euler(0, 0, d * 70f), shadows: false);
+            var rope = M("#4d6b2c");
+            CbArt.Cylinder(rope, t, new Vector3(0, -len / 2, 0), 0.055f, len);
+            CbArt.Cylinder(M("#3d5822"), t, new Vector3(0.05f, -len / 2, -0.03f), 0.03f, len, Quaternion.Euler(0, 0, 1.2f));
+            for (float d = 0.7f; d < len - 0.4f; d += 0.75f)
+                CbArt.Part(CbMesh.Leaf(), LeafMat, t, new Vector3((d % 1.5f < 0.75f ? 1 : -1) * 0.1f, -d, -0.04f), Vector3.one * 0.16f,
+                    Quaternion.Euler(0, 0, (d % 1.5f < 0.75f ? -1 : 1) * 60f), shadows: false);
+            CbArt.Part(CbMesh.Sphere, M("#3d5822"), t, new Vector3(0, -len, 0), Vector3.one * 0.2f);
+            CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(1f, 0.9f, 0.5f) * 0.5f, CbArt.Soft), t, new Vector3(0, -len, -0.2f), Vector3.one * 0.9f, shadows: false).name = "grip";
             vines.Add(new Vine { ax = ax, ay = ay, len = len, t = t });
         }
 
@@ -266,7 +291,7 @@ namespace Cloudborne
             for (int k = 0; k < 5; k++)
             {
                 float s = Random.Range(0.45f, 0.7f);
-                CbArt.Part(CbMesh.Blob(6, 4), M("#2f5a2a"), t, new Vector3(Random.Range(-0.5f, 0.5f), 0.35f + k * 0.42f, Random.Range(-0.3f, 0.3f)),
+                CbArt.Part(CbMesh.Blob(12, 8), M("#2f5a2a"), t, new Vector3(Random.Range(-0.5f, 0.5f), 0.35f + k * 0.42f, Random.Range(-0.3f, 0.3f)),
                     new Vector3(s, s * 0.8f, s), Random.rotation);
                 for (int j = 0; j < 3; j++)
                     CbArt.Cone(M("#7a3a2a"), t, new Vector3(Random.Range(-0.6f, 0.6f), Random.Range(0.3f, 2.3f), -0.35f), 0.05f, 0.3f,
@@ -278,18 +303,30 @@ namespace Cloudborne
             thorns.Add(new Thorns { b = b });
         }
 
+        /// <summary>
+        /// A pit cut in the path: walls of the ground's own soil, a dark floor bristling with stone spikes, open to the
+        /// camera (the user saw a black block where it was); leaves over it until he stands on it.
+        /// </summary>
         void AddPit(float x0, float x1)
         {
             var t = CbArt.Joint(root, (x0 + x1) / 2, 0, 0, "pit");
-            CbArt.Box(M("#231c18"), t, new Vector3(0, -1.6f, 1.5f), new Vector3(x1 - x0, 3.2f, 5f));
-            for (float x = x0 + 0.25f; x < x1; x += 0.45f)
-                CbArt.Cone(StoneGrey, t, new Vector3(x - (x0 + x1) / 2, -2.6f, -0.4f), 0.14f, 0.7f, null, 4);
+            earth ??= EarthMat();
+            float w = x1 - x0, cx = (x0 + x1) / 2;
+            const float Depth = 2.8f, Front = -1f, Back = 1.2f;
+            CbArt.Part(CbMesh.Quad, FaceMat(earth, w, Depth, x0), t, new Vector3(0, -Depth / 2, Back), new Vector3(w, Depth, 1), shadows: false).name = "pitBack";
+            var side = FaceMat(earth, Back - Front, Depth, 0);
+            CbArt.Part(CbMesh.Quad, side, t, new Vector3(-w / 2, -Depth / 2, (Front + Back) / 2), new Vector3(Back - Front, Depth, 1), Quaternion.Euler(0, -90, 0), shadows: false);
+            CbArt.Part(CbMesh.Quad, side, t, new Vector3(w / 2, -Depth / 2, (Front + Back) / 2), new Vector3(Back - Front, Depth, 1), Quaternion.Euler(0, 90, 0), shadows: false);
+            CbArt.Box(M("#3a2c22"), t, new Vector3(0, -Depth - 0.1f, (Front + Back) / 2), new Vector3(w, 0.2f, Back - Front));
+            for (float x = x0 + 0.25f; x < x1; x += 0.42f)
+                for (float z = Front + 0.3f; z < Back; z += 0.55f)
+                    CbArt.Cone(StoneGrey, t, new Vector3(x - cx, -Depth + 0.3f, z), 0.13f, 0.6f, null, 6);
             // the cover: a mat of leaves level with the path
             var cover = CbArt.Joint(t, 0, 0, 0, "cover");
-            CbArt.Box(M("#5a8a3a"), cover, new Vector3(0, -0.03f, 1.5f), new Vector3(x1 - x0 + 0.1f, 0.06f, 5f));
-            for (float x = x0; x < x1; x += 0.5f)
-                CbArt.Part(CbMesh.Leaf(), M("#4f9a45"), cover, new Vector3(x - (x0 + x1) / 2 + 0.25f, 0.02f, Random.Range(-0.6f, 0.8f)),
-                    Vector3.one * 0.5f, Quaternion.Euler(90, Random.Range(0, 360), 0), shadows: false);
+            CbArt.Box(M("#6a8a3a"), cover, new Vector3(0, -0.03f, 0.1f), new Vector3(x1 - x0 + 0.1f, 0.06f, 2.3f));
+            for (float x = x0; x < x1; x += 0.45f)
+                CbArt.Part(CbMesh.Leaf(), LeafMat, cover, new Vector3(x - (x0 + x1) / 2 + 0.22f, 0.02f, Random.Range(-0.8f, 0.8f)),
+                    Vector3.one * 0.25f, Quaternion.Euler(90, Random.Range(0, 360), 0), shadows: false);
             pits.Add(new Pit { x0 = x0, x1 = x1, cover = cover });
         }
 
@@ -486,8 +523,8 @@ namespace Cloudborne
         void DressVines(Block b, float x)
         {
             for (float y = 0.5f; y < b.top; y += 0.7f)
-                CbArt.Part(CbMesh.Leaf(), M(y % 1.4f < 0.7f ? "#3f8a3a" : "#4f9a45"), root, new Vector3(x - 0.02f, y, -0.6f),
-                    new Vector3(0.5f, 0.5f, 0.5f), Quaternion.Euler(0, 90, Random.Range(-40f, 40f)), shadows: false);
+                CbArt.Part(CbMesh.Leaf(), LeafMat, root, new Vector3(x - 0.04f, y, -0.6f),
+                    Vector3.one * 0.22f, Quaternion.Euler(0, 90, Random.Range(-40f, 40f)), shadows: false);
             CbArt.Cylinder(VineGreen, root, new Vector3(x - 0.05f, b.top / 2, -0.5f), 0.05f, b.top);
             CbArt.Cylinder(VineGreen, root, new Vector3(x - 0.05f, b.top / 2, 0.2f), 0.05f, b.top);
         }
@@ -519,7 +556,8 @@ namespace Cloudborne
         void BuildWaterfall(float x0, float x1, float top)
         {
             // the cave behind: dark rock; the falling water in front, light and see-through, hiding the ledges a little
-            CbArt.Box(M("#2a2622"), root, new Vector3((x0 + x1) / 2, top / 2, 1.2f), new Vector3(x1 - x0, top, 0.4f)).name = "cave";
+            var cave = RockMat(x1 - x0, top, x0, 0, new Color(0.42f, 0.42f, 0.48f));
+            CbArt.Part(CbMesh.Quad, cave, root, new Vector3((x0 + x1) / 2, top / 2, 1.2f), new Vector3(x1 - x0, top, 1), shadows: false).name = "cave";
             var water = CbArt.Glow(new Color(0.55f, 0.8f, 1f) * 0.55f, Resources.Load<Texture2D>("Cloudborne/Jungle/Water/Water"));
             var sheet = CbArt.Part(CbMesh.Quad, water, root, new Vector3((x0 + x1) / 2, top / 2, -1.3f), new Vector3(x1 - x0, top, 1), shadows: false);
             sheet.name = "waterfall";
@@ -572,6 +610,26 @@ namespace Cloudborne
             if (x > LogFrom - 0.5f && x < LogTo + 0.5f) return false;
             foreach (var r in rafts) if (Mathf.Abs(x - r.x) < 1.6f && y < 1f && InWater(x)) return false;
             return true;
+        }
+
+        /// <summary>
+        /// The stretch of open path around x a soldier may roam: to the water, a pit or something solid on either
+        /// side (as far as reach), so he stops where the path stops, not at a line no one can see.
+        /// </summary>
+        public void FreeStretch(float x, float reach, out float lo, out float hi)
+        {
+            lo = x - reach; hi = x + reach;
+            foreach (var (x0, x1) in Gaps)
+            {
+                if (x1 <= x) lo = Mathf.Max(lo, x1 + 0.6f);
+                if (x0 >= x) hi = Mathf.Min(hi, x0 - 0.6f);
+            }
+            foreach (var b in blocks)
+            {
+                if (b.broken || InWater((b.x0 + b.x1) / 2)) continue;
+                if (b.x1 <= x) lo = Mathf.Max(lo, b.x1 + 0.6f);
+                if (b.x0 >= x) hi = Mathf.Min(hi, b.x0 - 0.6f);
+            }
         }
 
         /// <summary>The vine whose end is within reach of his hands at (hx, hy), not one he just let go of.</summary>
@@ -777,6 +835,7 @@ namespace Cloudborne
                 {
                     l.lit = true;
                     CbArt.SetGlow(l.light, new Color(1f, 0.7f, 0.3f) * 3f);
+                    if (l.window != null) l.window.enabled = true;
                     CbFx.Spark(new Vector3(l.x, 1.4f, 0.8f), CbFx.Flame, 12, 3, 0.3f, 0.5f, -3);
                     g.Checkpoint(l.x);
                 }
@@ -1017,7 +1076,7 @@ namespace Cloudborne
 
         void ResetWays()
         {
-            foreach (var l in lanterns) { l.lit = false; CbArt.SetGlow(l.light, new Color(0.15f, 0.12f, 0.1f)); }
+            foreach (var l in lanterns) { l.lit = false; CbArt.SetGlow(l.light, new Color(0.15f, 0.12f, 0.1f)); if (l.window != null) l.window.enabled = false; }
             foreach (var th in thorns) { th.hp = 2; th.b.broken = false; th.b.t.gameObject.SetActive(true); }
             foreach (var p in pits) { p.open = false; p.stood = 0; p.cover.gameObject.SetActive(true); }
             foreach (var d in darts) Object.Destroy(d.t.gameObject);

@@ -517,12 +517,21 @@ namespace Cloudborne
             // the soldiers along the way: each steps out at his post as Raja draws near; no warning, no arena
             if (lockZone == null)
                 foreach (var p in posts)
+                {
                     if (!p.spawned && Mathf.Abs(hero.x - p.x) < PostWakes)
                     {
                         p.spawned = true;
-                        p.enemy = new CbEnemy(this, p.kind, p.x, actors) { minX = p.x - p.range, maxX = p.x + p.range, asleep = p.asleep };
+                        p.enemy = new CbEnemy(this, p.kind, p.x, actors) { asleep = p.asleep };
                         enemies.Add(p.enemy);
                     }
+                    // he roams his stretch of open path, and it widens when a wall in it is broken (not a line no one
+                    // can see: the user saw a soldier stop where a box had been, even after it was gone)
+                    if (p.enemy != null && !p.enemy.dead && level != null)
+                    {
+                        level.FreeStretch(p.x, 18f, out float lo, out float hi);
+                        p.enemy.minX = lo; p.enemy.maxX = hi;
+                    }
+                }
             // the stretch's name and a tip as he reaches them
             while (sectionIdx < Sections.Length && hero.x >= Sections[sectionIdx].x) hud.SetWave(Sections[sectionIdx++].name);
             while (tipIdx < Tips.Length && hero.x >= Tips[tipIdx].x) { var tip = Tips[tipIdx++]; hud.SetTip(tip.text ?? Tip(tip.tip)); }
@@ -914,12 +923,13 @@ namespace Cloudborne
                     // broken ground: a jet of dust and stones, a ring on the ground
                     CbFx.Spark(pos, CbFx.Dust, 12, 6, 0.55f, 0.45f, 8);
                     CbFx.Spark(pos, CbFx.Grey, 6, 7, 0.3f, 0.5f, 14);
-                    CbVfx.Ring(new Vector3(pos.x, 0.05f, 0), CbFx.Dust * 0.6f, 1.4f, 0.3f, ground: true);
+                    CbVfx.Ring(new Vector3(pos.x, pos.y - 0.05f, 0), CbFx.Dust * 0.6f, 1.4f, 0.3f, ground: true);
                 }
                 shake = Mathf.Max(shake, 0.15f);
                 foreach (var e in enemies.ToArray())
                 {
-                    if (e.dead || Mathf.Abs(e.x - pos.x) > 1f + e.w * 0.5f || e.HitHeight > 2.6f) continue;
+                    // the wave runs along the ground it was struck on: not up or down to another level
+                    if (e.dead || Mathf.Abs(e.x - pos.x) > 1f + e.w * 0.5f || Mathf.Abs(e.y - (pos.y - 0.1f)) > 1.2f) continue;
                     HurtEnemy(e, 8, dir, 3, fire ? 5 : 7, false, true, fire, true, ki: true);
                 }
             }
