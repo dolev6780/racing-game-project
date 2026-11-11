@@ -49,11 +49,8 @@ namespace Cloudborne
         /// <summary>The way the face points (world space), up or down with the head.</summary>
         public Vector3 FaceDirection => (headFront.position - head.position).normalized;
 
-        static readonly string[] RootCurves =
-        {
-            "m_LocalPosition.x", "m_LocalPosition.y", "m_LocalPosition.z", "m_LocalRotation.x", "m_LocalRotation.y", "m_LocalRotation.z",
-            "m_LocalRotation.w", "m_LocalScale.x", "m_LocalScale.y", "m_LocalScale.z", "localEulerAnglesRaw.x", "localEulerAnglesRaw.y", "localEulerAnglesRaw.z",
-        };
+        // removed whole: Unity won't take out one axis of a position, rotation or scale on its own
+        static readonly string[] RootCurves = { "m_LocalPosition", "m_LocalRotation", "m_LocalScale" };
 
         static readonly string[] Bones = { "Hips", "Spine", "Head", "head_end", "headfront", "RightHand", "LeftHand", "LeftForeArm", "RightToeBase" };
 
