@@ -1245,18 +1245,18 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(0.5f);
             Assert.IsTrue(level.PitOpen(0), "The leaves over the pit held");
             // the lever opens the first gate
-            Assert.Less(level.BlockX(272f, 276f, 0f), 274.6f - CbLevel.HalfWidth + 0.01f, "The first gate does not stop him");
-            level.Strike(272.5f, 0f, 1, 1.7f, staff: false);
+            Assert.Less(level.BlockX(275f, 279f, 0f), 277.6f - CbLevel.HalfWidth + 0.01f, "The first gate does not stop him");
+            level.Strike(275.5f, 0f, 1, 1.7f, staff: false);
             yield return new WaitForSeconds(1f);
             Assert.IsTrue(level.GateOpen(0), "The lever did not open the gate");
             // the stone block pushed onto the plate opens the second gate
             Assert.IsFalse(level.GateOpen(1), "The second gate stands open");
-            game.Teleport(276.5f);
+            game.Teleport(279.5f);
             game.hero.y = 0;
             game.TestInput = i => i.x = 1;
             for (float w = 0; w < 6f && !level.GateOpen(1); w += Time.deltaTime) yield return null;
             game.TestInput = null;
-            Assert.Greater(level.PushBlockX, 278f, "Raja did not push the stone block");
+            Assert.Greater(level.PushBlockX, 281f, "Raja did not push the stone block");
             Assert.IsTrue(level.GateOpen(1), "Pushing the block onto the plate did not open the second gate");
             // the gong lays a bridge across the gorge
             Assert.Less(level.SupportAt(306f, 1f), -1f, "The gorge has a bridge before the gong");

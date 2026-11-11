@@ -9,7 +9,7 @@ namespace Cloudborne
     /// <list type="bullet">
     /// <item>The vine ravine (196-240): vines to swing across, bamboo bars hung over the water, a giant springy leaf
     /// up to a tiger token.</item>
-    /// <item>The temple of traps (240-292): thorns cut with the staff, a hidden pit, a dart statue, swinging logs, a
+    /// <item>The temple of traps (240-292): thorns cut with the staff, a dart statue, a hidden pit, swinging logs, a
     /// lever's gate, a stone block pushed onto a plate for the second gate, a snapping plant.</item>
     /// <item>The gong gorge (292-336): a gong that lays a bridge, a beehive over two raiders, a cage to break open.</item>
     /// <item>The raft river (336-400): a mud bank, rafts drifting down a long river, a rock island with a snapping
@@ -56,7 +56,7 @@ namespace Cloudborne
         class Lantern { public float x; public bool lit; public Material light; public Renderer window; }
         class Gate { public Block b; public float open; public bool wantOpen, sinks; public Vector3 home; }
         class Thorns { public Block b; public int hp = 2; public float cool, clang; }
-        class Pendulum { public float x, y, len, period, phase; public Transform t; }
+        class Pendulum { public float x, y, len, period, phase; public Transform ram, ropeA, ropeB; }
         class Snapper { public float x, y, timer, period = 2.2f, cool; public int hp = 3; public bool dead; public Transform t, jaw, model; }
         class Pit { public float x0, x1, stood; public bool open; public Transform cover; }
         class Dart { public float x, y, vx, gone; public Transform t; }
@@ -64,7 +64,7 @@ namespace Cloudborne
         class Boulder { public float x, vx, cool; public bool rolling; public Transform t; }
 
         const float LeafBounce = 19.5f, RaftTop = 0.1f, LogTop = 0.15f, LogRollBack = 1.4f, SeesawTop = 0.35f;
-        const float StatueX = 262.5f, PlateX = 281.5f, LeverX = 273f, GongX = 296.5f, BridgeFrom = 300f, BridgeTo = 312f;
+        const float StatueX = 251.5f, PlateX = 284.5f, LeverX = 276f, GongX = 296.5f, BridgeFrom = 300f, BridgeTo = 312f;
         const float HiveX = 320f, HiveY = 4.4f, ChestX = 467.5f, SeesawX = 430f, MudFrom = 338f, MudTo = 344f;
         const float LogFrom = 370f, LogTo = 378f;
         // the darts fly from the guardian's mouth: over a ducking Raja, into a standing one
@@ -153,18 +153,19 @@ namespace Cloudborne
             AddLeaf(235.5f, 0.45f);
             AddLedge(238f, 1.6f, 6.2f, false);
 
-            // ---- the temple of traps
+            // ---- the temple of traps (the user found its traps crowded together: they are spread out, the dart statue
+            // moved from beside the logs to the stretch before the pit)
             AddThorns(246f);
-            foreach (var (x0, x1) in Pits) AddPit(x0, x1);
             BuildStatue();
-            AddPendulum(266f, 6.2f, 4.6f, 2.4f, 0f);
-            AddPendulum(269.5f, 6.2f, 4.6f, 2.4f, 1.2f);
+            foreach (var (x0, x1) in Pits) AddPit(x0, x1);
+            AddPendulum(262.5f, 6.2f, 4.6f, 2.4f, 0f);
+            AddPendulum(269f, 6.2f, 4.6f, 2.4f, 1.2f);
             BuildLever();
-            AddGate(275f);
-            BuildPushBlock(277.5f);
+            AddGate(278f);
+            BuildPushBlock(280.5f);
             BuildPlate();
-            AddGate(284f);
-            AddSnapper(289f, 0f);
+            AddGate(287f);
+            AddSnapper(290f, 0f);
 
             // ---- the gong gorge
             BuildGong();
@@ -438,20 +439,34 @@ namespace Cloudborne
             blocks.Add(new Block { x0 = StatueX - 0.45f, x1 = StatueX + 0.45f, top = 1.8f, t = t, smooth = true });
         }
 
+        /// <summary>
+        /// A swinging log: a battering ram slung level on two ropes from a beam overhead, swinging along the path (its
+        /// ringed end faced the camera, which looked wrong: the user). The ropes stay parallel, so the log stays level.
+        /// </summary>
         void AddPendulum(float x, float y, float len, float period, float phase)
         {
             var t = CbArt.Joint(root, x, y, 0f, "pendulum");
-            // the log ram (its ringed end towards the camera) on two ropes
-            var ram = CbArt.Joint(t, 0, -len - 0.35f, 0, "ram");
-            bool modelled = Model("LogRam", ram, new Vector3(1.75f, 1.56f, 0.7f), 90f) != null;
+            var ram = CbArt.Joint(t, 0, -len, 0, "ram");
+            var log = CbArt.Joint(ram, 0, -0.35f, 0, "log");
+            bool modelled = Model("LogRam", log, new Vector3(1.75f, 1.56f, 0.7f), 0f) != null;
+            if (!modelled) CbArt.Cylinder(Wood, ram, Vector3.zero, 0.32f, 1.75f, Quaternion.Euler(0, 0, 90));
             var rope = modelled ? M("#9a7a48") : VineGreen;
-            float rz = modelled ? 0.62f : 0.5f;
-            CbArt.Cylinder(rope, t, new Vector3(0, -len / 2, -rz), 0.035f, len);
-            CbArt.Cylinder(rope, t, new Vector3(0, -len / 2, rz), 0.035f, len);
-            if (!modelled) CbArt.Cylinder(Wood, t, new Vector3(0, -len, 0), 0.32f, 1.7f, Quaternion.Euler(90, 0, 0));
-            CbArt.Cylinder(Wood, root, new Vector3(x, y + 0.2f, 0), 0.25f, 3f, Quaternion.Euler(90, 0, 0));
-            pendulums.Add(new Pendulum { x = x, y = y, len = len, period = period, phase = phase, t = t });
+            Transform Rope(float dx)
+            {
+                var r = CbArt.Joint(t, dx, 0, 0, "rope");
+                CbArt.Cylinder(rope, r, new Vector3(0, -len / 2, 0), 0.035f, len);
+                return r;
+            }
+            var a = Rope(-RamRopes);
+            var b = Rope(RamRopes);
+            // the bar they hang from, on a beam over the path from a post at the back
+            CbArt.Cylinder(Wood, t, new Vector3(0, 0.12f, 0), 0.11f, 2f, Quaternion.Euler(0, 0, 90));
+            CbArt.Cylinder(Wood, t, new Vector3(0, 0.3f, 0.4f), 0.2f, 3.2f, Quaternion.Euler(90, 0, 0));
+            CbArt.Cylinder(Wood, t, new Vector3(0, (0.3f - y) / 2, 2f), 0.18f, y + 0.3f);
+            pendulums.Add(new Pendulum { x = x, y = y, len = len, period = period, phase = phase, ram = ram, ropeA = a, ropeB = b });
         }
+        // the ram's ropes, either side of its middle (where the model's rope loops are)
+        const float RamRopes = 0.62f;
 
         void BuildLever()
         {
@@ -492,12 +507,13 @@ namespace Cloudborne
         void AddGate(float x)
         {
             var t = CbArt.Joint(root, x, 0, 0f, "gate");
-            // the model: stone posts and bamboo bars in one, standing just behind the path; opened, it sinks into the
-            // ground
-            var model = Model("Gate", t, new Vector3(3.45f, 3.6f, 1.24f), 180f);
+            // the model: stone posts and bamboo bars in one, standing across the path like the stage's end gates (it
+            // stood square to the camera: the user), its near post the end away from Raja as he comes; opened, it
+            // sinks into the ground. Where it crosses his line its bars are thin, inside the block that stops him.
+            t.localRotation = Quaternion.Euler(0, 180f + EndGateTurn, 0);
+            var model = Model("Gate", t, new Vector3(3.45f, 3.6f, 1.24f), 0f);
             if (model != null)
             {
-                model.localPosition = new Vector3(0, 0, 0.6f);
                 var mb = new Block { x0 = x - 0.4f, x1 = x + 0.4f, top = 3.6f, t = t, smooth = true };
                 blocks.Add(mb);
                 gates.Add(new Gate { b = mb, home = t.localPosition, sinks = true });
@@ -868,7 +884,7 @@ namespace Cloudborne
             if (Mathf.Abs(x - side) > 0.08f) return false;
             float step = dir * 1.6f * dt;
             float nx0 = b.x0 + step, nx1 = b.x1 + step;
-            if (nx0 < pushHome - 1.6f || nx1 > 283.5f) return false;
+            if (nx0 < pushHome - 1.6f || nx1 > PlateX + 2f) return false;
             b.x0 = nx0; b.x1 = nx1;
             b.t.localPosition = new Vector3((b.x0 + b.x1) / 2, 0, 0);
             if (Random.value < 0.2f) CbFx.Spark(new Vector3(dir > 0 ? b.x0 : b.x1, 0.1f, -0.3f), CbFx.Dust, 1, 1.5f, 0.3f, 0.35f, -1);
@@ -1108,9 +1124,10 @@ namespace Cloudborne
                 }
                 else if (hero.x > p.x0 - 0.2f && hero.x < p.x1 + 0.2f && hero.y < -1.6f) hero.FellInPit();
             }
-            // the dart statue: a dart every 2.4 s along the path at chest height (duck under, jump over)
+            // the dart statue: a dart every 2.4 s along the path at chest height (duck under, jump over), at Raja coming
+            // towards it
             dartT -= dt;
-            if (dartT <= 0 && Mathf.Abs(hero.x - StatueX) < 16f)
+            if (dartT <= 0 && hero.x < StatueX && StatueX - hero.x < 12f)
             {
                 dartT = 2.4f;
                 var t = CbArt.Cylinder(M("#3a2a1a"), root, new Vector3(StatueX - 0.5f, DartY, 0), 0.03f, 0.5f, Quaternion.Euler(0, 0, 90));
@@ -1125,15 +1142,22 @@ namespace Cloudborne
                 float topOfHim = hero.Ducking ? 0.95f : 1.75f;
                 bool hit = Mathf.Abs(hero.x - d.x) < 0.35f && d.y > hero.y + 0.15f && d.y < hero.y + topOfHim;
                 if (hit) hero.TakeHit(6, d.vx > 0 ? 1 : -1);
-                if (hit || d.gone > 14f) { Object.Destroy(d.t.gameObject); darts.RemoveAt(i); }
+                // the thorns (until cut) and anything else solid stop it
+                bool stopped = false;
+                foreach (var b in blocks)
+                    if (!b.broken && d.y < b.top && d.x > b.x0 && d.x < b.x1) { stopped = true; break; }
+                if (hit || stopped || d.gone > 12f) { Object.Destroy(d.t.gameObject); darts.RemoveAt(i); }
             }
             // swinging logs
             foreach (var p in pendulums)
             {
                 float a = Mathf.Sin(Time.time * Mathf.PI * 2 / p.period + p.phase) * 0.75f;
-                p.t.localRotation = Quaternion.Euler(0, 0, a * Mathf.Rad2Deg);
+                var turn = Quaternion.Euler(0, 0, a * Mathf.Rad2Deg);
+                p.ropeA.localRotation = p.ropeB.localRotation = turn;
+                p.ram.localPosition = new Vector3(Mathf.Sin(a) * p.len, -Mathf.Cos(a) * p.len, 0);
                 float lx = p.x + Mathf.Sin(a) * p.len, ly = p.y - Mathf.Cos(a) * p.len;
-                if (Mathf.Abs(hero.x - lx) < 0.6f && hero.y < ly + 0.35f && hero.y + 1.7f > ly - 0.35f)
+                // the log is level and long: it hits along its length
+                if (Mathf.Abs(hero.x - lx) < 0.95f && hero.y < ly + 0.35f && hero.y + 1.7f > ly - 0.35f)
                     hero.TakeHit(8, Mathf.Cos(Time.time * Mathf.PI * 2 / p.period + p.phase) >= 0 ? 1 : -1, knock: 4f);
             }
             // snapping plants: open, then a snap

@@ -148,7 +148,7 @@ namespace Cloudborne
             for (int i = 0; i < 4; i++) C(235.5f + i * 0.6f, 2f + i * 1.3f);
             Spawn(Kind.Token, new Vector3(238f, 7.3f, 0), resting: true);
             // the temple of traps
-            foreach (var x in new[] { 250f, 252f, 258.5f, 260.5f, 267.8f, 271.5f, 279.5f, 286f }) C(x, 1.2f);
+            foreach (var x in new[] { 249f, 253f, 258.5f, 260f, 265.8f, 272.5f, 282.5f, 288.6f }) C(x, 1.2f);
             Spawn(Kind.Coin, new Vector3(255.2f, 2.2f, 0), resting: true);
             // the gong's bridge, the hive, the cage
             for (float x = 301f; x < 312f; x += 1.5f) C(x, 1f);

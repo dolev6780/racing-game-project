@@ -35,7 +35,7 @@ namespace Cloudborne
         {
             (22f, CbEnemy.Kind.Hyena, 6f, false), (64f, CbEnemy.Kind.Shield, 5f, false), (71f, CbEnemy.Kind.Hyena, 4f, true),
             (108f, CbEnemy.Kind.Shield, 1.5f, false), (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
-            (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (250f, CbEnemy.Kind.Hyena, 2.4f, false), (318f, CbEnemy.Kind.Hyena, 3f, false),
+            (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (259f, CbEnemy.Kind.Hyena, 1.5f, false), (318f, CbEnemy.Kind.Hyena, 3f, false),
             (322f, CbEnemy.Kind.Shield, 3f, false), (341f, CbEnemy.Kind.Hyena, 2.5f, false), (398f, CbEnemy.Kind.Shield, 2f, false),
             (476f, CbEnemy.Kind.Hyena, 4f, false), (486f, CbEnemy.Kind.Shield, 4f, false), (499f, CbEnemy.Kind.Hyena, 3f, true),
             (515f, CbEnemy.Kind.Hyena, 3f, false),
