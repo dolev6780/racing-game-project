@@ -18,8 +18,8 @@ namespace Cloudborne
     /// </list>
     /// Stage 1-1, about 265 m: the village; the first fight; a stream under a rope bridge; the second fight; the
     /// cracked wall (only the staff breaks it); a long river of stones and logs; the ambush at the shrine; a
-    /// mountain climbed by terraces and ledges, crumbling ones, edges caught and walls jumped off, to the golden fruit on its
-    /// summit (and a secret path to the scroll above); the fight on the ridge; a brook under a stone arch bridge;
+    /// gorge climbed with water rising behind him (CbLevelGorge), the golden fruit off its way and a secret path from its
+    /// summit to the scroll above; the fight on the ridge; a brook under a stone arch bridge;
     /// Sergeant Snap at the shrine gate.
     /// </summary>
     public partial class CbLevel
@@ -33,6 +33,8 @@ namespace Cloudborne
             // smooth: not caught or jumped off (the temple's gates, thorns); vines: its side (-1 left, 1 right) is
             // grown over with vines he climbs
             public bool smooth;
+            // a rock jutting from the gorge's back wall stands clear of the ground: nothing under its bottom
+            public float bottom;
             public int vines;
         }
 
@@ -110,7 +112,7 @@ namespace Cloudborne
         const float StoneArchLength = 4.1f, StoneArchStep = 3.96f;
         public const float StoneBridgeHalf = (StoneArchStep + StoneArchLength) / 2, StoneDeck = 1.32f;
         // the mountain: where it stands, its summit's height
-        public const float MountainFrom = 137f, MountainTo = 189f, SummitTop = 11.4f;
+        public const float MountainFrom = 137f, MountainTo = 168f, SummitTop = 11.4f;
         // an edge he can catch: its top between these heights above his feet (his raised hands hang at
         // CbHero.HangReach), and its corner just ahead of him (he presses against a terrace's face at HalfWidth).
         // Wide, so a jump at an edge is caught (the user found he did not always catch it).
@@ -445,38 +447,6 @@ namespace Cloudborne
 
         // ---------- the mountain ----------
 
-        /// <summary>
-        /// The mountain after the shrine: terraces (solid) and ledges up to its summit, the higher ledges crumbling
-        /// (falling between them, he wall-jumps back up); a gap to jump at the top; ledges down the far side. Secret: from the high
-        /// plateau two ledges lead up and back to the scroll.
-        /// </summary>
-        void BuildMountain()
-        {
-            earth ??= EarthMat();
-            grass ??= GrassMat();
-            crackedEarth = new Material(earth) { color = earth.color * new Color(1.15f, 1.02f, 0.85f) };
-            // no wall of rock behind it any more (the user saw a flat picture of rock filling the screen): the climb's
-            // terraces stand on their own against the jungle
-            AddTerrace(137f, 140f, 1.4f, 2.4f);
-            AddTerrace(141.5f, 144f, 2.8f, 3.2f);
-            AddLedge(146.25f, 1.5f, 4.2f, false);
-            AddLedge(149.2f, 1.2f, 5.6f, true);
-            AddTerrace(151f, 152.4f, 6.4f, 2.2f);
-            AddLedge(154.7f, 1.4f, 7.8f, false);
-            AddLedge(157.3f, 1.0f, 9.0f, true);
-            AddTerrace(159f, 167f, 10.2f, 5f);
-            AddLedge(171.5f, 1.0f, 10.8f, true);
-            AddTerrace(174f, 179f, SummitTop, 5f);
-            // down the far side
-            AddLedge(181.7f, 1.4f, 8.6f, false);
-            AddLedge(184.7f, 1.4f, 5.8f, true);
-            AddLedge(187.7f, 1.4f, 3.0f, false);
-            // a secret: from the plateau, two ledges lead up and back to the scroll (they were hidden until he came near
-            // and then popped up, which looked wrong: the user)
-            AddLedge(163.5f, 1.3f, 12.8f, false);
-            AddLedge(160.3f, 1.4f, 15f, false);
-        }
-
         // natural rocks drawn in Canva and built in Meshy: a round river stone, a tall river rock, a cracked boulder and
         // a block of cliff
         static readonly Color NaturalRockTone = new Color(0.68f, 0.65f, 0.62f);
@@ -565,6 +535,7 @@ namespace Cloudborne
         {
             climbTold = false;
             ResetWays();
+            ResetGorge();
             foreach (var b in blocks)
             {
                 if (!b.breakable) continue;
@@ -856,7 +827,7 @@ namespace Cloudborne
         bool Covered(float x, float top)
         {
             foreach (var b in blocks)
-                if (!b.broken && x > b.x0 && x < b.x1 && b.top > top + 0.1f) return true;
+                if (!b.broken && x > b.x0 && x < b.x1 && b.top > top + 0.1f && b.bottom < top + CbLevel.StandHeight) return true;
             return false;
         }
 
@@ -868,7 +839,7 @@ namespace Cloudborne
         {
             foreach (var b in blocks)
             {
-                if (b.broken || b.breakable || b.smooth || y > b.top - 0.6f) continue;
+                if (b.broken || b.breakable || b.smooth || y > b.top - 0.6f || y + 1f < b.bottom) continue;
                 float side = dir > 0 ? b.x0 - HalfWidth : b.x1 + HalfWidth;
                 if (Mathf.Abs(x - side) < 0.06f) return true;
             }
@@ -899,7 +870,7 @@ namespace Cloudborne
             }
             foreach (var b in blocks)
             {
-                if (b.broken || y >= b.top - 0.05f) continue;
+                if (b.broken || y >= b.top - 0.05f || y + height <= b.bottom) continue;
                 if (x0 <= b.x0 - HalfWidth + 0.01f && x1 > b.x0 - HalfWidth) x1 = b.x0 - HalfWidth;
                 else if (x0 >= b.x1 + HalfWidth - 0.01f && x1 < b.x1 + HalfWidth) x1 = b.x1 + HalfWidth;
             }
@@ -975,9 +946,10 @@ namespace Cloudborne
             if (!climbTold && hero.x > MountainFrom - 5f && hero.x < MountainFrom)
             {
                 climbTold = true;
-                g.hud.SetTip("Jump at an edge: Raja grabs it and pulls himself up. Against a wall, JUMP again to leap off it");
+                g.hud.SetTip("A low gap under the cliff: run and press <color=#ffb03a>↓</color> to slide through, or hold <color=#ffb03a>↓</color> to crawl");
             }
             UpdateCrossings(dt, hero);
+            UpdateGorge(dt, hero);
             foreach (var l in ledges)
             {
                 if (!l.crumbles) continue;

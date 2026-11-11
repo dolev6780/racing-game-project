@@ -155,6 +155,21 @@ namespace Cloudborne
         static Shader cutout;
 
         /// <summary>An unlit cut-out material for a painting with a clear background; null if it can't be drawn.</summary>
+        /// <summary>
+        /// The streams' painted surface (the new look) for a stretch w metres wide and depth deep, its ripples drawn
+        /// out in depth; null without the painting.
+        /// </summary>
+        public static Material WaterSurface(float w, float depth)
+        {
+            var tex = NewLook ? Resources.Load<Texture2D>(WaterSurfacePath) : null;
+            if (tex == null) return null;
+            tex.wrapMode = TextureWrapMode.Repeat;
+            var m = Cutout(tex, 0f, PaintTint);
+            m.SetFloat("_Cutoff", 0f);
+            m.mainTextureScale = new Vector2(w / 5f, depth / 10f);
+            return m;
+        }
+
         static Material Cutout(Texture2D tex, float haze = 0f, Color? tint = null)
         {
             if (cutout == null) cutout = Resources.Load<Shader>("Shaders/PaintedCutout");

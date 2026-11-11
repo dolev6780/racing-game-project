@@ -46,7 +46,7 @@ namespace Cloudborne
         /// <summary>The stretches of the stage, named at the top of the screen as Raja reaches them.</summary>
         static readonly (float x, string name)[] Sections =
         {
-            (0f, "Save Koda"), (70f, "The cracked wall"), (79f, "The long river"), (106f, "The old shrine"), (136f, "The mountain"),
+            (0f, "Save Koda"), (70f, "The cracked wall"), (79f, "The long river"), (106f, "The old shrine"), (136f, "The flooded gorge"),
             (194f, "The vine ravine"), (240f, "The temple of traps"), (292f, "The gong gorge"), (336f, "The raft river"),
             (400f, "The canopy"), (438f, "The waterfall"), (470f, "The ridge"), (520f, "The shrine gate"),
         };
@@ -476,6 +476,7 @@ namespace Cloudborne
             pending.Clear();
             if (bossStarted && !bossDone) { bossStarted = false; boss = null; lockZone = null; hud.HideBoss(); hud.ShowGo(true); }
             hero.RespawnAt(checkpointX);
+            level?.Respawned(checkpointX);
             lastHp = hero.hp;
             score = Mathf.Max(0, score - 500);
             hud.Banner("TRY AGAIN!", true);

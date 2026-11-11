@@ -154,10 +154,10 @@ namespace RacingGame.Tests
             game.StartGame();
             game.SkipFights();
             yield return Frames(2);
-            // above the mountain's plateau two ledges lead up to the scroll: there all along (they popped up as he came
+            // above the gorge's summit two ledges lead up to the scroll: there all along (they popped up as he came
             // near, which looked wrong: the user)
-            Assert.AreEqual(12.8f, game.level.SupportAt(163.5f, 14f), 0.001f, "The first ledge to the scroll is not there");
-            Assert.AreEqual(15f, game.level.SupportAt(160.3f, 16f), 0.001f, "The second ledge to the scroll is not there");
+            Assert.AreEqual(13.4f, game.level.SupportAt(156.6f, 14f), 0.001f, "The first ledge to the scroll is not there");
+            Assert.AreEqual(15.4f, game.level.SupportAt(153.6f, 16f), 0.001f, "The second ledge to the scroll is not there");
         }
 
         [UnityTest]
@@ -787,19 +787,20 @@ namespace RacingGame.Tests
             level.Strike(wallLeft, 0f, 1, 2.6f, staff: true);
             Assert.IsFalse(level.WallStanding, "Two staff blows did not break the cracked wall");
             Assert.AreEqual(CbLevel.WallX, level.BlockX(CbLevel.WallX - 3f, CbLevel.WallX, 0f), 0.001f, "The broken wall still blocks the path");
-            // the mountain's first ledge is landed on from above and jumped through from below
-            Assert.AreEqual(4.2f, level.SupportAt(146.25f, 4.8f), 0.001f, "Raja does not land on the first ledge");
-            Assert.AreEqual(0f, level.SupportAt(146.25f, 3f), 0.001f, "The ledge stops him jumping up through it");
-            // its terraces are solid: they stop him on the path and hold him on top
-            Assert.LessOrEqual(level.BlockX(135f, 138f, 0f), 137f - CbLevel.HalfWidth + 0.001f, "Raja walked into the mountain");
-            Assert.AreEqual(CbLevel.SummitTop, level.SupportAt(176f, 12f), 0.001f, "The summit does not hold him");
+            // the gorge's first ledge is landed on from above and jumped through from below
+            Assert.AreEqual(2f, level.SupportAt(141.9f, 2.6f), 0.001f, "Raja does not land on the first ledge");
+            Assert.AreEqual(0f, level.SupportAt(141.9f, 1f), 0.001f, "The ledge stops him jumping up through it");
+            // the cliff across the path stops him standing, and he crawls through the gap at its foot
+            Assert.LessOrEqual(level.BlockX(135f, 138f, 0f), CbLevel.MountainFrom - CbLevel.HalfWidth + 0.001f, "Raja walked into the cliff");
+            Assert.AreEqual(140.5f, level.BlockX(135f, 140.5f, 0f, CbLevel.LowHeight), 0.001f, "Raja can't crawl through the gap under the cliff");
+            Assert.AreEqual(CbLevel.SummitTop, level.SupportAt(154f, 12f), 0.001f, "The summit does not hold him");
             // the hero really stands on the ledge: dropped above it, he comes to rest on top
             game.SkipFights();
-            game.hero.y = 4.8f;
+            game.hero.y = 2.6f;
             game.hero.vy = 0;
-            game.hero.x = 146.25f;
+            game.hero.x = 141.9f;
             yield return new WaitForSeconds(0.4f);
-            Assert.AreEqual(4.2f, game.hero.y, 0.05f, "Raja fell through the ledge");
+            Assert.AreEqual(2f, game.hero.y, 0.05f, "Raja fell through the ledge");
         }
 
         [UnityTest]
@@ -885,16 +886,17 @@ namespace RacingGame.Tests
             game.SkipFights();
             yield return Frames(2);
             var level = game.level;
-            // a terrace's top corner is caught; the cracked wall is there to be broken, not climbed
-            Assert.IsTrue(level.FindEdge(141.5f - CbLevel.HalfWidth, 2.8f - CbHero.HangReach, 1, out float edgeX, out float top),
-                "The second terrace's corner can't be caught");
-            Assert.AreEqual(141.5f, edgeX, 0.001f);
-            Assert.AreEqual(2.8f, top, 0.001f);
+            // a cliff's top corner is caught (the shoulder of the summit's cliff, in the gorge); the cracked wall is
+            // there to be broken, not climbed
+            Assert.IsTrue(level.FindEdge(CbLevel.ShoulderX - CbLevel.HalfWidth, CbLevel.ShoulderTop - CbHero.HangReach, 1, out float edgeX, out float top),
+                "The shoulder's corner can't be caught");
+            Assert.AreEqual(CbLevel.ShoulderX, edgeX, 0.001f);
+            Assert.AreEqual(CbLevel.ShoulderTop, top, 0.001f);
             float wallLeft = CbLevel.WallX - 0.65f - CbLevel.HalfWidth;
             Assert.IsFalse(level.FindEdge(wallLeft, CbLevel.WallHeight - CbHero.HangReach, 1, out _, out _), "Raja can climb over the cracked wall");
-            // on the path under the second terrace: a jump at it, holding towards it; he catches its edge on the way
-            // down, hangs, and pulls himself up onto it
-            game.Teleport(141f);
+            // on the gorge's floor under the shoulder: a jump at it, holding towards it; he catches its edge at the top
+            // of the jump, hangs, and pulls himself up onto it
+            game.Teleport(CbLevel.ShoulderX - 0.8f);
             game.hero.y = 0;
             game.hero.vx = game.hero.vy = 0;
             yield return Frames(2);
@@ -907,10 +909,48 @@ namespace RacingGame.Tests
                 climbed |= game.hero.state == CbHero.State.Climb;
             }
             game.TestInput = null;
-            Assert.IsTrue(hung, "Raja did not catch the terrace's edge");
+            Assert.IsTrue(hung, "Raja did not catch the shoulder's edge");
             Assert.IsTrue(climbed, "Raja did not pull himself up");
-            Assert.AreEqual(2.8f, game.hero.y, 0.05f, "Raja is not standing on the terrace");
-            Assert.Greater(game.hero.x, 141.5f, "Raja did not come up onto the terrace");
+            Assert.AreEqual(CbLevel.ShoulderTop, game.hero.y, 0.05f, "Raja is not standing on the shoulder");
+            Assert.Greater(game.hero.x, CbLevel.ShoulderX, "Raja did not come up onto the shoulder");
+        }
+
+        [UnityTest]
+        public IEnumerator TheGorgeFloodsBehindHimAndTheWaterCatchesHim()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var level = game.level;
+            Assert.IsFalse(level.Flooding, "The gorge floods before Raja is in it");
+            // through the gap onto the gorge's floor: a boulder drops into the gap behind him and the water comes
+            game.Teleport(CbLevel.GorgeFrom + 1.5f);
+            game.hero.y = 0;
+            yield return Frames(3);
+            Assert.IsTrue(level.Flooding, "The gorge did not flood once he was in it");
+            yield return new WaitForSeconds(0.5f);
+            Assert.AreEqual(CbLevel.GorgeFrom + CbLevel.HalfWidth, level.BlockX(CbLevel.GorgeFrom + 1f, CbLevel.MountainFrom - 2f, 0f, CbLevel.LowHeight), 0.001f,
+                "The gap is still open behind him");
+            // the water rises over him where he stands: caught, he loses health, treads water, and is back at the
+            // foot of the gorge with the water drained
+            float hp = game.hero.hp;
+            level.StartFlood(1.5f);
+            yield return Frames(2);
+            Assert.AreEqual(CbHero.State.Swim, game.hero.state, "The water rose over him and he did not notice");
+            Assert.AreEqual(hp - CbHero.WaterDamage, game.hero.hp, 0.01f, "The water cost him nothing");
+            for (float w = 0; w < 3f && game.hero.state == CbHero.State.Swim; w += Time.deltaTime) yield return null;
+            yield return Frames(2);
+            Assert.AreEqual(0f, game.hero.y, 0.05f, "Raja is not back on the gorge's floor");
+            Assert.That(game.hero.x, Is.InRange(CbLevel.GorgeFrom, CbLevel.GorgeFrom + 2f), "Raja is not back at the foot of the gorge");
+            Assert.Less(level.FloodLevel, 0.5f, "The water did not drain when it caught him");
+            // out at the top: the water drains away and stays down
+            game.Teleport(154f);
+            game.hero.y = CbLevel.SummitTop;
+            game.hero.vy = 0;
+            yield return Frames(3);
+            Assert.IsFalse(level.Flooding, "The water still rises once he is out at the top");
         }
 
         [UnityTest]
@@ -924,12 +964,11 @@ namespace RacingGame.Tests
             var level = game.level;
             // the cracked wall is not jumped off; a terrace's side is
             Assert.IsFalse(level.WallAt(CbLevel.WallX - 0.65f - CbLevel.HalfWidth, 1f, 1), "Raja can wall-jump up the cracked wall");
-            Assert.IsTrue(level.WallAt(152.4f + CbLevel.HalfWidth, 1f, -1), "The terrace's side is not a wall to jump off");
-            // fallen to the foot of the mountain between a terrace (6.4 m) and the plateau (10.2 m), too high to jump:
-            // pressing into the terrace's side he jumps, slides down it, kicks off it again and again, catches its top
-            // edge and pulls himself up onto it
-            game.Teleport(153f);
-            game.hero.y = 0;
+            Assert.IsTrue(level.WallAt(CbLevel.GorgeTo - CbLevel.HalfWidth, 5f, 1), "The summit's cliff is not a wall to jump off");
+            // on the shoulder in the gorge, the summit's cliff before him far too high to jump: pressing into it he
+            // jumps, slides down it, kicks off it again and again, catches its top edge and pulls himself up onto it
+            game.Teleport(CbLevel.GorgeTo - 0.6f);
+            game.hero.y = CbLevel.ShoulderTop;
             game.hero.vx = game.hero.vy = 0;
             yield return Frames(2);
             bool started = false, climbing = false;
@@ -937,7 +976,7 @@ namespace RacingGame.Tests
             game.TestInput = i =>
             {
                 climbing |= game.hero.state == CbHero.State.Climb;
-                i.x = climbing ? 0 : -1;
+                i.x = climbing ? 0 : 1;
                 if (!started) { i.jump = true; started = true; }
                 else i.jump = game.hero.OnWall && game.hero.vy < 0;
             };
@@ -945,13 +984,13 @@ namespace RacingGame.Tests
             for (float waited = 0; waited < 8f && !(climbing && game.hero.state == CbHero.State.Idle); waited += Time.deltaTime)
             {
                 yield return null;
-                if (game.hero.vy > 9.5f && lastVy < 0 && game.hero.facing == 1) kicks++;
+                if (game.hero.vy > 9.5f && lastVy < 0 && game.hero.facing == -1) kicks++;
                 lastVy = game.hero.vy;
             }
             game.TestInput = null;
             Assert.Greater(kicks, 0, "Raja never kicked off the wall");
             Assert.IsTrue(climbing, "Raja never caught the terrace's top");
-            Assert.AreEqual(6.4f, game.hero.y, 0.05f, "Raja did not get up out of the gap onto the terrace");
+            Assert.AreEqual(CbLevel.SummitTop, game.hero.y, 0.05f, "Raja did not get up the cliff onto the summit");
         }
 
         [UnityTest]
@@ -1158,13 +1197,15 @@ namespace RacingGame.Tests
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
             var oldTrace = Application.GetStackTraceLogType(LogType.Log);
             // where, and how high (the bars are over the river: he hangs from them, or he would be in the water)
-            foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("mountain", 152f, 0f), ("bars", 219f, 4.8f - 1.71f),
+            foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("bars", 219f, 4.8f - 1.71f),
                 ("thorns", 243f, 0f), ("temple", 266f, 0f), ("seesaw", 433f, 0f) })
             {
                 game.Teleport(x);
                 game.hero.y = y;
                 game.hero.vx = game.hero.vy = 0;
                 if (y > 0) game.hero.state = CbHero.State.Air;
+                // the gorge with its water on the way up
+                if (name == "gorge") game.level.StartFlood(2.4f);
                 // the camera eases after him
                 yield return new WaitForSeconds(2.5f);
                 // drawn by the pipeline as usual, for a frame, into the picture (WaitForEndOfFrame never comes in

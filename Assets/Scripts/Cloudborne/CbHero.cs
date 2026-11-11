@@ -169,6 +169,8 @@ namespace Cloudborne
         int combo, jumps, airHits, hits;
         // the last safe place he stood (ground, a bridge, a steady stone): falling into the water puts him back there
         float safeX, safeY;
+        // the surface he treads water at: a stream's, or the gorge's rising water
+        float swimLevel = CbLevel.WaterLevel;
         /// <summary>Health lost falling into a stream.</summary>
         public const float WaterDamage = 10f;
         bool air, airDashed, holdUsed, fired, flameSmash, kiCrash;
@@ -410,19 +412,31 @@ namespace Cloudborne
         /// He fell into a stream: a splash where he went in, health lost, a moment treading water with his shoulders
         /// under, then back where he last stood safely (LeaveWater).
         /// </summary>
-        void FellInWater()
+        void FellInWater(float level, string tip)
         {
-            var at = new Vector3(x, CbLevel.WaterLevel + 0.1f, -0.3f);
+            swimLevel = level;
+            var at = new Vector3(x, level + 0.1f, -0.3f);
             CbFx.Spark(at, CbFx.Water, 26, 7, 0.45f, 0.6f, 12);
-            CbVfx.Ring(new Vector3(x, CbLevel.WaterLevel + 0.02f, 0), CbFx.Water * 0.5f, 1.6f, 0.4f, ground: true);
+            CbVfx.Ring(new Vector3(x, level + 0.02f, 0), CbFx.Water * 0.5f, 1.6f, 0.4f, ground: true);
             CbFx.Sfx("splash");
             hp = Mathf.Max(0, hp - WaterDamage);
-            g.hud.Popup(new Vector3(x, 2.2f, 0), "-" + Mathf.RoundToInt(WaterDamage), CbHud.PopStyle.Hurt);
+            g.hud.Popup(new Vector3(x, level + 2.2f, 0), "-" + Mathf.RoundToInt(WaterDamage), CbHud.PopStyle.Hurt);
             g.hud.FlashHurt();
-            g.hud.SetTip("Into the water! Pale stones sink, logs drift - jump on quickly");
+            g.hud.SetTip(tip);
             state = State.Swim; t = 0; move = Move.None; combo = 0;
-            vx = vy = 0; air = false; jumps = 0; airDashed = false; flipT = 0;
-            y = CbLevel.WaterLevel - SwimDepth;
+            vx = vy = 0; air = false; jumps = 0; airDashed = false; flipT = 0; wallT = 0; sliding = false; crouching = false;
+            y = level - SwimDepth;
+        }
+
+        /// <summary>
+        /// The water rising up the gorge has caught him (CbLevel): a splash, health lost, a moment treading water, then
+        /// back at the gorge's foot (where the level drains it) to climb again.
+        /// </summary>
+        public void CaughtByFlood(float level, float backX)
+        {
+            if (state == State.Dead || state == State.Swim) return;
+            FellInWater(level, "The water caught you! Keep climbing - don't wait on crumbling ledges");
+            safeX = backX; safeY = 0;
         }
 
         /// <summary>Out of the water: back where he last stood safely, dripping.</summary>
@@ -597,8 +611,8 @@ namespace Cloudborne
                 case State.Climb: UpdateClimb(ref pose); break;
                 case State.Swim:
                     pose.sLx = -1.2f; pose.sRx = -1.2f; pose.eL = -0.6f; pose.eR = -0.6f; pose.hLx = -0.4f; pose.kL = 0.8f; pose.hRx = 0.3f; pose.kR = 0.6f;
-                    y = CbLevel.WaterLevel - SwimDepth + Mathf.Sin(t * 6f) * 0.05f;
-                    if (Random.value < 0.25f) CbFx.Spark(new Vector3(x + Random.Range(-0.5f, 0.5f), CbLevel.WaterLevel + 0.05f, -0.4f), CbFx.Water, 1, 1.2f, 0.25f, 0.35f, 2);
+                    y = swimLevel - SwimDepth + Mathf.Sin(t * 6f) * 0.05f;
+                    if (Random.value < 0.25f) CbFx.Spark(new Vector3(x + Random.Range(-0.5f, 0.5f), swimLevel + 0.05f, -0.4f), CbFx.Water, 1, 1.2f, 0.25f, 0.35f, 2);
                     if (t > SwimTime) LeaveWater();
                     break;
                 case State.Down: UpdateDown(ref pose, input, dt); break;
@@ -826,6 +840,12 @@ namespace Cloudborne
             if (air && g.level != null) { float lift = g.level.LiftAt(x, y); if (lift > 0) vy = Mathf.Min(vy + lift * dt, 7.5f); }
             float prevX = x, prevY = y;
             y += vy * dt;
+            // a rock or a trunk overhead stops him rising: his head bumps it
+            if (vy > 0 && g.level != null)
+            {
+                float ceiling = g.level.CeilingAt(x, prevY);
+                if (y + Height > ceiling) { y = Mathf.Max(prevY, ceiling - Height); vy = 0; }
+            }
             x += vx * dt;
             if (g.level != null) x = g.level.BlockX(prevX, x, y, Height);
             // crates are solid too: walked into, stood on
@@ -886,7 +906,7 @@ namespace Cloudborne
             // a vine, a bar, a zipline within reach of his hands; vines grown over rock to climb
             if (g.level != null && (state == State.Air || state == State.Idle || state == State.Run) && TryCatch(input)) return;
             // into the water: a splash, a moment treading water, and back where he last stood safely
-            if (y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater();
+            if (y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater(CbLevel.WaterLevel, "Into the water! Pale stones sink, logs drift - jump on quickly");
         }
 
         /// <summary>

@@ -146,7 +146,8 @@ namespace Cloudborne
         void BuildWays()
         {
             // stone lanterns: where he comes back (the start counts as one)
-            foreach (var x in new[] { 108f, 196f, 242f, 293f, 337f, 401f, 472f, 536f }) AddLantern(x);
+            // (one just before the gorge: caught there for good, he tries again from its foot, not from the shrine)
+            foreach (var x in new[] { 108f, 133f, 196f, 242f, 293f, 337f, 401f, 472f, 536f }) AddLantern(x);
             // the ends of the stage: closed gates where he can go no further
             AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
@@ -869,7 +870,7 @@ namespace Cloudborne
             }
             foreach (var b in blocks)
             {
-                if (b.broken || InWater((b.x0 + b.x1) / 2)) continue;
+                if (b.broken || b.bottom > 1f || InWater((b.x0 + b.x1) / 2)) continue;
                 if (b.x1 <= x) lo = Mathf.Max(lo, b.x1 + 0.6f);
                 if (b.x0 >= x) hi = Mathf.Min(hi, b.x0 - 0.6f);
             }
@@ -889,12 +890,14 @@ namespace Cloudborne
         /// <summary>How tall Raja stands, and how tall low (ducking, crawling, sliding).</summary>
         public const float StandHeight = 1.55f, LowHeight = 0.8f;
 
-        /// <summary>The bottom of the lowest low passage over (x, y); infinity if there is none.</summary>
+        /// <summary>The bottom of the lowest low passage or jutting rock over (x, y); infinity if there is none.</summary>
         public float CeilingAt(float x, float y)
         {
             float c = float.PositiveInfinity;
             foreach (var o in overhangs)
                 if (x > o.x0 - HalfWidth && x < o.x1 + HalfWidth && o.bottom >= y - 0.05f && o.bottom < c) c = o.bottom;
+            foreach (var b in blocks)
+                if (!b.broken && b.bottom > 0 && x > b.x0 - HalfWidth && x < b.x1 + HalfWidth && b.bottom >= y - 0.05f && b.bottom < c) c = b.bottom;
             return c;
         }
 
