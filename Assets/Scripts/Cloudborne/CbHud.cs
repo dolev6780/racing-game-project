@@ -713,7 +713,7 @@ namespace Cloudborne
                     switch (hit.id)
                     {
                         case "atk": input.atk = true; break;
-                        case "jump": input.jump = true; break;
+                        case "jump": input.jump = true; input.jumpHeld = true; break;
                         case "dash": input.dash = true; break;
                         case "sp": input.skill = true; break;
                         case "ki": input.kiTap = true; break;
@@ -737,6 +737,7 @@ namespace Cloudborne
                 if (now.Contains(b.pointer))
                 {
                     if (b.id == "atk") input.atkDown = true;
+                    if (b.id == "jump") input.jumpHeld = true;
                     if (b.id == "heavy") input.heavyDown = true;
                     if (b.id == "guard") input.guard = true;
                     continue;

@@ -1140,9 +1140,11 @@ namespace Cloudborne
         {
             input.ClearEdges();
             input.x = input.y = 0;
-            input.atkDown = input.heavyDown = input.guard = false;
+            input.atkDown = input.heavyDown = input.guard = input.jumpHeld = false;
             hud.ReadTouch(input, dt);
             ReadKeys(input, dt);
+            // a test's jumps are full jumps unless it says otherwise
+            if (TestInput != null) input.jumpHeld = true;
             TestInput?.Invoke(input);
             // how long HIT has been held since its last press (HIT, HIT, hold = staff whirl)
             if (input.atk) atkHeldT = 0;
@@ -1196,6 +1198,7 @@ namespace Cloudborne
                 if (kb.wKey.isPressed || kb.upArrowKey.isPressed) inp.y += 1;
                 if (kb.sKey.isPressed || kb.downArrowKey.isPressed) inp.y -= 1;
                 if (kb.spaceKey.wasPressedThisFrame) inp.jump = true;
+                if (kb.spaceKey.isPressed) inp.jumpHeld = true;
                 if (kb.jKey.wasPressedThisFrame || kb.zKey.wasPressedThisFrame) inp.atk = true;
                 if (kb.jKey.isPressed || kb.zKey.isPressed) inp.atkDown = true;
                 if (kb.kKey.wasPressedThisFrame || kb.xKey.wasPressedThisFrame) inp.heavy = true;
@@ -1217,6 +1220,7 @@ namespace Cloudborne
                 if (pad.dpad.left.isPressed) inp.x -= 1;
                 if (pad.dpad.right.isPressed) inp.x += 1;
                 if (pad.buttonSouth.wasPressedThisFrame) { inp.jump = true; inp.confirm = true; }
+                if (pad.buttonSouth.isPressed) inp.jumpHeld = true;
                 if (pad.buttonWest.wasPressedThisFrame) inp.atk = true;
                 if (pad.buttonWest.isPressed) inp.atkDown = true;
                 if (pad.buttonNorth.wasPressedThisFrame) inp.heavy = true;
@@ -1234,6 +1238,7 @@ namespace Cloudborne
             if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) inp.y += 1;
             if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) inp.y -= 1;
             if (Input.GetKeyDown(KeyCode.Space)) inp.jump = true;
+            if (Input.GetKey(KeyCode.Space)) inp.jumpHeld = true;
             if (Input.GetKeyDown(KeyCode.J)) inp.atk = true;
             if (Input.GetKey(KeyCode.J)) inp.atkDown = true;
             if (Input.GetKeyDown(KeyCode.K)) inp.heavy = true;

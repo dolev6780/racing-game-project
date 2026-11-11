@@ -9,7 +9,7 @@ namespace Cloudborne
         public float x, y;                 // stick, y > 0 is up
         // atk: HIT (light), heavy: HEAVY (the staff), kiTap: KI (FIRE once his fire is awake), skill: SPECIAL
         public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm, menu;
-        public bool atkDown, heavyDown, guard;   // held
+        public bool atkDown, heavyDown, guard, jumpHeld;   // held
         // the way he runs pressed twice (CbGame): he sprints until it is let go
         public bool sprint;
         public float atkHeldT, heavyHeldT;
@@ -158,6 +158,12 @@ namespace Cloudborne
         // below WalkSpeed he walks (a light push on the stick), above it he runs; the walk clip's own pace
         // a light push of the stick walks, a full one runs, pressed twice he sprints (the user)
         const float WalkSpeed = 4.2f, WalkClipPace = 1.4f, RunSpeed = 7f, SprintSpeed = 10.5f;
+        // the feel of his jumps (the user: his moves weren't the best): let go of JUMP early and he stops rising
+        // (a short hop or a full jump, as the player wants); he falls a little faster than he rises (no floating), never
+        // faster than MaxFall; JUMP pressed just before he lands still jumps as he lands
+        const float Gravity = 30f, FallGravity = 1.3f, MaxFall = 20f, JumpCut = 4f, JumpBuffer = 0.13f;
+        bool cuttable;
+        float jumpBufT;
         int combo, jumps, airHits, hits;
         // the last safe place he stood (ground, a bridge, a steady stone): falling into the water puts him back there
         float safeX, safeY;
@@ -624,13 +630,22 @@ namespace Cloudborne
                 if (wallLockT <= 0)
                 {
                     float top = crouching ? 0f : pushing ? PushSpeed : mud ? MudSpeed : onLog && !air ? LogSpeed : input.sprint ? SprintSpeed : RunSpeed;
+                    // turning round at a run: a skid, a puff of dust at his feet
+                    if (!air && Mathf.Abs(vx) > 4.5f && input.x * vx < -0.3f && Random.value < 0.6f)
+                        CbFx.Spark(new Vector3(x + Mathf.Sign(vx) * 0.25f, y + 0.08f, -0.3f), CbFx.Dust, 2, 2.2f, 0.4f, 0.35f, 1);
                     vx += (input.x * top - vx) * Damp(air ? 6 : 14, dt);
                     if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
                 }
                 if (mud && Random.value < 0.08f && Mathf.Abs(vx) > 0.5f) CbFx.Spark(new Vector3(x, 0.05f, -0.3f), new Color(0.35f, 0.25f, 0.15f), 2, 1.5f, 0.25f, 0.35f, 6);
-                if (input.jump && air && wallT > 0) WallJump();
-                else if (input.jump && jumps < 2)
+                // JUMP pressed with no jump left: kept a moment, for when he lands
+                if (input.jump && air && jumps >= 2 && wallT <= 0) jumpBufT = JumpBuffer;
+                else jumpBufT = Mathf.Max(0, jumpBufT - dt);
+                bool jump = input.jump || (!air && jumpBufT > 0);
+                if (jump && air && wallT > 0) WallJump();
+                else if (jump && jumps < 2)
                 {
+                    jumpBufT = 0;
+                    cuttable = true;
                     vy = jumps == 0 ? (mud ? 9.5f : 11.5f) : 10f;
                     if (jumps == 1) flipT = FlipTime;
                     jumps++; air = true; state = State.Air;
@@ -745,7 +760,11 @@ namespace Cloudborne
 
         void StepPhysics(CbInput input, float dt)
         {
-            if (state != State.Dash || !air) vy -= 30 * dt;
+            if (state != State.Dash || !air) vy -= Gravity * (vy < 0 && air ? FallGravity : 1f) * dt;
+            if (vy < -MaxFall) vy = -MaxFall;
+            // JUMP let go on the way up: he stops rising (once per jump; not when thrown up by a leaf, a seesaw, a blow)
+            if (cuttable && air && vy > JumpCut && !input.jumpHeld && state == State.Air) { vy = JumpCut; cuttable = false; }
+            if (vy <= 0) cuttable = false;
             // an updraft carries him up
             if (air && g.level != null) { float lift = g.level.LiftAt(x, y); if (lift > 0) vy = Mathf.Min(vy + lift * dt, 7.5f); }
             float prevX = x, prevY = y;
