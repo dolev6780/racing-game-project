@@ -71,6 +71,11 @@ for path in sources[1:]:
             a.name = "Motion_" + stem[len("motion_"):].capitalize()
 
 clips = [a for a in bpy.data.actions if a.frame_range[1] > a.frame_range[0]]
+# a file of one action names its clip "Armature|<Clip>|baselayer": named <Clip> like the others
+for a in clips:
+    parts = a.name.split("|")
+    if len(parts) >= 3 and parts[-1] == "baselayer":
+        a.name = parts[-2]
 for a in list(bpy.data.actions):
     if a not in clips:
         bpy.data.actions.remove(a)

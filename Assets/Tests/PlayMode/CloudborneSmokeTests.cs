@@ -438,7 +438,10 @@ namespace RacingGame.Tests
             yield return Frames(3);
             var guard = new CbEnemy(game, CbEnemy.Kind.Shield, 0, game.transform);
             Assert.IsNotNull(guard.model, "The shield hyena's model did not load (Resources/Cloudborne/HyenaGuard)");
-            Assert.AreEqual(8, guard.model.ClipCount, "The shield hyena's model is missing animation clips");
+            Assert.AreEqual(11, guard.model.ClipCount, "The shield hyena's model is missing animation clips");
+            // a charge from afar, a step back after a blow, a shout as he first sees Raja (they walked like zombies)
+            foreach (var clip in new[] { "Standard_Forward_Charge_inplace", "Walk_Backward_with_Sword_Shield", "Sword_Shout" })
+                Assert.IsTrue(guard.model.HasClip(clip), $"The shield hyena has no {clip} clip");
             Assert.IsNotNull(guard.f.shield, "The shield hyena has no shield");
             guard.f.Destroy();
         }

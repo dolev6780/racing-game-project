@@ -3,7 +3,9 @@ using UnityEngine;
 namespace Cloudborne
 {
     /// <summary>
-    /// Iron Crown hyena soldiers. The plain one walks up and swings a machete (white flash = wind-up);
+    /// Iron Crown hyena soldiers. The plain one comes at Raja (a charge from afar, a fighting walk up close), swings
+    /// his machete (a glint on the blade as he winds up) and steps back after; he shouts with his blade raised as he
+    /// first sees Raja;
     /// the shield variant blocks blows from the front until a staff move or the roar breaks its guard.
     /// Sergeant Snap, the mini-boss at the end of stage 1-1, fights with a set of his own (see BossAttack).
     /// </summary>
@@ -31,6 +33,12 @@ namespace Cloudborne
         readonly float speed, dmg, reach;
         float t, cd, runPh;
         bool hitDone;
+        // a soldier's moves between blows (with their clips, when his model has them): a charge from afar, stepping
+        // back after a blow, a shout with the blade raised as he first sees Raja
+        const float ChargeFrom = 3.6f, ChargeBoost = 1.45f, BackTime = 0.5f, ShoutTime = 1.6f;
+        const string ChargeClip = "Standard_Forward_Charge_inplace", ShoutClip = "Sword_Shout";
+        float backT, shoutT, chargeT, backPh;
+        bool charging, noticed;
 
         // ---- Sergeant Snap ----
         public bool Boss => kind == Kind.Sergeant;
@@ -148,10 +156,25 @@ namespace Cloudborne
                     else model.Window("Right_Hand_Sword_Slash", 0.1f, 0.85f, t / 0.8f);
                     break;
                 default:
-                    if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh / (Mathf.PI * 2));
+                {
+                    string back = shield ? "Walk_Backward_with_Sword_Shield" : "Walk_Backward_with_Sword_inplace";
+                    // the shout's first part: the blade raised high over his head (the clip goes on for six seconds)
+                    if (shoutT > 0 && model.HasClip(ShoutClip)) model.Window(ShoutClip, 0.04f, 0.4f, 1 - shoutT / ShoutTime);
+                    else if (backT > 0 && Mathf.Abs(vx) > 0.3f && model.HasClip(back))
+                    {
+                        backPh += Time.deltaTime;
+                        model.LoopSeconds(back, backPh);
+                    }
+                    else if (Mathf.Abs(vx) > 0.4f && charging && model.HasClip(ChargeClip))
+                    {
+                        chargeT += Time.deltaTime * Mathf.Abs(vx) / (speed * ChargeBoost);
+                        model.LoopSeconds(ChargeClip, chargeT);
+                    }
+                    else if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh / (Mathf.PI * 2));
                     else if (shield && guard) model.Show("Block1", 0.15f);
                     else model.LoopSeconds("Combat_Stance", g.clock + runPh);
                     break;
+                }
             }
         }
 
@@ -261,7 +284,8 @@ namespace Cloudborne
                     if (blow < ComboBlows.Length)
                     {
                         float next = ComboBlows[blow];
-                        if (t > next - 0.28f && t < next) tele = Mathf.Sin(t * 50) > 0 ? 0.6f : 0;
+                        // a glow rising to the blow (it flickered: the user)
+                        if (t > next - 0.28f && t < next) tele = 0.6f * Mathf.InverseLerp(next - 0.28f, next, t);
                         if (t >= next)
                         {
                             vx = facing * 2.5f;
@@ -276,7 +300,7 @@ namespace Cloudborne
                     break;
                 case BossMove.Chop:
                     vx = 0;
-                    if (t < ChopHit) { tele = Mathf.Sin(t * 40) > 0 ? 0.8f : 0.3f; telePurple = true; }
+                    if (t < ChopHit) { tele = 0.25f + 0.55f * (t / ChopHit); telePurple = true; }
                     else if (!hitDone)
                     {
                         hitDone = true;
@@ -395,7 +419,9 @@ namespace Cloudborne
                     if (t < wind)
                     {
                         pose.twist = -0.8f; pose.sRx = 0.9f; pose.eR = -1.8f; pose.lean = -0.1f; pose.hLx = -0.4f; pose.kL = 0.5f; pose.bob = -0.08f;
-                        tele = Mathf.Sin(t * 50) > 0 ? 0.5f : 0;
+                        // the warning: a glint on the blade as he winds up (he blinked white every blow: the user)
+                        if (t <= dt && blade != null)
+                            CbFx.Spark(blade.position + new Vector3(0, 0, -0.3f), new Color(1f, 0.95f, 0.7f) * 2f, 5, 2.2f, 0.12f, 0.22f, 0);
                     }
                     else
                     {
@@ -410,7 +436,12 @@ namespace Cloudborne
                             CbFx.Sfx("swing", 0.5f);
                         }
                     }
-                    if (t > wind + 0.35f) { state = State.Move; cd = Random.Range(1f, 1.9f); }
+                    if (t > wind + 0.35f)
+                    {
+                        state = State.Move; cd = Random.Range(1f, 1.9f);
+                        // most of the time a step back out of reach after the blow
+                        if (Random.value < 0.65f) backT = BackTime;
+                    }
                     break;
                 }
                 default:
@@ -431,11 +462,25 @@ namespace Cloudborne
                         float d = x - o.x;
                         if (Mathf.Abs(d) < 1.1f) push += (d != 0 ? Mathf.Sign(d) : Random.Range(-1f, 1f)) * (1.1f - Mathf.Abs(d)) * 3;
                     }
-                    float want = dist > reach && (Boss || dist < Notice) ? Mathf.Sign(dx) * speed : 0;
-                    vx += (want + push - vx) * (1 - Mathf.Exp(-8 * dt));
-                    if (dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)
+                    // the first time he sees Raja: a shout with his blade raised
+                    if (!noticed && dist < Notice)
                     {
-                        state = State.Atk; t = 0; hitDone = false; vx = 0;
+                        noticed = true;
+                        if (model != null && model.HasClip(ShoutClip) && dist > reach + 1.5f) shoutT = ShoutTime;
+                    }
+                    float want;
+                    if (shoutT > 0) { shoutT -= dt; want = 0; charging = false; }
+                    else if (backT > 0) { backT -= dt; want = -Mathf.Sign(dx) * speed * 0.6f; charging = false; }
+                    else
+                    {
+                        // from afar he charges, up close he comes on in his fighting walk
+                        charging = dist > ChargeFrom && dist < Notice;
+                        want = dist > reach && (Boss || dist < Notice) ? Mathf.Sign(dx) * speed * (charging ? ChargeBoost : 1f) : 0;
+                    }
+                    vx += (want + push - vx) * (1 - Mathf.Exp(-8 * dt));
+                    if (dist <= reach + 0.2f && cd <= 0 && shoutT <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)
+                    {
+                        state = State.Atk; t = 0; hitDone = false; vx = 0; backT = 0; charging = false;
                     }
                     if (Mathf.Abs(vx) > 0.4f)
                     {
@@ -459,7 +504,13 @@ namespace Cloudborne
             }
             // the sergeant keeps to his arena, a soldier to his stretch of path
             if (Boss && g.lockZone != null) x = Mathf.Clamp(x, g.lockZone.x - 10f, g.lockZone.x + 10f);
-            else if (!Boss) x = Mathf.Clamp(x, minX, maxX);
+            else if (!Boss)
+            {
+                // at the end of his stretch he stops (he walked on the spot there: the user)
+                float held = Mathf.Clamp(x, minX, maxX);
+                if (held != x && (held - x) * vx < 0) vx = 0;
+                x = held;
+            }
             f.Apply(pose, dt, state == State.Atk ? 22 : 12);
             f.root.localPosition = new Vector3(x, y, 0);
             float target = facing * (90f + (model != null ? 8f : 25f));
