@@ -432,6 +432,35 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ASleepingSoldierLooksAsleepAndWakesWithAStart()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            game.Teleport(60f);
+            yield return Frames(2);
+            // the user: he didn't look asleep. He dozes sitting, his eyes shut, a snot bubble and Zs rising from him
+            var e = new CbEnemy(game, CbEnemy.Kind.Hyena, 66f, game.transform) { asleep = true };
+            game.enemies.Add(e);
+            Assert.IsNotNull(e.model, "The raider's model did not load");
+            Assert.IsTrue(e.model.HasClip("Sit_and_Doze_Off"), "The raider has no clip to doze with");
+            Assert.IsNotNull(Resources.Load<Texture2D>("Cloudborne/HyenaRaider/HyenaRaider_Asleep"), "No shut-eyed texture for the raider");
+            yield return new WaitForSeconds(1.2f);
+            Assert.IsTrue(e.asleep, "He woke with Raja still far away");
+            Assert.AreEqual("HyenaRaider_Asleep", e.model.material.mainTexture.name, "His eyes are not shut");
+            Assert.IsNotNull(GameObject.Find("snore"), "No Zs rise from him");
+            // Raja beside him: he wakes, his eyes open, and he jumps up with a start
+            game.Teleport(64.5f);
+            yield return Frames(2);
+            Assert.IsFalse(e.asleep, "Raja beside him did not wake him");
+            Assert.AreEqual("HyenaRaider_Albedo", e.model.material.mainTexture.name, "His eyes stayed shut");
+            float top = 0;
+            for (float t = 0; t < 0.6f; t += Time.deltaTime) { top = Mathf.Max(top, e.y); yield return null; }
+            Assert.Greater(top, 0.3f, "He did not jump up with a start");
+        }
+
+        [UnityTest]
         public IEnumerator ShieldHyenaHasItsModelAndClips()
         {
             game = CbGame.Boot();

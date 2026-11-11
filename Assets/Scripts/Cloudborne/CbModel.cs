@@ -40,7 +40,16 @@ namespace Cloudborne
             }
         }
 
-        static readonly string[] Bones = { "Hips", "Spine", "Head", "head_end", "headfront", "RightHand", "LeftHand", "LeftForeArm", "RightToeBase" };
+        /// <summary>
+        /// The tip of the snout (world space): the head's front bone sits a tenth of its distance from the head bone
+        /// behind the nose (measured on the hyenas).
+        /// </summary>
+        public Vector3 Snout => headFront.position + (headFront.position - head.position) * 0.1f;
+
+        /// <summary>The way the face points (world space), up or down with the head.</summary>
+        public Vector3 FaceDirection => (headFront.position - head.position).normalized;
+
+        static readonly string[] Bones ={ "Hips", "Spine", "Head", "head_end", "headfront", "RightHand", "LeftHand", "LeftForeArm", "RightToeBase" };
 
         /// <summary>
         /// Loads Resources/path (an FBX with legacy clips, and path_Albedo for its colours) and fits it under parent,

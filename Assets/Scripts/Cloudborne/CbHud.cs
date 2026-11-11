@@ -457,6 +457,126 @@ namespace Cloudborne
             banners.Add((rt, 0f, small ? 0.9f : 1.6f));
         }
 
+        // ---------- a sleeping soldier: rising Zs and a snot bubble, kept on him as the camera moves ----------
+
+        // the user: the "z" now and then was hard to notice. A stream of big Zs instead, each drifting up and away
+        // from his head, swaying and growing as it fades.
+        readonly List<(RectTransform rt, Text t, float age, Vector3 at, float dir, float sway)> snores =
+            new List<(RectTransform, Text, float, Vector3, float, float)>();
+        // the bubbles shown this frame, by their sleeper: one he stops placing is taken away
+        readonly Dictionary<object, (Image img, int frame)> bubbles = new Dictionary<object, (Image, int)>();
+        static Sprite bubbleSprite;
+        static readonly Color SnoreCol = CbArt.Hex("#eef4ff");
+        const float SnoreLife = 2.4f;
+
+        /// <summary>A "Z" rising from a sleeper's head (world point), drifting up and toward dir (+1 right, -1 left).</summary>
+        public void Snore(Vector3 world, float dir, bool big)
+        {
+            if (!ToLocal(world, out var local)) return;
+            var rt = UIKit.Rect(root, "snore", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), local, new Vector2(90, 90));
+            var t = UIKit.Label(rt, "Z", big ? 40 : 30, SnoreCol, TextAnchor.MiddleCenter, true);
+            var o = t.gameObject.AddComponent<Outline>();
+            o.effectColor = new Color(0.16f, 0.2f, 0.42f, 0.9f);
+            o.effectDistance = new Vector2(2f, -2f);
+            rt.SetAsFirstSibling();
+            snores.Add((rt, t, 0f, world, dir, Random.value * 6f));
+        }
+
+        /// <summary>
+        /// A sleeper's snot bubble this frame: centred at a world point, diameter in world units. Call it every frame
+        /// he shows one; once he stops (it popped, he woke, he is gone) it is taken away.
+        /// </summary>
+        public void Bubble(object sleeper, Vector3 world, float diameter)
+        {
+            if (!bubbles.TryGetValue(sleeper, out var b))
+            {
+                var rt = UIKit.Rect(root, "snotBubble", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one);
+                rt.SetAsFirstSibling();
+                b = (UIKit.Image(rt, BubbleSprite, Color.white), 0);
+            }
+            bool seen = ToLocal(world, out var a) & ToLocal(world + Vector3.up * diameter, out var top);
+            b.img.enabled = seen;
+            if (seen)
+            {
+                float size = (top - a).magnitude;
+                b.img.rectTransform.anchoredPosition = a;
+                b.img.rectTransform.sizeDelta = new Vector2(size, size);
+            }
+            bubbles[sleeper] = (b.img, Time.frameCount);
+        }
+
+        /// <summary>A world point in the HUD's own coordinates (false behind the camera).</summary>
+        bool ToLocal(Vector3 world, out Vector2 local)
+        {
+            local = Vector2.zero;
+            var cam = Camera.main;
+            if (cam == null) return false;
+            Vector3 sp = cam.WorldToScreenPoint(world);
+            if (sp.z < 0) return false;
+            var uiCam = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            return RectTransformUtility.ScreenPointToLocalPointInRectangle(root, sp, uiCam, out local);
+        }
+
+        /// <summary>A soap-film bubble: a faint pale-blue fill, a blue rim darker at its edge, a white gleam.</summary>
+        static Sprite BubbleSprite
+        {
+            get
+            {
+                if (bubbleSprite != null) return bubbleSprite;
+                const int S = 96;
+                var t = new Texture2D(S, S, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                var px = new Color[S * S];
+                for (int y = 0; y < S; y++)
+                    for (int x = 0; x < S; x++)
+                    {
+                        float u = (x + 0.5f) / S * 2 - 1, v = (y + 0.5f) / S * 2 - 1, r = Mathf.Sqrt(u * u + v * v);
+                        float inside = Mathf.Clamp01((0.98f - r) / 0.03f);
+                        var c = new Color(0.78f, 0.9f, 1f, 0.22f);
+                        float rim = Mathf.Clamp01((r - 0.72f) / 0.24f);
+                        c = Color.Lerp(c, new Color(0.62f, 0.8f, 1f, 0.75f), rim * rim);
+                        if (r > 0.9f) c = Color.Lerp(c, new Color(0.3f, 0.48f, 0.85f, 0.95f), Mathf.Clamp01((r - 0.9f) / 0.05f));
+                        // the gleam, up and to one side, and a smaller one under it
+                        float g1 = Mathf.Clamp01(1 - Vector2.Distance(new Vector2(u, v), new Vector2(-0.38f, 0.4f)) / 0.2f);
+                        float g2 = Mathf.Clamp01(1 - Vector2.Distance(new Vector2(u, v), new Vector2(-0.58f, 0.08f)) / 0.08f);
+                        float gleam = Mathf.Clamp01(Mathf.Max(g1 * 2.2f, g2 * 2.5f));
+                        c = Color.Lerp(c, Color.white, gleam);
+                        c.a = Mathf.Max(c.a, gleam) * inside;
+                        px[y * S + x] = c;
+                    }
+                t.SetPixels(px);
+                t.Apply();
+                return bubbleSprite = Sprite.Create(t, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f));
+            }
+        }
+
+        void TickSleepers(float dt)
+        {
+            for (int i = snores.Count - 1; i >= 0; i--)
+            {
+                var s = snores[i];
+                s.age += dt;
+                float k = s.age / SnoreLife;
+                // up and away from his face, swaying, growing
+                var at = s.at + new Vector3(s.dir * (0.4f * s.age + 0.14f * Mathf.Sin(s.age * 3.2f + s.sway)), 0.62f * s.age, 0);
+                if (k >= 1 || !ToLocal(at, out var local)) { Object.Destroy(s.rt.gameObject); snores.RemoveAt(i); continue; }
+                s.rt.anchoredPosition = local;
+                s.rt.localScale = Vector3.one * Mathf.Lerp(0.55f, 1.45f, k);
+                s.rt.localRotation = Quaternion.Euler(0, 0, -s.dir * 14f + 10f * Mathf.Sin(s.age * 2.6f + s.sway));
+                var c = s.t.color; c.a = k < 0.12f ? k / 0.12f : k > 0.6f ? (1 - k) / 0.4f : 1f; s.t.color = c;
+                snores[i] = s;
+            }
+            if (bubbles.Count == 0) return;
+            List<object> gone = null;
+            foreach (var pair in bubbles)
+                if (pair.Value.frame < Time.frameCount - 1 || pair.Value.img == null) (gone ??= new List<object>()).Add(pair.Key);
+            if (gone == null) return;
+            foreach (var key in gone)
+            {
+                if (bubbles[key].img != null) Object.Destroy(bubbles[key].img.gameObject);
+                bubbles.Remove(key);
+            }
+        }
+
         public void Popup(Vector3 world, string text, PopStyle style)
         {
             var cam = Camera.main;
@@ -485,6 +605,7 @@ namespace Cloudborne
                 if (k >= 1) { Object.Destroy(p.rt.gameObject); pops.RemoveAt(i); }
                 else pops[i] = p;
             }
+            TickSleepers(dt);
             for (int i = banners.Count - 1; i >= 0; i--)
             {
                 var b = banners[i];

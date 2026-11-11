@@ -50,6 +50,20 @@ namespace Cloudborne
         public float minX = float.NegativeInfinity, maxX = float.PositiveInfinity;
         public bool asleep;
         const float Notice = 10f, WakeAt = 2.2f;
+        // Asleep (the user: he didn't look asleep), a soldier with the clip for it dozes on a log at the side of the
+        // path (CbGame puts it behind him, a little back from the path), his head nodding, his eyes painted shut (the
+        // model's _Asleep texture), a snot bubble swelling and shrinking with his breath and every third breath
+        // popping, a stream of Zs rising from his head and a soft snore. Woken, he jumps up with a start, his blade
+        // raised, before he fights.
+        public const float SeatZ = 0.55f, SeatBack = 0.63f;
+        const string SleepClip = "Sit_and_Doze_Off";
+        const float Breath = 2.6f, WakeTime = 0.55f, SnoreEvery = 0.85f;
+        bool dozing;
+        float sleepT, breathT, snoreT, bubbleWait, bubbleD, wakeT, seatZ;
+        int breaths, zs;
+        Vector3 bubbleAt;
+        readonly string modelPath;
+        Texture openEyes;
         public BossMove bossMove;
         /// <summary>After his combo or his chop he stands open (panting, the cleaver in the ground): the time to hit back.</summary>
         public float open;
@@ -108,8 +122,8 @@ namespace Cloudborne
             f.body.localRotation = Quaternion.Euler(0, -115, 0);
 
             // The rig still places, turns and flips the hyena; with the model loaded only its machete and shield are drawn.
-            model = sergeant ? CbModel.Load("Cloudborne/HyenaSergeant/HyenaSergeant", 2.55f, f.body)
-                : CbModel.Load(shield ? "Cloudborne/HyenaGuard/HyenaGuard" : "Cloudborne/HyenaRaider/HyenaRaider", shield ? 2.1f : 2.25f, f.body);
+            modelPath = sergeant ? "Cloudborne/HyenaSergeant/HyenaSergeant" : shield ? "Cloudborne/HyenaGuard/HyenaGuard" : "Cloudborne/HyenaRaider/HyenaRaider";
+            model = CbModel.Load(modelPath, sergeant ? 2.55f : shield ? 2.1f : 2.25f, f.body);
             if (model != null)
             {
                 foreach (var r in f.body.GetComponentsInChildren<Renderer>(true))
@@ -158,8 +172,12 @@ namespace Cloudborne
                 default:
                 {
                     string back = shield ? "Walk_Backward_with_Sword_Shield" : "Walk_Backward_with_Sword_inplace";
+                    // asleep: dozing, his head nodding (the clip plays for 17 seconds and loops); woken, he springs up out
+                    // of his seat with his blade raised (blending from sitting into the shout's start as he jumps)
+                    if (dozing) model.LoopSeconds(SleepClip, sleepT);
+                    else if (wakeT > 0 && model.HasClip(ShoutClip)) model.Window(ShoutClip, 0.04f, 0.32f, 1 - wakeT / WakeTime, 0.2f);
                     // the shout's first part: the blade raised high over his head (the clip goes on for six seconds)
-                    if (shoutT > 0 && model.HasClip(ShoutClip)) model.Window(ShoutClip, 0.04f, 0.4f, 1 - shoutT / ShoutTime);
+                    else if (shoutT > 0 && model.HasClip(ShoutClip)) model.Window(ShoutClip, 0.04f, 0.4f, 1 - shoutT / ShoutTime);
                     else if (backT > 0 && Mathf.Abs(vx) > 0.3f && model.HasClip(back))
                     {
                         backPh += Time.deltaTime;
@@ -201,6 +219,84 @@ namespace Cloudborne
         }
 
         void FaceTarget() => facing = g.hero.x >= x ? 1 : -1;
+
+        /// <summary>He nods off on his log: facing the way Raja comes, back from the path, his eyes shut.</summary>
+        void FallAsleep()
+        {
+            dozing = true;
+            facing = -1;
+            seatZ = SeatZ;
+            sleepT = Random.Range(0f, 12f);
+            breathT = Random.Range(0f, Breath);
+            breaths = 0;
+            bubbleWait = 0;
+            snoreT = 0.4f;
+            var shut = Resources.Load<Texture2D>(modelPath + "_Asleep");
+            if (shut != null && model.material != null)
+            {
+                openEyes = model.material.mainTexture;
+                model.material.mainTexture = shut;
+            }
+        }
+
+        /// <summary>
+        /// One frame of his sleep: his breath (his chest, the bubble that swells as he breathes out and shrinks as he
+        /// breathes in, the third one swelling bigger and popping), the Zs and the snore.
+        /// </summary>
+        void Doze(float dt, float dist)
+        {
+            sleepT += dt;
+            breathT += dt;
+            bool newBreath = breathT >= Breath;
+            if (newBreath)
+            {
+                breathT -= Breath;
+                breaths++;
+                if (dist < 9f) CbFx.Sfx("snore", 0.35f);
+            }
+            float u = breathT / Breath, s = 0.5f - 0.5f * Mathf.Cos(2 * Mathf.PI * u);
+            f.body.localScale = new Vector3(1, 1 + 0.03f * (1 - s), 1);
+            bool popper = breaths % 3 == 2;
+            if (bubbleWait > 0) { bubbleWait -= dt; bubbleD = 0; }
+            else
+            {
+                bubbleD = (0.05f + 0.3f * s) * (popper ? 1.3f : 1f);
+                var face = model.FaceDirection;
+                bubbleAt = model.Snout + face * (bubbleD * 0.42f) + Vector3.down * (bubbleD * 0.2f);
+                if (popper && u > 0.5f) { PopBubble(); bubbleWait = Breath * 0.5f; }
+                else g.hud.Bubble(this, bubbleAt, bubbleD);
+            }
+            if ((snoreT -= dt) <= 0)
+            {
+                snoreT = SnoreEvery;
+                g.hud.Snore(model.Snout + new Vector3(-facing * 0.1f, 0.5f, 0), facing, ++zs % 2 == 1);
+            }
+        }
+
+        /// <summary>The bubble bursts: a few droplets and a pop.</summary>
+        void PopBubble()
+        {
+            if (bubbleD < 0.06f) return;
+            CbFx.Spark(bubbleAt + new Vector3(0, 0, -0.3f), new Color(0.8f, 0.92f, 1f) * 1.6f, 7, 2.4f, 0.12f, 0.3f, 5);
+            CbFx.Sfx("pop", 0.5f);
+            bubbleD = 0;
+        }
+
+        /// <summary>Woken: his eyes open, the bubble bursts, and unless a blow woke him he jumps up with a start.</summary>
+        void WakeUp()
+        {
+            dozing = false;
+            if (openEyes != null) model.material.mainTexture = openEyes;
+            f.body.localScale = Vector3.one;
+            if (bubbleWait <= 0) PopBubble();
+            noticed = true;
+            if (state == State.Hurt || state == State.Dying) return;
+            g.hud.Popup(new Vector3(x, HitHeight + 1.2f, 0), "!", CbHud.PopStyle.Big);
+            CbFx.Sfx("jump", 0.6f);
+            FaceTarget();
+            wakeT = WakeTime;
+            vy = 6.5f;
+        }
 
         public void Stagger(int dir, float kb, float up)
         {
@@ -386,7 +482,11 @@ namespace Cloudborne
 
             var hero = g.hero;
             float dx = hero.x - x, dist = Mathf.Abs(dx);
-            if (state != State.Dying && state != State.Hurt && state != State.Atk) FaceTarget();
+            if (asleep && !dozing && model != null && model.HasClip(SleepClip)) FallAsleep();
+            // struck awake (CbGame.HurtEnemy wakes him)
+            else if (dozing && !asleep) WakeUp();
+            if (!dozing) seatZ = Mathf.MoveTowards(seatZ, 0, dt * 2.2f);
+            if (state != State.Dying && state != State.Hurt && state != State.Atk && !dozing) FaceTarget();
             var pose = Pose.Base;
             pose.sRx = 0.1f; pose.eR = -1.6f; pose.sRz = -0.3f;
             if (guard) { pose.sLx = -1.1f; pose.eL = -0.9f; pose.sLz = 0.1f; }
@@ -448,13 +548,25 @@ namespace Cloudborne
                 {
                     if (asleep)
                     {
-                        // asleep at his post: slumped, a "z" now and then; Raja right by him wakes him
+                        // asleep at his post; Raja right by him wakes him
                         vx = 0;
-                        pose.lean = 0.35f; pose.headX = 0.6f; pose.bob = -0.15f; pose.sLx = 0.2f; pose.sRx = 0.2f;
-                        if (Random.value < 0.01f) g.hud.Popup(new Vector3(x + 0.3f, HitHeight + 0.9f, 0), "z", CbHud.PopStyle.Block);
-                        if (dist < WakeAt) { asleep = false; g.hud.Popup(new Vector3(x, HitHeight + 1f, 0), "!", CbHud.PopStyle.Hurt); }
+                        if (dozing) Doze(dt, dist);
+                        else
+                        {
+                            // no clip to doze with: slumped where he stands, the Zs over him
+                            pose.lean = 0.35f; pose.headX = 0.6f; pose.bob = -0.15f; pose.sLx = 0.2f; pose.sRx = 0.2f;
+                            if ((snoreT -= dt) <= 0) { snoreT = SnoreEvery; g.hud.Snore(new Vector3(x + facing * 0.3f, HitHeight + 0.9f, 0), facing, ++zs % 2 == 0); }
+                        }
+                        if (dist < WakeAt)
+                        {
+                            asleep = false;
+                            if (dozing) WakeUp();
+                            else g.hud.Popup(new Vector3(x, HitHeight + 1f, 0), "!", CbHud.PopStyle.Hurt);
+                        }
                         break;
                     }
+                    // jumping up with a start: no blow yet
+                    if (wakeT > 0) { wakeT -= dt; vx = 0; break; }
                     float push = 0;
                     foreach (var o in g.enemies)
                     {
@@ -519,7 +631,7 @@ namespace Cloudborne
                 x = held;
             }
             f.Apply(pose, dt, state == State.Atk ? 22 : 12);
-            f.root.localPosition = new Vector3(x, y, 0);
+            f.root.localPosition = new Vector3(x, y, seatZ);
             float target = facing * (90f + (model != null ? 8f : 25f));
             f.body.localRotation = Quaternion.Euler(0, Mathf.LerpAngle(f.body.localEulerAngles.y, target, 1 - Mathf.Exp(-12 * dt)), 0);
             Animate();

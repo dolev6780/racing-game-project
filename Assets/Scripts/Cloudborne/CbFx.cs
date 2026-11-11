@@ -196,6 +196,9 @@ namespace Cloudborne
                 case "talk": c = Synth(type, 0.035f, (t, d) => Mathf.Sin(2 * Mathf.PI * 820 * t) * 0.08f * Band(t, 0.035f)); break;
                 // a beaten enemy vanishing in a puff of smoke: a soft rising whoosh and a pop
                 case "poof": c = Synth(type, 0.35f, (t, d) => (Noise() * 0.22f * Mathf.Exp(-t * 9) + Mathf.Sin(2 * Mathf.PI * (320 + 900 * t) * t) * 0.1f * Mathf.Exp(-t * 14)) * Band(t, 0.35f)); break;
+                // a sleeping soldier: a soft, low snore (a buzz rising and falling), and his snot bubble popping
+                case "snore": c = Synth(type, 0.8f, (t, d) => (Saw(t, 62 + 14 * Mathf.Sin(t * 9)) * 0.16f + Noise() * 0.07f) * Mathf.Sin(Mathf.PI * t / 0.8f) * (0.75f + 0.25f * Mathf.Sin(t * 47))); break;
+                case "pop": c = Synth(type, 0.09f, (t, d) => Mathf.Sin(2 * Mathf.PI * (420 + 6000 * t) * t) * 0.16f * Mathf.Exp(-t * 30) * Band(t, 0.09f)); break;
                 // falling into the river: a burst of water and a low plunk
                 case "splash": c = Synth(type, 0.5f, (t, d) => (Noise() * 0.32f * Mathf.Exp(-t * 7) + Mathf.Sin(2 * Mathf.PI * (190 - 140 * t) * t) * 0.12f * Mathf.Exp(-t * 9)) * Band(t, 0.5f)); break;
             }

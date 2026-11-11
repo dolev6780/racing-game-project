@@ -30,7 +30,7 @@ namespace Cloudborne
         /// steps out at his post as Raja draws near, keeps to his stretch of path (range either side), and an asleep
         /// one waits until Raja is right by him. No arena: only Sergeant Snap shuts one.
         /// </summary>
-        class Post { public float x, range; public CbEnemy.Kind kind; public bool asleep, spawned; public CbEnemy enemy; }
+        class Post { public float x, range; public CbEnemy.Kind kind; public bool asleep, spawned; public CbEnemy enemy; public Transform seat; }
         static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan =
         {
             (22f, CbEnemy.Kind.Hyena, 6f, false), (64f, CbEnemy.Kind.Shield, 5f, false), (71f, CbEnemy.Kind.Hyena, 4f, true),
@@ -299,8 +299,10 @@ namespace Cloudborne
             waves.Clear();
             hero.Reset();
             time = score = 0; combo = maxCombo = 0; comboT = 0; hitstop = shake = slow = 0; lockZone = null; fovKick = 0;
+            foreach (var p in posts) if (p.seat != null) Destroy(p.seat.gameObject);
             posts.Clear();
-            foreach (var (x, kind, range, asleep) in PostPlan) posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep });
+            foreach (var (x, kind, range, asleep) in PostPlan)
+                posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false;
             hud?.HideBoss();
@@ -473,6 +475,21 @@ namespace Cloudborne
             lastHp = hero.hp;
             score = Mathf.Max(0, score - 500);
             hud.Banner("TRY AGAIN!", true);
+        }
+
+        /// <summary>
+        /// The log an asleep soldier dozes on (CbEnemy): it lies along the path behind him (he faces the way Raja
+        /// comes), a little back from it, his seat at its near end. It stays when he wakes.
+        /// </summary>
+        Transform Seat(float x)
+        {
+            float floor = level != null ? level.SupportAt(x, 0.1f) : 0;
+            if (floor < -0.6f) floor = 0;
+            var t = CbArt.Joint(actors, x + CbEnemy.SeatBack, floor, CbEnemy.SeatZ, "sleepersLog");
+            if (CbArt.Prop("Cloudborne/Jungle/Log/Log", t, CbArt.PropOutline) == null) { Destroy(t.gameObject); return null; }
+            // the model is 2 m long and 0.7 m thick: shorter, and as high as his seat when he sits
+            t.localScale = new Vector3(0.75f, 0.87f, 0.87f);
+            return t;
         }
 
         /// <summary>A stone lantern lit: where Raja comes back after falling.</summary>
