@@ -87,18 +87,21 @@ namespace Cloudborne
             // a round badge with Raja's face (rendered from his model; drawn in code if it's missing), a gold ring, a
             // drop shadow; beside it his name and two glossy bars, like a storybook platformer's
             var status = UIKit.Rect(play, "status", new Vector2(0, 1), new Vector2(0, 1), new Vector2(12, -10), new Vector2(320, 70));
-            var portrait = UIKit.Rect(status, "portrait", new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(66, 66));
-            UIKit.Image(UIKit.Rect(portrait, "shadow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -3), new Vector2(66, 66)), UIKit.Circle, Ink);
+            // a soft dark plate behind the name and bars, so they read over the busy jungle
+            var plate = UIKit.Rect(status, "plate", new Vector2(0, 1), new Vector2(0, 1), new Vector2(30, -8), new Vector2(268, 54));
+            Pill(plate, new Color(0.05f, 0.07f, 0.06f, 0.42f));
+            // the badge: Raja's face (rendered from his model) in a thin gold ring with a dark edge
+            var portrait = UIKit.Rect(status, "portrait", new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(68, 68));
+            UIKit.Image(UIKit.Rect(portrait, "edge", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -1), new Vector2(72, 72)), UIKit.Circle, Ink);
             UIKit.Image(portrait, UIKit.Circle, Gold);
-            var face = UIKit.Rect(portrait, "face", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(58, 58));
+            var face = UIKit.Rect(portrait, "face", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(62, 62));
             var faceImg = face.gameObject.AddComponent<RawImage>();
             var painted = Resources.Load<Texture2D>("Cloudborne/Hud/RajaPortrait");
             faceImg.texture = painted != null ? painted : Portrait();
             faceImg.raycastTarget = false;
-            UIKit.Image(UIKit.Rect(portrait, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(66, 66)), UIKit.Ring, Gold);
-            UIKit.Label(status, "RAJA", 19, Paper, new Vector2(0, 1), new Vector2(0, 1), new Vector2(76, -2), new Vector2(120, 22), TextAnchor.MiddleLeft, true);
-            hpFill = Bar(status, new Vector2(76, -26), new Vector2(220, 16), CbArt.Hex("#5ee07e"), out _);
-            kiFill = Bar(status, new Vector2(76, -47), new Vector2(176, 11), FireCol, out kiFrame);
+            UIKit.Label(status, "RAJA", 18, Paper, new Vector2(0, 1), new Vector2(0, 1), new Vector2(80, -6), new Vector2(120, 20), TextAnchor.MiddleLeft, true);
+            hpFill = Bar(status, new Vector2(80, -29), new Vector2(206, 13), CbArt.Hex("#5ee07e"), out _);
+            kiFill = Bar(status, new Vector2(80, -48), new Vector2(160, 9), FireCol, out kiFrame);
 
             // stage title, wave, tip
             UIKit.Label(play, "STAGE 1-1 · THE JUNGLE GATE", 11, new Color(1, 1, 1, 0.9f), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -12), new Vector2(320, 16), TextAnchor.MiddleCenter);
@@ -197,39 +200,65 @@ namespace Cloudborne
         /// A glossy bar: a dark outline and shadow, a white rim, a dark track, the fill lighter at its top with a shine
         /// along it. The fill's x scale is how full it is.
         /// </summary>
+        /// <summary>
+        /// A capsule bar: a thin dark edge, a white rim, a dark track, and the fill with round ends and a shine along
+        /// its top. How full it is sets the fill's width (SetFill), so its ends stay round.
+        /// </summary>
         Image Bar(RectTransform parent, Vector2 pos, Vector2 size, Color color, out Image frame)
         {
             var rt = UIKit.Rect(parent, "bar", new Vector2(0, 1), new Vector2(0, 1), pos, size);
-            UIKit.Image(UIKit.Rect(rt, "shadow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -2), size + new Vector2(4, 4)), UIKit.RoundedSmall, Ink);
-            frame = UIKit.Image(rt, UIKit.RoundedSmall, Paper);
-            var inner = UIKit.Rect(rt, "bg", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, size - new Vector2(4, 4));
-            UIKit.Image(inner, UIKit.RoundedSmall, new Color(0.1f, 0.08f, 0.12f, 0.9f));
-            var fill = UIKit.Rect(inner, "fill", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, size - new Vector2(4, 4));
-            var img = UIKit.Image(fill, Gloss, color);
-            var shine = UIKit.Rect(fill, "shine", new Vector2(0, 1), new Vector2(0, 1), new Vector2(3, -1), new Vector2(size.x - 10, Mathf.Max(2, size.y * 0.22f)));
-            UIKit.Image(shine, UIKit.RoundedSmall, new Color(1, 1, 1, 0.45f));
+            Pill(UIKit.Rect(rt, "edge", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -0.5f), size + new Vector2(5, 5)), Ink);
+            frame = Pill(rt, Paper);
+            var track = UIKit.Rect(rt, "track", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, size - new Vector2(3, 3));
+            Pill(track, new Color(0.1f, 0.08f, 0.13f, 1f));
+            var fill = UIKit.Rect(track, "fill", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, size - new Vector2(3, 3));
+            var img = Pill(fill, color);
+            // the shine: a pale stripe along the fill's top, as long as the fill
+            var shine = UIKit.Rect(fill, "shine", new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, Vector2.zero);
+            shine.anchorMin = new Vector2(0, 1); shine.anchorMax = new Vector2(1, 1); shine.pivot = new Vector2(0.5f, 1);
+            float sh = Mathf.Max(2, (size.y - 3) * 0.36f);
+            shine.offsetMin = new Vector2(sh * 0.6f, -sh - 1.2f); shine.offsetMax = new Vector2(-sh * 0.6f, -1.2f);
+            Pill(shine, new Color(1, 1, 1, 0.5f), sh);
             return img;
         }
 
-        static Sprite gloss;
-
-        /// <summary>A bar's fill: white at the top, a little darker at the bottom (tinted by the bar's colour).</summary>
-        static Sprite Gloss
+        /// <summary>How full a bar is (0 to 1): its fill's width, so the round ends keep their shape.</summary>
+        static void SetFill(Image fill, float amount)
         {
-            get
+            amount = Mathf.Clamp01(amount);
+            var rt = fill.rectTransform;
+            float full = ((RectTransform)rt.parent).sizeDelta.x;
+            rt.sizeDelta = new Vector2(Mathf.Max(rt.sizeDelta.y, full * amount), rt.sizeDelta.y);
+            fill.enabled = amount > 0.005f;
+        }
+
+        static Sprite pill;
+
+        /// <summary>A capsule: round ends whatever its length, for bars and their parts.</summary>
+        static Image Pill(RectTransform rt, Color color, float height = 0)
+        {
+            if (pill == null)
             {
-                if (gloss != null) return gloss;
-                const int H = 16;
-                var t = new Texture2D(2, H, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
-                for (int y = 0; y < H; y++)
-                {
-                    float v = y / (H - 1f);
-                    var c = Color.Lerp(new Color(0.7f, 0.7f, 0.72f), Color.white, v);
-                    t.SetPixel(0, y, c); t.SetPixel(1, y, c);
-                }
+                const int S = 64;
+                var t = new Texture2D(S, S, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                for (int y = 0; y < S; y++)
+                    for (int x = 0; x < S; x++)
+                    {
+                        float dx = Mathf.Max(Mathf.Abs(x + 0.5f - S / 2f) - 0.01f, 0), dy = Mathf.Abs(y + 0.5f - S / 2f);
+                        t.SetPixel(x, y, new Color(1, 1, 1, Mathf.Clamp01(S / 2f - Mathf.Sqrt(dx * dx + dy * dy) + 0.5f)));
+                    }
                 t.Apply();
-                return gloss = Sprite.Create(t, new Rect(0, 0, 2, H), new Vector2(0.5f, 0.5f));
+                pill = Sprite.Create(t, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(S / 2f - 1, S / 2f - 1, S / 2f - 1, S / 2f - 1));
             }
+            var img = rt.gameObject.AddComponent<Image>();
+            img.sprite = pill;
+            img.type = Image.Type.Sliced;
+            img.color = color;
+            img.raycastTarget = false;
+            // the ends' radius: half the height
+            float h = height > 0 ? height : rt.sizeDelta.y;
+            img.pixelsPerUnitMultiplier = 64f / Mathf.Max(1f, h);
+            return img;
         }
 
         Pad AddPad(string id, string label, Vector2 centre, float size, Color color, int font)
@@ -356,8 +385,8 @@ namespace Cloudborne
 
         public void SetBars(float hp, float ki)
         {
-            hpFill.rectTransform.localScale = new Vector3(Mathf.Clamp01(hp / 100f), 1, 1);
-            kiFill.rectTransform.localScale = new Vector3(Mathf.Clamp01(ki / 100f), 1, 1);
+            SetFill(hpFill, hp / 100f);
+            SetFill(kiFill, ki / 100f);
             bool ready = ki >= 50 && CbHero.SpecialUnlocked;
             bool fire = CbHero.FireAwake;
             if (kiPad.label.text != (fire ? "FIRE" : "KI"))
