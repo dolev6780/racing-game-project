@@ -196,8 +196,16 @@ namespace Cloudborne
         /// <summary>A stepping stone, its top level with the banks; a sinking one shakes and goes under if he stays.</summary>
         void AddStone(float x, bool sinks)
         {
-            // the stone model is low: stood up taller so it reaches down into the water
-            var t = PlaceProp("Cloudborne/Jungle/SteppingStone/SteppingStone", new Vector3(x, -0.56f, 0.05f), new Vector3(1f, 2f, 1f), Random.Range(0f, 360f));
+            // a round river stone, mossy on top, reaching down into the water (drawn in Canva, built in Meshy: the old
+            // stone, stood up twice as tall, looked stretched: the user), turned this way or that
+            var t = CbArt.Joint(root, x, 0, 0.05f, "stone");
+            var turn = CbArt.Joint(t, 0, 0, 0, "turn");
+            turn.localRotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
+            if (Fit(RiverStonePath, turn, new Vector3(-0.62f, WaterLevel - 0.12f, -0.62f), new Vector3(0.62f, 0.05f, 0.62f)) == null)
+            {
+                Object.Destroy(t.gameObject);
+                t = PlaceProp("Cloudborne/Jungle/SteppingStone/SteppingStone", new Vector3(x, -0.56f, 0.05f), new Vector3(1f, 2f, 1f), Random.Range(0f, 360f));
+            }
             if (t == null)
             {
                 t = CbArt.Joint(root, x, 0, 0.05f, "stone");
@@ -224,8 +232,12 @@ namespace Cloudborne
         /// <summary>A rock standing up out of the river: solid, a safe place to land.</summary>
         void AddRock(float x, float width, float top)
         {
+            // one solid natural rock (the old one looked like blocks stacked one on another: the user): the tall river
+            // rock for a tall one, the round river stone for a broad, low one
             var t = CbArt.Joint(root, x, 0, 0, "riverRock");
-            if (Fit(CliffDir + "Pillar/Pillar", t, new Vector3(-width / 2, WaterLevel - 0.6f, -0.8f), new Vector3(width / 2, top, 1f)) == null)
+            bool tall = top - (WaterLevel - 0.6f) > width;
+            if (Fit(tall ? RiverRockPath : RiverStonePath, t, new Vector3(-width / 2, WaterLevel - 0.6f, -0.8f), new Vector3(width / 2, top + 0.06f, 1f)) == null
+                && Fit(CliffDir + "Pillar/Pillar", t, new Vector3(-width / 2, WaterLevel - 0.6f, -0.8f), new Vector3(width / 2, top, 1f)) == null)
                 EarthSlab(t, -width / 2, width / 2, WaterLevel - 0.6f, top, -0.8f, 1f, earth ??= EarthMat(), grass ??= GrassMat());
             blocks.Add(new Block { x0 = x - width / 2, x1 = x + width / 2, top = top, t = t });
         }
@@ -462,12 +474,52 @@ namespace Cloudborne
             AddLedge(160.3f, 1.4f, 15f, false);
         }
 
+        // natural rocks drawn in Canva and built in Meshy: a round river stone, a tall river rock, a cracked boulder and
+        // a block of cliff
+        const string RiverStonePath = "Cloudborne/Jungle/RiverStone/RiverStone", RiverRockPath = "Cloudborne/Jungle/RiverRock/RiverRock",
+            CrackedRockPath = "Cloudborne/Jungle/CrackedRock/CrackedRock", CliffRockPath = "Cloudborne/Jungle/CliffRock/CliffRock";
+
+        /// <summary>
+        /// A terrace's rock (the painted boxes didn't look like real rock: the user): the block of cliff for a broad
+        /// one, the tall river rock for a spire, side by side (a little overlapped, mirrored this way and that) when it
+        /// is wide, each fitted to its share of the terrace's box. False if the models aren't in the project.
+        /// </summary>
+        bool RockPieces(Transform parent, float x0, float x1, float y0, float y1, float zFront, float zBack, int seed)
+        {
+            // as wide as tall: the cliff block about 0.85, the river rock 0.48
+            const float CliffAspect = 0.85f, SpireAspect = 0.48f, Overlap = 0.15f;
+            float w = x1 - x0, h = y1 - y0;
+            int n = Mathf.Max(1, Mathf.RoundToInt(w / (h * CliffAspect)));
+            float aspect = w / n / h;
+            string model = Mathf.Abs(Mathf.Log(aspect / CliffAspect)) <= Mathf.Abs(Mathf.Log(aspect / SpireAspect)) ? CliffRockPath : RiverRockPath;
+            var rock = CbArt.Joint(parent, 0, 0, 0, "rock");
+            var rng = new System.Random(seed);
+            for (int i = 0; i < n; i++)
+            {
+                float a = x0 + w * i / n - (i > 0 ? Overlap : 0), b = x0 + w * (i + 1) / n + (i < n - 1 ? Overlap : 0);
+                var piece = CbArt.Joint(rock, 0, 0, 0, "piece");
+                if (Fit(model, piece, new Vector3(a, y0, zFront), new Vector3(b, y1 + 0.06f, zBack)) == null)
+                {
+                    Object.Destroy(rock.gameObject);
+                    return false;
+                }
+                // mirrored about its middle, so neighbours don't look alike
+                if (rng.NextDouble() < 0.5)
+                {
+                    piece.localScale = new Vector3(-1, 1, 1);
+                    piece.localPosition = new Vector3(a + b, 0, 0);
+                }
+            }
+            return true;
+        }
+
         /// <summary>A terrace of the mountain: solid stone (or earth) from the ground up to top, depth metres deep.</summary>
         void AddTerrace(float x0, float x1, float top, float depth)
         {
             var t = CbArt.Joint(root, (x0 + x1) / 2, 0, 0, "terrace");
             float cx = (x0 + x1) / 2;
-            RockFormation(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, depth, Mathf.RoundToInt(x0 * 10));
+            if (!RockPieces(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, -0.9f + depth, Mathf.RoundToInt(x0 * 10)))
+                RockFormation(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, depth, Mathf.RoundToInt(x0 * 10));
             blocks.Add(new Block { x0 = x0, x1 = x1, top = top, t = t });
         }
 
@@ -529,8 +581,14 @@ namespace Cloudborne
 
         void AddBlock(float x, float width, float height, bool breakable)
         {
-            // a shrine pillar stretched to the size (its model, or grey stone), on the path
+            // the cracked wall: a great cracked boulder (it was a shrine pillar with black stripes, and looked fragile:
+            // the user), a little wider than where it stops him at its widest; else a shrine pillar stretched to the size
             var t = CbArt.Joint(root, x, 0, 0.1f, breakable ? "crackedWall" : "pillar");
+            if (breakable && Fit(CrackedRockPath, t, new Vector3(-width / 2 - 0.1f, 0, -0.75f), new Vector3(width / 2 + 0.1f, height, 0.75f)) != null)
+            {
+                blocks.Add(new Block { x0 = x - width / 2, x1 = x + width / 2, top = height, breakable = true, hp = 2, t = t });
+                return;
+            }
             var holder = CbArt.Joint(t, 0, 0, 0, "shape");
             holder.localScale = new Vector3(width / 1.48f, height / 3.6f, 0.9f);
             if (CbArt.Prop("Cloudborne/Jungle/Pillar/Pillar", holder, CbArt.PropOutline) == null)

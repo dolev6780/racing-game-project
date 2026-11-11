@@ -366,11 +366,15 @@ namespace RacingGame.Tests
             // the mountain: terraces of rock (not blocks piled up), ledges of the kit
             var level = game.transform.Find("Level");
             Assert.IsNotNull(level);
-            // no wall of rock behind the climb: its terraces stand against the jungle, faced with the painted rock
+            // no wall of rock behind the climb: its terraces stand against the jungle, natural rocks (the painted boxes
+            // didn't look like real rock: the user)
             Assert.IsNull(level.Find("mountainBody"), "A wall of rock still fills the background behind the climb");
             var face = level.Find("terrace/rock");
-            Assert.IsNotNull(face, "A terrace has no rock face");
-            Assert.AreEqual("RockFace", face.GetComponent<MeshRenderer>().sharedMaterial.mainTexture.name, "The terraces are not faced with the painted rock");
+            Assert.IsNotNull(face, "A terrace has no rock");
+            var rockSkin = face.GetComponentInChildren<MeshRenderer>().sharedMaterial.mainTexture.name;
+            Assert.That(rockSkin, Is.EqualTo("CliffRock_Albedo").Or.EqualTo("RiverRock_Albedo"), "The terraces are not the modelled rocks");
+            foreach (var m in new[] { "RiverStone", "RiverRock", "CrackedRock", "CliffRock" })
+                Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/{m}/{m}"), $"The {m} model is missing");
             int rock = 0, kitLedges = 0;
             foreach (Transform t in level)
             {
