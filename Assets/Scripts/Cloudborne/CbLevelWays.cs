@@ -11,13 +11,13 @@ namespace Cloudborne
     /// up to a tiger token.</item>
     /// <item>The temple of traps (240-292): thorns cut with the staff, a dart statue, a hidden pit, swinging logs, a
     /// lever's gate, a stone block pushed onto a plate for the second gate, a snapping plant.</item>
-    /// <item>The gong gorge (292-336): a gong that lays a bridge, two raiders, a cage to break open.</item>
-    /// <item>The raft river (336-400): a mud bank, rafts drifting down a long river, a rock island with a snapping
-    /// plant, a spinning log that rolls him back.</item>
-    /// <item>The canopy and the waterfall (400-470): a vine-grown pillar, an updraft, ledges and bars in the treetops
-    /// with a key, a zipline down, a seesaw and a stone, a lift on a rope, a waterfall with a cave behind it (a
-    /// token), rolling boulders, a chest the key opens (a token).</item>
-    /// <item>The ridge (470-515): a shaft to wall-jump up, a cage.</item>
+    /// <item>After the temple (292-316): two raiders, a cage to break open, a snapping plant.</item>
+    /// <item>The raft river (316-372): rafts drifting down a long river, a rock island with a snapping plant.</item>
+    /// <item>The canopy and the waterfall (372-444): a vine-grown pillar, an updraft, ledges and bars in the treetops
+    /// with a key, a zipline down, the waterfall's vine-grown cliff with a cave behind the water (a token), rolling
+    /// boulders, a chest the key opens (a token).</item>
+    /// <item>The ridge (444-490): a shaft to wall-jump up, a cage.</item>
+    /// (The gong, the mud, the spinning log, the seesaw and the lift are gone: a muddle of gadgets, the user.)
     /// </list>
     /// Stone lanterns light up as he passes: falling, he comes back at the last one (CbGame).
     /// Everything is built in code from simple shapes and the jungle's models until drawings are approved.
@@ -52,7 +52,6 @@ namespace Cloudborne
         class Leaf { public float x, half, top, squash; public Transform t; }
         class Draft { public float x0, x1, y0, y1; }
         class Raft { public float x, from, to, speed, sink, baseY; public Transform t; }
-        class Lift { public float x, half, top, lo, hi; public Transform deck, weight, rope; }
         class Lantern { public float x; public bool lit; public Material light; public Renderer window; }
         class Gate { public Block b; public float open; public bool wantOpen, sinks; public Vector3 home; }
         class Thorns { public Block b; public int hp = 2; public float cool, clang; }
@@ -65,14 +64,15 @@ namespace Cloudborne
         class Cage { public float x; public int hp = 3; public bool freed; public Transform t, animal, model; public float hop, cool; public CbModel monkey; }
         class Boulder { public float x, vx, cool; public bool rolling; public Transform t; }
 
-        const float LeafBounce = 19.5f, RaftTop = 0.1f, LogTop = 0.15f, SeesawTop = 0.35f;
+        const float LeafBounce = 19.5f, RaftTop = 0.1f;
         public const float TrunkX = 24.5f;
-        const float StatueX = 251.5f, PlateX = 284.5f, GongX = 296.5f, BridgeFrom = 300f, BridgeTo = 312f;
+        const float StatueX = 251.5f, PlateX = 284.5f;
         // the race in the temple (its traps were too easy: the user): the lever opens the gate past the swinging logs
         // and the low log for LeverOpenTime seconds only, then it shuts and the lever springs back
         public const float LeverX = 259.5f, RaceGateX = 274.5f, RaceLogX = 271.4f, LeverOpenTime = 6f;
-        const float ChestX = 467.5f, SeesawX = 430f, MudFrom = 338f, MudTo = 344f;
-        const float LogFrom = 370f, LogTo = 378f;
+        const float ChestX = 441.5f;
+        // the rolling boulders' road: where they start, where they stop, and from where he sets them off
+        const float BoulderFrom = 440f, BoulderEnd = 424f, BoulderStart = 425f;
         // the darts fly from the guardian's mouth: over a ducking Raja, into a standing one
         const float DartY = 1.35f;
 
@@ -82,7 +82,6 @@ namespace Cloudborne
         readonly List<Leaf> leaves = new List<Leaf>();
         readonly List<Draft> drafts = new List<Draft>();
         readonly List<Raft> rafts = new List<Raft>();
-        readonly List<Lift> lifts = new List<Lift>();
         readonly List<Lantern> lanterns = new List<Lantern>();
         readonly List<Gate> gates = new List<Gate>();
         readonly List<Thorns> thorns = new List<Thorns>();
@@ -96,16 +95,14 @@ namespace Cloudborne
         // the stone block once pushed onto its plate: sunk into it a little, it stays there (the user)
         bool blockSet;
         const float BlockSink = 0.2f;
-        float pushHome, dartT, bridge, logSpin, seesawT = -1, boulderT;
-        bool lever, gong, chestOpen, leverModel;
+        float pushHome, dartT, boulderT;
+        bool lever, chestOpen, leverModel;
         // how long the lever's gate has left open
         float leverT;
-        Transform leverHandle, gongDisc, chestLid, chestModel, logT, plank, stone, bridgeT;
+        Transform leverHandle, chestLid, chestModel;
 
         /// <summary>The stone lanterns where he comes back after falling.</summary>
         public IEnumerable<float> Checkpoints { get { foreach (var l in lanterns) yield return l.x; } }
-        public bool GongRung => gong;
-        public bool BridgeBuilt => bridge >= 1;
         public bool LeverPulled => lever;
         public bool GateOpen(int i) => gates[i].b.broken;
         public bool ChestOpen => chestOpen;
@@ -152,7 +149,7 @@ namespace Cloudborne
         {
             // stone lanterns: where he comes back (the start counts as one)
             // (one just before the gorge: caught there for good, he tries again from its foot, not from the shrine)
-            foreach (var x in new[] { 108f, 133f, 196f, 242f, 293f, 337f, 401f, 472f, 536f }) AddLantern(x);
+            foreach (var x in new[] { 108f, 133f, 196f, 242f, 293f, 318f, 375f, 446f, 510f }) AddLantern(x);
             // the ends of the stage: closed gates where he can go no further
             AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
@@ -184,46 +181,44 @@ namespace Cloudborne
             AddGate(287f);
             AddSnapper(290f, 0f);
 
-            // ---- the gong gorge
-            BuildGong();
-            AddCage(327f);
-            AddSnapper(331f, 0f);
+            // ---- after the temple: two raiders and a caged monkey (the gong, its bridge and the gorge are gone: the
+            // way was a muddle of gadgets - the gong, the mud, the spinning log, the seesaw, the lift: the user)
+            AddCage(308f);
+            AddSnapper(312f, 0f);
 
-            // ---- the raft river
-            BuildMud();
-            foreach (var (from, to, offset) in new[] { (346f, 365.5f, 0f), (346f, 365.5f, 10f), (378.5f, 394f, 0f), (378.5f, 394f, 8f) })
+            // ---- the raft river: rafts drift down it, a rock island with a snapping plant in the middle
+            foreach (var (from, to, offset) in new[] { (320f, 339.5f, 0f), (320f, 339.5f, 10f), (344.8f, 368f, 0f), (344.8f, 368f, 12f) })
                 AddRaft(from, to, offset);
-            AddRock(367.8f, 3.6f, 0.6f);
-            AddSnapper(367.8f, 0.6f);
-            BuildRollingLog();
+            AddRock(341.8f, 3.6f, 0.6f);
+            AddSnapper(341.8f, 0.6f);
 
             // ---- the canopy and the waterfall
-            AddCage(404f);
-            AddTerrace(408f, 410f, 8f, 1.6f);
+            AddCage(378f);
+            AddTerrace(382f, 384f, 8f, 1.6f);
             blocks[blocks.Count - 1].vines = -1;
-            DressVines(blocks[blocks.Count - 1], 408f);
-            AddLedge(411.6f, 1.6f, 8.4f, false);
-            AddDraft(413.4f, 414.6f, 0f, 10f);
-            AddLedge(415.6f, 1.4f, 9.2f, false);
-            AddBar(417f, 422f, 10.8f);
-            AddLedge(423.6f, 1.6f, 9.6f, false);
-            AddZip(424.6f, 11f, 437.2f, 3.4f);
-            BuildSeesaw();
-            AddLedge(434.5f, 1.4f, 6.2f, false);
-            AddLift(436.6f, 0.35f, 7.6f);
-            AddTerrace(440f, 446f, 9.4f, 3f);
-            BuildWaterfall(446f, 449.5f, 9.4f);
-            AddLedge(447f, 1.2f, 2.6f, false);
-            AddLedge(448.4f, 1.2f, 4.8f, false);
-            AddLedge(447.2f, 1.4f, 7f, false);
-            boulders.Add(new Boulder { x = 466f });
+            DressVines(blocks[blocks.Count - 1], 382f);
+            AddLedge(385.6f, 1.6f, 8.4f, false);
+            AddDraft(387.4f, 388.6f, 0f, 10f);
+            AddLedge(389.6f, 1.4f, 9.2f, false);
+            AddBar(391f, 396f, 10.8f);
+            AddLedge(397.6f, 1.6f, 9.6f, false);
+            AddZip(398.6f, 11f, 411.2f, 3.4f);
+            // down the zipline, and up the waterfall's cliff by the vines grown over it
+            AddTerrace(414f, 420f, 9.4f, 3f);
+            blocks[blocks.Count - 1].vines = -1;
+            DressVines(blocks[blocks.Count - 1], 414f);
+            BuildWaterfall(420f, 423.5f, 9.4f);
+            AddLedge(421f, 1.2f, 2.6f, false);
+            AddLedge(422.4f, 1.2f, 4.8f, false);
+            AddLedge(421.2f, 1.4f, 7f, false);
+            boulders.Add(new Boulder { x = BoulderFrom });
             BuildChest();
 
             // ---- the ridge
-            AddCage(492f);
-            AddTerrace(504f, 505.4f, 7f, 2f);
-            AddTerrace(507.2f, 508.6f, 7f, 2f);
-            AddLedge(506.3f, 1.6f, 8.4f, false);
+            AddCage(466f);
+            AddTerrace(478f, 479.4f, 7f, 2f);
+            AddTerrace(481.2f, 482.6f, 7f, 2f);
+            AddLedge(480.3f, 1.6f, 8.4f, false);
         }
 
         void AddLantern(float x)
@@ -579,25 +574,6 @@ namespace Cloudborne
             snappers.Add(new Snapper { x = x, y = y, t = t, jaw = jaw, timer = Random.Range(0f, 1.5f) });
         }
 
-        void BuildGong()
-        {
-            // turned toward Raja and the camera like the temple's gates (it stood square to the camera: the user), back
-            // from the path so he passes in front of it
-            var t = CbArt.Joint(root, GongX, 0, 1.4f, "gong");
-            t.localRotation = Quaternion.Euler(0, EndGateTurn, 0);
-            bridgeT = CbArt.Joint(root, BridgeFrom, -0.08f, 0.1f, "gongBridge");
-            for (float x = 0.3f; x < BridgeTo - BridgeFrom; x += 0.62f)
-                CbArt.Box(Wood, bridgeT, new Vector3(x, 0, 0), new Vector3(0.55f, 0.14f, 1.4f)).gameObject.SetActive(false);
-            // the model: the golden gong in its wooden frame; struck, it shakes
-            gongDisc = Model("Gong", t, new Vector3(2.55f, 2.6f, 0.86f), 180f);
-            if (gongDisc != null) return;
-            CbArt.Cylinder(Wood, t, new Vector3(-0.8f, 1.3f, 0), 0.1f, 2.6f);
-            CbArt.Cylinder(Wood, t, new Vector3(0.8f, 1.3f, 0), 0.1f, 2.6f);
-            CbArt.Cylinder(Wood, t, new Vector3(0, 2.6f, 0), 0.1f, 1.8f, Quaternion.Euler(0, 0, 90));
-            gongDisc = CbArt.Joint(t, 0, 1.6f, 0, "disc");
-            CbArt.Cylinder(new Material(CbArt.Emissive(new Color(0.9f, 0.62f, 0.15f))), gongDisc, Vector3.zero, 0.7f, 0.08f, Quaternion.Euler(90, 0, 0));
-        }
-
         void AddCage(float x)
         {
             var t = CbArt.Joint(root, x, 0, 0.3f, "cage");
@@ -630,15 +606,6 @@ namespace Cloudborne
             cages.Add(new Cage { x = x, t = t, animal = animal, model = model, monkey = monkey });
         }
 
-        void BuildMud()
-        {
-            var t = CbArt.Joint(root, (MudFrom + MudTo) / 2, 0, 0, "mud");
-            CbArt.Box(M("#5a4128"), t, new Vector3(0, 0.01f, 0.3f), new Vector3(MudTo - MudFrom, 0.04f, 2.6f));
-            for (int k = 0; k < 10; k++)
-                CbArt.Part(CbMesh.Dome(0.5f, 8), M("#4a3420"), t, new Vector3(Random.Range(-2.8f, 2.8f), 0.02f, Random.Range(-0.8f, 1.4f)),
-                    new Vector3(0.3f, 0.12f, 0.3f));
-        }
-
         void AddRaft(float from, float to, float offset)
         {
             var t = CbArt.Joint(root, from, RaftTop - 0.2f, 0.05f, "raft");
@@ -655,20 +622,6 @@ namespace Cloudborne
             var r = new Raft { from = from, to = to, speed = 1.5f, t = t, baseY = baseY };
             r.x = Mathf.Repeat(offset, to - from) + from;
             rafts.Add(r);
-        }
-
-        void BuildRollingLog()
-        {
-            // the jungle's mossy log (it was a plain orange tube with pegs: the user), drawn out along its length (its
-            // bark runs that way) and turning about its middle
-            logT = CbArt.Joint(root, (LogFrom + LogTo) / 2, LogTop - 0.35f, 0.05f, "rollingLog");
-            var log = CbArt.Prop("Cloudborne/Jungle/Log/Log", logT, CbArt.PropOutline);
-            if (log != null)
-            {
-                log.localScale = new Vector3((LogTo - LogFrom) / 2f, 1f, 1f);
-                log.localPosition = new Vector3(0, -0.35f, 0);
-            }
-            else CbArt.Cylinder(Wood, logT, Vector3.zero, 0.35f, LogTo - LogFrom, Quaternion.Euler(0, 0, 90));
         }
 
         /// <summary>
@@ -744,53 +697,6 @@ namespace Cloudborne
             }
         }
 
-        void BuildSeesaw()
-        {
-            var t = CbArt.Joint(root, SeesawX, 0, 0.1f, "seesaw");
-            plank = CbArt.Joint(t, 0, SeesawTop, 0, "plank");
-            // the model: its lashed plank on a carved stone, the plank's top level with SeesawTop (it tips as one)
-            var model = CbArt.Joint(plank, 0, -SeesawTop - 0.2f, 0, "seesawModel");
-            if (Model("Seesaw", model, new Vector3(4f, SeesawTop + 0.25f, 0.9f), 180f) == null)
-            {
-                Object.Destroy(model.gameObject);
-                CbArt.Cone(StoneGrey, t, new Vector3(0, 0.2f, 0), 0.35f, 0.4f, null, 4);
-                CbArt.Box(Wood, plank, new Vector3(0, -0.06f, 0), new Vector3(4f, 0.12f, 0.9f));
-            }
-            CbArt.Cylinder(Wood, root, new Vector3(SeesawX + 2.6f, 3.4f, 0.4f), 0.15f, 6.8f);
-            CbArt.Cylinder(Wood, root, new Vector3(SeesawX + 2.1f, 6.8f, 0.4f), 0.1f, 1.2f, Quaternion.Euler(0, 0, 90));
-            stone = CbArt.Joint(root, SeesawX + 1.6f, 6.3f, 0.1f, "stone");
-            if (CbArt.Prop("Cloudborne/Jungle/Boulder/Boulder", stone, CbArt.PropOutline) is Transform b) b.localScale *= 0.5f;
-            else CbArt.Part(CbMesh.Blob(6, 4), StoneGrey, stone, Vector3.zero, Vector3.one * 0.9f);
-            CbArt.Cylinder(VineGreen, stone, new Vector3(0, 0.6f, 0), 0.03f, 0.6f);
-        }
-
-        void AddLift(float x, float lo, float hi)
-        {
-            var deck = CbArt.Joint(root, x, lo, 0.05f, "lift");
-            // the model: a deck of lashed planks, ropes from its corners to a ring above
-            var lift = CbArt.Joint(deck, 0, -0.25f, 0, "liftModel");
-            if (Model("Lift", lift, new Vector3(1.7f, 2f, 1.5f), 180f) == null)
-            {
-                Object.Destroy(lift.gameObject);
-                CbArt.Box(Wood, deck, new Vector3(0, -0.1f, 0), new Vector3(1.6f, 0.2f, 1.2f));
-            }
-            CbArt.Cylinder(Wood, root, new Vector3(x, hi + 1.6f, 0.3f), 0.35f, 0.2f, Quaternion.Euler(90, 0, 0));
-            // the counterweight: a mossy boulder in a rope sling, its rope up over a beam to the pulley (it was a plain
-            // white ball: the user)
-            CbArt.Cylinder(Wood, root, new Vector3(x + 0.65f, hi + 1.6f, 0.3f), 0.07f, 1.5f, Quaternion.Euler(0, 0, 90));
-            var weight = CbArt.Joint(root, x + 1.2f, hi, 0.3f, "counterweight");
-            if (CbArt.Prop("Cloudborne/Jungle/Boulder/Boulder", weight, CbArt.PropOutline) is Transform rock)
-            {
-                rock.localScale *= 0.55f;
-                rock.localPosition = new Vector3(0, -0.33f, 0);
-            }
-            else CbArt.Part(CbMesh.Blob(6, 4), StoneGrey, weight, Vector3.zero, Vector3.one * 0.7f);
-            foreach (float a in new[] { -0.3f, 0.3f })
-                CbArt.Cylinder(M("#9a7a48"), weight, new Vector3(a * 0.5f, 0.12f, 0), 0.025f, 0.75f, Quaternion.Euler(0, 0, a * Mathf.Rad2Deg * -1.2f));
-            var rope = CbArt.Cylinder(M("#9a7a48"), root, Vector3.zero, 0.03f, 1f);
-            lifts.Add(new Lift { x = x, half = 0.8f, top = lo, lo = lo, hi = hi, deck = deck, weight = weight, rope = rope });
-        }
-
         void BuildWaterfall(float x0, float x1, float top)
         {
             // the cave behind: dark rock; the falling water in front, light and see-through, hiding the ledges a little
@@ -832,23 +738,16 @@ namespace Cloudborne
             // an open pit: nothing under him
             foreach (var p in pits)
                 if (p.open && x > p.x0 && x < p.x1 && best <= 0) best = Deep;
-            // the gong's bridge, laid plank by plank from the near bank
-            if (bridge > 0 && x > BridgeFrom - HalfWidth * 0.5f && x < BridgeFrom + (BridgeTo - BridgeFrom) * bridge + HalfWidth * 0.5f && 0 <= fromY + StepUp && best < 0) best = 0;
             foreach (var r in rafts)
                 if (r.sink <= 0 && Mathf.Abs(x - r.x) < 1.1f + HalfWidth * 0.5f && RaftTop <= fromY + StepUp && RaftTop > best) best = RaftTop;
-            if (x > LogFrom - HalfWidth * 0.5f && x < LogTo + HalfWidth * 0.5f && LogTop <= fromY + StepUp && LogTop > best) best = LogTop;
             foreach (var l in leaves)
                 if (Mathf.Abs(x - l.x) < l.half && l.top <= fromY + 0.05f && l.top > best) best = l.top;
-            foreach (var l in lifts)
-                if (Mathf.Abs(x - l.x) < l.half + HalfWidth * 0.5f && l.top <= fromY + 0.05f && l.top > best) best = l.top;
-            if (Mathf.Abs(x - SeesawX) < 2f && SeesawTop <= fromY + StepUp && SeesawTop > best) best = SeesawTop;
         }
 
-        /// <summary>Not a place to come back to: a pit's cover, a raft, the spinning log.</summary>
+        /// <summary>Not a place to come back to: a pit's cover, a raft.</summary>
         bool WaysSafe(float x, float y)
         {
             foreach (var p in pits) if (x > p.x0 - HalfWidth && x < p.x1 + HalfWidth) return false;
-            if (x > LogFrom - 0.5f && x < LogTo + 0.5f) return false;
             foreach (var r in rafts) if (Mathf.Abs(x - r.x) < 1.6f && y < 1f && InWater(x)) return false;
             return true;
         }
@@ -1021,11 +920,6 @@ namespace Cloudborne
             return 0;
         }
 
-        public static bool MudAt(float x, float y) => y < 0.05f && x > MudFrom && x < MudTo;
-
-        /// <summary>On the spinning log at (x, y): it rolls him back (and he walks it as a tightrope).</summary>
-        public static bool OnRollingLog(float x, float y) => x > LogFrom && x < LogTo && Mathf.Abs(y - LogTop) < 0.05f;
-
         /// <summary>
         /// Raja on the ground at (x, y) pressing towards dir against the stone block: it slides ahead of him, as far as
         /// the gate. True while it moves.
@@ -1079,14 +973,6 @@ namespace Cloudborne
                 CbFx.Sfx("block", 0.8f);
                 g.hud.SetTip("The gate opens - <color=#ffb03a>run!</color> It won't stay open long");
             }
-            if (!gong && InReach(GongX, x, dir, range) && y < 2f)
-            {
-                gong = true; any = true;
-                CbVfx.Ring(new Vector3(GongX, 1.6f, -0.5f), CbFx.Flame * 0.6f, 2.6f, 0.5f);
-                CbFx.Sfx("heavy");
-                g.shake = Mathf.Max(g.shake, 0.3f);
-                g.hud.SetTip("BONG! A bridge lays itself across the gorge");
-            }
             foreach (var c in cages)
             {
                 if (c.freed || !InReach(c.x, x, dir, range) || y > 1.4f) continue;
@@ -1109,12 +995,6 @@ namespace Cloudborne
                 CbFx.Spark(new Vector3(s.x, s.y + 1f, -0.4f), new Color(0.8f, 0.3f, 0.3f) * 1.5f, 10, 4, 0.3f, 0.4f, 6);
                 CbFx.Sfx("hit", 0.6f);
                 if (s.hp <= 0) { s.dead = true; s.t.gameObject.SetActive(false); CbFx.Puff(new Vector3(s.x, s.y + 0.8f, -0.3f), new Color(0.6f, 0.5f, 0.4f), 6, 1.6f, 0.7f, 0.5f); }
-            }
-            // the seesaw's rope post: the stone drops onto the plank's far end
-            if (seesawT < 0 && InReach(SeesawX + 2.6f, x, dir, range) && y < 2f)
-            {
-                seesawT = 0; any = true;
-                CbFx.Sfx("block", 0.6f);
             }
             foreach (var b in boulders)
             {
@@ -1193,14 +1073,6 @@ namespace Cloudborne
             UpdateTraps(dt, hero);
             UpdateMovers(dt, hero);
 
-            // the gong's bridge, plank by plank
-            if (gong && bridge < 1)
-            {
-                bridge = Mathf.MoveTowards(bridge, 1, dt / 1.6f);
-                int shown = Mathf.CeilToInt(bridge * bridgeT.childCount);
-                for (int i = 0; i < bridgeT.childCount; i++) bridgeT.GetChild(i).gameObject.SetActive(i < shown);
-                if (gongDisc != null) gongDisc.localRotation = Quaternion.Euler(0, 180, Mathf.Sin(Time.time * 30) * 2.5f * (1 - bridge));
-            }
             // gates slide up when opened; the second opens while its plate is pressed
             // the block pushed onto the plate settles into it with a thud and stays
             if (!blockSet && Mathf.Abs(PushBlockX - PlateX) < 0.25f)
@@ -1368,7 +1240,7 @@ namespace Cloudborne
             foreach (var b in boulders)
             {
                 b.cool = Mathf.Max(0, b.cool - dt);
-                if (!b.rolling && b.cool <= 0 && hero.x > 451f && hero.x < b.x - 2f && boulderT <= 0)
+                if (!b.rolling && b.cool <= 0 && hero.x > BoulderStart && hero.x < b.x - 2f && boulderT <= 0)
                 {
                     b.rolling = true; b.vx = -6f; boulderT = 3.2f;
                     if (b.t == null)
@@ -1378,15 +1250,15 @@ namespace Cloudborne
                         else CbArt.Part(CbMesh.Blob(6, 4), StoneGrey, b.t, Vector3.zero, Vector3.one * 1.2f);
                     }
                     b.t.gameObject.SetActive(true);
-                    b.t.localPosition = new Vector3(466f, 0.6f, 0);
-                    b.x = 466f;
+                    b.t.localPosition = new Vector3(BoulderFrom, 0.6f, 0);
+                    b.x = BoulderFrom;
                 }
                 if (!b.rolling) continue;
                 b.x += b.vx * dt;
                 b.t.localPosition = new Vector3(b.x, 0.6f, 0);
                 b.t.localRotation *= Quaternion.Euler(0, 0, -b.vx * dt * 95f);
                 if (Mathf.Abs(hero.x - b.x) < 0.9f && hero.y < 1.1f) { hero.TakeHit(10, -1, knock: 5f); SmashBoulder(b); }
-                else if (b.x < 450f) { b.rolling = false; b.cool = 0.5f; b.t.gameObject.SetActive(false); b.x = 466f; }
+                else if (b.x < BoulderEnd) { b.rolling = false; b.cool = 0.5f; b.t.gameObject.SetActive(false); b.x = BoulderFrom; }
             }
         }
 
@@ -1409,45 +1281,7 @@ namespace Cloudborne
                 }
                 r.t.localPosition = new Vector3(r.x, r.baseY - r.sink * 1.2f + Mathf.Sin(Time.time * 2 + r.from) * 0.03f, 0.05f);
             }
-            // the spinning log rolls him back
-            logSpin += dt * 160f;
-            if (logT != null) logT.localRotation = Quaternion.Euler(logSpin, 0, 0);
-            hero.onLog = OnRollingLog(hero.x, hero.y);
-            // lifts rise while he stands on them, and sink back
-            foreach (var l in lifts)
-            {
-                bool on = Mathf.Abs(hero.x - l.x) < l.half + HalfWidth * 0.5f && Mathf.Abs(hero.y - l.top) < 0.05f;
-                float was = l.top;
-                l.top = Mathf.MoveTowards(l.top, on ? l.hi : l.lo, dt * 1.8f);
-                if (on) hero.y = l.top;
-                l.deck.localPosition = new Vector3(l.x, l.top, 0.05f);
-                float wy = l.hi + l.lo - l.top;
-                l.weight.localPosition = new Vector3(l.x + 1.2f, wy, 0.3f);
-                // its rope from the sling's knot up to the beam
-                float knot = wy + 0.45f, beam = l.hi + 1.6f;
-                l.rope.localPosition = new Vector3(l.x + 1.2f, (knot + beam) / 2, 0.3f);
-                l.rope.localScale = new Vector3(0.03f, Mathf.Max(0.05f, beam - knot), 0.03f);
-                if (on && l.top != was && Random.value < 0.1f) CbFx.Sfx("talk", 0.3f);
-            }
-            // the seesaw: the stone drops on its far end, and whoever stands on the near end flies
-            if (seesawT >= 0)
-            {
-                seesawT += dt;
-                float y = Mathf.Max(SeesawTop + 0.5f, 6.3f - seesawT * seesawT * 15f);
-                stone.localPosition = new Vector3(SeesawX + 1.6f, y, 0.1f);
-                bool landed = y <= SeesawTop + 0.5f;
-                plank.localRotation = Quaternion.Euler(0, 0, landed ? -14f : 0);
-                if (landed && !seesawLaunched)
-                {
-                    seesawLaunched = true;
-                    g.shake = Mathf.Max(g.shake, 0.3f);
-                    CbFx.Sfx("heavy");
-                    if (hero.x > SeesawX - 2f && hero.x < SeesawX - 0.4f && Mathf.Abs(hero.y - SeesawTop) < 0.1f) hero.Launch(7.5f, 19.5f);
-                }
-                if (seesawT > 3f) { seesawT = -1; seesawLaunched = false; plank.localRotation = Quaternion.identity; stone.localPosition = new Vector3(SeesawX + 1.6f, 6.3f, 0.1f); }
-            }
         }
-        bool seesawLaunched;
 
         void ResetWays()
         {
@@ -1465,21 +1299,17 @@ namespace Cloudborne
                 c.animal.localRotation = Quaternion.Euler(0, MonkeyFacing, 0);
                 c.t.localRotation = Quaternion.identity;
             }
-            foreach (var b in boulders) { b.rolling = false; b.cool = 0; b.x = 466f; if (b.t != null) b.t.gameObject.SetActive(false); }
-            lever = gong = chestOpen = chestHinted = seesawLaunched = false;
+            foreach (var b in boulders) { b.rolling = false; b.cool = 0; b.x = BoulderFrom; if (b.t != null) b.t.gameObject.SetActive(false); }
+            lever = chestOpen = chestHinted = false;
             leverT = 0;
             if (leverModel) leverHandle.localScale = Vector3.one;
             else leverHandle.localRotation = Quaternion.Euler(0, 0, 35);
-            bridge = 0;
-            for (int i = 0; i < bridgeT.childCount; i++) bridgeT.GetChild(i).gameObject.SetActive(false);
             foreach (var gt in gates) { gt.open = 0; gt.wantOpen = false; gt.b.broken = false; gt.b.t.localPosition = gt.home; }
             pushBlock.x0 = pushHome - 0.5f; pushBlock.x1 = pushHome + 0.5f; pushBlock.t.localPosition = new Vector3(pushHome, 0, 0);
             pushBlock.top = 1f; blockSet = false;
 
             if (chestLid != null) chestLid.localRotation = Quaternion.identity;
             if (chestModel != null) chestModel.localScale = Vector3.one;
-            seesawT = -1;
-            foreach (var l in lifts) l.top = l.lo;
             foreach (var r in rafts) r.sink = 0;
         }
     }

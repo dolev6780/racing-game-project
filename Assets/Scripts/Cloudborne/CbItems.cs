@@ -86,11 +86,11 @@ namespace Cloudborne
             AddCrate(131f, Kind.Mango, Kind.Coin);
             AddCrate(191f, Kind.KiCrystal, Kind.Coin, Kind.Coin);
             AddCrate(244f, Kind.Mango, Kind.Coin);
-            AddCrate(334f, Kind.KiCrystal, Kind.Coin);
-            AddCrate(399.5f, Kind.Mango, Kind.Coin, Kind.Coin);
-            AddCrate(474f, Kind.Mango, Kind.KiCrystal);
-            AddCrate(529.5f, Kind.Mango, Kind.Coin);
-            AddCrate(534f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
+            AddCrate(315f, Kind.KiCrystal, Kind.Coin);
+            AddCrate(373.5f, Kind.Mango, Kind.Coin, Kind.Coin);
+            AddCrate(448f, Kind.Mango, Kind.KiCrystal);
+            AddCrate(503.5f, Kind.Mango, Kind.Coin);
+            AddCrate(508f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
             // coin trails: an arc to jump through, a row along the rope bridge, an arc in the second fight
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(4 + i * 0.9f, 1.2f + Mathf.Sin(i / 4f * Mathf.PI) * 1.6f, 0), resting: true);
             // over the rope bridge: one above each stretch of planks, an arc over each gap (jump it)
@@ -151,28 +151,27 @@ namespace Cloudborne
             // the temple of traps
             foreach (var x in new[] { 249f, 253f, 258.5f, 260f, 265.8f, 272.5f, 282.5f, 288.6f }) C(x, 1.2f);
             Spawn(Kind.Coin, new Vector3(255.2f, 2.2f, 0), resting: true);
-            // the gong's bridge, the cage
-            for (float x = 301f; x < 312f; x += 1.5f) C(x, 1f);
-            foreach (var x in new[] { 316f, 324f, 329f }) C(x, 1.2f);
-            // the raft river: over the rafts' way, the island, the log
-            foreach (var x in new[] { 340f, 349f, 353f, 357f, 361f, 365f, 371f, 373f, 375f, 377f, 382f, 386f, 390f }) C(x, 1.3f);
-            C(367.8f, 2f);
+            // the fight and the cage after the temple
+            foreach (var x in new[] { 296f, 305f, 310f }) C(x, 1.2f);
+            // the raft river: over the rafts' way, the island
+            foreach (var x in new[] { 323f, 327f, 331f, 335f, 339f, 346f, 350f, 354f, 358f, 362f, 366f }) C(x, 1.3f);
+            C(341.8f, 2f);
             // the canopy: up the vine pillar, along the ledges and the bars, down the zipline
-            for (float y = 1.5f; y < 7.5f; y += 1.3f) C(407.4f, y);
-            C(411.6f, 9.4f); C(415.6f, 10.2f);
-            for (float x = 417.6f; x < 422f; x += 1.1f) C(x, 9.8f);
-            Spawn(Kind.Key, new Vector3(423.6f, 10.6f, 0), resting: true);
-            for (float x = 426.5f; x < 437f; x += 1.8f) C(x, Mathf.Lerp(11f, 3.4f, Mathf.InverseLerp(424.6f, 437.2f, x)) - 0.8f);
-            for (float y = 2.5f; y < 10f; y += 1.6f) C(429.5f, y);
-            for (float y = 1.5f; y < 8f; y += 1.5f) C(436.6f, y);
-            for (float x = 441f; x < 446f; x += 1.2f) C(x, 10.4f);
+            for (float y = 1.5f; y < 7.5f; y += 1.3f) C(381.4f, y);
+            C(385.6f, 9.4f); C(389.6f, 10.2f);
+            for (float x = 391.6f; x < 396f; x += 1.1f) C(x, 9.8f);
+            Spawn(Kind.Key, new Vector3(397.6f, 10.6f, 0), resting: true);
+            for (float x = 400.5f; x < 411f; x += 1.8f) C(x, Mathf.Lerp(11f, 3.4f, Mathf.InverseLerp(398.6f, 411.2f, x)) - 0.8f);
+            // up the waterfall's vine-grown cliff, along its top
+            for (float y = 1.5f; y < 9f; y += 1.5f) C(413.4f, y);
+            for (float x = 415f; x < 420f; x += 1.2f) C(x, 10.4f);
             // behind the waterfall
-            C(447f, 3.6f); C(448.4f, 5.8f);
-            Spawn(Kind.Token, new Vector3(447.2f, 8.1f, 0), resting: true);
+            C(421f, 3.6f); C(422.4f, 5.8f);
+            Spawn(Kind.Token, new Vector3(421.2f, 8.1f, 0), resting: true);
             // the boulder road, the shaft on the ridge
-            foreach (var x in new[] { 454f, 457f, 460f, 463f }) C(x, 1.8f);
-            for (float y = 1.5f; y < 8f; y += 1.4f) C(506.3f, y);
-            Spawn(Kind.Mango, new Vector3(506.3f, 9.3f, 0), resting: true);
+            foreach (var x in new[] { 428f, 431f, 434f, 437f }) C(x, 1.8f);
+            for (float y = 1.5f; y < 8f; y += 1.4f) C(480.3f, y);
+            Spawn(Kind.Mango, new Vector3(480.3f, 9.3f, 0), resting: true);
         }
 
         // ---------- items ----------

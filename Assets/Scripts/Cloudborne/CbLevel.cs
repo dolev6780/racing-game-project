@@ -84,7 +84,7 @@ namespace Cloudborne
         const float CrumbleAfter = 0.5f, CrumbleBack = 3f;
 
         /// <summary>The streams across stage 1-1 (x from, to): the rope bridge's, the long river, the brook.</summary>
-        public static readonly (float x0, float x1)[] Waters = { (31.4f, 55.4f), (79f, 103f), (200f, 232f), (300f, 312f), (345f, 395f), (520.4f, 526.4f) };
+        public static readonly (float x0, float x1)[] Waters = { (31.4f, 55.4f), (79f, 103f), (200f, 232f), (319f, 369f), (494.4f, 500.4f) };
         /// <summary>The water's surface, below the banks: its channel is cut into the ground.</summary>
         public const float WaterLevel = -0.45f;
         /// <summary>How far back from the path the streams run before they come out of the ground.</summary>
@@ -106,7 +106,7 @@ namespace Cloudborne
             float a = RopeBridgeX - RopeDeckHalf + RopeEndIn, b = RopeBridgeX + RopeDeckHalf - RopeEndIn, w = (b - a) / RopeSections;
             return (a + k * w, a + (k + 1) * w, System.Array.IndexOf(RopeHoles, k) >= 0);
         }
-        public const float StoneBridgeX = 523.4f;
+        public const float StoneBridgeX = 497.4f;
         // each arch (the model, 4.8 m long, scaled), their spacing, the bridge's half length; the deck between the
         // parapets is about 1.76 of the model's 2.29 m height (the parapets' tops 2.18)
         const float StoneArchLength = 4.1f, StoneArchStep = 3.96f;

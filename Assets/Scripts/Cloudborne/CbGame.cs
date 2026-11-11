@@ -42,10 +42,10 @@ namespace Cloudborne
             // waiting together on the far bank of the long river, by the shrine: three at once, the river at their backs
             (106.5f, CbEnemy.Kind.Hyena, 3f, false), (109.5f, CbEnemy.Kind.Shield, 3f, false), (112.5f, CbEnemy.Kind.Hyena, 3f, false),
             (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
-            (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (259f, CbEnemy.Kind.Hyena, 1.5f, false), (318f, CbEnemy.Kind.Hyena, 3f, false),
-            (322f, CbEnemy.Kind.Shield, 3f, false), (341f, CbEnemy.Kind.Hyena, 2.5f, false), (398f, CbEnemy.Kind.Shield, 2f, false),
-            (476f, CbEnemy.Kind.Hyena, 4f, false), (486f, CbEnemy.Kind.Shield, 4f, false), (499f, CbEnemy.Kind.Hyena, 3f, true),
-            (515f, CbEnemy.Kind.Hyena, 3f, false),
+            (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (259f, CbEnemy.Kind.Hyena, 1.5f, false), (298f, CbEnemy.Kind.Hyena, 3f, false),
+            (302f, CbEnemy.Kind.Shield, 3f, false), (372f, CbEnemy.Kind.Shield, 2f, false),
+            (450f, CbEnemy.Kind.Hyena, 4f, false), (460f, CbEnemy.Kind.Shield, 4f, false), (473f, CbEnemy.Kind.Hyena, 3f, true),
+            (489f, CbEnemy.Kind.Hyena, 3f, false),
         };
         readonly List<Post> posts = new List<Post>();
         const float PostWakes = 13f;
@@ -54,8 +54,8 @@ namespace Cloudborne
         static readonly (float x, string name)[] Sections =
         {
             (0f, "Save Koda"), (70f, "The cracked wall"), (79f, "The long river"), (106f, "The old shrine"), (136f, "The flooded gorge"),
-            (194f, "The vine ravine"), (240f, "The temple of traps"), (292f, "The gong gorge"), (336f, "The raft river"),
-            (400f, "The canopy"), (438f, "The waterfall"), (470f, "The ridge"), (520f, "The shrine gate"),
+            (194f, "The vine ravine"), (240f, "The temple of traps"), (292f, "The monkey cage"), (316f, "The raft river"),
+            (374f, "The canopy"), (412f, "The waterfall"), (444f, "The ridge"), (494f, "The shrine gate"),
         };
         /// <summary>Tips as Raja reaches them (tip: one of the fight tips; else text).</summary>
         static readonly (float x, int tip, string text)[] Tips =
@@ -67,13 +67,13 @@ namespace Cloudborne
             (97f, -1, "They wait on the bank - knock them back into the river!"),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
             (241f, -1, "The old temple: thorns need the staff, mind the floor, duck <color=#ffb03a>↓</color> the darts"),
-            (292f, -1, "Strike the gong!"),
-            (336f, -1, "Mud slows you. Ride the rafts; on the spinning log, keep your balance"),
-            (400f, -1, "Climb the vines (hold <color=#ffb03a>↑</color>), ride the wind up to the treetops"),
-            (438f, -1, "Something glints behind the waterfall..."),
-            (450f, -1, "Boulders! Jump over them or smash them with <color=#ffb03a>HEAVY</color>"),
-            (470f, 4, null),
-            (530f, -1, "Sergeant Snap waits at the shrine gate"),
+            (300f, -1, "A monkey in a cage! Break it open and set it free"),
+            (316f, -1, "Ride the rafts down the river - jump off before they sink"),
+            (374f, -1, "Climb the vines (hold <color=#ffb03a>↑</color>), ride the wind up to the treetops"),
+            (412f, -1, "Climb the vines up the cliff. Something glints behind the waterfall..."),
+            (424f, -1, "Boulders! Jump over them or smash them with <color=#ffb03a>HEAVY</color>"),
+            (444f, 4, null),
+            (504f, -1, "Sergeant Snap waits at the shrine gate"),
         };
         int sectionIdx, tipIdx;
         float checkpointX, lastHp;
@@ -103,7 +103,7 @@ namespace Cloudborne
         public static CbGame I { get; private set; }
 
         // Sergeant Snap, the mini-boss: his arena stands in front of the shrine gate
-        const float BossX = 550f;
+        const float BossX = 524f;
         static readonly Zone BossZone = new Zone { x = BossX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
         /// <summary>Sergeant Snap while he is on the stage.</summary>
         public CbEnemy boss;

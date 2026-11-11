@@ -694,20 +694,18 @@ namespace Cloudborne
                 bool low = !air && LowCeiling;
                 crouching = !air && (input.y < -0.5f || low);
                 crouchT = crouching ? crouchT + dt : 0;
-                // just kicked off a wall, the stick can't pull him straight back for a moment; mud slows him, and so
-                // does pushing the stone block
-                bool mud = !air && CbLevel.MudAt(x, y);
+                // just kicked off a wall, the stick can't pull him straight back for a moment; pushing the stone block
+                // slows him
                 pushing = !air && Mathf.Abs(input.x) > 0.3f && g.level != null && g.level.Push(x, y, input.x > 0 ? 1 : -1, dt);
                 if (wallLockT <= 0)
                 {
-                    float top = crouching ? CrawlSpeed : pushing ? PushSpeed : mud ? MudSpeed : onLog && !air ? LogSpeed : input.sprint ? SprintSpeed : RunSpeed;
+                    float top = crouching ? CrawlSpeed : pushing ? PushSpeed : input.sprint ? SprintSpeed : RunSpeed;
                     // turning round at a run: a skid, a puff of dust at his feet
                     if (!air && Mathf.Abs(vx) > 4.5f && input.x * vx < -0.3f && Random.value < 0.6f)
                         CbFx.Spark(new Vector3(x + Mathf.Sign(vx) * 0.25f, y + 0.08f, -0.3f), CbFx.Dust, 2, 2.2f, 0.4f, 0.35f, 1);
                     vx += (input.x * top - vx) * Damp(air ? 6 : 14, dt);
                     if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
                 }
-                if (mud && Random.value < 0.08f && Mathf.Abs(vx) > 0.5f) CbFx.Spark(new Vector3(x, 0.05f, -0.3f), new Color(0.35f, 0.25f, 0.15f), 2, 1.5f, 0.25f, 0.35f, 6);
                 // JUMP pressed with no jump left: kept a moment, for when he lands
                 if (input.jump && air && jumps >= 2 && wallT <= 0) jumpBufT = JumpBuffer;
                 else jumpBufT = Mathf.Max(0, jumpBufT - dt);
@@ -717,7 +715,7 @@ namespace Cloudborne
                 {
                     jumpBufT = 0;
                     cuttable = true;
-                    vy = jumps == 0 ? (mud ? 9.5f : 11.5f) : 10f;
+                    vy = jumps == 0 ? 11.5f : 10f;
                     if (jumps == 1) flipT = FlipTime;
                     jumps++; air = true; state = State.Air;
                     CbFx.Sfx("jump", 0.6f);
@@ -806,8 +804,6 @@ namespace Cloudborne
             else f.flip.localRotation = Quaternion.identity;
             // swinging on a vine he leans with it
             if (state == State.Swing && swingVine != null) f.flip.localRotation = CbArt.Rot(0, 0, swingVine.angle);
-            // on the rolling log he sways, keeping his balance
-            else if (onLog && !air && flipT <= 0) f.flip.localRotation = CbArt.Rot(0, 0, Mathf.Sin(g.clock * 2.7f) * 0.07f + Mathf.Sin(g.clock * 6.1f) * 0.025f);
             // the dive kick: tipped forward so the leg he kicks with points down the way he dives
             if (state == State.Kick && !kickLanded) f.flip.localRotation = CbArt.Rot(0, 0, -facing * KickTilt * Mathf.Clamp01(t / KickHang));
 

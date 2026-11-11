@@ -354,8 +354,8 @@ namespace RacingGame.Tests
             foreach (var m in new[] { "Banyan", "Kapok", "Bamboo" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/{m}/{m}"), $"The {m} tree is missing");
             // the long stage's things drawn in Canva, approved and built by Meshy
-            foreach (var m in new[] { "Lantern", "Snapper", "Cage", "Raft", "Statue", "Gate", "Lever", "Gong", "Leaf", "Chest",
-                "LogRam", "BambooBar", "Thorns", "PushBlock", "Seesaw", "Lift", "ZipPost" })
+            foreach (var m in new[] { "Lantern", "Snapper", "Cage", "Raft", "Statue", "Gate", "Lever", "Leaf", "Chest",
+                "LogRam", "BambooBar", "Thorns", "PushBlock", "ZipPost" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/Ways/{m}/{m}"), $"The {m} model is missing");
             Assert.IsNotNull(Resources.Load<GameObject>("Cloudborne/Items/Key/Key"), "The key model is missing");
             foreach (var m in new[] { "Terrace", "Pillar", "Ledge", "CrumblingLedge" })
@@ -1223,7 +1223,7 @@ namespace RacingGame.Tests
             var oldTrace = Application.GetStackTraceLogType(LogType.Log);
             // where, and how high (the bars are over the river: he hangs from them, or he would be in the water)
             foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("bars", 219f, 4.8f - 1.71f),
-                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("seesaw", 433f, 0f) })
+                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 412.5f, 0f) })
             {
                 game.Teleport(x);
                 game.hero.y = y;
@@ -1373,12 +1373,8 @@ namespace RacingGame.Tests
             game.TestInput = null;
             Assert.Greater(level.PushBlockX, 281f, "Raja did not push the stone block");
             Assert.IsTrue(level.GateOpen(1), "Pushing the block onto the plate did not open the second gate");
-            // the gong lays a bridge across the gorge
-            Assert.Less(level.SupportAt(306f, 1f), -1f, "The gorge has a bridge before the gong");
-            level.Strike(295.6f, 0f, 1, 1.7f, staff: false);
-            Assert.IsTrue(level.GongRung, "The gong was not struck");
-            yield return new WaitForSeconds(2f);
-            Assert.AreEqual(0f, level.SupportAt(306f, 1f), 0.01f, "The gong did not lay the bridge");
+            // past the temple the path is plain ground up to the raft river (the gong and its gorge are gone)
+            Assert.AreEqual(0f, level.SupportAt(306f, 1f), 0.01f, "There is still a gorge after the temple");
         }
 
         [UnityTest]
@@ -1390,7 +1386,7 @@ namespace RacingGame.Tests
             game.SkipFights();
             yield return Frames(2);
             // shut without the key
-            game.Teleport(466.6f);
+            game.Teleport(440.6f);
             yield return new WaitForSeconds(0.3f);
             Assert.IsFalse(game.level.ChestOpen, "The chest opened without its key");
             // the key (up in the treetops) opens it, a tiger token inside
@@ -1398,7 +1394,7 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(0.3f);
             Assert.IsTrue(game.level.ChestOpen, "The key did not open the chest");
             int tokens = game.Tokens;
-            for (float w = 0; w < 2f && game.Tokens == tokens; w += Time.deltaTime) { game.Teleport(467.5f); yield return null; }
+            for (float w = 0; w < 2f && game.Tokens == tokens; w += Time.deltaTime) { game.Teleport(441.5f); yield return null; }
             Assert.AreEqual(tokens + 1, game.Tokens, "No tiger token in the chest");
         }
     }
