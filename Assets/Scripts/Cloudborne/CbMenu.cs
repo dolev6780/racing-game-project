@@ -245,7 +245,8 @@ namespace Cloudborne
             var p = NewPage(Page.Help);
             var panel = Panel(p, "HOW TO PLAY", out _);
             var t = UIKit.Label(panel,
-                "<color=#ffc94a>HIT</color>  paw and kick combo   ·   <color=#ffc94a>↓ + HIT</color>  low sweep\n" +
+                "push the stick a little  walk   ·   all the way  run   ·   twice  <color=#ffc94a>sprint</color>\n" +
+                "<color=#ffc94a>HIT</color>  paw and kick combo   ·   <color=#ffc94a>↓ + HIT</color>  low sweep   ·   <color=#ffc94a>HIT</color> in the air  dive kick\n" +
                 "<color=#ffc94a>HEAVY</color>  staff smash   ·   <color=#ffc94a>↑ + HEAVY</color>  launcher   ·   hold <color=#ffc94a>HEAVY</color>  staff whirl\n" +
                 "<color=#ffc94a>DASH → HEAVY</color>  thrust   ·   <color=#ffc94a>HEAVY</color> in the air  slam   ·   <color=#ffc94a>JUMP</color> twice  double somersault\n" +
                 "<color=#ffc94a>KI</color>  staff lunge   ·   <color=#ffc94a>HIT, HIT, KI</color>  staff cyclone   ·   <color=#ffc94a>SPECIAL</color>  staff storm   (fire comes with the fire crystal)\n" +

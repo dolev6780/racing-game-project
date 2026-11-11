@@ -1118,6 +1118,31 @@ namespace Cloudborne
             input.heavyHeldT = heavyHeldT;
             input.x = Mathf.Clamp(input.x, -1, 1);
             input.y = Mathf.Clamp(input.y, -1, 1);
+            ReadSprint(input);
+        }
+
+        // a press is the stick pushed past SprintPress (a light push only walks); pressed again the same way within
+        // SprintTap of letting go, he sprints until it is let go
+        const float SprintPress = 0.6f, SprintTap = 0.3f;
+        int pressDir, lastPressDir;
+        float releasedAt = -9f;
+        bool sprinting;
+
+        void ReadSprint(CbInput inp)
+        {
+            int dir = inp.x > SprintPress ? 1 : inp.x < -SprintPress ? -1 : 0;
+            if (dir != 0 && pressDir == 0)
+            {
+                sprinting = dir == lastPressDir && Time.unscaledTime - releasedAt < SprintTap;
+                lastPressDir = dir;
+            }
+            if (Mathf.Abs(inp.x) < 0.3f)
+            {
+                if (pressDir != 0) releasedAt = Time.unscaledTime;
+                sprinting = false;
+            }
+            if (dir != 0 || Mathf.Abs(inp.x) < 0.3f) pressDir = dir;
+            inp.sprint = sprinting && dir != 0;
         }
 
         /// <summary>Test hook: edits the input every frame after touch and keyboard are read.</summary>

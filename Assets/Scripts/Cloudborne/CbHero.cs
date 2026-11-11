@@ -10,6 +10,8 @@ namespace Cloudborne
         // atk: HIT (light), heavy: HEAVY (the staff), kiTap: KI (FIRE once his fire is awake), skill: SPECIAL
         public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm, menu;
         public bool atkDown, heavyDown, guard;   // held
+        // the way he runs pressed twice (CbGame): he sprints until it is let go
+        public bool sprint;
         public float atkHeldT, heavyHeldT;
 
         public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = menu = false; }
@@ -153,7 +155,8 @@ namespace Cloudborne
         // swing clip, both hands up behind his head); it leaves his hand at StowAt of the way
         const float StowTime = 0.32f, StowAt = 0.6f;
         // below WalkSpeed he walks (a light push on the stick), above it he runs; the walk clip's own pace
-        const float WalkSpeed = 4.2f, WalkClipPace = 1.4f;
+        // a light push of the stick walks, a full one runs, pressed twice he sprints (the user)
+        const float WalkSpeed = 4.2f, WalkClipPace = 1.4f, RunSpeed = 7f, SprintSpeed = 10.5f;
         int combo, jumps, airHits, hits;
         // the last safe place he stood (ground, a bridge, a steady stone): falling into the water puts him back there
         float safeX, safeY;
@@ -619,7 +622,7 @@ namespace Cloudborne
                 pushing = !air && Mathf.Abs(input.x) > 0.3f && g.level != null && g.level.Push(x, y, input.x > 0 ? 1 : -1, dt);
                 if (wallLockT <= 0)
                 {
-                    float top = crouching ? 0f : pushing ? PushSpeed : mud ? MudSpeed : 7f;
+                    float top = crouching ? 0f : pushing ? PushSpeed : mud ? MudSpeed : input.sprint ? SprintSpeed : RunSpeed;
                     vx += (input.x * top - vx) * Damp(air ? 6 : 14, dt);
                     if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
                 }
@@ -680,7 +683,11 @@ namespace Cloudborne
                 runPh += dt * Mathf.Abs(vx) * 1.9f;
                 walkT += dt * Mathf.Abs(vx) / WalkClipPace;
                 Pose.Run(ref pose, runPh);
-                if (Random.value < 0.15f) CbFx.Spark(new Vector3(x - facing * 0.3f, 0.1f, Random.Range(-0.3f, 0.3f)), CbFx.Dust, 1, 1.5f, 0.35f, 0.4f, -1);
+                bool sprinting = Mathf.Abs(vx) > RunSpeed + 1f;
+                // dust at his heels; a sprint throws up more of it
+                if (Random.value < (sprinting ? 0.6f : 0.15f))
+                    CbFx.Spark(new Vector3(x - facing * 0.3f, y + 0.1f, Random.Range(-0.3f, 0.3f)), CbFx.Dust, sprinting ? 2 : 1, sprinting ? 2.5f : 1.5f, 0.35f, 0.4f, -1);
+                if (sprinting) pose.lean += 0.25f;
             }
             else if (state == State.Air)
             {
