@@ -141,6 +141,9 @@ namespace Cloudborne
         {
             // stone lanterns: where he comes back (the start counts as one)
             foreach (var x in new[] { 108f, 196f, 242f, 293f, 337f, 401f, 472f, 536f }) AddLantern(x);
+            // the ends of the stage: closed gates where he can go no further
+            AddEndGate(CbWorld.LevelMin - HalfWidth - 1.75f);
+            AddEndGate(CbWorld.LevelMax + HalfWidth + 1.75f);
 
             // ---- the vine ravine
             AddVine(204f, 9f, 5f);
@@ -395,6 +398,21 @@ namespace Cloudborne
             CbArt.Cylinder(Wood, leverHandle, new Vector3(0, 0.45f, 0), 0.06f, 0.9f);
             CbArt.Part(CbMesh.Sphere, M("#c9302c"), leverHandle, new Vector3(0, 0.95f, 0), Vector3.one * 0.22f);
             leverHandle.localRotation = Quaternion.Euler(0, 0, 35);
+        }
+
+        /// <summary>
+        /// A closed bamboo gate where the stage ends at either side, the way on barred: he used to stop at a wall no one
+        /// could see (the user). It stands just past where he stops, a little behind the path.
+        /// </summary>
+        void AddEndGate(float x)
+        {
+            var t = CbArt.Joint(root, x, 0, 0f, "endGate");
+            var model = Model("Gate", t, new Vector3(3.45f, 3.6f, 1.24f), 180f);
+            if (model != null) { model.localPosition = new Vector3(0, 0, 0.3f); return; }
+            for (float bx = -1.4f; bx <= 1.41f; bx += 0.28f)
+                CbArt.Cylinder(Bamboo, t, new Vector3(bx, 1.8f, 0.3f), 0.08f, 3.6f);
+            CbArt.Box(Wood, t, new Vector3(0, 3.3f, 0.3f), new Vector3(3.2f, 0.2f, 0.2f));
+            CbArt.Box(Wood, t, new Vector3(0, 0.8f, 0.3f), new Vector3(3.2f, 0.2f, 0.2f));
         }
 
         void AddGate(float x)

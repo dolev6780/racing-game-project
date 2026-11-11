@@ -24,23 +24,18 @@ namespace Cloudborne
         public Transform root;
         // The clean painted look (the user's reference: a bright storybook platformer): a soft misty backdrop, a row
         // of big painted trees, a hedge of bushes and flowers right behind the path, a thick grass lip on the ground's
-        // front edge and leaves hanging into the top of the view. On when its paintings are in the project.
-        const string CanopyPath = "Cloudborne/Jungle/Backdrop/Canopy", LipPath = "Cloudborne/Jungle/Ground/GroundLip",
+        // front edge. On when its paintings are in the project. (Leaves hung into the top of the view too, held in front
+        // of the camera: they jumped with every jump, and the user had them taken out.)
+        const string LipPath = "Cloudborne/Jungle/Ground/GroundLip",
             WaterSidePath = "Cloudborne/Jungle/Water/WaterSide", WaterSurfacePath = "Cloudborne/Jungle/Water/WaterSurface", ClumpPath = "Cloudborne/Jungle/Backdrop/BushClump";
         // the painted river cross-section: SideDepth tall (all of the painting), its foam crests SideCrest over the
         // water's surface, repeating every SideTile metres
         const float SideDepth = 3.4f, SideCrest = 0.23f, SideTile = SideDepth * 1563f / 846f;
         // a rounded clump of bushes where the hedge meets a river, ClumpHeight tall
         const float ClumpHeight = 2.1f;
-        static bool NewLook => Resources.Load<Texture2D>(CanopyPath) != null;
+        static bool NewLook => Resources.Load<Texture2D>(LipPath) != null;
         // the painted ground drawn as painted (unlit), a touch darker so the characters stand out from it
         static readonly Color PaintTint = new Color(0.93f, 0.92f, 0.95f);
-        // the hanging leaves: CanopyShare of the view's height at the top, CanopyDist in front of the camera, sliding
-        // a little faster than the path as the camera follows him (they are nearer)
-        const float CanopyShare = 0.2f, CanopyDist = 6f, CanopyDrift = 0.4f;
-        Transform canopy;
-        Material canopyMat;
-        Camera canopyCam;
         readonly List<(Transform t, Material m, float ph, float baseA)> shafts = new List<(Transform, Material, float, float)>();
         readonly List<Transform> mists = new List<Transform>();
         Transform flies;
@@ -220,36 +215,6 @@ namespace Cloudborne
 
         /// <summary>The ground behind the path where the bushes stand: all of it but the streams and rivers.</summary>
         static List<(float a, float b)> BushGround() => BankToBank(-120f, End + 120f, 0.3f);
-
-        /// <summary>
-        /// The hanging leaves along the top of the view (the new look), held in front of the camera; Update keeps them
-        /// the right size for the view and slides them as the camera follows him.
-        /// </summary>
-        public void AttachCanopy(Camera cam)
-        {
-            if (!NewLook || cam == null) return;
-            var tex = Resources.Load<Texture2D>(CanopyPath);
-            canopyMat = Cutout(tex, 0f, PaintTint);
-            if (canopyMat == null) return;
-            tex.wrapModeU = TextureWrapMode.Repeat;
-            tex.wrapModeV = TextureWrapMode.Clamp;
-            canopyCam = cam;
-            canopy = CbArt.Part(CbMesh.Quad, canopyMat, cam.transform, new Vector3(0, 0, CanopyDist), Vector3.one, shadows: false);
-            canopy.name = "canopy";
-        }
-
-        void UpdateCanopy(float camX)
-        {
-            float halfH = Mathf.Tan(canopyCam.fieldOfView * 0.5f * Mathf.Deg2Rad) * CanopyDist;
-            float h = halfH * 2 * CanopyShare, w = halfH * canopyCam.aspect * 2.3f;
-            canopy.localPosition = new Vector3(0, halfH - h / 2 + h * 0.03f, CanopyDist);
-            canopy.localRotation = Quaternion.identity;
-            canopy.localScale = new Vector3(w, h, 1);
-            var tex = canopyMat.mainTexture;
-            float tileW = h * tex.width / tex.height;
-            canopyMat.mainTextureScale = new Vector2(w / tileW, 1);
-            canopyMat.mainTextureOffset = new Vector2(camX * CanopyDrift * CanopyDist / 24f / tileW, 0);
-        }
 
         bool layers;
 
@@ -985,7 +950,6 @@ namespace Cloudborne
                 m.localPosition = p;
             }
             flies.localPosition = new Vector3(camX, 3.2f, 3.5f);
-            if (canopy != null) UpdateCanopy(camX);
             // the streams flow towards the camera; their cascades pour down
             for (int i = 0; i < waterMats.Count; i++)
                 waterMats[i].mainTextureOffset = new Vector2(0, (i % 2 == 0 ? -0.12f : 0.6f) * t);
