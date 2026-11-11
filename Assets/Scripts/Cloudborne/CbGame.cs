@@ -124,7 +124,7 @@ namespace Cloudborne
         Camera cam;
         Light sun;
         Transform actors;
-        float comboT, camX, camY = CamBase, fovKick, overT, atkHeldT, heavyHeldT;
+        float comboT, camX, camY = CamBase, fovKick, overT, atkHeldT, heavyHeldT, camBack = 1f;
         int lastScore = -1;
         readonly List<(float at, CbEnemy.Kind kind, float x, Zone zone)> pending = new List<(float, CbEnemy.Kind, float, Zone)>();
         readonly List<Shot> shots = new List<Shot>();
@@ -136,6 +136,8 @@ namespace Cloudborne
         // and the scenery stands up behind it, instead of a green floor tilting away.
         // the camera looks a little above his head: the ground sits low in the view, the painted jungle fills it
         const float BaseFov = 26f, CamBase = 2.1f, CamRise = 0.6f, ViewHalfWidth = 8f, LookAhead = 2.4f;
+        // drawn back over high ground: down to CamLow (just under the water) in view, at most CamBackMax times as far
+        const float CamLow = -0.9f, CamBackMax = 1.45f;
 
         class Shot { public Transform t, glow; public float x, y, vx, life, crackle; }
         /// <summary>The special shot's beam: its layers, how long it has run, where it starts and which way it points.</summary>
@@ -1098,12 +1100,30 @@ namespace Cloudborne
             // ViewHalfWidth metres of the path either side of the centre: close enough that Raja and the soldiers are
             // big on the screen (the user's reference), looking further ahead the way he faces to make up for it
             float dist = Mathf.Clamp(ViewHalfWidth / (tanH * cam.aspect), 11f, 24f);
+            // up high (a rock in the river, a ledge, the mountain, the bars) the camera draws back to show the ground
+            // or the water below him and the way on (the user, on the rock in the river: you can't see where to go).
+            // From where he stands, so a jump doesn't pull it in and out; never more than CamBackMax.
+            float stand = Mathf.Max(0, hero.StandY);
+            float needHalf = (stand + 2.4f - CamLow) / 2 + 0.3f;
+            float back = Mathf.Clamp(Mathf.Max(needHalf / (dist * tanH), 1f + 0.12f * Mathf.Min(stand, 3f)), 1f, CamBackMax);
+            if (mode != Mode.Play) back = 1f;
+            camBack += (back - camBack) * (1 - Mathf.Exp(-2f * dt));
+            dist *= camBack;
             float tx = hero.x + hero.facing * LookAhead;
             // in the menu Raja stands on the right of the screen, the menu on the left, the camera a little closer
             if (mode == Mode.Title) { tx = hero.x - 3.4f + Mathf.Sin(clock * 0.2f) * 0.3f; dist *= 0.72f; }
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
             // half his height on the path and in jumps; high up the mountain the camera climbs with him
             float ty = CamBase + Mathf.Max(hero.y * 0.5f, hero.y - 2.5f);
+            // up high, the view's foot rests just below the ground (as far as it can, him still in view)
+            float high = mode == Mode.Play ? Mathf.Clamp01((stand - 0.4f) / 0.8f) : 0f;
+            if (high > 0)
+            {
+                float half = dist * tanH;
+                ty = Mathf.Lerp(ty, Mathf.Max(CamLow + half, stand + 2.7f - half), high);
+                // ...but it follows him up when he jumps from there
+                ty = Mathf.Max(ty, hero.y + 2.2f - half);
+            }
             // a scene directs the camera itself: where it looks and how close it comes
             if (mode == Mode.Scene && scene != null) { tx = camX = scene.camX; ty = camY = scene.camY; dist *= scene.zoom; }
             camX += (tx - camX) * (1 - Mathf.Exp(-3.5f * dt));

@@ -733,6 +733,13 @@ namespace Cloudborne
         /// <summary>Holding on to a vine, a vine wall, a bar or a zipline: the game places him itself.</summary>
         bool Holding => state == State.Swing || state == State.Vine || state == State.Bars || state == State.Zip;
 
+        /// <summary>
+        /// The height he stands (or hangs, or clings) at: his own while on something, the last one in a jump or a fall,
+        /// the water's in the water. The camera draws back from it to show the ground below when he is up high.
+        /// </summary>
+        public float StandY => state == State.Swim ? 0f : (!air || Holding || state == State.Hang || state == State.Climb) ? (standY = y) : standY;
+        float standY;
+
         void StepPhysics(CbInput input, float dt)
         {
             if (state != State.Dash || !air) vy -= 30 * dt;
