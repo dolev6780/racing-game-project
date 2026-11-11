@@ -11,7 +11,7 @@ namespace Cloudborne
     /// up to a tiger token.</item>
     /// <item>The temple of traps (240-292): thorns cut with the staff, a dart statue, a hidden pit, swinging logs, a
     /// lever's gate, a stone block pushed onto a plate for the second gate, a snapping plant.</item>
-    /// <item>The gong gorge (292-336): a gong that lays a bridge, a beehive over two raiders, a cage to break open.</item>
+    /// <item>The gong gorge (292-336): a gong that lays a bridge, two raiders, a cage to break open.</item>
     /// <item>The raft river (336-400): a mud bank, rafts drifting down a long river, a rock island with a snapping
     /// plant, a spinning log that rolls him back.</item>
     /// <item>The canopy and the waterfall (400-470): a vine-grown pillar, an updraft, ledges and bars in the treetops
@@ -52,7 +52,7 @@ namespace Cloudborne
         class Leaf { public float x, half, top, squash; public Transform t; }
         class Draft { public float x0, x1, y0, y1; }
         class Raft { public float x, from, to, speed, sink, baseY; public Transform t; }
-        class Lift { public float x, half, top, lo, hi; public Transform deck, weight; }
+        class Lift { public float x, half, top, lo, hi; public Transform deck, weight, rope; }
         class Lantern { public float x; public bool lit; public Material light; public Renderer window; }
         class Gate { public Block b; public float open; public bool wantOpen, sinks; public Vector3 home; }
         class Thorns { public Block b; public int hp = 2; public float cool, clang; }
@@ -63,9 +63,9 @@ namespace Cloudborne
         class Cage { public float x; public int hp = 3; public bool freed; public Transform t, animal, model; public float hop, cool; }
         class Boulder { public float x, vx, cool; public bool rolling; public Transform t; }
 
-        const float LeafBounce = 19.5f, RaftTop = 0.1f, LogTop = 0.15f, LogRollBack = 1.4f, SeesawTop = 0.35f;
+        const float LeafBounce = 19.5f, RaftTop = 0.1f, LogTop = 0.15f, SeesawTop = 0.35f;
         const float StatueX = 251.5f, PlateX = 284.5f, LeverX = 276f, GongX = 296.5f, BridgeFrom = 300f, BridgeTo = 312f;
-        const float HiveX = 320f, HiveY = 4.4f, ChestX = 467.5f, SeesawX = 430f, MudFrom = 338f, MudTo = 344f;
+        const float ChestX = 467.5f, SeesawX = 430f, MudFrom = 338f, MudTo = 344f;
         const float LogFrom = 370f, LogTo = 378f;
         // the darts fly from the guardian's mouth: over a ducking Raja, into a standing one
         const float DartY = 1.35f;
@@ -87,9 +87,12 @@ namespace Cloudborne
         readonly List<Cage> cages = new List<Cage>();
         readonly List<Boulder> boulders = new List<Boulder>();
         Block pushBlock;
-        float pushHome, dartT, bridge, hiveFall = -1, hiveY, bees, beeTick, logSpin, seesawT = -1, boulderT;
+        // the stone block once pushed onto its plate: sunk into it a little, it stays there (the user)
+        bool blockSet;
+        const float BlockSink = 0.2f;
+        float pushHome, dartT, bridge, logSpin, seesawT = -1, boulderT;
         bool lever, gong, chestOpen, leverModel;
-        Transform leverHandle, gongDisc, hive, chestLid, chestModel, logT, plank, stone, bridgeT;
+        Transform leverHandle, gongDisc, chestLid, chestModel, logT, plank, stone, bridgeT;
 
         /// <summary>The stone lanterns where he comes back after falling.</summary>
         public IEnumerable<float> Checkpoints { get { foreach (var l in lanterns) yield return l.x; } }
@@ -169,7 +172,6 @@ namespace Cloudborne
 
             // ---- the gong gorge
             BuildGong();
-            BuildHive();
             AddCage(327f);
             AddSnapper(331f, 0f);
 
@@ -565,7 +567,10 @@ namespace Cloudborne
 
         void BuildGong()
         {
-            var t = CbArt.Joint(root, GongX, 0, 0.4f, "gong");
+            // turned toward Raja and the camera like the temple's gates (it stood square to the camera: the user), back
+            // from the path so he passes in front of it
+            var t = CbArt.Joint(root, GongX, 0, 1.4f, "gong");
+            t.localRotation = Quaternion.Euler(0, EndGateTurn, 0);
             bridgeT = CbArt.Joint(root, BridgeFrom, -0.08f, 0.1f, "gongBridge");
             for (float x = 0.3f; x < BridgeTo - BridgeFrom; x += 0.62f)
                 CbArt.Box(Wood, bridgeT, new Vector3(x, 0, 0), new Vector3(0.55f, 0.14f, 1.4f)).gameObject.SetActive(false);
@@ -577,20 +582,6 @@ namespace Cloudborne
             CbArt.Cylinder(Wood, t, new Vector3(0, 2.6f, 0), 0.1f, 1.8f, Quaternion.Euler(0, 0, 90));
             gongDisc = CbArt.Joint(t, 0, 1.6f, 0, "disc");
             CbArt.Cylinder(new Material(CbArt.Emissive(new Color(0.9f, 0.62f, 0.15f))), gongDisc, Vector3.zero, 0.7f, 0.08f, Quaternion.Euler(90, 0, 0));
-        }
-
-        void BuildHive()
-        {
-            hive = CbArt.Joint(root, HiveX, HiveY, 0f, "beehive");
-            hiveY = HiveY;
-            // the model: the hive hanging from its own branch
-            if (Model("Hive", hive, new Vector3(0.73f, 1.4f, 1.07f), 180f) != null) return;
-            CbArt.Cylinder(Wood, root, new Vector3(HiveX, HiveY + 1.6f, 0.2f), 0.2f, 3f, Quaternion.Euler(0, 0, 90));
-            CbArt.Part(CbMesh.Blob(8, 6), M("#d9a640"), hive, Vector3.zero, new Vector3(0.6f, 0.8f, 0.6f));
-            for (int k = -1; k <= 1; k++)
-                CbArt.Part(CbMesh.Torus(0.12f), M("#7a5220"), hive, new Vector3(0, k * 0.22f, 0), new Vector3(0.32f, 0.3f, 0.32f));
-            CbArt.Cylinder(VineGreen, hive, new Vector3(0, 1f, 0), 0.03f, 1.2f);
-            hiveY = HiveY;
         }
 
         void AddCage(float x)
@@ -649,10 +640,16 @@ namespace Cloudborne
 
         void BuildRollingLog()
         {
+            // the jungle's mossy log (it was a plain orange tube with pegs: the user), drawn out along its length (its
+            // bark runs that way) and turning about its middle
             logT = CbArt.Joint(root, (LogFrom + LogTo) / 2, LogTop - 0.35f, 0.05f, "rollingLog");
-            CbArt.Cylinder(Wood, logT, Vector3.zero, 0.35f, LogTo - LogFrom, Quaternion.Euler(0, 0, 90));
-            for (float x = -3.5f; x <= 3.6f; x += 1.4f)
-                CbArt.Box(M("#5c3a20"), logT, new Vector3(x, 0, -0.3f), new Vector3(0.12f, 0.5f, 0.12f));
+            var log = CbArt.Prop("Cloudborne/Jungle/Log/Log", logT, CbArt.PropOutline);
+            if (log != null)
+            {
+                log.localScale = new Vector3((LogTo - LogFrom) / 2f, 1f, 1f);
+                log.localPosition = new Vector3(0, -0.35f, 0);
+            }
+            else CbArt.Cylinder(Wood, logT, Vector3.zero, 0.35f, LogTo - LogFrom, Quaternion.Euler(0, 0, 90));
         }
 
         void DressVines(Block b, float x)
@@ -695,9 +692,20 @@ namespace Cloudborne
                 CbArt.Box(Wood, deck, new Vector3(0, -0.1f, 0), new Vector3(1.6f, 0.2f, 1.2f));
             }
             CbArt.Cylinder(Wood, root, new Vector3(x, hi + 1.6f, 0.3f), 0.35f, 0.2f, Quaternion.Euler(90, 0, 0));
+            // the counterweight: a mossy boulder in a rope sling, its rope up over a beam to the pulley (it was a plain
+            // white ball: the user)
+            CbArt.Cylinder(Wood, root, new Vector3(x + 0.65f, hi + 1.6f, 0.3f), 0.07f, 1.5f, Quaternion.Euler(0, 0, 90));
             var weight = CbArt.Joint(root, x + 1.2f, hi, 0.3f, "counterweight");
-            CbArt.Part(CbMesh.Blob(6, 4), StoneGrey, weight, Vector3.zero, Vector3.one * 0.7f);
-            lifts.Add(new Lift { x = x, half = 0.8f, top = lo, lo = lo, hi = hi, deck = deck, weight = weight });
+            if (CbArt.Prop("Cloudborne/Jungle/Boulder/Boulder", weight, CbArt.PropOutline) is Transform rock)
+            {
+                rock.localScale *= 0.55f;
+                rock.localPosition = new Vector3(0, -0.33f, 0);
+            }
+            else CbArt.Part(CbMesh.Blob(6, 4), StoneGrey, weight, Vector3.zero, Vector3.one * 0.7f);
+            foreach (float a in new[] { -0.3f, 0.3f })
+                CbArt.Cylinder(M("#9a7a48"), weight, new Vector3(a * 0.5f, 0.12f, 0), 0.025f, 0.75f, Quaternion.Euler(0, 0, a * Mathf.Rad2Deg * -1.2f));
+            var rope = CbArt.Cylinder(M("#9a7a48"), root, Vector3.zero, 0.03f, 1f);
+            lifts.Add(new Lift { x = x, half = 0.8f, top = lo, lo = lo, hi = hi, deck = deck, weight = weight, rope = rope });
         }
 
         void BuildWaterfall(float x0, float x1, float top)
@@ -879,7 +887,7 @@ namespace Cloudborne
         public bool Push(float x, float y, int dir, float dt)
         {
             var b = pushBlock;
-            if (b == null || y > 0.05f) return false;
+            if (b == null || blockSet || y > 0.05f) return false;
             float side = dir > 0 ? b.x0 - HalfWidth : b.x1 + HalfWidth;
             if (Mathf.Abs(x - side) > 0.08f) return false;
             float step = dir * 1.6f * dt;
@@ -932,12 +940,6 @@ namespace Cloudborne
                 g.shake = Mathf.Max(g.shake, 0.3f);
                 g.hud.SetTip("BONG! A bridge lays itself across the gorge");
             }
-            if (hiveFall < 0 && InReach(HiveX, x, dir, range) && Mathf.Abs(y + 1.2f - HiveY) < 1.6f)
-            {
-                hiveFall = 0; any = true;
-                CbFx.Sfx("hit");
-                g.hud.SetTip("The bees are angry - at the raiders!");
-            }
             foreach (var c in cages)
             {
                 if (c.freed || !InReach(c.x, x, dir, range) || y > 1.4f) continue;
@@ -980,7 +982,17 @@ namespace Cloudborne
         {
             c.freed = true;
             for (int i = 0; i < c.t.childCount; i++) c.t.GetChild(i).gameObject.SetActive(c.t.GetChild(i) == c.animal);
-            CbFx.Puff(new Vector3(c.x, 0.8f, -0.3f), new Color(0.85f, 0.76f, 0.6f), 7, 1.6f, 0.7f, 0.45f);
+            // it bursts apart: its bamboo bars and lashings fly (it vanished into thin air: the user)
+            int side = g.hero.x <= c.x ? 1 : -1;
+            for (int k = 0; k < 10; k++)
+            {
+                float len = Random.Range(0.5f, 1.3f);
+                var bar = CbArt.Cylinder(k < 7 ? Bamboo : Wood, g.transform, new Vector3(c.x + Random.Range(-0.6f, 0.6f), Random.Range(0.3f, 1.3f), Random.Range(-0.3f, 0.6f)),
+                    k < 7 ? 0.05f : 0.08f, len, Random.rotation);
+                g.AddDebris(bar, new Vector3(side * Random.Range(1.5f, 5f) + Random.Range(-1.5f, 1.5f), Random.Range(3f, 6.5f), Random.Range(-1f, 1f)), Random.Range(-500f, 500f));
+            }
+            CbFx.Puff(new Vector3(c.x, 0.8f, -0.3f), new Color(0.85f, 0.76f, 0.6f), 9, 1.8f, 0.8f, 0.5f);
+            CbFx.Sfx("hit", 0.7f);
             CbFx.Sfx("pickup");
             g.score += 300;
             g.hud.Popup(new Vector3(c.x, 2f, 0), "FRIEND FREED!", CbHud.PopStyle.Normal);
@@ -1043,7 +1055,17 @@ namespace Cloudborne
                 if (gongDisc != null) gongDisc.localRotation = Quaternion.Euler(0, 180, Mathf.Sin(Time.time * 30) * 2.5f * (1 - bridge));
             }
             // gates slide up when opened; the second opens while its plate is pressed
-            bool pressed = (Mathf.Abs(hero.x - PlateX) < 0.6f && hero.y < 0.1f) || (pushBlock.x0 < PlateX && pushBlock.x1 > PlateX);
+            // the block pushed onto the plate settles into it with a thud and stays
+            if (!blockSet && Mathf.Abs(PushBlockX - PlateX) < 0.25f)
+            {
+                blockSet = true;
+                pushBlock.x0 = PlateX - 0.5f; pushBlock.x1 = PlateX + 0.5f; pushBlock.top = 1f - BlockSink;
+                pushBlock.t.localPosition = new Vector3(PlateX, -BlockSink, 0);
+                CbFx.Puff(new Vector3(PlateX, 0.15f, -0.4f), new Color(0.8f, 0.75f, 0.65f), 6, 1.4f, 0.7f, 0.5f);
+                CbFx.Sfx("heavy", 0.6f);
+                g.shake = Mathf.Max(g.shake, 0.15f);
+            }
+            bool pressed = (Mathf.Abs(hero.x - PlateX) < 0.6f && hero.y < 0.1f) || blockSet || (pushBlock.x0 < PlateX && pushBlock.x1 > PlateX);
             if (gates.Count > 1) gates[1].wantOpen = pressed || (gates[1].open > 0 && Mathf.Abs(hero.x - (gates[1].b.x0 + gates[1].b.x1) / 2) < 0.8f);
             foreach (var gt in gates)
             {
@@ -1053,24 +1075,6 @@ namespace Cloudborne
                 if (gt.sinks && gt.open != was && Random.value < 0.5f)
                     CbFx.Puff(gt.home + new Vector3(Random.Range(-1.4f, 1.4f), 0.2f, -0.2f), new Color(0.8f, 0.75f, 0.65f), 1, 1f, 0.8f, 0.6f);
                 gt.b.broken = gt.open > 0.8f;
-            }
-            // the beehive: it falls, and the bees go for the raiders near it
-            if (hiveFall >= 0)
-            {
-                hiveFall += dt;
-                if (hiveY > 0.4f) { hiveY = Mathf.Max(0.4f, hiveY - dt * (2 + hiveFall * 20)); hive.localPosition = new Vector3(HiveX, hiveY, 0); }
-                else if (bees < 7f)
-                {
-                    bees += dt;
-                    beeTick -= dt;
-                    if (Random.value < 0.8f) CbFx.Spark(new Vector3(HiveX + Random.Range(-2.5f, 2.5f), Random.Range(0.6f, 2.2f), -0.4f), new Color(1f, 0.85f, 0.2f) * 2f, 1, 3, 0.15f, 0.4f, 0);
-                    if (beeTick <= 0)
-                    {
-                        beeTick = 0.4f;
-                        foreach (var e in g.enemies.ToArray())
-                            if (!e.dead && Mathf.Abs(e.x - HiveX) < 3.8f) g.HurtEnemy(e, 3, e.x >= HiveX ? 1 : -1, 0.5f, 0, false, false, false, false);
-                    }
-                }
             }
             // a freed friend hops off into the jungle
             foreach (var c in cages)
@@ -1222,7 +1226,6 @@ namespace Cloudborne
             logSpin += dt * 160f;
             if (logT != null) logT.localRotation = Quaternion.Euler(logSpin, 0, 0);
             hero.onLog = OnRollingLog(hero.x, hero.y);
-            if (hero.onLog && hero.state != CbHero.State.Dash) hero.x -= LogRollBack * dt;
             // lifts rise while he stands on them, and sink back
             foreach (var l in lifts)
             {
@@ -1231,7 +1234,12 @@ namespace Cloudborne
                 l.top = Mathf.MoveTowards(l.top, on ? l.hi : l.lo, dt * 1.8f);
                 if (on) hero.y = l.top;
                 l.deck.localPosition = new Vector3(l.x, l.top, 0.05f);
-                l.weight.localPosition = new Vector3(l.x + 1.2f, l.hi + l.lo - l.top, 0.3f);
+                float wy = l.hi + l.lo - l.top;
+                l.weight.localPosition = new Vector3(l.x + 1.2f, wy, 0.3f);
+                // its rope from the sling's knot up to the beam
+                float knot = wy + 0.45f, beam = l.hi + 1.6f;
+                l.rope.localPosition = new Vector3(l.x + 1.2f, (knot + beam) / 2, 0.3f);
+                l.rope.localScale = new Vector3(0.03f, Mathf.Max(0.05f, beam - knot), 0.03f);
                 if (on && l.top != was && Random.value < 0.1f) CbFx.Sfx("talk", 0.3f);
             }
             // the seesaw: the stone drops on its far end, and whoever stands on the near end flies
@@ -1277,7 +1285,8 @@ namespace Cloudborne
             for (int i = 0; i < bridgeT.childCount; i++) bridgeT.GetChild(i).gameObject.SetActive(false);
             foreach (var gt in gates) { gt.open = 0; gt.wantOpen = false; gt.b.broken = false; gt.b.t.localPosition = gt.home; }
             pushBlock.x0 = pushHome - 0.5f; pushBlock.x1 = pushHome + 0.5f; pushBlock.t.localPosition = new Vector3(pushHome, 0, 0);
-            hiveFall = -1; hiveY = HiveY; bees = 0; hive.localPosition = new Vector3(HiveX, HiveY, 0);
+            pushBlock.top = 1f; blockSet = false;
+
             if (chestLid != null) chestLid.localRotation = Quaternion.identity;
             if (chestModel != null) chestModel.localScale = Vector3.one;
             seesawT = -1;

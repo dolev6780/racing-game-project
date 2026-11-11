@@ -150,7 +150,7 @@ namespace Cloudborne
             // the temple of traps
             foreach (var x in new[] { 249f, 253f, 258.5f, 260f, 265.8f, 272.5f, 282.5f, 288.6f }) C(x, 1.2f);
             Spawn(Kind.Coin, new Vector3(255.2f, 2.2f, 0), resting: true);
-            // the gong's bridge, the hive, the cage
+            // the gong's bridge, the cage
             for (float x = 301f; x < 312f; x += 1.5f) C(x, 1f);
             foreach (var x in new[] { 316f, 324f, 329f }) C(x, 1.2f);
             // the raft river: over the rafts' way, the island, the log

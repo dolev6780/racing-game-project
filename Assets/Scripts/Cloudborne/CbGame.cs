@@ -57,7 +57,7 @@ namespace Cloudborne
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
             (241f, -1, "The old temple: thorns need the staff, mind the floor, duck <color=#ffb03a>↓</color> the darts"),
             (292f, -1, "Strike the gong!"),
-            (336f, -1, "Mud slows you. Ride the rafts; the spinning log rolls you back - keep walking"),
+            (336f, -1, "Mud slows you. Ride the rafts; on the spinning log, keep your balance"),
             (400f, -1, "Climb the vines (hold <color=#ffb03a>↑</color>), ride the wind up to the treetops"),
             (438f, -1, "Something glints behind the waterfall..."),
             (450f, -1, "Boulders! Jump over them or smash them with <color=#ffb03a>HEAVY</color>"),

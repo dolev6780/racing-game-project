@@ -622,7 +622,7 @@ namespace Cloudborne
                 pushing = !air && Mathf.Abs(input.x) > 0.3f && g.level != null && g.level.Push(x, y, input.x > 0 ? 1 : -1, dt);
                 if (wallLockT <= 0)
                 {
-                    float top = crouching ? 0f : pushing ? PushSpeed : mud ? MudSpeed : input.sprint ? SprintSpeed : RunSpeed;
+                    float top = crouching ? 0f : pushing ? PushSpeed : mud ? MudSpeed : onLog && !air ? LogSpeed : input.sprint ? SprintSpeed : RunSpeed;
                     vx += (input.x * top - vx) * Damp(air ? 6 : 14, dt);
                     if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
                 }
@@ -719,6 +719,8 @@ namespace Cloudborne
             else f.flip.localRotation = Quaternion.identity;
             // swinging on a vine he leans with it
             if (state == State.Swing && swingVine != null) f.flip.localRotation = CbArt.Rot(0, 0, swingVine.angle);
+            // on the rolling log he sways, keeping his balance
+            else if (onLog && !air && flipT <= 0) f.flip.localRotation = CbArt.Rot(0, 0, Mathf.Sin(g.clock * 2.7f) * 0.07f + Mathf.Sin(g.clock * 6.1f) * 0.025f);
             // the dive kick: tipped forward so the leg he kicks with points down the way he dives
             if (state == State.Kick && !kickLanded) f.flip.localRotation = CbArt.Rot(0, 0, -facing * KickTilt * Mathf.Clamp01(t / KickHang));
 

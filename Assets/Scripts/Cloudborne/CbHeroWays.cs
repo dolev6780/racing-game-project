@@ -14,6 +14,8 @@ namespace Cloudborne
         // his hands above his feet hanging from a rope or vine, and from a bar (measured on the model at its game size)
         const float RopeReach = 1.48f, BarReach = 1.71f;
         const float MaxSwing = 1.1f, VineClimbSpeed = 2.6f, BarSpeed = 2.4f, ZipTop = 13f, PitDamage = 10f, MudSpeed = 3.2f, PushSpeed = 1.6f;
+        // on the rolling log he walks slowly, balancing, his feet treading as it turns under him
+        const float LogSpeed = 2.4f;
 
         CbLevel.Vine swingVine;
         CbLevel.Bar bar;
@@ -23,6 +25,7 @@ namespace Cloudborne
         bool barMoving, pushing;
         /// <summary>On the spinning log (CbLevel sets it): it rolls him back, and he walks it as a tightrope.</summary>
         public bool onLog;
+        float logWalk;
         /// <summary>The vine he swings on, if he does.</summary>
         public CbLevel.Vine SwingingOn => state == State.Swing ? swingVine : null;
         public bool Pushing => pushing;
@@ -292,8 +295,13 @@ namespace Cloudborne
                     else model.Show("Slow_Bar_Hang_Left", 0f, 0.1f);
                     return true;
                 case State.Run when pushing: model.LoopSeconds("Push_and_Walk_Forward", walkT * 2.2f); return true;
+                // on the rolling log his feet keep treading as it turns under him, standing or walking (he seemed to drift
+                // on it: the user)
                 case State.Idle when onLog:
-                case State.Run when onLog: model.LoopSeconds("Tightrope_Walk", g.clock); return true;
+                case State.Run when onLog:
+                    logWalk += Time.deltaTime * (0.8f + Mathf.Abs(vx) / LogSpeed * 0.5f);
+                    model.LoopSeconds("Tightrope_Walk", logWalk);
+                    return true;
             }
             return false;
         }
