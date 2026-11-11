@@ -31,8 +31,8 @@ namespace Cloudborne
         // the painted river cross-section: SideDepth tall (all of the painting), its foam crests SideCrest over the
         // water's surface, repeating every SideTile metres
         const float SideDepth = 3.4f, SideCrest = 0.23f, SideTile = SideDepth * 1563f / 846f;
-        // the water-front shader's quad reaches this far over the still surface (its highest wave is about 0.1)
-        const float FrontAbove = 0.18f;
+        // the water-front shader's quad reaches this far over the still surface (its highest wave is about 0.19)
+        const float FrontAbove = 0.25f;
         // a rounded clump of bushes where the hedge meets a river, ClumpHeight tall
         const float ClumpHeight = 2.1f;
         static bool NewLook => Resources.Load<Texture2D>(LipPath) != null;
