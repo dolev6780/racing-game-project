@@ -110,6 +110,9 @@ namespace Cloudborne
         // the ground runs from GroundFrom to GroundTo, cut where the streams cross it
         const float GroundFrom = -80f, GroundTo = End + 50f;
         readonly List<Material> waterMats = new List<Material>();
+        // the painted cross-sections at the streams' front edges, their foam crests rolling along and rising and falling
+        // (they stood still like a picture: the user)
+        readonly List<(Material m, Transform t, float x, float y)> waterSides = new List<(Material, Transform, float, float)>();
 
         /// <summary>How wide one copy of the painted soil is (it keeps its proportions, FaceHeight tall).</summary>
         public static float FaceTileWidth(Texture tex) => tex != null && tex.height > 0 ? FaceHeight * tex.width / (float)tex.height : 4f;
@@ -448,7 +451,9 @@ namespace Cloudborne
                 {
                     float top = level + SideCrest, depth = SideDepth;
                     var side = new Material(paintedSide) { mainTextureScale = new Vector2(w / SideTile, 1), mainTextureOffset = new Vector2(x0 / SideTile, 0) };
-                    CbArt.Part(CbMesh.Quad, side, root, new Vector3(c, top - depth / 2, GroundFront - 0.012f), new Vector3(w, depth, 1), shadows: false).name = "waterSide";
+                    var sideQuad = CbArt.Part(CbMesh.Quad, side, root, new Vector3(c, top - depth / 2, GroundFront - 0.012f), new Vector3(w, depth, 1), shadows: false);
+                    sideQuad.name = "waterSide";
+                    waterSides.Add((side, sideQuad, x0 / SideTile, top - depth / 2));
                     under = top - depth;
                 }
                 else CbArt.Part(CbMesh.Quad, WaterSide(), root, new Vector3(c, (level + bed) / 2, GroundFront - 0.012f), new Vector3(w, level - bed, 1), shadows: false).name = "waterSide";
@@ -961,6 +966,15 @@ namespace Cloudborne
             // the streams flow towards the camera; their cascades pour down
             for (int i = 0; i < waterMats.Count; i++)
                 waterMats[i].mainTextureOffset = new Vector2(0, (i % 2 == 0 ? -0.12f : 0.6f) * t);
+            // the crests roll along (about 0.35 m a second) and swell and settle, each stream in its own time
+            for (int i = 0; i < waterSides.Count; i++)
+            {
+                var (m, q, x, y) = waterSides[i];
+                m.mainTextureOffset = new Vector2(x + t * 0.35f / SideTile, 0);
+                var p = q.localPosition;
+                p.y = y + Mathf.Sin(t * 1.7f + i * 1.3f) * 0.035f + Mathf.Sin(t * 2.9f + i) * 0.015f;
+                q.localPosition = p;
+            }
             if (backdrop != null)
             {
                 var p = backdrop.localPosition;

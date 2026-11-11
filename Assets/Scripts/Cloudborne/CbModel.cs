@@ -49,7 +49,13 @@ namespace Cloudborne
         /// <summary>The way the face points (world space), up or down with the head.</summary>
         public Vector3 FaceDirection => (headFront.position - head.position).normalized;
 
-        static readonly string[] Bones ={ "Hips", "Spine", "Head", "head_end", "headfront", "RightHand", "LeftHand", "LeftForeArm", "RightToeBase" };
+        static readonly string[] RootCurves =
+        {
+            "m_LocalPosition.x", "m_LocalPosition.y", "m_LocalPosition.z", "m_LocalRotation.x", "m_LocalRotation.y", "m_LocalRotation.z",
+            "m_LocalRotation.w", "m_LocalScale.x", "m_LocalScale.y", "m_LocalScale.z", "localEulerAnglesRaw.x", "localEulerAnglesRaw.y", "localEulerAnglesRaw.z",
+        };
+
+        static readonly string[] Bones = { "Hips", "Spine", "Head", "head_end", "headfront", "RightHand", "LeftHand", "LeftForeArm", "RightToeBase" };
 
         /// <summary>
         /// Loads Resources/path (an FBX with legacy clips, and path_Albedo for its colours) and fits it under parent,
@@ -90,6 +96,8 @@ namespace Cloudborne
             {
                 if (extra == null || !extra.legacy || extra.name.StartsWith("__preview__")) continue;
                 string clipName = extra.name.Substring(extra.name.LastIndexOf('|') + 1);
+                // the game places the model's root itself: no clip may move, turn or scale it
+                foreach (var prop in RootCurves) extra.SetCurve("", typeof(Transform), prop, null);
                 if (anim.GetClip(clipName) == null) anim.AddClip(extra, clipName);
             }
             foreach (AnimationState s in anim)
@@ -133,8 +141,14 @@ namespace Cloudborne
             }
 
             baseRotation = root.localRotation;
+            // (sampling every clip to measure it must not move the model: a clip that animates its root would carry it off)
+            var fitPosition = root.localPosition;
+            var fitScale = root.localScale;
             if (!TurnsByModel.TryGetValue(path, out clipTurns))
                 TurnsByModel[path] = clipTurns = MeasureClipTurns(parent);
+            root.localPosition = fitPosition;
+            root.localScale = fitScale;
+            root.localRotation = baseRotation;
 
             material = CbArt.AnimeToon(Resources.Load<Texture2D>(path + "_Albedo"));
             foreach (var r in root.GetComponentsInChildren<Renderer>(true))
