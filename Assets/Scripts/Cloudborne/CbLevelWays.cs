@@ -678,6 +678,8 @@ namespace Cloudborne
             lo = x - reach; hi = x + reach;
             foreach (var (x0, x1) in Gaps)
             {
+                // a stream with a bridge over it is open path: he follows Raja across (he stopped at its foot)
+                if (Bridged(x0, x1)) continue;
                 if (x1 <= x) lo = Mathf.Max(lo, x1 + 0.6f);
                 if (x0 >= x) hi = Mathf.Min(hi, x0 - 0.6f);
             }
@@ -687,6 +689,14 @@ namespace Cloudborne
                 if (b.x1 <= x) lo = Mathf.Max(lo, b.x1 + 0.6f);
                 if (b.x0 >= x) hi = Mathf.Min(hi, b.x0 - 0.6f);
             }
+        }
+
+        /// <summary>Whether a bridge he can walk onto from the bank spans the stretch of water from x0 to x1.</summary>
+        bool Bridged(float x0, float x1)
+        {
+            foreach (var c in crossings)
+                if (c.deck && c.X0 <= x0 + 0.7f && c.X1 >= x1 - 0.7f) return true;
+            return false;
         }
 
         /// <summary>The vine whose end is within reach of his hands at (hx, hy), not one he just let go of.</summary>

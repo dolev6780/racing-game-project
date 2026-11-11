@@ -213,6 +213,20 @@ namespace Cloudborne
         /// A blow (Raja's paws, kicks or staff) reaching from x towards dir: crates in reach crack, then burst. True if
         /// a crate took the blow (once per blow, so its sound plays once).
         /// </summary>
+        /// <summary>
+        /// Narrows a soldier's stretch of path (lo to hi) to the crates either side of him at x: he can't walk through
+        /// one that stands (he did: the user), only where it was once it is broken.
+        /// </summary>
+        public void ClipByCrates(float x, float body, ref float lo, ref float hi)
+        {
+            foreach (var c in crates)
+            {
+                if (c.hp <= 0) continue;
+                if (c.x <= x) lo = Mathf.Max(lo, c.x + CrateBody + body);
+                else hi = Mathf.Min(hi, c.x - CrateBody - body);
+            }
+        }
+
         public bool HitCrates(float x, float y, int dir, float range)
         {
             bool any = false;

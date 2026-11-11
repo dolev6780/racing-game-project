@@ -530,6 +530,7 @@ namespace Cloudborne
                     if (p.enemy != null && !p.enemy.dead && level != null)
                     {
                         level.FreeStretch(p.x, 18f, out float lo, out float hi);
+                        items?.ClipByCrates(p.enemy.x, p.enemy.w * 0.8f, ref lo, ref hi);
                         p.enemy.minX = lo; p.enemy.maxX = hi;
                     }
                 }

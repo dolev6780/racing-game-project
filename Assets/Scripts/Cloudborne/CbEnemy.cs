@@ -497,9 +497,16 @@ namespace Cloudborne
             vy -= 30 * dt;
             y += vy * dt;
             x += vx * dt;
-            if (y <= 0)
+            // the ground under him: the path, or a bridge's deck (he walks onto it and follows its sag)
+            float floor = 0;
+            if (g.level != null && !Boss)
             {
-                y = 0; vy = 0;
+                floor = g.level.SupportAt(x, Mathf.Max(y, 0) + 0.1f);
+                if (floor < -0.6f) floor = 0;
+            }
+            if (y <= floor)
+            {
+                y = floor; vy = 0;
                 if (state != State.Move && state != State.Atk) vx *= 1 - (1 - Mathf.Exp(-6 * dt));
             }
             // the sergeant keeps to his arena, a soldier to his stretch of path
