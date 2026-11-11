@@ -60,7 +60,9 @@ namespace Cloudborne
         class Snapper { public float x, y, timer, period = 2.2f, cool; public int hp = 3; public bool dead; public Transform t, jaw, model; }
         class Pit { public float x0, x1, stood; public bool open; public Transform cover; }
         class Dart { public float x, y, vx, gone; public Transform t; }
-        class Cage { public float x; public int hp = 3; public bool freed; public Transform t, animal, model; public float hop, cool; }
+        // the caged monkey turned to the camera and a little toward the way Raja comes; how long it hops for joy when freed
+        const float MonkeyFacing = 205f, MonkeyCheer = 1.2f;
+        class Cage { public float x; public int hp = 3; public bool freed; public Transform t, animal, model; public float hop, cool; public CbModel monkey; }
         class Boulder { public float x, vx, cool; public bool rolling; public Transform t; }
 
         const float LeafBounce = 19.5f, RaftTop = 0.1f, LogTop = 0.15f, SeesawTop = 0.35f;
@@ -598,17 +600,22 @@ namespace Cloudborne
                 CbArt.Cylinder(Wood, t, new Vector3(0, 1.45f, 0), 0.65f, 0.12f);
                 CbArt.Cylinder(Wood, t, new Vector3(0, 0.05f, 0), 0.65f, 0.1f);
             }
-            // a little monkey, a friend of Raja's, locked in by the raiders
+            // a little monkey, a friend of Raja's, locked in by the raiders: drawn in Canva and animated in Meshy (it
+            // was a doll of balls, and the cage's model had a monkey of its own that never moved: the user), waving
+            // for help through the bars, turned to the camera and the way Raja comes
             var animal = CbArt.Joint(t, 0, 0.1f, 0, "monkey");
-            var fur = M("#7a5232"); var face = M("#e9c9a0");
-            CbArt.Part(CbMesh.Sphere, fur, animal, new Vector3(0, 0.35f, 0), new Vector3(0.4f, 0.45f, 0.35f));
-            CbArt.Part(CbMesh.Sphere, fur, animal, new Vector3(0, 0.75f, 0), Vector3.one * 0.34f);
-            CbArt.Part(CbMesh.Sphere, face, animal, new Vector3(0, 0.73f, -0.13f), new Vector3(0.24f, 0.2f, 0.12f));
-            foreach (float s in new[] { -1f, 1f })
-                CbArt.Part(CbMesh.Sphere, face, animal, new Vector3(s * 0.19f, 0.8f, 0), Vector3.one * 0.12f);
-            // with the model, its own monkey sits inside; this one hops out when the cage breaks
-            if (model != null) animal.gameObject.SetActive(false);
-            cages.Add(new Cage { x = x, t = t, animal = animal, model = model });
+            animal.localRotation = Quaternion.Euler(0, MonkeyFacing, 0);
+            var monkey = CbModel.Load("Cloudborne/Monkey/Monkey", 0.85f, animal);
+            if (monkey == null)
+            {
+                var fur = M("#7a5232"); var face = M("#e9c9a0");
+                CbArt.Part(CbMesh.Sphere, fur, animal, new Vector3(0, 0.35f, 0), new Vector3(0.4f, 0.45f, 0.35f));
+                CbArt.Part(CbMesh.Sphere, fur, animal, new Vector3(0, 0.75f, 0), Vector3.one * 0.34f);
+                CbArt.Part(CbMesh.Sphere, face, animal, new Vector3(0, 0.73f, 0.13f), new Vector3(0.24f, 0.2f, 0.12f));
+                foreach (float s in new[] { -1f, 1f })
+                    CbArt.Part(CbMesh.Sphere, face, animal, new Vector3(s * 0.19f, 0.8f, 0), Vector3.one * 0.12f);
+            }
+            cages.Add(new Cage { x = x, t = t, animal = animal, model = model, monkey = monkey });
         }
 
         void BuildMud()
@@ -1140,14 +1147,32 @@ namespace Cloudborne
                     CbFx.Puff(gt.home + new Vector3(Random.Range(-1.4f, 1.4f), 0.2f, -0.2f), new Color(0.8f, 0.75f, 0.65f), 1, 1f, 0.8f, 0.6f);
                 gt.b.broken = gt.open > 0.8f;
             }
-            // a freed friend hops off into the jungle
+            // a caged friend waves for help; freed, it hops for joy, then turns and runs off into the jungle, behind the
+            // bushes (it bounced away like a doll: the user)
             foreach (var c in cages)
-                if (c.hop > 0 && c.hop < 2f)
+            {
+                if (!c.animal.gameObject.activeSelf) continue;
+                if (c.hop <= 0)
                 {
-                    c.hop += dt;
-                    c.animal.localPosition = new Vector3(c.hop * 2f, 0.1f + Mathf.Abs(Mathf.Sin(c.hop * 9)) * 0.6f, c.hop * 2.5f);
-                    if (c.hop >= 2f) c.animal.gameObject.SetActive(false);
+                    c.monkey?.LoopSeconds("Wave_for_Help", Time.time + c.x);
+                    continue;
                 }
+                c.hop += dt;
+                if (c.hop < MonkeyCheer)
+                {
+                    if (c.monkey != null) c.monkey.Window("Hop_with_Arms_Raised", 0f, 1f, c.hop / MonkeyCheer);
+                    else c.animal.localPosition = new Vector3(0, 0.1f + Mathf.Abs(Mathf.Sin(c.hop * 9)) * 0.4f, 0);
+                    continue;
+                }
+                float run = c.hop - MonkeyCheer;
+                // turning to the jungle behind, a little toward the way on, and running
+                float turn = Mathf.Clamp01(run / 0.25f);
+                c.animal.localRotation = Quaternion.Euler(0, Mathf.LerpAngle(MonkeyFacing, 20f, turn), 0);
+                c.animal.localPosition = new Vector3(run * 0.9f, 0.1f, run * 3.6f);
+                if (c.monkey != null) c.monkey.LoopSeconds("RunFast", run);
+                else c.animal.localPosition += Vector3.up * Mathf.Abs(Mathf.Sin(run * 9)) * 0.4f;
+                if (run > 2.2f) c.animal.gameObject.SetActive(false);
+            }
             // the chest: the key opens it, a tiger token inside
             if (!chestOpen && Mathf.Abs(hero.x - ChestX) < 1.3f && hero.y < 1f)
             {
@@ -1337,8 +1362,9 @@ namespace Cloudborne
             foreach (var c in cages)
             {
                 c.freed = false; c.hp = 3; c.hop = 0;
-                for (int i = 0; i < c.t.childCount; i++) c.t.GetChild(i).gameObject.SetActive(c.model == null || c.t.GetChild(i) != c.animal);
+                for (int i = 0; i < c.t.childCount; i++) c.t.GetChild(i).gameObject.SetActive(true);
                 c.animal.localPosition = new Vector3(0, 0.1f, 0);
+                c.animal.localRotation = Quaternion.Euler(0, MonkeyFacing, 0);
                 c.t.localRotation = Quaternion.identity;
             }
             foreach (var b in boulders) { b.rolling = false; b.cool = 0; b.x = 466f; if (b.t != null) b.t.gameObject.SetActive(false); }
