@@ -252,7 +252,16 @@ namespace Cloudborne
         void AddBar(float x0, float x1, float y)
         {
             var t = CbArt.Joint(root, (x0 + x1) / 2, y, 0.05f, "bars");
-            CbArt.Cylinder(Bamboo, t, Vector3.zero, 0.07f, x1 - x0 + 0.4f, Quaternion.Euler(0, 0, 90));
+            // the model: two-metre poles of bamboo lashed end to end (one stretched along the whole bar looked drawn out)
+            float len = x1 - x0 + 0.4f;
+            int n = Mathf.Max(1, Mathf.RoundToInt(len / 2f));
+            bool modelled = false;
+            for (int k = 0; k < n; k++)
+            {
+                var seg = CbArt.Joint(t, -len / 2 + (k + 0.5f) * len / n, -0.08f, 0, "pole");
+                modelled |= Model("BambooBar", seg, new Vector3(len / n, 0.36f, 0.16f), 180f) != null;
+            }
+            if (!modelled) CbArt.Cylinder(Bamboo, t, Vector3.zero, 0.07f, len, Quaternion.Euler(0, 0, 90));
             // hung from the trees by ropes at each end
             foreach (float e in new[] { x0, x1 })
                 CbArt.Cylinder(VineGreen, t, new Vector3(e - (x0 + x1) / 2, 2f, 0), 0.04f, 4f);
@@ -266,7 +275,16 @@ namespace Cloudborne
                 Quaternion.FromToRotation(Vector3.up, b - a));
             rope.name = "zipline";
             foreach (var p in new[] { a, b })
+            {
+                // a carved post with its pulley where the line is low enough for one; a tall trunk where it starts high
+                if (p.y < 5f)
+                {
+                    var post = CbArt.Joint(root, p.x, 0, 0.6f, "zipPost");
+                    if (Model("ZipPost", post, new Vector3(1.5f, p.y + 0.9f, 0.95f), 180f) != null) continue;
+                    Object.Destroy(post.gameObject);
+                }
                 CbArt.Cylinder(Wood, root, new Vector3(p.x, p.y / 2 + 0.3f, 0.6f), 0.22f, p.y + 0.8f);
+            }
             zips.Add(new Zip { x0 = x0, y0 = y0, x1 = x1, y1 = y1 });
         }
 
@@ -290,6 +308,7 @@ namespace Cloudborne
         void AddThorns(float x)
         {
             var t = CbArt.Joint(root, x, 0, 0f, "thorns");
+            if (Model("Thorns", t, new Vector3(1.45f, 2.6f, 1.05f), 180f) == null)
             for (int k = 0; k < 5; k++)
             {
                 float s = Random.Range(0.45f, 0.7f);
@@ -353,9 +372,14 @@ namespace Cloudborne
         void AddPendulum(float x, float y, float len, float period, float phase)
         {
             var t = CbArt.Joint(root, x, y, 0f, "pendulum");
-            CbArt.Cylinder(VineGreen, t, new Vector3(0, -len / 2, -0.5f), 0.04f, len);
-            CbArt.Cylinder(VineGreen, t, new Vector3(0, -len / 2, 0.5f), 0.04f, len);
-            CbArt.Cylinder(Wood, t, new Vector3(0, -len, 0), 0.32f, 1.7f, Quaternion.Euler(90, 0, 0));
+            // the log ram (its ringed end towards the camera) on two ropes
+            var ram = CbArt.Joint(t, 0, -len - 0.35f, 0, "ram");
+            bool modelled = Model("LogRam", ram, new Vector3(1.75f, 1.56f, 0.7f), 90f) != null;
+            var rope = modelled ? M("#9a7a48") : VineGreen;
+            float rz = modelled ? 0.62f : 0.5f;
+            CbArt.Cylinder(rope, t, new Vector3(0, -len / 2, -rz), 0.035f, len);
+            CbArt.Cylinder(rope, t, new Vector3(0, -len / 2, rz), 0.035f, len);
+            if (!modelled) CbArt.Cylinder(Wood, t, new Vector3(0, -len, 0), 0.32f, 1.7f, Quaternion.Euler(90, 0, 0));
             CbArt.Cylinder(Wood, root, new Vector3(x, y + 0.2f, 0), 0.25f, 3f, Quaternion.Euler(90, 0, 0));
             pendulums.Add(new Pendulum { x = x, y = y, len = len, period = period, phase = phase, t = t });
         }
@@ -402,8 +426,8 @@ namespace Cloudborne
         void BuildPushBlock(float x)
         {
             var t = CbArt.Joint(root, x, 0, 0f, "pushBlock");
-            var face = RockMat(1, 1, 0, 0);
-            CbArt.Box(face, t, new Vector3(0, 0.5f, 0), new Vector3(1f, 1f, 1f));
+            if (Model("PushBlock", t, new Vector3(1f, 1f, 1f), 180f) == null)
+                CbArt.Box(RockMat(1, 1, 0, 0), t, new Vector3(0, 0.5f, 0), new Vector3(1f, 1f, 1f));
             pushBlock = new Block { x0 = x - 0.5f, x1 = x + 0.5f, top = 1f, t = t };
             pushHome = x;
             blocks.Add(pushBlock);
@@ -535,9 +559,15 @@ namespace Cloudborne
         void BuildSeesaw()
         {
             var t = CbArt.Joint(root, SeesawX, 0, 0.1f, "seesaw");
-            CbArt.Cone(StoneGrey, t, new Vector3(0, 0.2f, 0), 0.35f, 0.4f, null, 4);
             plank = CbArt.Joint(t, 0, SeesawTop, 0, "plank");
-            CbArt.Box(Wood, plank, new Vector3(0, -0.06f, 0), new Vector3(4f, 0.12f, 0.9f));
+            // the model: its lashed plank on a carved stone, the plank's top level with SeesawTop (it tips as one)
+            var model = CbArt.Joint(plank, 0, -SeesawTop - 0.2f, 0, "seesawModel");
+            if (Model("Seesaw", model, new Vector3(4f, SeesawTop + 0.25f, 0.9f), 180f) == null)
+            {
+                Object.Destroy(model.gameObject);
+                CbArt.Cone(StoneGrey, t, new Vector3(0, 0.2f, 0), 0.35f, 0.4f, null, 4);
+                CbArt.Box(Wood, plank, new Vector3(0, -0.06f, 0), new Vector3(4f, 0.12f, 0.9f));
+            }
             CbArt.Cylinder(Wood, root, new Vector3(SeesawX + 2.6f, 3.4f, 0.4f), 0.15f, 6.8f);
             CbArt.Cylinder(Wood, root, new Vector3(SeesawX + 2.1f, 6.8f, 0.4f), 0.1f, 1.2f, Quaternion.Euler(0, 0, 90));
             stone = CbArt.Joint(root, SeesawX + 1.6f, 6.3f, 0.1f, "stone");
@@ -549,7 +579,13 @@ namespace Cloudborne
         void AddLift(float x, float lo, float hi)
         {
             var deck = CbArt.Joint(root, x, lo, 0.05f, "lift");
-            CbArt.Box(Wood, deck, new Vector3(0, -0.1f, 0), new Vector3(1.6f, 0.2f, 1.2f));
+            // the model: a deck of lashed planks, ropes from its corners to a ring above
+            var lift = CbArt.Joint(deck, 0, -0.25f, 0, "liftModel");
+            if (Model("Lift", lift, new Vector3(1.7f, 2f, 1.5f), 180f) == null)
+            {
+                Object.Destroy(lift.gameObject);
+                CbArt.Box(Wood, deck, new Vector3(0, -0.1f, 0), new Vector3(1.6f, 0.2f, 1.2f));
+            }
             CbArt.Cylinder(Wood, root, new Vector3(x, hi + 1.6f, 0.3f), 0.35f, 0.2f, Quaternion.Euler(90, 0, 0));
             var weight = CbArt.Joint(root, x + 1.2f, hi, 0.3f, "counterweight");
             CbArt.Part(CbMesh.Blob(6, 4), StoneGrey, weight, Vector3.zero, Vector3.one * 0.7f);

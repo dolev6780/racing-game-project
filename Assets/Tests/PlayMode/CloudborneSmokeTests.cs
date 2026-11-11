@@ -357,7 +357,8 @@ namespace RacingGame.Tests
             foreach (var m in new[] { "Banyan", "Kapok", "Bamboo" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/{m}/{m}"), $"The {m} tree is missing");
             // the long stage's things drawn in Canva, approved and built by Meshy
-            foreach (var m in new[] { "Lantern", "Snapper", "Cage", "Raft", "Statue", "Gate", "Lever", "Gong", "Hive", "Leaf", "Chest" })
+            foreach (var m in new[] { "Lantern", "Snapper", "Cage", "Raft", "Statue", "Gate", "Lever", "Gong", "Hive", "Leaf", "Chest",
+                "LogRam", "BambooBar", "Thorns", "PushBlock", "Seesaw", "Lift", "ZipPost" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/Ways/{m}/{m}"), $"The {m} model is missing");
             Assert.IsNotNull(Resources.Load<GameObject>("Cloudborne/Items/Key/Key"), "The key model is missing");
             foreach (var m in new[] { "Terrace", "Pillar", "Ledge", "CrumblingLedge" })
@@ -1051,7 +1052,8 @@ namespace RacingGame.Tests
             cam.aspect = W / (float)H;
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
             var oldTrace = Application.GetStackTraceLogType(LogType.Log);
-            foreach (var (name, x) in new[] { ("start", 6f), ("path", 46f), ("river", 75f), ("mountain", 152f), ("lantern", 196f), ("temple", 262f) })
+            foreach (var (name, x) in new[] { ("start", 6f), ("river", 75f), ("mountain", 152f), ("bars", 219f), ("thorns", 243f), ("temple", 266f),
+                ("seesaw", 433f) })
             {
                 game.Teleport(x);
                 game.hero.y = 0;
