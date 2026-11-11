@@ -26,7 +26,7 @@ namespace Cloudborne
         // of big painted trees, a hedge of bushes and flowers right behind the path, a thick grass lip on the ground's
         // front edge and leaves hanging into the top of the view. On when its paintings are in the project.
         const string CanopyPath = "Cloudborne/Jungle/Backdrop/Canopy", LipPath = "Cloudborne/Jungle/Ground/GroundLip",
-            WaterSidePath = "Cloudborne/Jungle/Water/WaterSide", ClumpPath = "Cloudborne/Jungle/Backdrop/BushClump";
+            WaterSidePath = "Cloudborne/Jungle/Water/WaterSide", WaterSurfacePath = "Cloudborne/Jungle/Water/WaterSurface", ClumpPath = "Cloudborne/Jungle/Backdrop/BushClump";
         // the painted river cross-section: SideDepth tall (all of the painting), its foam crests SideCrest over the
         // water's surface, repeating every SideTile metres
         const float SideDepth = 3.4f, SideCrest = 0.23f, SideTile = SideDepth * 1563f / 846f;
@@ -423,6 +423,13 @@ namespace Cloudborne
             var waterTex = paintedWater != null ? paintedWater : WaterTexture();
             waterTex.wrapMode = TextureWrapMode.Repeat;
             float level = CbLevel.WaterLevel, back = CbLevel.WaterBack, bed = level - 0.55f;
+            var surfaceTex = NewLook ? Resources.Load<Texture2D>(WaterSurfacePath) : null;
+            var paintedSurface = surfaceTex != null ? Cutout(surfaceTex, 0f, PaintTint) : null;
+            if (paintedSurface != null)
+            {
+                surfaceTex.wrapMode = TextureWrapMode.Repeat;
+                paintedSurface.SetFloat("_Cutoff", 0f);
+            }
             var sideTex = NewLook ? Resources.Load<Texture2D>(WaterSidePath) : null;
             var paintedSide = sideTex != null ? Cutout(sideTex, 0f, PaintTint) : null;
             if (paintedSide != null)
@@ -446,9 +453,19 @@ namespace Cloudborne
                 CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x0 + 0.01f, -0.6f, (GroundFront + back) / 2), new Vector3(back - GroundFront, 1.2f, 1), Quaternion.Euler(0, -90, 0), shadows: false);
                 CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x1 - 0.01f, -0.6f, (GroundFront + back) / 2), new Vector3(back - GroundFront, 1.2f, 1), Quaternion.Euler(0, 90, 0), shadows: false);
                 // the water: its surface, flowing towards the camera
-                var surface = CbArt.NewToon(new Color(0.9f, 0.97f, 1f), 0f, waterTex);
-                surface.SetFloat("_SpecStrength", 0.35f);
-                surface.mainTextureScale = new Vector2(w / 3f, (back - GroundFront) / 3f);
+                Material surface;
+                if (paintedSurface != null)
+                {
+                    // the new look: drawn as painted, in the cross-section's turquoise, its ripples drawn out in depth
+                    // (seen this low, a finer repeat blurred into a flat stripe)
+                    surface = new Material(paintedSurface) { mainTextureScale = new Vector2(w / 5f, (back - GroundFront) / 10f) };
+                }
+                else
+                {
+                    surface = CbArt.NewToon(new Color(0.9f, 0.97f, 1f), 0f, waterTex);
+                    surface.SetFloat("_SpecStrength", 0.35f);
+                    surface.mainTextureScale = new Vector2(w / 3f, (back - GroundFront) / 3f);
+                }
                 waterMats.Add(surface);
                 CbArt.Part(CbMesh.Quad, surface, root, new Vector3(c, level, (GroundFront + back) / 2), new Vector3(w, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "water";
                 // its cross-section at the front edge: the new look's painting (foamy crests, light rays, pebbles on
@@ -465,9 +482,14 @@ namespace Cloudborne
                 // and the soil below
                 FaceQuad(face, x0, x1, under, -GroundDepth);
                 // where it comes out of the ground: a little cascade between leaves
-                var cascade = CbArt.NewToon(new Color(0.95f, 1f, 1f), 0f, waterTex);
-                cascade.SetFloat("_SpecStrength", 0f);
-                cascade.mainTextureScale = new Vector2(w / 3f, 0.4f);
+                Material cascade;
+                if (paintedSurface != null) cascade = new Material(paintedSurface) { mainTextureScale = new Vector2(w / 3f, 0.4f) };
+                else
+                {
+                    cascade = CbArt.NewToon(new Color(0.95f, 1f, 1f), 0f, waterTex);
+                    cascade.SetFloat("_SpecStrength", 0f);
+                    cascade.mainTextureScale = new Vector2(w / 3f, 0.4f);
+                }
                 waterMats.Add(cascade);
                 CbArt.Part(CbMesh.Quad, cascade, root, new Vector3(c, level / 2, back - 0.01f), new Vector3(w, -level, 1), shadows: false).name = "cascade";
                 if (Has(LeavesModel) && !NewLook)
