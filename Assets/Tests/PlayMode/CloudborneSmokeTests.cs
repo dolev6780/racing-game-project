@@ -361,6 +361,8 @@ namespace RacingGame.Tests
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/Cliff/{m}/{m}"), $"The cliff kit's {m} is missing");
             var shader = Resources.Load<Shader>("Shaders/PaintedCutout");
             Assert.IsNotNull(shader, "The cut-out shader is missing");
+            // the streams' moving, see-through front
+            Assert.IsNotNull(Resources.Load<Shader>("Shaders/WaterFront"), "The water-front shader is missing");
             game = CbGame.Boot();
             yield return Frames(3);
             // the mountain: terraces of rock (not blocks piled up), ledges of the kit

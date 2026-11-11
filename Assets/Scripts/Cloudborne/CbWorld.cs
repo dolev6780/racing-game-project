@@ -31,6 +31,8 @@ namespace Cloudborne
         // the painted river cross-section: SideDepth tall (all of the painting), its foam crests SideCrest over the
         // water's surface, repeating every SideTile metres
         const float SideDepth = 3.4f, SideCrest = 0.23f, SideTile = SideDepth * 1563f / 846f;
+        // the water-front shader's quad reaches this far over the still surface (its highest wave is about 0.1)
+        const float FrontAbove = 0.18f;
         // a rounded clump of bushes where the hedge meets a river, ClumpHeight tall
         const float ClumpHeight = 2.1f;
         static bool NewLook => Resources.Load<Texture2D>(LipPath) != null;
@@ -406,7 +408,16 @@ namespace Cloudborne
                 surfaceTex.wrapMode = TextureWrapMode.Repeat;
                 paintedSurface.SetFloat("_Cutoff", 0f);
             }
-            var sideTex = NewLook ? Resources.Load<Texture2D>(WaterSidePath) : null;
+            // the streams' front: see-through water with rolling waves, drawn by a shader of its own (the painted
+            // cross-section stood still like a picture, and then looked wrong moving: the user)
+            var frontShader = Resources.Load<Shader>("Shaders/WaterFront");
+            Material front = null;
+            if (frontShader != null && frontShader.isSupported)
+            {
+                front = new Material(frontShader) { name = "waterFront", renderQueue = (int)RenderQueue.Transparent };
+                front.SetFloat("_Level", level);
+            }
+            var sideTex = NewLook && front == null ? Resources.Load<Texture2D>(WaterSidePath) : null;
             var paintedSide = sideTex != null ? Cutout(sideTex, 0f, PaintTint) : null;
             if (paintedSide != null)
             {
@@ -447,7 +458,14 @@ namespace Cloudborne
                 // its cross-section at the front edge: the new look's painting (foamy crests, light rays, pebbles on
                 // sand, as deep as the soil it replaces), or deeper and darker towards the bed with a light line on top
                 float under = bed;
-                if (paintedSide != null)
+                if (front != null)
+                {
+                    // from above the highest wave down to as deep as the painted cross-section went
+                    float top = level + FrontAbove, bottom = level - SideDepth;
+                    CbArt.Part(CbMesh.Quad, front, root, new Vector3(c, (top + bottom) / 2, GroundFront - 0.012f), new Vector3(w, top - bottom, 1), shadows: false).name = "waterSide";
+                    under = bottom;
+                }
+                else if (paintedSide != null)
                 {
                     float top = level + SideCrest, depth = SideDepth;
                     var side = new Material(paintedSide) { mainTextureScale = new Vector2(w / SideTile, 1), mainTextureOffset = new Vector2(x0 / SideTile, 0) };
