@@ -27,7 +27,7 @@ namespace Cloudborne
     /// </summary>
     public partial class CbHero
     {
-        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo, Hang, Climb, Swim, Down, Victory, Swing, Vine, Bars, Zip }
+        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo, Hang, Climb, Swim, Down, Victory, Swing, Vine, Bars, Zip, Kick }
         public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash, FireWhirl, BlazePalm, Lunge, Cyclone }
 
         struct Attack { public float dur, a, b, range, dmg, kb, up; public bool fin; }
@@ -41,6 +41,10 @@ namespace Cloudborne
             new Attack { dur = 0.42f, a = 0.35f, b = 0.7f, range = 2.2f, dmg = 9, kb = 2, up = 6, fin = true },
         };
         const int Sweep = 4;
+        // HIT in the air: the dive kick (the user asked for it like the staff slam, with a kick): a moment's hang, then
+        // down at KickAngle below level at KickSpeed, one leg out; it hurts who it meets and bounces off them, and
+        // landing jolts who stands close
+        const float KickHang = 0.07f, KickSpeed = 13f, KickAngle = 38f, KickTilt = 0.62f, KickLand = 0.22f, KickDmg = 11f;
         // the double jump is a double forward somersault, tucked
         const float FlipTime = 0.62f, FlipTurns = 2f;
         // HEAVY on the ground: an overhead staff smash; holding HEAVY past SmashToWhirl turns it into the whirl
@@ -211,6 +215,71 @@ namespace Cloudborne
             if (!air) vx = facing * 2.5f;
             else { vy = Mathf.Max(vy, 2.5f); airHits++; }
             CbFx.Sfx("swing", 0.7f);
+        }
+
+        bool kickLanded;
+        float kickLandT;
+
+        void StartDiveKick()
+        {
+            state = State.Kick; t = 0; hitSet.Clear(); kickLanded = false; kickLandT = 0; combo = 0;
+            vx = facing * 2f; vy = Mathf.Max(vy, 1.5f); flipT = 0;
+            CbFx.Sfx("swing", 0.8f);
+        }
+
+        /// <summary>The dive kick: down at a slant, the foot hurting who it meets (bouncing off them), a jolt on landing.</summary>
+        void UpdateKick(ref Pose pose, float dt, ref float rate)
+        {
+            rate = 30;
+            pose.hRx = -1.5f; pose.kR = 0.05f; pose.hLx = 0.6f; pose.kL = 1.4f; pose.lean = -0.4f; pose.sLx = -0.6f; pose.eL = -1.5f; pose.sRx = 0.7f; pose.eR = -1f;
+            if (kickLanded)
+            {
+                kickLandT += dt;
+                vx *= 1 - Damp(12, dt);
+                pose.bob = -0.3f; pose.lean = 0.5f;
+                if (kickLandT > KickLand) { state = air ? State.Air : State.Idle; }
+                return;
+            }
+            if (t < KickHang) { vx = facing * 2f; vy = Mathf.Max(vy, 0.5f); return; }
+            float a = KickAngle * Mathf.Deg2Rad;
+            vx = facing * KickSpeed * Mathf.Cos(a);
+            vy = -KickSpeed * Mathf.Sin(a);
+            if (Random.value < 0.6f) CbFx.Spark(new Vector3(x - facing * 0.3f, y + 0.8f, -0.3f), CbFx.Dust, 1, 1f, 0.25f, 0.3f, 0);
+            // the foot, out ahead and low
+            float fx = x + facing * 0.75f, fy = y + 0.25f;
+            foreach (var e in g.enemies)
+            {
+                if (e.dead || hitSet.Contains(e)) continue;
+                if (Mathf.Abs(e.x - fx) < 0.7f + e.w && fy > e.y - 0.2f && fy < e.HitHeight + 0.6f)
+                {
+                    hitSet.Add(e);
+                    g.HurtEnemy(e, KickDmg, facing, 6f, 4f, true, false, fire: false, fromPlayer: true);
+                    CbFx.Sfx("hit");
+                    CbVfx.Burst(new Vector3(fx, fy + 0.3f, -0.4f), CbFx.Hit, 2f, 0.15f);
+                    g.shake = Mathf.Max(g.shake, 0.25f);
+                    // off him and up again, as in a dive kick
+                    vy = 8.5f; vx = -facing * 2.5f; state = State.Air; jumps = 1;
+                    return;
+                }
+            }
+            if (g.items != null) g.items.HitCrates(x, y, facing, 1f);
+            if (!air && t > KickHang + 0.02f)
+            {
+                kickLanded = true; kickLandT = 0;
+                vx = facing * 3f;
+                foreach (var e in g.enemies)
+                {
+                    if (e.dead || hitSet.Contains(e) || Mathf.Abs(e.x - x) > 1.6f + e.w || Mathf.Abs(e.y - y) > 1.2f) continue;
+                    g.HurtEnemy(e, 6, e.x >= x ? 1 : -1, 4f, 3f, false, false, fire: false, fromPlayer: true);
+                }
+                CbFx.Spark(new Vector3(x + facing * 0.6f, y + 0.1f, -0.4f), CbFx.Dust, 14, 5, 0.5f, 0.45f, 3);
+                CbVfx.Ring(new Vector3(x + facing * 0.6f, y + 0.05f, 0), CbFx.Dust * 0.6f, 2.4f, 0.3f, ground: true);
+                g.shake = Mathf.Max(g.shake, 0.22f);
+                Squash(0.2f);
+                CbFx.Sfx("heavy", 0.6f);
+            }
+            // never longer than a fall from high up
+            if (t > 1.6f) state = State.Air;
         }
 
         void StartStaff(Move m)
@@ -477,6 +546,7 @@ namespace Cloudborne
                     pose.sRx = -2.8f; pose.eR = -0.3f; pose.sLx = -0.4f; pose.eL = -1.2f; pose.bob = t < 0.4f ? Mathf.Sin(t / 0.4f * Mathf.PI) * 0.2f : 0;
                     break;
                 case State.Atk: UpdatePaw(ref pose, input, ref rate); break;
+                case State.Kick: UpdateKick(ref pose, dt, ref rate); break;
                 case State.Staff: UpdateStaff(ref pose, input, dt, ref rate); break;
                 case State.Blast:
                 {
@@ -584,7 +654,8 @@ namespace Cloudborne
                 else if (input.atk || (buffer > 0 && sinceDash < 0.35f))
                 {
                     if (!air && input.y < -0.5f) StartPaw(Sweep);
-                    else if (!air || airHits < 3) StartPaw(0);
+                    else if (air) StartDiveKick();
+                    else StartPaw(0);
                 }
                 else if (input.kiTap && ki >= FireCost)
                 {
@@ -641,6 +712,8 @@ namespace Cloudborne
             else f.flip.localRotation = Quaternion.identity;
             // swinging on a vine he leans with it
             if (state == State.Swing && swingVine != null) f.flip.localRotation = CbArt.Rot(0, 0, swingVine.angle);
+            // the dive kick: tipped forward so the leg he kicks with points down the way he dives
+            if (state == State.Kick && !kickLanded) f.flip.localRotation = CbArt.Rot(0, 0, -facing * KickTilt * Mathf.Clamp01(t / KickHang));
 
             f.Apply(pose, dt, rate);
             Place();
@@ -762,6 +835,11 @@ namespace Cloudborne
                     else model.Window("Sweep_Kick", 0.38f, 0.62f, u);
                     break;
                 }
+                case State.Kick:
+                    // the flying kick's moment with the leg straight out, held as he dives; then down onto his feet
+                    if (!kickLanded) model.Show("Rising_Flying_Kick", 0.36f, 0.06f);
+                    else model.Window("Rising_Flying_Kick", 0.6f, 0.85f, kickLandT / KickLand);
+                    break;
                 case State.Staff:
                     if (move == Move.Whirl) model.Window("Double_Blade_Spin", 0.05f, 0.4f, t / 0.95f);
                     else if (move == Move.Launch) model.Window("Charged_Upward_Slash", 0.12f, 0.45f, t / 0.42f);

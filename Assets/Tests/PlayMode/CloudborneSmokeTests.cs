@@ -488,6 +488,35 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator HitInTheAirIsADiveKick()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            float x0 = hero.x;
+            bool jumped = false, kicked = false;
+            game.TestInput = i =>
+            {
+                if (!jumped) { i.jump = true; jumped = true; }
+                else if (!kicked && hero.y > 1.2f) { i.atk = true; kicked = true; }
+            };
+            bool sawKick = false;
+            for (float w = 0; w < 2f; w += Time.deltaTime)
+            {
+                sawKick |= hero.state == CbHero.State.Kick;
+                yield return null;
+            }
+            game.TestInput = null;
+            Assert.IsTrue(sawKick, "HIT in the air did not start the dive kick");
+            Assert.AreEqual(0f, hero.y, 0.05f, "The dive kick did not bring him down to the ground");
+            Assert.Greater((hero.x - x0) * hero.facing, 1.5f, "The dive kick did not carry him forward");
+            Assert.AreNotEqual(CbHero.State.Kick, hero.state, "The dive kick never ended");
+        }
+
+        [UnityTest]
         public IEnumerator GuardStopsBlowsFromTheFront()
         {
             game = CbGame.Boot();
