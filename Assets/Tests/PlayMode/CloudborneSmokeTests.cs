@@ -385,9 +385,13 @@ namespace RacingGame.Tests
                 if (t.name == "terrace" && t.Find("rock") != null && t.Find("lip") == null) rock++;
                 if ((t.name == "ledge" || t.name == "crumblingLedge") && t.Find("fit") != null) kitLedges++;
             }
-            // the mountain's five, and the long stage's vine pillar, waterfall cliff and the ridge's shaft
-            Assert.AreEqual(9, rock, "The terraces are not bare rock");
-            Assert.Greater(kitLedges, 5, "The mountain's ledges are not the cliff kit's slabs");
+            // the long stage's vine pillar, waterfall cliff and the ridge's shaft (the climb is a gorge now: its cliffs
+            // are built of rock in rows, CbLevelGorge)
+            Assert.AreEqual(4, rock, "The terraces are not bare rock");
+            Assert.Greater(kitLedges, 5, "The gorge's ledges are not the cliff kit's slabs");
+            int cliffs = 0;
+            foreach (Transform t in level) if ((t.name == "cliff" || t.name == "gorgeGate") && t.Find("piece") != null) cliffs++;
+            Assert.AreEqual(3, cliffs, "The gorge's cliffs are not built of rock");
             // with the painted jungle behind the path, no modelled trees stand in front of it (faceted crowns)
             var treeSkins = new[] { "Tree_Albedo", "Banyan_Albedo", "Kapok_Albedo", "Bamboo_Albedo" };
             foreach (var r in game.world.root.GetComponentsInChildren<MeshRenderer>(true))
