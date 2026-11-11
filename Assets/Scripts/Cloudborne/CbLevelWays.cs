@@ -652,13 +652,77 @@ namespace Cloudborne
             else CbArt.Cylinder(Wood, logT, Vector3.zero, 0.35f, LogTo - LogFrom, Quaternion.Euler(0, 0, 90));
         }
 
+        /// <summary>
+        /// A rock face grown over with vines to climb (the side of b at x): a curtain of leafy green vines spilling over
+        /// its top, woven into a net with knots where they cross, flowers in it. It was two green poles that didn't look
+        /// like anything to climb (the user).
+        /// </summary>
         void DressVines(Block b, float x)
         {
-            for (float y = 0.5f; y < b.top; y += 0.7f)
-                CbArt.Part(CbMesh.Leaf(), LeafMat, root, new Vector3(x - 0.04f, y, -0.6f),
-                    Vector3.one * 0.22f, Quaternion.Euler(0, 90, Random.Range(-40f, 40f)), shadows: false);
-            CbArt.Cylinder(VineGreen, root, new Vector3(x - 0.05f, b.top / 2, -0.5f), 0.05f, b.top);
-            CbArt.Cylinder(VineGreen, root, new Vector3(x - 0.05f, b.top / 2, 0.2f), 0.05f, b.top);
+            var t = CbArt.Joint(root, x, 0, 0, "climbingVines");
+            const float zFront = -0.8f, zBack = 0.62f;
+            int strands = 5;
+            float top = b.top + 0.12f;
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+            var lines = new List<List<Vector3>>();
+            for (int i = 0; i < strands; i++)
+            {
+                float z0 = Mathf.Lerp(zFront, zBack, i / (strands - 1f));
+                var pts = new List<Vector3>();
+                var radii = new List<float>();
+                // over the top edge first, then down the face, swaying
+                pts.Add(new Vector3(0.25f, top + 0.02f, z0)); radii.Add(0.05f);
+                for (float y = top; y > 0.25f; y -= 0.14f)
+                {
+                    pts.Add(new Vector3(-0.05f - 0.025f * (1 + Mathf.Sin(y * 3.1f + i * 1.7f)), y, z0 + 0.09f * Mathf.Sin(y * 1.9f + i * 2.3f)));
+                    radii.Add(Mathf.Lerp(0.032f, 0.05f, y / top));
+                }
+                TaperedRope(verts, tris, pts, radii);
+                lines.Add(pts);
+            }
+            // woven across: a strand to its neighbour, down a little, now one way now the other
+            for (int i = 0; i < strands - 1; i++)
+                for (float y = top - 0.6f - (i % 2) * 0.45f; y > 0.6f; y -= 0.9f)
+                {
+                    var a = lines[i][Mathf.Clamp(Mathf.RoundToInt((top - y) / 0.14f) + 1, 1, lines[i].Count - 1)];
+                    var c = lines[i + 1][Mathf.Clamp(Mathf.RoundToInt((top - y + 0.45f) / 0.14f) + 1, 1, lines[i + 1].Count - 1)];
+                    var mid = (a + c) / 2 + new Vector3(-0.04f, -0.06f, 0);
+                    TaperedRope(verts, tris, new List<Vector3> { a, mid, c }, new List<float> { 0.026f, 0.024f, 0.026f });
+                    // the knot where they cross
+                    CbArt.Part(CbMesh.Sphere, VineMat, t, a + new Vector3(-0.01f, 0, 0), new Vector3(0.11f, 0.09f, 0.11f), shadows: false);
+                }
+            var mesh = new Mesh { name = "climbingVines" };
+            mesh.SetVertices(verts);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            var go = new GameObject("vineNet");
+            go.transform.SetParent(t, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = VineMat;
+            // leaves all along, and flowers here and there, facing out of the rock and toward the camera
+            int n = 0;
+            foreach (var pts in lines)
+                for (int k = 2; k < pts.Count; k += 2)
+                {
+                    n++;
+                    var p = pts[k];
+                    float side = n % 2 == 0 ? 1 : -1;
+                    CbArt.Part(CbMesh.Leaf(), LeafMat, t, p + new Vector3(-0.06f, 0, side * 0.08f), Vector3.one * Random.Range(0.18f, 0.27f),
+                        Quaternion.Euler(Random.Range(-30f, 30f), -90f + side * 35f, side * 55f + Random.Range(-20f, 20f)), shadows: false);
+                    if (n % 5 == 0 && CbWorld.FlowerCard(n / 5) is (Material fm, float aspect))
+                        CbArt.Part(CbMesh.Quad, fm, t, p + new Vector3(-0.14f, 0.05f, -0.05f), new Vector3(0.34f * aspect, 0.34f, 1), shadows: false).name = "flower";
+                }
+        }
+        static Material vineMat;
+        static Material VineMat
+        {
+            get
+            {
+                if (vineMat == null) { vineMat = CbArt.NewToon(CbArt.Hex("#4f8a32"), 0.6f); vineMat.SetFloat("_Cull", 0f); vineMat.SetFloat("_SpecStrength", 0f); }
+                return vineMat;
+            }
         }
 
         void BuildSeesaw()

@@ -82,7 +82,7 @@ namespace Cloudborne
         const float CrumbleAfter = 0.5f, CrumbleBack = 3f;
 
         /// <summary>The streams across stage 1-1 (x from, to): the rope bridge's, the long river, the brook.</summary>
-        public static readonly (float x0, float x1)[] Waters = { (31.4f, 55.4f), (79f, 103f), (200f, 232f), (300f, 312f), (345f, 395f), (522.2f, 524.6f) };
+        public static readonly (float x0, float x1)[] Waters = { (31.4f, 55.4f), (79f, 103f), (200f, 232f), (300f, 312f), (345f, 395f), (520.4f, 526.4f) };
         /// <summary>The water's surface, below the banks: its channel is cut into the ground.</summary>
         public const float WaterLevel = -0.45f;
         /// <summary>How far back from the path the streams run before they come out of the ground.</summary>
@@ -105,6 +105,10 @@ namespace Cloudborne
             return (a + k * w, a + (k + 1) * w, System.Array.IndexOf(RopeHoles, k) >= 0);
         }
         public const float StoneBridgeX = 523.4f;
+        // each arch (the model, 4.8 m long, scaled), their spacing, the bridge's half length; the deck between the
+        // parapets is about 1.76 of the model's 2.29 m height (the parapets' tops 2.18)
+        const float StoneArchLength = 4.1f, StoneArchStep = 3.96f;
+        public const float StoneBridgeHalf = (StoneArchStep + StoneArchLength) / 2, StoneDeck = 1.32f;
         // the mountain: where it stands, its summit's height
         public const float MountainFrom = 137f, MountainTo = 189f, SummitTop = 11.4f;
         // an edge he can catch: its top between these heights above his feet (his raised hands hang at
@@ -172,11 +176,21 @@ namespace Cloudborne
             AddStone(97.4f, false);
             AddLog(99.8f, 0, 0);
 
-            // the brook by the ridge, under a stone arch bridge (jumped onto: it stands as tall as Raja)
+            // the brook by the ridge, under a stone bridge of two arches, half a screen long (it was one short arch, and he
+            // walked along the top of its parapet: the user). He jumps up onto it at either end; its deck lies between
+            // the parapets, low enough that the near one hides his feet. The arches overlap a little, their end posts
+            // making one pier in the middle.
             var stone = CbArt.Joint(root, StoneBridgeX, 0, 0.15f, "stoneBridge");
-            if (CbArt.Prop("Cloudborne/Jungle/StoneBridge/StoneBridge", stone, CbArt.PropOutline) != null) stone.localScale = Vector3.one * 0.75f;
-            else CbArt.Box(CbArt.Toon("#8f9a8a", CbArt.PropOutline), stone, new Vector3(0, 0.82f, 0), new Vector3(3.6f, 1.64f, 1.6f));
-            blocks.Add(new Block { x0 = StoneBridgeX - 1.8f, x1 = StoneBridgeX + 1.8f, top = 1.64f, t = stone });
+            bool modelled = false;
+            for (int k = 0; k < 2; k++)
+            {
+                var arch = CbArt.Joint(stone, (k - 0.5f) * StoneArchStep, 0, 0, "arch");
+                if (CbArt.Prop("Cloudborne/Jungle/StoneBridge/StoneBridge", arch, CbArt.PropOutline) == null) continue;
+                arch.localScale = new Vector3(StoneArchLength / 4.8f, 0.75f, 0.75f);
+                modelled = true;
+            }
+            if (!modelled) CbArt.Box(CbArt.Toon("#8f9a8a", CbArt.PropOutline), stone, new Vector3(0, StoneDeck / 2, 0), new Vector3(StoneBridgeHalf * 2, StoneDeck, 1.6f));
+            blocks.Add(new Block { x0 = StoneBridgeX - StoneBridgeHalf, x1 = StoneBridgeX + StoneBridgeHalf, top = StoneDeck, t = stone });
         }
 
         /// <summary>A stepping stone, its top level with the banks; a sinking one shakes and goes under if he stays.</summary>

@@ -792,7 +792,10 @@ namespace RacingGame.Tests
             Assert.Less(level.SupportAt(97.4f, CbLevel.WaterLevel), -1f, "The stepping stone is climbed onto from the water");
             // the rock in the river and the stone arch bridge are stood on
             Assert.AreEqual(1.3f, level.SupportAt(89f, 2f), 0.001f, "The rock in the river does not hold him");
-            Assert.AreEqual(1.64f, level.SupportAt(CbLevel.StoneBridgeX, 2f), 0.001f, "The stone bridge does not hold him");
+            Assert.AreEqual(CbLevel.StoneDeck, level.SupportAt(CbLevel.StoneBridgeX, 2f), 0.001f, "The stone bridge does not hold him");
+            // half a screen long, walked on between its parapets (not along their tops: the user)
+            Assert.GreaterOrEqual(CbLevel.StoneBridgeHalf * 2, 8f, "The stone bridge is short");
+            Assert.Less(CbLevel.StoneDeck, 1.64f * 0.9f, "He walks along the stone bridge's parapet");
 
             // standing on a steady stone, then falling in: a splash, health lost, and back on that stone
             game.Teleport(97.4f);
