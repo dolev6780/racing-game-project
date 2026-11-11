@@ -7,6 +7,8 @@ Shader "Cloudborne/WaterFront"
 {
     Properties
     {
+        // not drawn: there so code that asks any material for its texture (mainTexture) gets none, not an error
+        [HideInInspector] _MainTex ("Unused", 2D) = "white" {}
         _Shallow ("Shallow", Color) = (0.32, 0.82, 0.95, 0.66)
         _Deep ("Deep", Color) = (0.04, 0.3, 0.56, 0.95)
         _Foam ("Foam", Color) = (1, 1, 1, 0.96)
