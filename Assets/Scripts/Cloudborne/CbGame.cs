@@ -53,7 +53,9 @@ namespace Cloudborne
         /// <summary>Tips as Raja reaches them (tip: one of the fight tips; else text).</summary>
         static readonly (float x, int tip, string text)[] Tips =
         {
-            (17f, 1, null), (57f, 3, null), (66f, 2, null),
+            (17f, 1, null),
+            (21f, -1, "A fallen trunk! Run and press <color=#ffb03a>↓</color> to slide under it, or hold <color=#ffb03a>↓</color> to crawl"),
+            (57f, 3, null), (66f, 2, null),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
             (241f, -1, "The old temple: thorns need the staff, mind the floor, duck <color=#ffb03a>↓</color> the darts"),
             (292f, -1, "Strike the gong!"),

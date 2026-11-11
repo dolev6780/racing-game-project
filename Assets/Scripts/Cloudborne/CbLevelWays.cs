@@ -66,6 +66,7 @@ namespace Cloudborne
         class Boulder { public float x, vx, cool; public bool rolling; public Transform t; }
 
         const float LeafBounce = 19.5f, RaftTop = 0.1f, LogTop = 0.15f, SeesawTop = 0.35f;
+        public const float TrunkX = 24.5f;
         const float StatueX = 251.5f, PlateX = 284.5f, LeverX = 276f, GongX = 296.5f, BridgeFrom = 300f, BridgeTo = 312f;
         const float ChestX = 467.5f, SeesawX = 430f, MudFrom = 338f, MudTo = 344f;
         const float LogFrom = 370f, LogTo = 378f;
@@ -149,6 +150,9 @@ namespace Cloudborne
             // the ends of the stage: closed gates where he can go no further
             AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
+
+            // ---- after the first fight: a fallen trunk across the path, thorns on it - slide or crawl under it
+            AddOverhang(TrunkX, 0.7f, 0.95f, 1.65f, true);
 
             // ---- the vine ravine
             AddVine(204f, 9f, 5f);
@@ -814,6 +818,9 @@ namespace Cloudborne
 
         void WaysSupport(float x, float fromY, ref float best)
         {
+            // the top of a low passage's trunk is stood on (landed on from above)
+            foreach (var o in overhangs)
+                if (x > o.x0 - HalfWidth * 0.5f && x < o.x1 + HalfWidth * 0.5f && o.top <= fromY + 0.05f && o.top > best) best = o.top;
             // an open pit: nothing under him
             foreach (var p in pits)
                 if (p.open && x > p.x0 && x < p.x1 && best <= 0) best = Deep;
@@ -866,6 +873,56 @@ namespace Cloudborne
                 if (b.x1 <= x) lo = Mathf.Max(lo, b.x1 + 0.6f);
                 if (b.x0 >= x) hi = Mathf.Min(hi, b.x0 - 0.6f);
             }
+            // a soldier can't duck under a low passage
+            foreach (var o in overhangs) Bound(x, o.x0, o.x1, ref lo, ref hi);
+        }
+
+        // ---------- low passages ----------
+
+        /// <summary>
+        /// Something across the path at head height - a fallen trunk on two rocks, thorns over it: standing he can't get
+        /// past it; low (sliding, crawling, ducking) he goes under. Its top can be stood on, but thorns there hurt.
+        /// (The user: obstacles to slide or crawl under.)
+        /// </summary>
+        public class Overhang { public float x0, x1, bottom, top; public bool thorny; public Transform t; }
+        readonly List<Overhang> overhangs = new List<Overhang>();
+        /// <summary>How tall Raja stands, and how tall low (ducking, crawling, sliding).</summary>
+        public const float StandHeight = 1.55f, LowHeight = 0.8f;
+
+        /// <summary>The bottom of the lowest low passage over (x, y); infinity if there is none.</summary>
+        public float CeilingAt(float x, float y)
+        {
+            float c = float.PositiveInfinity;
+            foreach (var o in overhangs)
+                if (x > o.x0 - HalfWidth && x < o.x1 + HalfWidth && o.bottom >= y - 0.05f && o.bottom < c) c = o.bottom;
+            return c;
+        }
+
+        /// <summary>A low passage at x: a trunk across the path from bottom to top, on rocks front and back; thorny: thorns on it.</summary>
+        void AddOverhang(float x, float width, float bottom, float top, bool thorny)
+        {
+            var t = CbArt.Joint(root, x, 0, 0, "lowPassage");
+            // the jungle's log, turned to lie across the path, as thick as the passage's roof
+            var turn = CbArt.Joint(t, 0, bottom, 0, "trunk");
+            turn.localRotation = Quaternion.Euler(0, 90, 0);
+            var log = CbArt.Prop("Cloudborne/Jungle/Log/Log", turn, CbArt.PropOutline);
+            if (log != null) log.localScale = new Vector3(1.8f, (top - bottom) / 0.695f, width / 0.64f);
+            else CbArt.Cylinder(Wood, t, new Vector3(0, (bottom + top) / 2, 0), (top - bottom) / 2, 3.6f, Quaternion.Euler(90, 0, 0));
+            // the rocks it rests on, at the path's front and back edges
+            foreach (float z in new[] { -1.55f, 1.7f })
+            {
+                var r = CbArt.Joint(t, 0, 0, z, "rest");
+                if (Fit(RiverStonePath, r, new Vector3(-0.55f, 0, -0.32f), new Vector3(0.55f, bottom + 0.05f, 0.32f)) == null)
+                    CbArt.Box(StoneGrey, r, new Vector3(0, bottom / 2, 0), new Vector3(0.9f, bottom, 0.6f));
+            }
+            if (thorny)
+                for (float z = -1.2f; z <= 1.21f; z += 0.8f)
+                {
+                    var th = CbArt.Joint(t, 0, top - 0.05f, z, "thorns");
+                    if (Model("Thorns", th, new Vector3(width * 1.1f, 0.75f, 0.7f), 180f) == null)
+                        CbArt.Cone(M("#7a3a2a"), th, new Vector3(0, 0.2f, 0), 0.15f, 0.4f, null, 5);
+                }
+            overhangs.Add(new Overhang { x0 = x - width / 2, x1 = x + width / 2, bottom = bottom, top = top, thorny = thorny, t = t });
         }
 
         /// <summary>Narrows lo..hi around x to the near side of a stretch from x0 to x1 he can't cross.</summary>
@@ -1241,6 +1298,10 @@ namespace Cloudborne
                     if (!b.broken && d.y < b.top && d.x > b.x0 && d.x < b.x1) { stopped = true; break; }
                 if (hit || stopped || d.gone > 12f) { Object.Destroy(d.t.gameObject); darts.RemoveAt(i); }
             }
+            // thorns on a low passage's trunk: landing on them hurts and throws him off
+            foreach (var o in overhangs)
+                if (o.thorny && hero.x > o.x0 - HalfWidth * 0.5f && hero.x < o.x1 + HalfWidth * 0.5f && Mathf.Abs(hero.y - o.top) < 0.06f)
+                    hero.TakeHit(6, hero.x < (o.x0 + o.x1) / 2 ? -1 : 1, knock: 5f);
             // swinging logs
             foreach (var p in pendulums)
             {

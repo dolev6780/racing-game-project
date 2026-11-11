@@ -885,9 +885,18 @@ namespace Cloudborne
             return false;
         }
 
-        /// <summary>Moving from x0 to x1 at height y: solid blocks stop him at their side.</summary>
-        public float BlockX(float x0, float x1, float y)
+        /// <summary>
+        /// Moving from x0 to x1 at height y: solid blocks stop him at their side, and a low passage does when he is
+        /// taller (height) than the gap under it.
+        /// </summary>
+        public float BlockX(float x0, float x1, float y, float height = StandHeight)
         {
+            foreach (var o in overhangs)
+            {
+                if (y + height <= o.bottom || y >= o.top - 0.05f) continue;
+                if (x0 <= o.x0 - HalfWidth + 0.01f && x1 > o.x0 - HalfWidth) x1 = o.x0 - HalfWidth;
+                else if (x0 >= o.x1 + HalfWidth - 0.01f && x1 < o.x1 + HalfWidth) x1 = o.x1 + HalfWidth;
+            }
             foreach (var b in blocks)
             {
                 if (b.broken || y >= b.top - 0.05f) continue;

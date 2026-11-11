@@ -168,12 +168,13 @@ namespace RacingGame.Tests
             Assert.AreEqual(CbGame.Mode.Title, game.mode);
             Assert.IsNotNull(game.hero.f.root, "Raja was not built");
             Assert.IsNotNull(game.hero.model, "Raja's model did not load (Resources/Cloudborne/Raja, legacy animation)");
-            // 42 in his own file, and the dive kick made later on a new rig of the same model (Raja_Clips)
-            Assert.AreEqual(43, game.hero.model.ClipCount, "Raja's model is missing animation clips");
+            // 42 in his own file, and the dive kick, the slide and the crawl made later on a new rig of the same model
+            // (Raja_Clips)
+            Assert.AreEqual(45, game.hero.model.ClipCount, "Raja's model is missing animation clips");
             // from Meshy's animation library: catching an edge, pulling up over it, treading water, getting up, cheering;
             // hanging from a vine, climbing it, along a bar, pushing, walking the log; the dive kick from a description
             foreach (var clip in new[] { "Jump_and_Grab_Wall", "Ladder_Climb_Finish", "Swim_Idle", "Stand_Up1", "Victory_Cheer",
-                "Rope_Hang_Idle", "Climb_Up_Rope", "Slow_Bar_Hang_Left", "Push_and_Walk_Forward", "Tightrope_Walk", "Motion_Divekick" })
+                "Rope_Hang_Idle", "Climb_Up_Rope", "Slow_Bar_Hang_Left", "Push_and_Walk_Forward", "Tightrope_Walk", "Motion_Divekick", "slide_light", "Motion_Crawl" })
                 Assert.IsTrue(game.hero.model.HasClip(clip), $"Raja's model has no {clip} clip");
             foreach (var prop in new[] { "Staff", "Machete", "Shield" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Props/{prop}/{prop}"), $"The {prop} model is missing");
@@ -431,6 +432,35 @@ namespace RacingGame.Tests
             // a later run starts straight in the stage
             game.StartGame();
             Assert.AreEqual(CbGame.Mode.Play, game.mode);
+        }
+
+        [UnityTest]
+        public IEnumerator RajaSlidesAndCrawlsUnderALowPassage()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var level = game.level;
+            float x = CbLevel.TrunkX, near = x - 0.35f - CbLevel.HalfWidth;
+            // standing, the fallen trunk stops him; low, he passes under it
+            Assert.Less(level.BlockX(x - 3f, x + 1f, 0f), near + 0.01f, "The low passage does not stop him standing");
+            Assert.AreEqual(x + 1f, level.BlockX(x - 3f, x + 1f, 0f, CbLevel.LowHeight), 0.001f, "The low passage stops him even low");
+            // running at it, down: a slide, then a crawl, carries him under
+            game.Teleport(x - 6f);
+            game.hero.y = 0;
+            float t0 = Time.time;
+            game.TestInput = i => { i.x = 1; if (Time.time - t0 > 0.5f) i.y = -1; };
+            bool slid = false;
+            for (float w = 0; w < 4f && game.hero.x < x + 1.2f; w += Time.deltaTime)
+            {
+                slid |= game.hero.state == CbHero.State.Slide;
+                yield return null;
+            }
+            game.TestInput = null;
+            Assert.IsTrue(slid, "Running, down did not make Raja slide");
+            Assert.Greater(game.hero.x, x + 1f, "Raja did not get under the low passage");
         }
 
         [UnityTest]
