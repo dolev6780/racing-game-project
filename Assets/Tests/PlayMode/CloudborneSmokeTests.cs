@@ -1048,6 +1048,9 @@ namespace RacingGame.Tests
                 if (type == LogType.Error || type == LogType.Exception) Debug.Log("SHOT ERROR " + message.Split('\n')[0]);
             }
             Application.logMessageReceived += Told;
+            // the HUD drawn by the camera too (an overlay canvas isn't in a camera's picture)
+            var hud = GameObject.Find("HUD")?.GetComponent<Canvas>();
+            if (hud != null) { hud.renderMode = RenderMode.ScreenSpaceCamera; hud.worldCamera = cam; hud.planeDistance = 0.5f; }
             const int W = 960, H = 540;
             cam.aspect = W / (float)H;
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
@@ -1099,6 +1102,7 @@ namespace RacingGame.Tests
             }
             cam.ResetAspect();
             rt.Release();
+            if (hud != null) hud.renderMode = RenderMode.ScreenSpaceOverlay;
             Application.logMessageReceived -= Told;
         }
 

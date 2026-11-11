@@ -84,16 +84,21 @@ namespace Cloudborne
             play = UIKit.Stretch(root, "play");
 
             // status: portrait, name, bars
-            var status = UIKit.Rect(play, "status", new Vector2(0, 1), new Vector2(0, 1), new Vector2(14, -12), new Vector2(300, 60));
-            var portrait = UIKit.Rect(status, "portrait", new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(56, 56));
-            UIKit.Image(portrait, UIKit.Circle, Paper);
-            var face = UIKit.Rect(portrait, "face", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(50, 50));
+            // a round badge with Raja's face (rendered from his model; drawn in code if it's missing), a gold ring, a
+            // drop shadow; beside it his name and two glossy bars, like a storybook platformer's
+            var status = UIKit.Rect(play, "status", new Vector2(0, 1), new Vector2(0, 1), new Vector2(12, -10), new Vector2(320, 70));
+            var portrait = UIKit.Rect(status, "portrait", new Vector2(0, 1), new Vector2(0, 1), Vector2.zero, new Vector2(66, 66));
+            UIKit.Image(UIKit.Rect(portrait, "shadow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -3), new Vector2(66, 66)), UIKit.Circle, Ink);
+            UIKit.Image(portrait, UIKit.Circle, Gold);
+            var face = UIKit.Rect(portrait, "face", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(58, 58));
             var faceImg = face.gameObject.AddComponent<RawImage>();
-            faceImg.texture = Portrait();
+            var painted = Resources.Load<Texture2D>("Cloudborne/Hud/RajaPortrait");
+            faceImg.texture = painted != null ? painted : Portrait();
             faceImg.raycastTarget = false;
-            UIKit.Label(status, "RAJA", 18, Paper, new Vector2(0, 1), new Vector2(0, 1), new Vector2(66, 0), new Vector2(120, 22), TextAnchor.MiddleLeft, true);
-            hpFill = Bar(status, new Vector2(66, -24), new Vector2(200, 12), CbArt.Hex("#6fe08a"), out _);
-            kiFill = Bar(status, new Vector2(66, -42), new Vector2(160, 9), FireCol, out kiFrame);
+            UIKit.Image(UIKit.Rect(portrait, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(66, 66)), UIKit.Ring, Gold);
+            UIKit.Label(status, "RAJA", 19, Paper, new Vector2(0, 1), new Vector2(0, 1), new Vector2(76, -2), new Vector2(120, 22), TextAnchor.MiddleLeft, true);
+            hpFill = Bar(status, new Vector2(76, -26), new Vector2(220, 16), CbArt.Hex("#5ee07e"), out _);
+            kiFill = Bar(status, new Vector2(76, -47), new Vector2(176, 11), FireCol, out kiFrame);
 
             // stage title, wave, tip
             UIKit.Label(play, "STAGE 1-1 · THE JUNGLE GATE", 11, new Color(1, 1, 1, 0.9f), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -12), new Vector2(320, 16), TextAnchor.MiddleCenter);
@@ -188,15 +193,43 @@ namespace Cloudborne
 
         // ---------- building blocks ----------
 
+        /// <summary>
+        /// A glossy bar: a dark outline and shadow, a white rim, a dark track, the fill lighter at its top with a shine
+        /// along it. The fill's x scale is how full it is.
+        /// </summary>
         Image Bar(RectTransform parent, Vector2 pos, Vector2 size, Color color, out Image frame)
         {
             var rt = UIKit.Rect(parent, "bar", new Vector2(0, 1), new Vector2(0, 1), pos, size);
+            UIKit.Image(UIKit.Rect(rt, "shadow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -2), size + new Vector2(4, 4)), UIKit.RoundedSmall, Ink);
             frame = UIKit.Image(rt, UIKit.RoundedSmall, Paper);
             var inner = UIKit.Rect(rt, "bg", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, size - new Vector2(4, 4));
-            UIKit.Image(inner, UIKit.RoundedSmall, new Color(0.07f, 0.09f, 0.06f, 0.85f));
+            UIKit.Image(inner, UIKit.RoundedSmall, new Color(0.1f, 0.08f, 0.12f, 0.9f));
             var fill = UIKit.Rect(inner, "fill", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, size - new Vector2(4, 4));
-            var img = UIKit.Image(fill, null, color);
+            var img = UIKit.Image(fill, Gloss, color);
+            var shine = UIKit.Rect(fill, "shine", new Vector2(0, 1), new Vector2(0, 1), new Vector2(3, -1), new Vector2(size.x - 10, Mathf.Max(2, size.y * 0.22f)));
+            UIKit.Image(shine, UIKit.RoundedSmall, new Color(1, 1, 1, 0.45f));
             return img;
+        }
+
+        static Sprite gloss;
+
+        /// <summary>A bar's fill: white at the top, a little darker at the bottom (tinted by the bar's colour).</summary>
+        static Sprite Gloss
+        {
+            get
+            {
+                if (gloss != null) return gloss;
+                const int H = 16;
+                var t = new Texture2D(2, H, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                for (int y = 0; y < H; y++)
+                {
+                    float v = y / (H - 1f);
+                    var c = Color.Lerp(new Color(0.7f, 0.7f, 0.72f), Color.white, v);
+                    t.SetPixel(0, y, c); t.SetPixel(1, y, c);
+                }
+                t.Apply();
+                return gloss = Sprite.Create(t, new Rect(0, 0, 2, H), new Vector2(0.5f, 0.5f));
+            }
         }
 
         Pad AddPad(string id, string label, Vector2 centre, float size, Color color, int font)
