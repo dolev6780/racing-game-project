@@ -96,7 +96,8 @@ namespace Cloudborne
         // strung from the kit Tools/Blender/bridge_kit.py cuts from the bridge model: an end with its bamboo posts at
         // each side and RopeSections sections of planks and rails between; RopeHoles have no planks (he falls through)
         public const float RopeBridgeX = 43.4f, RopeDeckHalf = 12.3f;
-        const float RopeSag = 0.55f, RopeEndIn = 0.6f;
+        // (it sagged 0.55 m and its middle touched the water: the user)
+        const float RopeSag = 0.25f, RopeEndIn = 0.6f;
         public const int RopeSections = 11;
         static readonly int[] RopeHoles = { 2, 5, 8 };
 
@@ -579,26 +580,25 @@ namespace Cloudborne
 
         /// <summary>
         /// Strings the rope bridge across c from the kit: an end with its posts at each side, then sections of planks
-        /// and rails along the deck's sag, each tilted to it; the sections in RopeHoles get no planks, and become c's
-        /// holes. Without the kit, the one-piece bridge model, stretched.
+        /// along the deck's sag, each tilted to it; the sections in RopeHoles get no planks, and become c's holes. The
+        /// ropes are one smooth curve each over the whole bridge (StringRopes). Without the kit, the one-piece bridge
+        /// model, stretched.
         /// </summary>
         Transform StringRopeBridge(Crossing c)
         {
             var t = CbArt.Joint(root, 0, 0, 0.15f, "ropeBridge");
-            var probe = BridgePart("BridgeRail", t);
             var probeDeck = BridgePart("BridgeDeck", t);
-            if (probe == null || probeDeck == null)
+            if (probeDeck == null)
             {
                 Object.Destroy(t.gameObject);
                 var whole = PlaceProp("Cloudborne/Jungle/RopeBridge/RopeBridge", new Vector3(c.cx, -0.25f, 0.15f), new Vector3(2 * c.half / 6f, 1, 1), 0);
                 return whole;
             }
             // the kit's sizes, measured: a section's length and which way it runs, and its deck's top
-            var rb = LocalBounds(probe, t);
             var db = LocalBounds(probeDeck, t);
-            float secLen = rb.size.x, deckTop = db.max.y;
-            bool runsLeft = rb.center.x < 0;
-            Object.Destroy(probe.gameObject); Object.Destroy(probeDeck.gameObject);
+            float secLen = db.size.x, deckTop = db.max.y;
+            bool runsLeft = db.center.x < 0;
+            Object.Destroy(probeDeck.gameObject);
             float a = c.X0 + RopeEndIn, b = c.X1 - RopeEndIn, w = (b - a) / RopeSections;
             c.holes = new List<(float, float)>();
             for (int k = 0; k < RopeSections; k++)
@@ -610,8 +610,7 @@ namespace Cloudborne
                 // the section's start at the joint, along +x, stretched a little to fit
                 var fit = CbArt.Joint(sec, 0, 0, 0, "fit");
                 fit.localScale = new Vector3((runsLeft ? -1 : 1) * w / secLen, 1, 1);
-                fit.localPosition = new Vector3(runsLeft ? 0 : -(rb.min.x) * w / secLen, 0, 0);
-                BridgePart("BridgeRail", fit);
+                fit.localPosition = new Vector3(runsLeft ? 0 : -(db.min.x) * w / secLen, 0, 0);
                 if (System.Array.IndexOf(RopeHoles, k) >= 0) c.holes.Add((x0, x1));
                 else BridgePart("BridgeDeck", fit);
             }
@@ -629,11 +628,80 @@ namespace Cloudborne
                 float inner = outward < 0 ? eb.max.x : eb.min.x;
                 end.localPosition = new Vector3(edge - (inner - edge), c.Top(edge) - EndDeckTop, 0);
             }
+            StringRopes(c, t, a, b);
             return t;
         }
 
         // the end piece's planks where it meets the sections, above its foot
         const float EndDeckTop = 0.31f;
+        // the ropes: the handrail as high over the planks as the end piece's rope where it is cut (0.87 over its foot),
+        // either side of the planks, a tie between the handrail and the planks' edge rope every TieEvery metres
+        const float RailOver = 0.87f - EndDeckTop, RopeSide = 0.6f, TieEvery = 0.6f;
+
+        /// <summary>
+        /// The bridge's ropes from end to end, each one smooth curve following the planks' sag: a handrail and a rope
+        /// along the planks' edge either side, and ties between them, on over the stretches without planks. The kit's
+        /// rail pieces, chained, kinked and stepped at every joint (the user saw broken ropes).
+        /// </summary>
+        void StringRopes(Crossing c, Transform t, float a, float b)
+        {
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+            int n = Mathf.CeilToInt((b - a) / 0.25f);
+            foreach (float z in new[] { -RopeSide, RopeSide })
+            {
+                var rail = new List<Vector3>();
+                var edge = new List<Vector3>();
+                for (int i = 0; i <= n; i++)
+                {
+                    float x = Mathf.Lerp(a, b, i / (float)n);
+                    rail.Add(new Vector3(x, c.Top(x) + RailOver, z));
+                    edge.Add(new Vector3(x, c.Top(x) - 0.03f, z));
+                }
+                Rope(verts, tris, rail, 0.028f);
+                Rope(verts, tris, edge, 0.022f);
+                for (float x = a + TieEvery / 2; x < b; x += TieEvery)
+                    Rope(verts, tris, new[] { new Vector3(x, c.Top(x) - 0.03f, z), new Vector3(x, c.Top(x) + RailOver, z) }, 0.013f);
+            }
+            var mesh = new Mesh { name = "bridgeRopes" };
+            mesh.SetVertices(verts);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            var go = new GameObject("ropes");
+            go.transform.SetParent(t, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var rope = CbArt.NewToon(CbArt.Hex("#e6cfa0"), 0.6f);
+            rope.SetFloat("_Cull", 0f);
+            rope.SetFloat("_SpecStrength", 0f);
+            go.AddComponent<MeshRenderer>().sharedMaterial = rope;
+        }
+
+        /// <summary>A rope (a thin tube of a few sides) through the points, added to a mesh being built.</summary>
+        static void Rope(List<Vector3> verts, List<int> tris, IList<Vector3> pts, float radius, int sides = 5)
+        {
+            int start = verts.Count;
+            for (int i = 0; i < pts.Count; i++)
+            {
+                var dir = (pts[Mathf.Min(i + 1, pts.Count - 1)] - pts[Mathf.Max(i - 1, 0)]).normalized;
+                var side = Vector3.Cross(dir, Vector3.forward);
+                if (side.sqrMagnitude < 0.01f) side = Vector3.Cross(dir, Vector3.right);
+                side.Normalize();
+                var up = Vector3.Cross(side, dir);
+                for (int k = 0; k < sides; k++)
+                {
+                    float ang = k * Mathf.PI * 2 / sides;
+                    verts.Add(pts[i] + (side * Mathf.Cos(ang) + up * Mathf.Sin(ang)) * radius);
+                }
+            }
+            for (int i = 0; i < pts.Count - 1; i++)
+                for (int k = 0; k < sides; k++)
+                {
+                    int a0 = start + i * sides + k, a1 = start + i * sides + (k + 1) % sides;
+                    tris.Add(a0); tris.Add(a0 + sides); tris.Add(a1);
+                    tris.Add(a1); tris.Add(a0 + sides); tris.Add(a1 + sides);
+                }
+        }
 
         Transform PlaceProp(string path, Vector3 at, Vector3 scale, float yaw)
         {

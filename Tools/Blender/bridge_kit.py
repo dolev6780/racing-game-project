@@ -1,13 +1,14 @@
 """
 Cuts the rope bridge model (Resources/Cloudborne/Jungle/RopeBridge/RopeBridge.fbx, 7.2 m long along X) into a kit
 the game strings into a bridge of any length: an end with its bamboo posts, and a two-metre section of planks
-and rails from the middle, split into its deck (the planks) and its rail (the ropes and their ties), so a stretch
-of deck can be left out. The cuts fall in the gaps between planks, so the sections join without a seam.
+from the middle (its deck), so a stretch of deck can be left out. The cuts fall in the gaps between planks, so the
+sections join without a seam. The game makes the ropes between the ends itself, each one curve over the whole
+bridge (the model's rails, cut into sections and chained, kinked at every joint).
 
     blender --background --python Tools/Blender/bridge_kit.py -- RopeBridge.fbx OUT_DIR
 
-Writes OUT_DIR/BridgeEnd.fbx (the end, from the cut at x = 0 out to -x), BridgeDeck.fbx and BridgeRail.fbx (from
-x = 0 to +SECTION), in metres, the deck's top near z = DECK_TOP.
+Writes OUT_DIR/BridgeEnd.fbx (the end, from the cut at x = 0 out to -x) and BridgeDeck.fbx (from x = 0 to
++SECTION), in metres, the deck's top near z = DECK_TOP.
 """
 
 import os
@@ -67,10 +68,9 @@ def piece(name, x0, x1, shift, keep=None, level=False):
 
 end = piece("BridgeEnd", None, END_CUT, -END_CUT)
 deck = piece("BridgeDeck", SECTION[0], SECTION[1], -SECTION[0], lambda c: c.z < DECK_TOP, level=True)
-rail = piece("BridgeRail", SECTION[0], SECTION[1], -SECTION[0], lambda c: c.z >= DECK_TOP, level=True)
 print(f"levelled the section by {TILT:.3f} m per m")
 os.makedirs(out_dir, exist_ok=True)
-for o in (end, deck, rail):
+for o in (end, deck):
     bpy.ops.object.select_all(action="DESELECT")
     o.select_set(True)
     bpy.context.view_layer.objects.active = o
