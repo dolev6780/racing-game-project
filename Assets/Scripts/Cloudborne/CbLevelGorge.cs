@@ -82,7 +82,7 @@ namespace Cloudborne
 
             // the gorge's back wall, darker, so the ledges and rocks stand out against it
             var back = CbArt.Joint(root, 0, 0, 0, "gorgeBack");
-            RockWall(back, MountainFrom, SummitTo, -0.3f, GorgeRim + 0.5f, GorgeBack, GorgeBack + 1.8f, 1390, 0.35f, 0.62f, 4.4f);
+            RockWall(back, MountainFrom, SummitTo, -0.3f, GorgeRim + 0.5f, GorgeBack, GorgeBack + 1.8f, 1390, 0.35f, 0.52f, 4.4f);
 
             // up the gorge: right, back left, right again (ledges, a shoulder of the summit's cliff, a rock from the back wall)
             AddLedge(141.9f, 1.8f, 2.0f, false);
@@ -139,6 +139,8 @@ namespace Cloudborne
         /// </summary>
         bool RockWall(Transform parent, float x0, float x1, float y0, float y1, float zFront, float zBack, int seed, float jitter, float shade = 1f, float cell = 3.2f)
         {
+            // (in even rows and columns the same rock repeated read as a brick wall in the stage's pictures: every other
+            // row is set half a piece along, the pieces vary in size, and each shows one of the rock's four sides)
             const float Aspect = 0.85f, Overlap = 0.3f;
             float w = x1 - x0, h = y1 - y0;
             int cols = Mathf.Max(1, Mathf.RoundToInt(w / cell));
@@ -146,24 +148,32 @@ namespace Cloudborne
             int rows = Mathf.Max(1, Mathf.RoundToInt(h / (cw / Aspect)));
             float rh = h / rows;
             var rng = new System.Random(seed);
+            float Rand(float lo, float hi) => lo + (float)rng.NextDouble() * (hi - lo);
             Material tone = null;
             for (int r = 0; r < rows; r++)
-                for (int c = 0; c < cols; c++)
+            {
+                bool offset = r % 2 == 1 && cols > 1;
+                int n = offset ? cols + 1 : cols;
+                for (int c = 0; c < n; c++)
                 {
-                    float a = x0 + c * cw - (c > 0 ? Overlap : 0), b = x0 + (c + 1) * cw + (c < cols - 1 ? Overlap : 0);
-                    float lo = y0 + r * rh - (r > 0 ? Overlap : 0), hi = y0 + (r + 1) * rh + (r == rows - 1 ? 0.06f : Overlap);
-                    float dz = (float)rng.NextDouble() * jitter;
+                    float left = x0 + (c - (offset ? 0.5f : 0f)) * cw, right = left + cw;
+                    float a = Mathf.Max(x0, left - (c > 0 ? Overlap : 0) - Rand(0f, 0.25f) * cw);
+                    float b = Mathf.Min(x1, right + (c < n - 1 ? Overlap : 0) + Rand(0f, 0.25f) * cw);
+                    if (b - a < cw * 0.3f) continue;
+                    float lo = y0 + r * rh - (r > 0 ? Overlap + Rand(0f, 0.2f) * rh : 0);
+                    float hi = r == rows - 1 ? y1 + 0.06f : y0 + (r + 1) * rh + Overlap + Rand(0f, 0.25f) * rh;
+                    float dz = Rand(0f, jitter);
                     var piece = CbArt.Joint(parent, 0, 0, 0, "piece");
                     if (Fit(CliffRockPath, piece, new Vector3(a, lo, zFront + dz), new Vector3(b, hi, zBack)) == null)
                     {
                         Object.Destroy(piece.gameObject);
                         return false;
                     }
-                    if (rng.NextDouble() < 0.5)
-                    {
-                        piece.localScale = new Vector3(-1, 1, 1);
-                        piece.localPosition = new Vector3(a + b, 0, 0);
-                    }
+                    // one of its four sides to the camera: mirrored across, front to back, or both (turned round)
+                    int side = rng.Next(4);
+                    bool flipX = (side & 1) == 1, flipZ = (side & 2) == 2;
+                    piece.localScale = new Vector3(flipX ? -1 : 1, 1, flipZ ? -1 : 1);
+                    piece.localPosition = new Vector3(flipX ? a + b : 0, 0, flipZ ? zFront + dz + zBack : 0);
                     if (shade < 1f)
                         foreach (var rend in piece.GetComponentsInChildren<Renderer>())
                         {
@@ -171,6 +181,7 @@ namespace Cloudborne
                             rend.sharedMaterial = tone;
                         }
                 }
+            }
             return true;
         }
 
