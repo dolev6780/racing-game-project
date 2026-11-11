@@ -470,7 +470,7 @@ namespace Cloudborne
                 cascade.mainTextureScale = new Vector2(w / 3f, 0.4f);
                 waterMats.Add(cascade);
                 CbArt.Part(CbMesh.Quad, cascade, root, new Vector3(c, level / 2, back - 0.01f), new Vector3(w, -level, 1), shadows: false).name = "cascade";
-                if (Has(LeavesModel))
+                if (Has(LeavesModel) && !NewLook)
                     for (float x = x0 - 0.4f; x <= x1 + 0.5f; x += Mathf.Max(1.4f, w / 6f))
                         Place(LeavesModel, far, new Vector3(x + Random.Range(-0.3f, 0.3f), 0, back + Random.Range(0.1f, 0.6f)), Random.Range(0.7f, 1f));
             }
@@ -736,6 +736,11 @@ namespace Cloudborne
                 mid = BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
                 var hedge = BushGround();
                 near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, PaintTint);
+                // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and
+                // the old leaf models showed there)
+                var behind = new List<(float a, float b)>();
+                foreach (var (x0, x1) in CbLevel.Waters) behind.Add((x0 - 1f, x1 + 1f));
+                BuildLayer("JungleNear", CbLevel.WaterBack + 0.7f, -0.15f, 1.9f, 0f, behind, PaintTint);
                 // where it meets a river, a rounded clump closes it (it ended in a straight cut)
                 var clumpTex = Resources.Load<Texture2D>(ClumpPath);
                 var clump = clumpTex != null ? Cutout(clumpTex, 0f, PaintTint) : null;
