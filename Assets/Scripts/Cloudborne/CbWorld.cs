@@ -37,7 +37,7 @@ namespace Cloudborne
         static readonly Color PaintTint = new Color(0.93f, 0.92f, 0.95f);
         // the hanging leaves: CanopyShare of the view's height at the top, CanopyDist in front of the camera, sliding
         // a little faster than the path as the camera follows him (they are nearer)
-        const float CanopyShare = 0.24f, CanopyDist = 6f, CanopyDrift = 0.4f;
+        const float CanopyShare = 0.2f, CanopyDist = 6f, CanopyDrift = 0.4f;
         Transform canopy;
         Material canopyMat;
         Camera canopyCam;

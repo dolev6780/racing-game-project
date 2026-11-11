@@ -135,7 +135,7 @@ namespace Cloudborne
         // and the camera looks almost level, so the path reads as the top of a platform with its front face below
         // and the scenery stands up behind it, instead of a green floor tilting away.
         // the camera looks a little above his head: the ground sits low in the view, the painted jungle fills it
-        const float BaseFov = 26f, CamBase = 2.1f, CamRise = 0.6f;
+        const float BaseFov = 26f, CamBase = 2.1f, CamRise = 0.6f, ViewHalfWidth = 8f, LookAhead = 2.4f;
 
         class Shot { public Transform t, glow; public float x, y, vx, life, crackle; }
         /// <summary>The special shot's beam: its layers, how long it has run, where it starts and which way it points.</summary>
@@ -1078,8 +1078,10 @@ namespace Cloudborne
             fovKick += (0 - fovKick) * (1 - Mathf.Exp(-3 * dt));
             cam.fieldOfView = BaseFov + fovKick;
             float tanH = Mathf.Tan(BaseFov * 0.5f * Mathf.Deg2Rad);
-            float dist = Mathf.Clamp(9.8f / (tanH * cam.aspect), 13f, 28f);
-            float tx = hero.x + hero.facing * 1.6f;
+            // ViewHalfWidth metres of the path either side of the centre: close enough that Raja and the soldiers are
+            // big on the screen (the user's reference), looking further ahead the way he faces to make up for it
+            float dist = Mathf.Clamp(ViewHalfWidth / (tanH * cam.aspect), 11f, 24f);
+            float tx = hero.x + hero.facing * LookAhead;
             // in the menu Raja stands on the right of the screen, the menu on the left, the camera a little closer
             if (mode == Mode.Title) { tx = hero.x - 3.4f + Mathf.Sin(clock * 0.2f) * 0.3f; dist *= 0.72f; }
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
