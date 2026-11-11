@@ -142,8 +142,8 @@ namespace Cloudborne
             // stone lanterns: where he comes back (the start counts as one)
             foreach (var x in new[] { 108f, 196f, 242f, 293f, 337f, 401f, 472f, 536f }) AddLantern(x);
             // the ends of the stage: closed gates where he can go no further
-            AddEndGate(CbWorld.LevelMin - HalfWidth - 1.75f);
-            AddEndGate(CbWorld.LevelMax + HalfWidth + 1.75f);
+            AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
+            AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
 
             // ---- the vine ravine
             AddVine(204f, 9f, 5f);
@@ -402,18 +402,26 @@ namespace Cloudborne
 
         /// <summary>
         /// A closed bamboo gate where the stage ends at either side, the way on barred: he used to stop at a wall no one
-        /// could see (the user). It stands just past where he stops, a little behind the path.
+        /// could see (the user). It stood square to the camera like a picture and looked wrong (the user): now it
+        /// stands across the dirt path, turned EndGateTurn degrees, from near its front edge to near its back edge, its
+        /// face toward the stage and the camera (side +1: the stage lies to its right). Turned all the way (90) the
+        /// camera saw only its near post; a little bigger than the gates in the temple, so it reaches across.
+        /// He stops just short of it; its near post is the end away from him, so it never stands in front of him.
         /// </summary>
-        void AddEndGate(float x)
+        void AddEndGate(float x, int side)
         {
             var t = CbArt.Joint(root, x, 0, 0f, "endGate");
-            var model = Model("Gate", t, new Vector3(3.45f, 3.6f, 1.24f), 180f);
-            if (model != null) { model.localPosition = new Vector3(0, 0, 0.3f); return; }
+            t.localRotation = Quaternion.Euler(0, side > 0 ? 180f - EndGateTurn : 180f + EndGateTurn, 0);
+            const float k = EndGateScale;
+            if (Model("Gate", t, new Vector3(3.45f * k, 3.6f * k, 1.24f * k), 0f) != null) return;
             for (float bx = -1.4f; bx <= 1.41f; bx += 0.28f)
-                CbArt.Cylinder(Bamboo, t, new Vector3(bx, 1.8f, 0.3f), 0.08f, 3.6f);
-            CbArt.Box(Wood, t, new Vector3(0, 3.3f, 0.3f), new Vector3(3.2f, 0.2f, 0.2f));
-            CbArt.Box(Wood, t, new Vector3(0, 0.8f, 0.3f), new Vector3(3.2f, 0.2f, 0.2f));
+                CbArt.Cylinder(Bamboo, t, new Vector3(bx * k, 1.8f * k, 0), 0.08f * k, 3.6f * k);
+            CbArt.Box(Wood, t, new Vector3(0, 3.3f * k, 0), new Vector3(3.2f * k, 0.2f, 0.2f));
+            CbArt.Box(Wood, t, new Vector3(0, 0.8f * k, 0), new Vector3(3.2f * k, 0.2f, 0.2f));
         }
+        const float EndGateTurn = 45f, EndGateScale = 1.25f;
+        /// <summary>How far along the path the end gate reaches from its middle, where it crosses his line (the half of its thickness, slanted).</summary>
+        static float EndGateHalf => 1.24f * EndGateScale / 2 / Mathf.Sin(EndGateTurn * Mathf.Deg2Rad);
 
         void AddGate(float x)
         {
