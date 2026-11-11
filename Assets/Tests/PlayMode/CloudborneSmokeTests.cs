@@ -1052,12 +1052,14 @@ namespace RacingGame.Tests
             cam.aspect = W / (float)H;
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
             var oldTrace = Application.GetStackTraceLogType(LogType.Log);
-            foreach (var (name, x) in new[] { ("start", 6f), ("river", 75f), ("mountain", 152f), ("bars", 219f), ("thorns", 243f), ("temple", 266f),
-                ("seesaw", 433f) })
+            // where, and how high (the bars are over the river: he hangs from them, or he would be in the water)
+            foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("river", 75f, 0f), ("mountain", 152f, 0f), ("bars", 219f, 4.8f - 1.71f),
+                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("seesaw", 433f, 0f) })
             {
                 game.Teleport(x);
-                game.hero.y = 0;
+                game.hero.y = y;
                 game.hero.vx = game.hero.vy = 0;
+                if (y > 0) game.hero.state = CbHero.State.Air;
                 // the camera eases after him
                 yield return new WaitForSeconds(2.5f);
                 // drawn by the pipeline as usual, for a frame, into the picture (WaitForEndOfFrame never comes in
