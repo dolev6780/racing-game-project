@@ -916,6 +916,31 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ASoldierKnockedIntoAHoleInTheBridgeFallsIn()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            // a soldier on the rope bridge just short of a hole in its planks (his stretch ends before it)
+            var (h0, h1, hole) = CbLevel.RopeSection(5);
+            Assert.IsTrue(hole);
+            var e = new CbEnemy(game, CbEnemy.Kind.Hyena, h0 - 0.9f, game.transform) { minX = h0 - 3f, maxX = h0 - 0.6f };
+            game.enemies.Add(e);
+            game.Teleport(h0 - 6f);
+            yield return Frames(3);
+            // walking, he keeps to his stretch; a blow that throws him towards the hole sends him through it
+            Assert.Less(e.x, h0, "The soldier walked into the hole");
+            int score = game.score;
+            game.HurtEnemy(e, 1f, 1, 8f, 2f, false, false, false, true);
+            for (float w = 0; w < 3f && game.enemies.Contains(e); w += Time.deltaTime) yield return null;
+            Assert.IsFalse(game.enemies.Contains(e), "The soldier was not thrown through the hole");
+            Assert.IsTrue(e.dead, "A soldier in the stream is not beaten");
+            Assert.Greater(game.score, score + 200, "No bonus for throwing him in");
+        }
+
+        [UnityTest]
         public IEnumerator TheGorgeFloodsBehindHimAndTheWaterCatchesHim()
         {
             game = CbGame.Boot();

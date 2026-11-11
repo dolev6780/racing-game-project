@@ -172,8 +172,9 @@ namespace Cloudborne
             AddStone(80.6f, false);
             AddLog(83.6f, 1.0f, 4.2f);
             AddStone(86.6f, true);
-            AddRock(89f, 1.2f, 1.3f);
-            AddLog(92.2f, 1.2f, 5.2f);
+            // (wide enough for a fight: a soldier guards it - knocked off it, he's in the river)
+            AddRock(89f, 2.2f, 1.3f);
+            AddLog(92.6f, 1.2f, 5.2f);
             AddStone(95.2f, true);
             AddStone(97.4f, false);
             AddLog(99.8f, 0, 0);

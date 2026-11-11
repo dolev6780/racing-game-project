@@ -33,8 +33,15 @@ namespace Cloudborne
         class Post { public float x, range; public CbEnemy.Kind kind; public bool asleep, spawned; public CbEnemy enemy; public Transform seat; }
         static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan =
         {
-            (22f, CbEnemy.Kind.Hyena, 6f, false), (64f, CbEnemy.Kind.Shield, 5f, false), (71f, CbEnemy.Kind.Hyena, 4f, true),
-            (108f, CbEnemy.Kind.Shield, 1.5f, false), (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
+            (22f, CbEnemy.Kind.Hyena, 6f, false),
+            // on the rope bridge, between the holes in its planks: knocked into one, a soldier drops into the stream
+            (40.2f, CbEnemy.Kind.Hyena, 1.5f, false), (46.6f, CbEnemy.Kind.Shield, 1.5f, false),
+            (64f, CbEnemy.Kind.Shield, 5f, false), (71f, CbEnemy.Kind.Hyena, 4f, true),
+            // on the rock in the middle of the long river
+            (89f, CbEnemy.Kind.Hyena, 1f, false),
+            // waiting together on the far bank of the long river, by the shrine: three at once, the river at their backs
+            (106.5f, CbEnemy.Kind.Hyena, 3f, false), (109.5f, CbEnemy.Kind.Shield, 3f, false), (112.5f, CbEnemy.Kind.Hyena, 3f, false),
+            (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
             (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (259f, CbEnemy.Kind.Hyena, 1.5f, false), (318f, CbEnemy.Kind.Hyena, 3f, false),
             (322f, CbEnemy.Kind.Shield, 3f, false), (341f, CbEnemy.Kind.Hyena, 2.5f, false), (398f, CbEnemy.Kind.Shield, 2f, false),
             (476f, CbEnemy.Kind.Hyena, 4f, false), (486f, CbEnemy.Kind.Shield, 4f, false), (499f, CbEnemy.Kind.Hyena, 3f, true),
@@ -55,7 +62,9 @@ namespace Cloudborne
         {
             (17f, 1, null),
             (21f, -1, "A fallen trunk! Run and press <color=#ffb03a>↓</color> to slide under it, or hold <color=#ffb03a>↓</color> to crawl"),
+            (29f, -1, "Soldiers on the rope bridge! Knock them through the gaps into the water"),
             (57f, 3, null), (66f, 2, null),
+            (97f, -1, "They wait on the bank - knock them back into the river!"),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
             (241f, -1, "The old temple: thorns need the staff, mind the floor, duck <color=#ffb03a>↓</color> the darts"),
             (292f, -1, "Strike the gong!"),
@@ -545,6 +554,8 @@ namespace Cloudborne
                     {
                         p.spawned = true;
                         p.enemy = new CbEnemy(this, p.kind, p.x, actors) { asleep = p.asleep };
+                        // one out in the river stands on its rock
+                        if (level != null && CbLevel.InWater(p.x)) p.enemy.y = Mathf.Max(0, level.SupportAt(p.x, 50f));
                         enemies.Add(p.enemy);
                     }
                     // he roams his stretch of open path, and it widens when a wall in it is broken (not a line no one
@@ -656,6 +667,40 @@ namespace Cloudborne
             CbVfx.Burst(new Vector3(e.x, e.HitHeight, -0.5f), CbFx.Hit, 3f, 0.25f);
             CbVfx.Ring(new Vector3(e.x, e.HitHeight, -0.5f), CbFx.Purple * 0.35f, 1.8f, 0.4f);
             hud.ImpactFlash(0.35f);
+        }
+
+        /// <summary>
+        /// A soldier knocked into the water (or a pit): a big splash and he is gone, beaten - with a bonus, as it took
+        /// aim (the user wanted more action: the bridge and the river banks are places to throw them off).
+        /// </summary>
+        public void EnemyFellIn(CbEnemy e)
+        {
+            bool water = CbLevel.InWater(e.x);
+            var at = new Vector3(e.x, water ? CbLevel.WaterLevel + 0.1f : -0.3f, -0.3f);
+            if (water)
+            {
+                CbFx.Spark(at, CbFx.Water, 30, 8, 0.5f, 0.6f, 12);
+                CbVfx.Ring(new Vector3(e.x, CbLevel.WaterLevel + 0.02f, 0), CbFx.Water * 0.5f, 2f, 0.45f, ground: true);
+                CbFx.Sfx("splash");
+            }
+            else
+            {
+                CbFx.Puff(at, new Color(0.78f, 0.74f, 0.66f), 10, 2.2f, 1f, 0.6f);
+                CbFx.Sfx("heavy", 0.7f);
+            }
+            if (!e.dead)
+            {
+                e.dead = true;
+                score += e.scoreValue;
+            }
+            const int Bonus = 200;
+            score += Bonus;
+            combo++;
+            comboT = 1.8f;
+            maxCombo = Mathf.Max(maxCombo, combo);
+            hud.SetCombo(combo);
+            hud.Popup(new Vector3(e.x, 1.6f, 0), (water ? "SPLASH! +" : "DOWN THE PIT! +") + Bonus, CbHud.PopStyle.Big);
+            shake = Mathf.Max(shake, 0.3f);
         }
 
         /// <summary>

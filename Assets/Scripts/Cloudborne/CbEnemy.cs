@@ -25,6 +25,10 @@ namespace Cloudborne
         public int facing = -1;
         public State state = State.Move;
         public bool dead, guard;
+        /// <summary>Thrown off his footing into the water or a pit: he drops in and is gone (CbGame.EnemyFellIn).</summary>
+        public bool fallingIn;
+        // the height of what he stands on (the path, a bridge's deck, a rock in the river)
+        float ground;
         public readonly float w = 0.5f, hy = 1.3f;
         public float HitHeight => y + hy;
         public readonly int scoreValue;
@@ -162,7 +166,7 @@ namespace Cloudborne
             {
                 case State.Dying: model.Window("dying_backwards", 0f, 0.85f, t); break;
                 case State.Hurt:
-                    if (y > 0.25f) model.Show("BeHit_FlyUp", vy > 0 ? 0.3f : 0.5f, 0.1f);
+                    if (y > ground + 0.25f) model.Show("BeHit_FlyUp", vy > 0 ? 0.3f : 0.5f, 0.1f);
                     else model.Window("Hit_Reaction", 0.1f, 0.6f, t / 0.42f);
                     break;
                 case State.Atk:
@@ -201,7 +205,7 @@ namespace Cloudborne
             {
                 case State.Dying: model.Window("dying_backwards", 0f, 0.85f, t); break;
                 case State.Hurt:
-                    if (y > 0.25f) model.Show("BeHit_FlyUp", vy > 0 ? 0.3f : 0.5f, 0.1f);
+                    if (y > ground + 0.25f) model.Show("BeHit_FlyUp", vy > 0 ? 0.3f : 0.5f, 0.1f);
                     else model.Window("Hit_Reaction", 0.1f, 0.6f, t / 0.3f);
                     break;
                 case State.Atk:
@@ -496,14 +500,14 @@ namespace Cloudborne
                     // (CbGame.EnemyPoof), what he carried bursting out of it
                     pose.lean = -1.3f; pose.sLz = 1.4f; pose.sRz = -1.4f; pose.hLx = -1; pose.hRx = 0.3f; pose.headX = -0.5f;
                     if (model == null) f.flip.localRotation *= Quaternion.Euler(0, 0, facing * dt * 6 * Mathf.Max(0, 0.5f - t) * Mathf.Rad2Deg);
-                    if (t > 0.55f && y <= 0.01f && Random.value < 0.25f)
+                    if (t > 0.55f && y <= ground + 0.01f && Random.value < 0.25f)
                         CbFx.Spark(new Vector3(x + Random.Range(-0.4f, 0.4f), y + 0.9f, -0.4f), CbFx.Flame, 1, 1.2f, 0.18f, 0.45f, 0);
                     if (t > 0.7f) flash = Mathf.Repeat(t, 0.12f) < 0.06f ? 0.06f : 0f;
                     if (t > DyingTime) { g.EnemyPoof(this); return true; }
                     break;
                 case State.Hurt:
                     pose.lean = -0.6f; pose.headX = -0.5f; pose.sLz = 1.1f; pose.sRz = -1.1f; pose.sLx = 0.5f; pose.sRx = 0.5f;
-                    if (t > (Boss ? 0.3f : 0.42f) && y <= 0) state = State.Move;
+                    if (t > (Boss ? 0.3f : 0.42f) && y <= ground + 0.01f) state = State.Move;
                     break;
                 case State.Atk when Boss:
                     BossAttack(ref pose, dt, hero);
@@ -600,26 +604,40 @@ namespace Cloudborne
             vy -= 30 * dt;
             y += vy * dt;
             x += vx * dt;
-            // the ground under him: the path, or a bridge's deck (he walks onto it and follows its sag)
+            // knocked back (or beaten) a soldier can be thrown off his stretch into the water or a pit beside it
+            bool knocked = state == State.Hurt || state == State.Dying;
+            // the sergeant keeps to his arena, a soldier to his stretch of path
+            if (Boss && g.lockZone != null) x = Mathf.Clamp(x, g.lockZone.x - 10f, g.lockZone.x + 10f);
+            else if (!Boss && !fallingIn)
+            {
+                // at the end of his stretch he stops (he walked on the spot there: the user)
+                float held = Mathf.Clamp(x, minX, maxX);
+                if (held != x && knocked && g.level != null && g.level.SupportAt(held + Mathf.Sign(x - held) * 0.9f, 0.1f) < -0.6f) held = x;
+                if (held != x && (held - x) * vx < 0) vx = 0;
+                x = held;
+            }
+            // the ground under him: the path, or a bridge's deck (he walks onto it and follows its sag); over the water
+            // or a hole in a bridge he walks as if on the bank (his stretch keeps him off it), but thrown there he falls in
             float floor = 0;
             if (g.level != null && !Boss)
             {
                 floor = g.level.SupportAt(x, Mathf.Max(y, 0) + 0.1f);
-                if (floor < -0.6f) floor = 0;
+                if (floor < -0.6f)
+                {
+                    if (knocked && y < 0.1f) fallingIn = true;
+                    if (!fallingIn) floor = 0;
+                }
             }
+            if (fallingIn)
+            {
+                floor = float.NegativeInfinity;
+                if (y < CbLevel.WaterLevel - 0.7f) { g.EnemyFellIn(this); return true; }
+            }
+            if (!float.IsNegativeInfinity(floor)) ground = floor;
             if (y <= floor)
             {
                 y = floor; vy = 0;
                 if (state != State.Move && state != State.Atk) vx *= 1 - (1 - Mathf.Exp(-6 * dt));
-            }
-            // the sergeant keeps to his arena, a soldier to his stretch of path
-            if (Boss && g.lockZone != null) x = Mathf.Clamp(x, g.lockZone.x - 10f, g.lockZone.x + 10f);
-            else if (!Boss)
-            {
-                // at the end of his stretch he stops (he walked on the spot there: the user)
-                float held = Mathf.Clamp(x, minX, maxX);
-                if (held != x && (held - x) * vx < 0) vx = 0;
-                x = held;
             }
             f.Apply(pose, dt, state == State.Atk ? 22 : 12);
             f.root.localPosition = new Vector3(x, y, seatZ);

@@ -859,6 +859,14 @@ namespace Cloudborne
 
         void Stretch(float x, ref float lo, ref float hi)
         {
+            // on a rock in the river: that rock is all he has
+            foreach (var b in blocks)
+                if (!b.broken && InWater((b.x0 + b.x1) / 2) && x >= b.x0 && x <= b.x1)
+                {
+                    lo = Mathf.Max(lo, b.x0 + 0.3f);
+                    hi = Mathf.Min(hi, b.x1 - 0.3f);
+                    return;
+                }
             foreach (var (gx0, gx1) in Gaps)
             {
                 // a stream with a bridge over it is open path: he follows Raja across (he stopped at its foot), up to
