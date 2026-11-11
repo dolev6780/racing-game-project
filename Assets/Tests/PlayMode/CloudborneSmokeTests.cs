@@ -147,22 +147,17 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheScrollHidesOnLedgesThatShowWhenYouClimb()
+        public IEnumerator TheScrollsLedgesAreThereFromTheStart()
         {
             game = CbGame.Boot();
             yield return Frames(3);
             game.StartGame();
             game.SkipFights();
             yield return Frames(2);
-            var level = game.level;
-            // hidden: above the mountain's plateau there is only the plateau to stand on
-            Assert.AreEqual(10.2f, level.SupportAt(163.5f, 14f), 0.001f, "The hidden ledge holds him before it was found");
-            // up on the plateau, close by, the first hidden ledge shows itself
-            game.Teleport(166f);
-            game.hero.y = 10.2f;
-            game.hero.vy = 0;
-            for (float waited = 0; waited < 1f; waited += Time.deltaTime) yield return null;
-            Assert.AreEqual(12.8f, level.SupportAt(163.5f, 14f), 0.001f, "Climbing near did not reveal the hidden ledge");
+            // above the mountain's plateau two ledges lead up to the scroll: there all along (they popped up as he came
+            // near, which looked wrong: the user)
+            Assert.AreEqual(12.8f, game.level.SupportAt(163.5f, 14f), 0.001f, "The first ledge to the scroll is not there");
+            Assert.AreEqual(15f, game.level.SupportAt(160.3f, 16f), 0.001f, "The second ledge to the scroll is not there");
         }
 
         [UnityTest]

@@ -19,7 +19,7 @@ namespace Cloudborne
     /// Stage 1-1, about 265 m: the village; the first fight; a stream under a rope bridge; the second fight; the
     /// cracked wall (only the staff breaks it); a long river of stones and logs; the ambush at the shrine; a
     /// mountain climbed by terraces and ledges, crumbling ones, edges caught and walls jumped off, to the golden fruit on its
-    /// summit (and a hidden path to the scroll above); the fight on the ridge; a brook under a stone arch bridge;
+    /// summit (and a secret path to the scroll above); the fight on the ridge; a brook under a stone arch bridge;
     /// Sergeant Snap at the shrine gate.
     /// </summary>
     public partial class CbLevel
@@ -40,9 +40,7 @@ namespace Cloudborne
         {
             public float x0, x1, top;
             public bool crumbles, gone;
-            // a hidden ledge shows (and holds him) only once Raja has climbed up near it; then it stays
-            public bool hidden, found;
-            public float stood, respawn, reveal, glint;
+            public float stood, respawn;
             public Transform t;
             public Vector3 home;
         }
@@ -421,7 +419,7 @@ namespace Cloudborne
         /// <summary>
         /// The mountain after the shrine: terraces (solid) and ledges up to its summit, the higher ledges crumbling
         /// (falling between them, he wall-jumps back up); a gap to jump at the top; ledges down the far side. Secret: from the high
-        /// plateau two hidden ledges lead up and back to the scroll.
+        /// plateau two ledges lead up and back to the scroll.
         /// </summary>
         void BuildMountain()
         {
@@ -444,10 +442,10 @@ namespace Cloudborne
             AddLedge(181.7f, 1.4f, 8.6f, false);
             AddLedge(184.7f, 1.4f, 5.8f, true);
             AddLedge(187.7f, 1.4f, 3.0f, false);
-            // a secret: from the plateau, two hidden ledges lead up and back to the scroll (a glint now and then gives
-            // them away)
-            AddLedge(163.5f, 1.3f, 12.8f, false, hidden: true);
-            AddLedge(160.3f, 1.4f, 15f, false, hidden: true);
+            // a secret: from the plateau, two ledges lead up and back to the scroll (they were hidden until he came near
+            // and then popped up, which looked wrong: the user)
+            AddLedge(163.5f, 1.3f, 12.8f, false);
+            AddLedge(160.3f, 1.4f, 15f, false);
         }
 
         /// <summary>A terrace of the mountain: solid stone (or earth) from the ground up to top, depth metres deep.</summary>
@@ -510,9 +508,6 @@ namespace Cloudborne
             {
                 l.gone = false;
                 l.stood = l.respawn = 0;
-                l.found = false;
-                l.reveal = l.hidden ? 0 : 1;
-                if (l.hidden) l.t.localScale = Vector3.zero;
                 l.t.localPosition = l.home;
                 l.t.gameObject.SetActive(true);
             }
@@ -536,7 +531,7 @@ namespace Cloudborne
             blocks.Add(new Block { x0 = x - width / 2, x1 = x + width / 2, top = height, breakable = breakable, hp = 2, t = t });
         }
 
-        void AddLedge(float x, float width, float top, bool crumbles, bool hidden = false)
+        void AddLedge(float x, float width, float top, bool crumbles)
         {
             // a floating slab of mossy stone (the kit's ledge, its underside rough, vines hanging) - a crumbling one
             // cracked; else a slab of earth with grass on top
@@ -552,9 +547,7 @@ namespace Cloudborne
                 for (int k = 0; k < 3; k++)
                     CbArt.Box(crack, t, new Vector3((k - 1) * width * 0.3f, top - 0.28f, -0.77f), new Vector3(0.05f, 0.4f, 0.02f), CbArt.Rot(0, 0, k % 2 == 0 ? 0.4f : -0.4f));
             }
-            ledges.Add(new Ledge { x0 = x - width / 2, x1 = x + width / 2, top = top, crumbles = crumbles, t = t, home = t.localPosition,
-                hidden = hidden, reveal = hidden ? 0 : 1 });
-            if (hidden) t.localScale = Vector3.zero;
+            ledges.Add(new Ledge { x0 = x - width / 2, x1 = x + width / 2, top = top, crumbles = crumbles, t = t, home = t.localPosition });
         }
 
         /// <summary>A model in a joint of its own (so its import rotation stays), sized, turned about Y, on the level.</summary>
@@ -730,7 +723,7 @@ namespace Cloudborne
             foreach (var b in blocks)
                 if (!b.broken && x > b.x0 - HalfWidth * 0.5f && x < b.x1 + HalfWidth * 0.5f && b.top <= fromY + 0.05f && b.top > best) best = b.top;
             foreach (var l in ledges)
-                if (!l.gone && l.reveal > 0.5f && x > l.x0 - HalfWidth * 0.5f && x < l.x1 + HalfWidth * 0.5f && l.top <= fromY + 0.05f && l.top > best) best = l.top;
+                if (!l.gone && x > l.x0 - HalfWidth * 0.5f && x < l.x1 + HalfWidth * 0.5f && l.top <= fromY + 0.05f && l.top > best) best = l.top;
             WaysSupport(x, fromY, ref best);
             return best;
         }
@@ -778,7 +771,7 @@ namespace Cloudborne
             foreach (var b in blocks)
                 if (!b.broken && !b.breakable && !b.smooth) Try(dir > 0 ? b.x0 : b.x1, b.top);
             foreach (var l in ledges)
-                if (!l.gone && l.reveal > 0.5f) Try(dir > 0 ? l.x0 : l.x1, l.top);
+                if (!l.gone) Try(dir > 0 ? l.x0 : l.x1, l.top);
             edgeX = bx; top = bt;
             return best < float.MaxValue;
         }
@@ -887,7 +880,7 @@ namespace Cloudborne
         // ---------- moving parts ----------
 
         /// <summary>
-        /// Crumbling ledges drop when stood on and come back; hidden ledges show when he climbs near; logs bob, dip
+        /// Crumbling ledges drop when stood on and come back; logs bob, dip
         /// under him and drift, carrying him; sinking stones go under; the rope bridge bounces.
         /// </summary>
         public void Update(float dt, CbHero hero)
@@ -902,28 +895,6 @@ namespace Cloudborne
             UpdateCrossings(dt, hero);
             foreach (var l in ledges)
             {
-                if (l.hidden)
-                {
-                    float cx = (l.x0 + l.x1) / 2;
-                    // found once he is up high close by (on the plateau, or a jump near it)
-                    if (!l.found && Mathf.Abs(hero.x - cx) < 4.6f && hero.y > 1.8f && hero.y > l.top - 4.2f)
-                    {
-                        l.found = true;
-                        CbFx.Spark(new Vector3(cx, l.top, -0.4f), CbFx.Hit, 16, 4, 0.4f, 0.5f, -2);
-                        CbFx.Sfx("pickup", 0.6f);
-                        g.hud.SetTip("A hidden path! Something is up there...");
-                    }
-                    l.reveal = Mathf.MoveTowards(l.reveal, l.found ? 1 : 0, dt * 3f);
-                    l.t.localScale = Vector3.one * Mathf.SmoothStep(0, 1, l.reveal);
-                    // a glint now and then where it hides
-                    l.glint -= dt;
-                    if (!l.found && l.glint <= 0)
-                    {
-                        l.glint = 2.4f + Random.value;
-                        CbFx.Spark(new Vector3(cx + Random.Range(-0.5f, 0.5f), l.top, -0.4f), CbFx.Hit * 0.5f, 3, 1, 0.25f, 0.7f, -1);
-                    }
-                    continue;
-                }
                 if (!l.crumbles) continue;
                 if (l.gone)
                 {
