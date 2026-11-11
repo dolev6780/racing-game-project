@@ -34,11 +34,12 @@ namespace Cloudborne
         float t, cd, runPh;
         bool hitDone;
         // a soldier's moves between blows (with their clips, when his model has them): a charge from afar, stepping
-        // back after a blow, a shout with the blade raised as he first sees Raja
-        const float ChargeFrom = 3.6f, ChargeBoost = 1.45f, BackTime = 0.5f, ShoutTime = 1.6f;
-        const string ChargeClip = "Standard_Forward_Charge_inplace", ShoutClip = "Sword_Shout";
-        float backT, shoutT, chargeT, backPh;
-        bool charging, noticed;
+        // back after a blow. Seeing Raja he just charges (he stopped to shout with his blade raised: the user didn't
+        // like it).
+        const float ChargeFrom = 3.6f, ChargeBoost = 1.45f, BackTime = 0.5f;
+        const string ChargeClip = "Standard_Forward_Charge_inplace";
+        float backT, chargeT, backPh;
+        bool charging;
 
         // ---- Sergeant Snap ----
         public bool Boss => kind == Kind.Sergeant;
@@ -173,11 +174,9 @@ namespace Cloudborne
                 {
                     string back = shield ? "Walk_Backward_with_Sword_Shield" : "Walk_Backward_with_Sword_inplace";
                     // asleep: dozing, his head nodding (the clip plays for 17 seconds and loops); woken, he springs up out
-                    // of his seat with his blade raised (blending from sitting into the shout's start as he jumps)
+                    // of his seat into his fighting stance (blending from sitting as he jumps)
                     if (dozing) model.LoopSeconds(SleepClip, sleepT);
-                    else if (wakeT > 0 && model.HasClip(ShoutClip)) model.Window(ShoutClip, 0.04f, 0.32f, 1 - wakeT / WakeTime, 0.2f);
-                    // the shout's first part: the blade raised high over his head (the clip goes on for six seconds)
-                    else if (shoutT > 0 && model.HasClip(ShoutClip)) model.Window(ShoutClip, 0.04f, 0.4f, 1 - shoutT / ShoutTime);
+                    else if (wakeT > 0) model.LoopSeconds("Combat_Stance", g.clock + runPh, 0.25f);
                     else if (backT > 0 && Mathf.Abs(vx) > 0.3f && model.HasClip(back))
                     {
                         backPh += Time.deltaTime;
@@ -289,7 +288,6 @@ namespace Cloudborne
             if (openEyes != null) model.material.mainTexture = openEyes;
             f.body.localScale = Vector3.one;
             if (bubbleWait <= 0) PopBubble();
-            noticed = true;
             if (state == State.Hurt || state == State.Dying) return;
             g.hud.Popup(new Vector3(x, HitHeight + 1.2f, 0), "!", CbHud.PopStyle.Big);
             CbFx.Sfx("jump", 0.6f);
@@ -574,15 +572,8 @@ namespace Cloudborne
                         float d = x - o.x;
                         if (Mathf.Abs(d) < 1.1f) push += (d != 0 ? Mathf.Sign(d) : Random.Range(-1f, 1f)) * (1.1f - Mathf.Abs(d)) * 3;
                     }
-                    // the first time he sees Raja: a shout with his blade raised
-                    if (!noticed && dist < Notice)
-                    {
-                        noticed = true;
-                        if (model != null && model.HasClip(ShoutClip) && dist > reach + 1.5f) shoutT = ShoutTime;
-                    }
                     float want;
-                    if (shoutT > 0) { shoutT -= dt; want = 0; charging = false; }
-                    else if (backT > 0) { backT -= dt; want = -Mathf.Sign(dx) * speed * 0.6f; charging = false; }
+                    if (backT > 0) { backT -= dt; want = -Mathf.Sign(dx) * speed * 0.6f; charging = false; }
                     else
                     {
                         // from afar he charges, up close he comes on in his fighting walk
@@ -590,7 +581,7 @@ namespace Cloudborne
                         want = dist > reach && (Boss || dist < Notice) ? Mathf.Sign(dx) * speed * (charging ? ChargeBoost : 1f) : 0;
                     }
                     vx += (want + push - vx) * (1 - Mathf.Exp(-8 * dt));
-                    if (dist <= reach + 0.2f && cd <= 0 && shoutT <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)
+                    if (dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)
                     {
                         state = State.Atk; t = 0; hitDone = false; vx = 0; backT = 0; charging = false;
                     }

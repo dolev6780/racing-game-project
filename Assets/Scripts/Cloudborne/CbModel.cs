@@ -219,12 +219,12 @@ namespace Cloudborne
         public void Window(string clip, float from, float to, float u, float blend = 0.08f) => Show(clip, Mathf.Lerp(from, to, Mathf.Clamp01(u)), blend);
 
         /// <summary>Loops a clip: cycles counts whole plays of it.</summary>
-        public void Loop(string clip, float cycles) => Show(clip, cycles - Mathf.Floor(cycles));
+        public void Loop(string clip, float cycles, float blend = 0.08f) => Show(clip, cycles - Mathf.Floor(cycles), blend);
 
         /// <summary>Loops a clip at its own speed, given a running time in seconds.</summary>
-        public void LoopSeconds(string clip, float seconds)
+        public void LoopSeconds(string clip, float seconds, float blend = 0.08f)
         {
-            if (clips.TryGetValue(clip, out var s) && s.length > 0) Loop(clip, seconds / s.length);
+            if (clips.TryGetValue(clip, out var s) && s.length > 0) Loop(clip, seconds / s.length, blend);
         }
     }
 }
