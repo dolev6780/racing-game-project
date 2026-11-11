@@ -64,9 +64,8 @@ namespace Cloudborne
             public float drift, period;
             // a deck is stepped onto from the bank; the rest only landed on from above
             public bool deck, sinks, bobs;
-            // a sinking stone: 0 resting, 1 going down, 2 under, 3 coming back up
+            // a sinking stone: 0 resting, 1 going down, 2 under (it stays there until the stage starts over)
             public int phase;
-            public float timer;
             public Transform t;
             public Vector3 home;
             public float X0 => cx + dx - half;
@@ -506,7 +505,7 @@ namespace Cloudborne
                 b.t.gameObject.SetActive(true);
                 b.t.localRotation = Quaternion.identity;
             }
-            foreach (var c in crossings) { c.dip = c.bob = c.dx = c.sunk = c.shake = c.stood = c.timer = 0; c.phase = 0; }
+            foreach (var c in crossings) { c.dip = c.bob = c.dx = c.sunk = c.shake = c.stood = 0; c.phase = 0; }
             foreach (var l in ledges)
             {
                 l.gone = false;
@@ -857,17 +856,26 @@ namespace Cloudborne
                 // it bursts into tumbling stones
                 b.broken = true;
                 b.t.gameObject.SetActive(false);
-                // it bursts into tumbling rounded stones and a cloud of dust
-                var stone = CbArt.Toon("#8f9a8a", CbArt.PropOutline);
-                for (int k = 0; k < 9; k++)
+                // it bursts into tumbling rocks and a cloud of dust: the jungle's mossy boulder, a few big chunks that
+                // fall heavily and more small ones thrown further (grey blobs flew off it like foam: the user)
+                Material stone = null;
+                for (int k = 0; k < 11; k++)
                 {
-                    float s = Random.Range(0.22f, 0.5f);
-                    var chunk = CbArt.Part(CbMesh.Blob(6, 4), stone, g.transform, new Vector3((b.x0 + b.x1) / 2, Random.Range(0.3f, b.top), 0),
-                        new Vector3(s, s * Random.Range(0.6f, 0.9f), s), Random.rotation, shadows: false);
-                    g.AddDebris(chunk, new Vector3(dir * Random.Range(2f, 7f), Random.Range(2f, 6f), Random.Range(-1f, 1f)), Random.Range(-400f, 400f));
+                    bool big = k < 4;
+                    float s = big ? Random.Range(0.36f, 0.52f) : Random.Range(0.14f, 0.28f);
+                    var chunk = CbArt.Joint(g.transform, (b.x0 + b.x1) / 2 + Random.Range(-0.4f, 0.4f), Random.Range(0.4f, b.top - 0.3f), Random.Range(-0.3f, 0.3f), "rubble");
+                    var rock = CbArt.Prop("Cloudborne/Jungle/Boulder/Boulder", chunk, CbArt.PropOutline);
+                    // the boulder stands on its base; its middle at the chunk's, so it tumbles about it
+                    if (rock != null) rock.localPosition = new Vector3(0, -0.6f, 0);
+                    else CbArt.Part(CbMesh.Blob(6, 4), stone ??= CbArt.Toon("#8f9a8a", CbArt.PropOutline), chunk, Vector3.zero, Vector3.one * 1.2f, shadows: false);
+                    chunk.localScale = new Vector3(s, s * Random.Range(0.7f, 1f), s);
+                    chunk.rotation = Random.rotation;
+                    var v = big ? new Vector3(dir * Random.Range(1.2f, 3.2f), Random.Range(1.5f, 3.5f), Random.Range(-0.6f, 0.6f))
+                        : new Vector3(dir * Random.Range(3f, 7f), Random.Range(3f, 6.5f), Random.Range(-1f, 1f));
+                    g.AddDebris(chunk, v, Random.Range(-300f, 300f) * (big ? 0.5f : 1f));
                 }
-                for (int k = 0; k < 3; k++)
-                    CbFx.Puff(new Vector3((b.x0 + b.x1) / 2, b.top * (0.25f + k * 0.3f), -0.4f), new Color(0.78f, 0.74f, 0.66f), 6, 2f, 1.1f, 0.6f);
+                for (int k = 0; k < 4; k++)
+                    CbFx.Puff(new Vector3((b.x0 + b.x1) / 2, b.top * (0.15f + k * 0.25f), -0.4f), new Color(0.78f, 0.74f, 0.66f), 7, 2.2f, 1.3f, 0.8f);
                 CbVfx.Burst(at, CbFx.Hit, 3f, 0.25f);
                 g.hud.ImpactFlash(0.3f);
                 g.hud.SetTip("The way is open!");
@@ -986,7 +994,7 @@ namespace Cloudborne
         /// <summary>A sinking stone: stood on for a moment it shakes, goes under, and comes back up a while later.</summary>
         void Sink(Crossing c, float dt, bool on)
         {
-            const float Warn = 0.7f, Under = 2.2f;
+            const float Warn = 0.7f;
             c.shake = 0;
             switch (c.phase)
             {
@@ -998,15 +1006,10 @@ namespace Cloudborne
                 case 1:
                     c.sunk = Mathf.MoveTowards(c.sunk, 1, dt * 2.5f);
                     if (Random.value < 0.5f) CbFx.Spark(new Vector3(c.cx + Random.Range(-0.5f, 0.5f), WaterLevel + 0.05f, -0.3f), CbFx.Water, 1, 2, 0.3f, 0.4f, 6);
-                    if (c.sunk >= 1) { c.phase = 2; c.timer = Under; }
-                    break;
-                case 2:
-                    c.timer -= dt;
-                    if (c.timer <= 0) c.phase = 3;
+                    if (c.sunk >= 1) c.phase = 2;
                     break;
                 default:
-                    c.sunk = Mathf.MoveTowards(c.sunk, 0, dt * 1.2f);
-                    if (c.sunk <= 0) { c.phase = 0; c.stood = 0; }
+                    // once under it stays under (it came back up: the user); the river is crossed without it
                     break;
             }
             c.dip = c.sunk * 0.95f;
