@@ -46,6 +46,47 @@ namespace Cloudborne
             return false;
         }
 
+        // ---------- his hands on what he holds ----------
+
+        // (the user: swinging, his hands held the air above his head; on the bars the pole ran through his forearms)
+        // he is moved so his palms meet the vine's end, the bar or the zipline, measured from the pose the animation
+        // gave him the frame before; the bamboo pole's middle is BarPoleUp over the bar's line
+        const float BarPoleUp = 0.02f, GripReach = 0.7f;
+        Vector3 gripFix;
+
+        /// <summary>Where his hands hold on (world); across: whether along x too (the vine) or only up and down.</summary>
+        bool GripPoint(out Vector3 at, out bool across)
+        {
+            at = default;
+            across = false;
+            switch (state)
+            {
+                case State.Swing when swingVine != null:
+                    at = new Vector3(swingVine.ax + Mathf.Sin(swingVine.angle) * swingVine.len, swingVine.ay - Mathf.Cos(swingVine.angle) * swingVine.len, 0);
+                    across = true;
+                    return true;
+                case State.Bars when bar != null: at = new Vector3(0, bar.y + BarPoleUp, 0); return true;
+                case State.Zip when zip != null: at = new Vector3(0, zip.At(x), 0); return true;
+            }
+            return false;
+        }
+
+        /// <summary>What to add to where he is placed so his palms are on what he holds (eased; none when he lets go).</summary>
+        Vector3 GripFix(float dt)
+        {
+            var want = Vector3.zero;
+            if (model != null && GripPoint(out var at, out bool across))
+            {
+                // his palms from his root as last drawn (the root has not been moved yet this frame)
+                var palms = (model.Palm(model.leftHand) + model.Palm(model.rightHand)) * 0.5f - f.root.position;
+                var placed = f.root.parent != null ? f.root.parent.TransformPoint(new Vector3(x, y, 0)) : new Vector3(x, y, 0);
+                want = new Vector3(across ? at.x - (placed.x + palms.x) : 0, at.y - (placed.y + palms.y), 0);
+                want = Vector3.ClampMagnitude(want, GripReach);
+            }
+            gripFix = Vector3.Lerp(gripFix, want, 1 - Mathf.Exp(-18f * dt));
+            return gripFix;
+        }
+
         void TakeHold()
         {
             t = 0; move = Move.None; combo = 0; flipT = 0;

@@ -231,8 +231,9 @@ namespace Cloudborne
         }
 
         /// <summary>
-        /// A liana hanging from a thick branch: a twisted dark-green rope with a few small leaves, and at its end a
-        /// knot with a soft glow, so it reads as a thing to take hold of and swing on.
+        /// A liana hanging from a thick branch: two woody strands twisted round each other, swaying in a gentle S,
+        /// thinner toward the end, leaves along it, hanging on a little past where he takes hold (a knot and a soft
+        /// glow there, so it reads as a thing to swing on). It was a straight green stick (the user).
         /// </summary>
         void AddVine(float ax, float ay, float len)
         {
@@ -241,15 +242,80 @@ namespace Cloudborne
             for (int k = -1; k <= 1; k++)
                 CbArt.Part(CbMesh.Leaf(), LeafMat, branch, new Vector3(k * 1.3f, 0.55f, 0.1f), Vector3.one * 0.5f, Quaternion.Euler(-30, k * 40f, k * 25f), shadows: false);
             var t = CbArt.Joint(root, ax, ay, 0.05f, "vine");
-            var rope = M("#4d6b2c");
-            CbArt.Cylinder(rope, t, new Vector3(0, -len / 2, 0), 0.055f, len);
-            CbArt.Cylinder(M("#3d5822"), t, new Vector3(0.05f, -len / 2, -0.03f), 0.03f, len, Quaternion.Euler(0, 0, 1.2f));
-            for (float d = 0.7f; d < len - 0.4f; d += 0.75f)
-                CbArt.Part(CbMesh.Leaf(), LeafMat, t, new Vector3((d % 1.5f < 0.75f ? 1 : -1) * 0.1f, -d, -0.04f), Vector3.one * 0.16f,
-                    Quaternion.Euler(0, 0, (d % 1.5f < 0.75f ? -1 : 1) * 60f), shadows: false);
-            CbArt.Part(CbMesh.Sphere, M("#3d5822"), t, new Vector3(0, -len, 0), Vector3.one * 0.2f);
+            float total = len + VineTail;
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+            for (int strand = 0; strand < 2; strand++)
+            {
+                var pts = new List<Vector3>();
+                var radii = new List<float>();
+                for (float d = -0.2f; d <= total; d += 0.06f)
+                {
+                    // the S it hangs in, the strands' twist round it (a turn every metre or so)
+                    float sway = 0.07f * Mathf.Sin(d * 1.4f) * Mathf.Clamp01(d / 1.5f) * Mathf.Clamp01((len - d) / 0.6f + 0.2f);
+                    float turn = d * 5.6f + strand * Mathf.PI;
+                    pts.Add(new Vector3(sway + Mathf.Cos(turn) * 0.032f, -d, Mathf.Sin(turn) * 0.032f));
+                    radii.Add(Mathf.Lerp(0.042f, 0.026f, Mathf.Clamp01(d / total)));
+                }
+                TaperedRope(verts, tris, pts, radii);
+            }
+            var mesh = new Mesh { name = "liana" };
+            mesh.SetVertices(verts);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            var go = new GameObject("liana");
+            go.transform.SetParent(t, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = LianaMat;
+            // leaves along it, turned this way and that, none where his hands go
+            for (float d = 0.55f; d < total - 0.15f; d += 0.62f)
+            {
+                if (Mathf.Abs(d - len) < 0.35f) continue;
+                int side = Mathf.RoundToInt(d / 0.62f) % 2 == 0 ? 1 : -1;
+                CbArt.Part(CbMesh.Leaf(), LeafMat, t, new Vector3(side * 0.07f, -d, -0.05f), Vector3.one * 0.2f,
+                    Quaternion.Euler(-20, side * 25f, side * -65f), shadows: false);
+            }
+            CbArt.Part(CbMesh.Sphere, LianaMat, t, new Vector3(0, -total, 0), new Vector3(0.12f, 0.15f, 0.12f));
             CbArt.Part(CbMesh.Quad, CbArt.Glow(new Color(1f, 0.9f, 0.5f) * 0.5f, CbArt.Soft), t, new Vector3(0, -len, -0.2f), Vector3.one * 0.9f, shadows: false).name = "grip";
             vines.Add(new Vine { ax = ax, ay = ay, len = len, t = t });
+        }
+        /// <summary>How far a liana hangs on past where he takes hold of it.</summary>
+        const float VineTail = 0.75f;
+        static Material lianaMat;
+        static Material LianaMat
+        {
+            get
+            {
+                if (lianaMat == null) { lianaMat = CbArt.NewToon(CbArt.Hex("#6b5a2e"), 0.7f); lianaMat.SetFloat("_Cull", 0f); lianaMat.SetFloat("_SpecStrength", 0f); }
+                return lianaMat;
+            }
+        }
+
+        /// <summary>A rope through the points whose thickness changes along it (radii, one per point).</summary>
+        static void TaperedRope(List<Vector3> verts, List<int> tris, List<Vector3> pts, List<float> radii, int sides = 6)
+        {
+            int start = verts.Count;
+            for (int i = 0; i < pts.Count; i++)
+            {
+                var dir = (pts[Mathf.Min(i + 1, pts.Count - 1)] - pts[Mathf.Max(i - 1, 0)]).normalized;
+                var side = Vector3.Cross(dir, Vector3.forward);
+                if (side.sqrMagnitude < 0.01f) side = Vector3.Cross(dir, Vector3.right);
+                side.Normalize();
+                var up = Vector3.Cross(side, dir);
+                for (int k = 0; k < sides; k++)
+                {
+                    float ang = k * Mathf.PI * 2 / sides;
+                    verts.Add(pts[i] + (side * Mathf.Cos(ang) + up * Mathf.Sin(ang)) * radii[i]);
+                }
+            }
+            for (int i = 0; i < pts.Count - 1; i++)
+                for (int k = 0; k < sides; k++)
+                {
+                    int a0 = start + i * sides + k, a1 = start + i * sides + (k + 1) % sides;
+                    tris.Add(a0); tris.Add(a0 + sides); tris.Add(a1);
+                    tris.Add(a1); tris.Add(a0 + sides); tris.Add(a1 + sides);
+                }
         }
 
         void AddBar(float x0, float x1, float y)

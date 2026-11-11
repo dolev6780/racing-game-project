@@ -193,7 +193,7 @@ namespace Cloudborne
         {
             x = y = vx = vy = 0; safeX = safeY = 0; squash = squashV = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
             flipT = 0; inv = 0; move = Move.None; staffHold = 0; sinceDash = 9; airDashed = false; dashCd = 0; empower = false; holdUsed = false;
-            glow = 0; airHits = 0; grabCd = 0; downT = 0; downLanded = false; wallT = wallLockT = 0; sliding = false;
+            glow = 0; airHits = 0; grabCd = 0; downT = 0; downLanded = false; wallT = wallLockT = 0; sliding = false; gripFix = Vector3.zero; standY = 0;
             f.flip.localRotation = Quaternion.identity;
             SetStaff(false, silent: true);
             if (model == null)
@@ -1221,8 +1221,8 @@ namespace Cloudborne
 
         void Place()
         {
-            f.root.localPosition = new Vector3(x, y, 0);
             float dt = Time.deltaTime;
+            f.root.localPosition = new Vector3(x, y, 0) + GripFix(dt);
             squashV += (-squash * 320f - squashV * 17f) * dt;
             squash = Mathf.Clamp(squash + squashV * dt, -0.3f, 0.3f);
             // about his feet, keeping his volume
