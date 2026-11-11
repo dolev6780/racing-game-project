@@ -168,9 +168,9 @@ namespace RacingGame.Tests
             Assert.AreEqual(CbGame.Mode.Title, game.mode);
             Assert.IsNotNull(game.hero.f.root, "Raja was not built");
             Assert.IsNotNull(game.hero.model, "Raja's model did not load (Resources/Cloudborne/Raja, legacy animation)");
-            // 42 in his own file, and the dive kick, the slide and the crawl made later on a new rig of the same model
-            // (Raja_Clips)
-            Assert.AreEqual(45, game.hero.model.ClipCount, "Raja's model is missing animation clips");
+            // 42 in his own file (the slide among them), and the dive kick and the crawl made later on a new rig of the
+            // same model (Raja_Clips: its own copy of the slide is not added twice)
+            Assert.AreEqual(44, game.hero.model.ClipCount, "Raja's model is missing animation clips");
             // from Meshy's animation library: catching an edge, pulling up over it, treading water, getting up, cheering;
             // hanging from a vine, climbing it, along a bar, pushing, walking the log; the dive kick from a description
             foreach (var clip in new[] { "Jump_and_Grab_Wall", "Ladder_Climb_Finish", "Swim_Idle", "Stand_Up1", "Victory_Cheer",
