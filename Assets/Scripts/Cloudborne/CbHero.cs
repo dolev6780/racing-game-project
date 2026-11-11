@@ -46,6 +46,7 @@ namespace Cloudborne
         // HIT in the air: the dive kick (the user asked for it like the staff slam, with a kick): a moment's hang, then
         // down at KickAngle below level at KickSpeed, one leg out; it hurts who it meets and bounces off them, and
         // landing jolts who stands close
+        const string DiveKickClip = "Motion_Divekick";
         const float KickHang = 0.07f, KickSpeed = 13f, KickAngle = 38f, KickTilt = 0.62f, KickLand = 0.22f, KickDmg = 11f;
         // the double jump is a double forward somersault, tucked
         const float FlipTime = 0.62f, FlipTurns = 2f;
@@ -852,8 +853,15 @@ namespace Cloudborne
                     break;
                 }
                 case State.Kick:
-                    // the flying kick's moment with the leg straight out, held as he dives; then down onto his feet
-                    if (!kickLanded) model.Show("Rising_Flying_Kick", 0.36f, 0.06f);
+                    // the dive kick made for him in Meshy from a description (the user asked for a better one): he
+                    // gathers himself and shoots out feet first, the leading leg straight, held as he dives (the
+                    // model tipped along the dive); then down onto his feet. Without it, the flying kick's moment.
+                    if (model.HasClip(DiveKickClip))
+                    {
+                        if (!kickLanded) model.Window(DiveKickClip, 0.12f, 0.42f, t / (KickHang + 0.1f), 0.05f);
+                        else model.Window(DiveKickClip, 0.8f, 0.97f, kickLandT / KickLand);
+                    }
+                    else if (!kickLanded) model.Show("Rising_Flying_Kick", 0.36f, 0.06f);
                     else model.Window("Rising_Flying_Kick", 0.6f, 0.85f, kickLandT / KickLand);
                     break;
                 case State.Staff:

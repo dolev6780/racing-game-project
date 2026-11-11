@@ -20,6 +20,10 @@ wrong way while it does its move is turned to face forward, and only that part k
     blender --background --python Tools/Blender/meshy_character.py -- OUT_DIR NAME anim1.glb [anim2.glb ...] [--upright CLIPS] [--drop CLIPS]
 
 Writes OUT_DIR/NAME.fbx (mesh, skeleton, every clip) and OUT_DIR/NAME_Albedo.png (base colour).
+
+--clips-only writes OUT_DIR/NAME_Clips.fbx instead: the skeleton and its clips, no mesh and no colours. Clips for a
+character already in the game, made on a new rig of the same model (Meshy's rigs expire after three days; a new
+one of the same model has the same skeleton): the game adds them to the character's own clips.
 """
 
 import math
@@ -40,6 +44,9 @@ def option(flag):
 
 
 upright, drop, takes = option("--upright"), option("--drop"), option("--take")
+clips_only = "--clips-only" in args
+if clips_only:
+    args.remove("--clips-only")
 out_dir, name, sources = args[0], args[1], args[2:]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -192,7 +199,7 @@ for spec in takes:
 
 # ---- base colour as a plain PNG next to the FBX (the game builds its own material)
 os.makedirs(out_dir, exist_ok=True)
-for m in body.data.materials:
+for m in ([] if clips_only else body.data.materials):
     for n in (m.node_tree.nodes if m and m.node_tree else []):
         if n.type == "BSDF_PRINCIPLED" and n.inputs["Base Color"].is_linked:
             img = n.inputs["Base Color"].links[0].from_node.image
@@ -211,10 +218,10 @@ for track_action in clips:                              # an NLA strip per clip:
     tr.name = track_action.name
     tr.strips.new(track_action.name, int(track_action.frame_range[0]), track_action)
 for o in bpy.context.scene.objects:
-    o.select_set(o in (arm, body))
+    o.select_set(o is arm or (o is body and not clips_only))
 bpy.context.view_layer.objects.active = arm
-fbx = os.path.join(out_dir, name + ".fbx")
-bpy.ops.export_scene.fbx(filepath=fbx, use_selection=True, object_types={"ARMATURE", "MESH"}, add_leaf_bones=False,
+fbx = os.path.join(out_dir, name + ("_Clips" if clips_only else "") + ".fbx")
+bpy.ops.export_scene.fbx(filepath=fbx, use_selection=True, object_types={"ARMATURE"} if clips_only else {"ARMATURE", "MESH"}, add_leaf_bones=False,
                          bake_anim=True, bake_anim_use_all_actions=False, bake_anim_use_nla_strips=True,
                          bake_anim_force_startend_keying=True, apply_scale_options="FBX_SCALE_ALL",
                          mesh_smooth_type="FACE", path_mode="STRIP")

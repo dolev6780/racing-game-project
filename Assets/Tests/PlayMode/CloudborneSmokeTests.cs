@@ -168,11 +168,12 @@ namespace RacingGame.Tests
             Assert.AreEqual(CbGame.Mode.Title, game.mode);
             Assert.IsNotNull(game.hero.f.root, "Raja was not built");
             Assert.IsNotNull(game.hero.model, "Raja's model did not load (Resources/Cloudborne/Raja, legacy animation)");
-            Assert.AreEqual(42, game.hero.model.ClipCount, "Raja's model is missing animation clips");
+            // 42 in his own file, and the dive kick made later on a new rig of the same model (Raja_Clips)
+            Assert.AreEqual(43, game.hero.model.ClipCount, "Raja's model is missing animation clips");
             // from Meshy's animation library: catching an edge, pulling up over it, treading water, getting up, cheering;
-            // hanging from a vine, climbing it, along a bar, pushing, walking the log
+            // hanging from a vine, climbing it, along a bar, pushing, walking the log; the dive kick from a description
             foreach (var clip in new[] { "Jump_and_Grab_Wall", "Ladder_Climb_Finish", "Swim_Idle", "Stand_Up1", "Victory_Cheer",
-                "Rope_Hang_Idle", "Climb_Up_Rope", "Slow_Bar_Hang_Left", "Push_and_Walk_Forward", "Tightrope_Walk" })
+                "Rope_Hang_Idle", "Climb_Up_Rope", "Slow_Bar_Hang_Left", "Push_and_Walk_Forward", "Tightrope_Walk", "Motion_Divekick" })
                 Assert.IsTrue(game.hero.model.HasClip(clip), $"Raja's model has no {clip} clip");
             foreach (var prop in new[] { "Staff", "Machete", "Shield" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Props/{prop}/{prop}"), $"The {prop} model is missing");
