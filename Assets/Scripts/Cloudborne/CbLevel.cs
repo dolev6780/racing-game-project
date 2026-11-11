@@ -410,6 +410,9 @@ namespace Cloudborne
             var holder = CbArt.Joint(parent, 0, 0, 0, "fit");
             var model = CbArt.Prop(path, holder, CbArt.PropOutline);
             if (model == null) { Object.Destroy(holder.gameObject); return null; }
+            // the natural rocks' pale stone washed out to white in the game's light (the stage's pictures): toned down
+            if (path == RiverStonePath || path == RiverRockPath || path == CrackedRockPath || path == CliffRockPath)
+                foreach (var r in model.GetComponentsInChildren<Renderer>()) r.sharedMaterial.color = NaturalRockTone;
             var b = LocalBounds(model, holder);
             var size = hi - lo;
             var s = new Vector3(size.x / Mathf.Max(0.01f, b.size.x), size.y / Mathf.Max(0.01f, b.size.y), size.z / Mathf.Max(0.01f, b.size.z));
@@ -476,6 +479,7 @@ namespace Cloudborne
 
         // natural rocks drawn in Canva and built in Meshy: a round river stone, a tall river rock, a cracked boulder and
         // a block of cliff
+        static readonly Color NaturalRockTone = new Color(0.68f, 0.65f, 0.62f);
         const string RiverStonePath = "Cloudborne/Jungle/RiverStone/RiverStone", RiverRockPath = "Cloudborne/Jungle/RiverRock/RiverRock",
             CrackedRockPath = "Cloudborne/Jungle/CrackedRock/CrackedRock", CliffRockPath = "Cloudborne/Jungle/CliffRock/CliffRock";
 

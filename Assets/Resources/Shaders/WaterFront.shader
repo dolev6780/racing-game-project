@@ -9,12 +9,12 @@ Shader "Cloudborne/WaterFront"
     {
         // not drawn: there so code that asks any material for its texture (mainTexture) gets none, not an error
         [HideInInspector] _MainTex ("Unused", 2D) = "white" {}
-        _Shallow ("Shallow", Color) = (0.32, 0.82, 0.95, 0.66)
-        _Deep ("Deep", Color) = (0.04, 0.3, 0.56, 0.95)
+        _Shallow ("Shallow", Color) = (0.16, 0.66, 0.9, 0.78)
+        _Deep ("Deep", Color) = (0.02, 0.22, 0.5, 0.97)
         _Foam ("Foam", Color) = (1, 1, 1, 0.96)
         _Level ("Surface height (world)", Float) = -0.45
         _Amp ("Wave height", Float) = 0.05
-        _DepthFade ("Depth to deep (m)", Float) = 2.6
+        _DepthFade ("Depth to deep (m)", Float) = 1.6
     }
 
     // ---------- Universal Render Pipeline ----------
@@ -71,8 +71,8 @@ Shader "Cloudborne/WaterFront"
                 float ray = pow(saturate(sin(x * 0.85 + y * 0.32 + t * 0.2) * 0.5 + 0.5), 7.0) * exp(-d * 0.45) * 0.16;
                 c.rgb += (half)(cau * 0.35 + ray) * half3(0.8, 1.0, 1.0);
                 // the foam line along the top, a glow just under it, a soft edge
-                float foam = 1.0 - smoothstep(0.035, 0.075, d);
-                float glow = (1.0 - smoothstep(0.08, 0.35, d)) * 0.22;
+                float foam = 1.0 - smoothstep(0.05, 0.1, d);
+                float glow = (1.0 - smoothstep(0.1, 0.4, d)) * 0.3;
                 c.rgb = lerp(c.rgb + (half)glow, _Foam.rgb, (half)foam);
                 c.a = max(c.a, (half)(foam * _Foam.a)) * (half)saturate(d / 0.012);
                 return c;
@@ -129,8 +129,8 @@ Shader "Cloudborne/WaterFront"
                 float cau = pow(saturate(1.0 - abs(s3) / 0.9), 4.0) * exp(-d * 1.3);
                 float ray = pow(saturate(sin(x * 0.85 + y * 0.32 + t * 0.2) * 0.5 + 0.5), 7.0) * exp(-d * 0.45) * 0.16;
                 c.rgb += (cau * 0.35 + ray) * fixed3(0.8, 1.0, 1.0);
-                float foam = 1.0 - smoothstep(0.035, 0.075, d);
-                float glow = (1.0 - smoothstep(0.08, 0.35, d)) * 0.22;
+                float foam = 1.0 - smoothstep(0.05, 0.1, d);
+                float glow = (1.0 - smoothstep(0.1, 0.4, d)) * 0.3;
                 c.rgb = lerp(c.rgb + glow, _Foam.rgb, foam);
                 c.a = max(c.a, foam * _Foam.a) * saturate(d / 0.012);
                 return c;
