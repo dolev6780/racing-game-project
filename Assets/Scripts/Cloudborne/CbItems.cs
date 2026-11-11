@@ -79,8 +79,8 @@ namespace Cloudborne
             // crates along the path, each with something in it
             AddCrate(9f, Kind.Coin, Kind.Coin, Kind.Coin);
             AddCrate(27f, Kind.Mango, Kind.Coin);
-            AddCrate(42f, Kind.KiCrystal, Kind.Coin, Kind.Coin);
-            AddCrate(52f, Kind.Mango, Kind.Coin);
+            AddCrate(57.5f, Kind.KiCrystal, Kind.Coin, Kind.Coin);
+            AddCrate(67f, Kind.Mango, Kind.Coin);
             AddCrate(73.5f, Kind.Coin, Kind.Coin, Kind.Coin);
             AddCrate(105.5f, Kind.Mango, Kind.KiCrystal);
             AddCrate(134.5f, Kind.Mango, Kind.Coin);
@@ -93,8 +93,15 @@ namespace Cloudborne
             AddCrate(534f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
             // coin trails: an arc to jump through, a row along the rope bridge, an arc in the second fight
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(4 + i * 0.9f, 1.2f + Mathf.Sin(i / 4f * Mathf.PI) * 1.6f, 0), resting: true);
-            for (int i = 0; i < 6; i++) Spawn(Kind.Coin, new Vector3(31.8f + i * 0.85f, 0.7f, 0), resting: true);
-            for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(54 + i * 0.9f, 1.4f + Mathf.Sin(i / 4f * Mathf.PI) * 2.2f, 0), resting: true);
+            // over the rope bridge: one above each stretch of planks, an arc over each gap (jump it)
+            for (int k = 0; k < CbLevel.RopeSections; k++)
+            {
+                var (x0, x1, hole) = CbLevel.RopeSection(k);
+                if (!hole) { Spawn(Kind.Coin, new Vector3((x0 + x1) / 2, 0.75f, 0), resting: true); continue; }
+                for (int i = 0; i < 3; i++)
+                    Spawn(Kind.Coin, new Vector3(Mathf.Lerp(x0, x1, 0.2f + i * 0.3f), 1.5f + (i == 1 ? 0.7f : 0f), 0), resting: true);
+            }
+            for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(59.5f + i * 0.9f, 1.4f + Mathf.Sin(i / 4f * Mathf.PI) * 2.2f, 0), resting: true);
             // over the river: above its stones, logs and the rock, for jumping across
             foreach (var cx in new[] { 80.6f, 83.6f, 86.6f, 92.2f, 95.2f, 97.4f, 99.8f }) Spawn(Kind.Coin, new Vector3(cx, 1.2f, 0), resting: true);
             Spawn(Kind.Coin, new Vector3(89f, 2.4f, 0), resting: true);

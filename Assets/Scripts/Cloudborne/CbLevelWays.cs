@@ -675,13 +675,21 @@ namespace Cloudborne
         /// </summary>
         public void FreeStretch(float x, float reach, out float lo, out float hi)
         {
-            lo = x - reach; hi = x + reach;
-            foreach (var (x0, x1) in Gaps)
+            float l = x - reach, h = x + reach;
+            Stretch(x, ref l, ref h);
+            lo = l; hi = h;
+        }
+
+        void Stretch(float x, ref float lo, ref float hi)
+        {
+            foreach (var (gx0, gx1) in Gaps)
             {
-                // a stream with a bridge over it is open path: he follows Raja across (he stopped at its foot)
-                if (Bridged(x0, x1)) continue;
-                if (x1 <= x) lo = Mathf.Max(lo, x1 + 0.6f);
-                if (x0 >= x) hi = Mathf.Min(hi, x0 - 0.6f);
+                // a stream with a bridge over it is open path: he follows Raja across (he stopped at its foot), up to
+                // where its planks are missing
+                var bridge = BridgeOver(gx0, gx1);
+                if (bridge == null) Bound(x, gx0, gx1, ref lo, ref hi);
+                else if (bridge.holes != null)
+                    foreach (var (h0, h1) in bridge.holes) Bound(x, h0, h1, ref lo, ref hi);
             }
             foreach (var b in blocks)
             {
@@ -691,12 +699,19 @@ namespace Cloudborne
             }
         }
 
-        /// <summary>Whether a bridge he can walk onto from the bank spans the stretch of water from x0 to x1.</summary>
-        bool Bridged(float x0, float x1)
+        /// <summary>Narrows lo..hi around x to the near side of a stretch from x0 to x1 he can't cross.</summary>
+        static void Bound(float x, float x0, float x1, ref float lo, ref float hi)
+        {
+            if (x1 <= x) lo = Mathf.Max(lo, x1 + 0.6f);
+            if (x0 >= x) hi = Mathf.Min(hi, x0 - 0.6f);
+        }
+
+        /// <summary>The bridge he can walk onto from the bank that spans the stretch of water from x0 to x1, if one does.</summary>
+        Crossing BridgeOver(float x0, float x1)
         {
             foreach (var c in crossings)
-                if (c.deck && c.X0 <= x0 + 0.7f && c.X1 >= x1 - 0.7f) return true;
-            return false;
+                if (c.deck && c.X0 <= x0 + 0.7f && c.X1 >= x1 - 0.7f) return c;
+            return null;
         }
 
         /// <summary>The vine whose end is within reach of his hands at (hx, hy), not one he just let go of.</summary>

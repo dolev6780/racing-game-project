@@ -754,9 +754,15 @@ namespace RacingGame.Tests
             var level = game.level;
             // over a stream there is nothing to stand on (between two stones of the long river)...
             Assert.Less(level.SupportAt(96.3f, 1f), -1f, "There is ground in the river between the stones");
-            // ...but the rope bridge's planks hold him, walked onto from the bank and sagging in the middle
-            Assert.That(level.SupportAt(34f, 0f), Is.InRange(-0.3f, 0f), "The rope bridge does not hold him in the middle");
-            Assert.That(level.SupportAt(31.2f, 0f), Is.InRange(0f, 0.3f), "The rope bridge can't be walked onto from the bank");
+            // ...but the rope bridge's planks hold him, walked onto from the bank and sagging in the middle - except where
+            // its planks are missing
+            var (p0, p1, _) = CbLevel.RopeSection(4);
+            Assert.That(level.SupportAt((p0 + p1) / 2, 0f), Is.InRange(-0.7f, 0f), "The rope bridge does not hold him in the middle");
+            Assert.That(level.SupportAt(CbLevel.RopeBridgeX - CbLevel.RopeDeckHalf + 0.1f, 0f), Is.InRange(0f, 0.3f), "The rope bridge can't be walked onto from the bank");
+            var (h0, h1, hole) = CbLevel.RopeSection(5);
+            Assert.IsTrue(hole, "The rope bridge has no gap in its planks");
+            Assert.Less(level.SupportAt((h0 + h1) / 2, 0f), -1f, "Raja stands on the rope bridge where its planks are missing");
+            Assert.Greater(CbLevel.RopeDeckHalf * 2, 20f, "The rope bridge is short (a screen and a half: the user)");
             // a stepping stone is landed on from above, not climbed onto from the water
             Assert.That(level.SupportAt(97.4f, 1f), Is.InRange(-0.1f, 0.1f), "The stepping stone does not hold him");
             Assert.Less(level.SupportAt(97.4f, CbLevel.WaterLevel), -1f, "The stepping stone is climbed onto from the water");
@@ -1088,7 +1094,7 @@ namespace RacingGame.Tests
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
             var oldTrace = Application.GetStackTraceLogType(LogType.Log);
             // where, and how high (the bars are over the river: he hangs from them, or he would be in the water)
-            foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("river", 75f, 0f), ("mountain", 152f, 0f), ("bars", 219f, 4.8f - 1.71f),
+            foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("mountain", 152f, 0f), ("bars", 219f, 4.8f - 1.71f),
                 ("thorns", 243f, 0f), ("temple", 266f, 0f), ("seesaw", 433f, 0f) })
             {
                 game.Teleport(x);

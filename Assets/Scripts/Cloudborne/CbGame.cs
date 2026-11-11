@@ -33,7 +33,7 @@ namespace Cloudborne
         class Post { public float x, range; public CbEnemy.Kind kind; public bool asleep, spawned; public CbEnemy enemy; }
         static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan =
         {
-            (22f, CbEnemy.Kind.Hyena, 6f, false), (48f, CbEnemy.Kind.Shield, 5f, false), (64f, CbEnemy.Kind.Hyena, 4f, true),
+            (22f, CbEnemy.Kind.Hyena, 6f, false), (64f, CbEnemy.Kind.Shield, 5f, false), (71f, CbEnemy.Kind.Hyena, 4f, true),
             (108f, CbEnemy.Kind.Shield, 1.5f, false), (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
             (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (250f, CbEnemy.Kind.Hyena, 2.4f, false), (318f, CbEnemy.Kind.Hyena, 3f, false),
             (322f, CbEnemy.Kind.Shield, 3f, false), (341f, CbEnemy.Kind.Hyena, 2.5f, false), (398f, CbEnemy.Kind.Shield, 2f, false),
@@ -53,7 +53,7 @@ namespace Cloudborne
         /// <summary>Tips as Raja reaches them (tip: one of the fight tips; else text).</summary>
         static readonly (float x, int tip, string text)[] Tips =
         {
-            (17f, 1, null), (43f, 3, null), (60f, 2, null),
+            (17f, 1, null), (57f, 3, null), (66f, 2, null),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
             (241f, -1, "The old temple: thorns need the staff, mind the floor, duck <color=#ffb03a>↓</color> the darts"),
             (292f, -1, "Strike the gong!"),

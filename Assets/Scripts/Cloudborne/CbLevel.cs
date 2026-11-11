@@ -51,6 +51,15 @@ namespace Cloudborne
         class Crossing
         {
             public float cx, half, top, sag, dip, bob, stood, dx, sunk, shake;
+            // stretches of a deck with no planks (x0..x1 in the world): nothing to stand on
+            public List<(float x0, float x1)> holes;
+            public bool HoleAt(float x)
+            {
+                if (holes != null)
+                    foreach (var (h0, h1) in holes)
+                        if (x > h0 + HalfWidth * 0.4f && x < h1 - HalfWidth * 0.4f) return true;
+                return false;
+            }
             // drifting logs move to and fro by drift metres every period seconds
             public float drift, period;
             // a deck is stepped onto from the bank; the rest only landed on from above
@@ -76,14 +85,27 @@ namespace Cloudborne
         const float CrumbleAfter = 0.5f, CrumbleBack = 3f;
 
         /// <summary>The streams across stage 1-1 (x from, to): the rope bridge's, the long river, the brook.</summary>
-        public static readonly (float x0, float x1)[] Waters = { (31.4f, 36.6f), (79f, 103f), (200f, 232f), (300f, 312f), (345f, 395f), (522.2f, 524.6f) };
+        public static readonly (float x0, float x1)[] Waters = { (31.4f, 55.4f), (79f, 103f), (200f, 232f), (300f, 312f), (345f, 395f), (522.2f, 524.6f) };
         /// <summary>The water's surface, below the banks: its channel is cut into the ground.</summary>
         public const float WaterLevel = -0.45f;
         /// <summary>How far back from the path the streams run before they come out of the ground.</summary>
         public const float WaterBack = 6.5f;
         // below the path where the water is: deep enough that falling in is falling in
         const float Deep = -50f, StepUp = 0.3f;
-        const float RopeBridgeX = 34f, RopeDeckHalf = 3f;
+        // the long rope bridge over the first stream (a screen and a half: the user), sagging RopeSag in the middle,
+        // strung from the kit Tools/Blender/bridge_kit.py cuts from the bridge model: an end with its bamboo posts at
+        // each side and RopeSections sections of planks and rails between; RopeHoles have no planks (he falls through)
+        public const float RopeBridgeX = 43.4f, RopeDeckHalf = 12.3f;
+        const float RopeSag = 0.55f, RopeEndIn = 0.6f;
+        public const int RopeSections = 11;
+        static readonly int[] RopeHoles = { 2, 5, 8 };
+
+        /// <summary>Where the rope bridge's section k runs (x0 to x1), and whether it has no planks.</summary>
+        public static (float x0, float x1, bool hole) RopeSection(int k)
+        {
+            float a = RopeBridgeX - RopeDeckHalf + RopeEndIn, b = RopeBridgeX + RopeDeckHalf - RopeEndIn, w = (b - a) / RopeSections;
+            return (a + k * w, a + (k + 1) * w, System.Array.IndexOf(RopeHoles, k) >= 0);
+        }
         public const float StoneBridgeX = 523.4f;
         // the mountain: where it stands, its summit's height
         public const float MountainFrom = 137f, MountainTo = 189f, SummitTop = 11.4f;
@@ -135,10 +157,12 @@ namespace Cloudborne
 
         void BuildCrossings()
         {
-            // the rope bridge over the first stream: its planks just above the banks at the ends, sagging in the middle
-            var rope = PlaceProp("Cloudborne/Jungle/RopeBridge/RopeBridge", new Vector3(RopeBridgeX, -0.25f, 0.15f), Vector3.one, 0);
-            crossings.Add(new Crossing { cx = RopeBridgeX, half = RopeDeckHalf, top = 0.145f, sag = 0.29f, deck = true, t = rope,
-                home = rope != null ? rope.localPosition : Vector3.zero });
+            // the rope bridge over the first stream: its planks just above the banks at the ends, sagging in the middle,
+            // a few stretches without planks to fall through
+            var bridge = new Crossing { cx = RopeBridgeX, half = RopeDeckHalf, top = 0.145f, sag = RopeSag, deck = true };
+            bridge.t = StringRopeBridge(bridge);
+            bridge.home = bridge.t != null ? bridge.t.localPosition : Vector3.zero;
+            crossings.Add(bridge);
 
             // the long river past the cracked wall: stones, some sinking under him; logs, some drifting; a rock
             AddStone(80.6f, false);
@@ -534,6 +558,83 @@ namespace Cloudborne
         }
 
         /// <summary>A model in a joint of its own (so its import rotation stays), sized, turned about Y, on the level.</summary>
+        static Material bridgeMat;
+
+        /// <summary>One piece of the rope bridge kit, with the bridge's own texture; null if it isn't in the project.</summary>
+        static Transform BridgePart(string name, Transform parent)
+        {
+            var prefab = Resources.Load<GameObject>("Cloudborne/Jungle/RopeBridge/" + name);
+            if (prefab == null) return null;
+            var t = Object.Instantiate(prefab, parent, false).transform;
+            t.name = name;
+            bridgeMat ??= CbArt.AnimeToon(Resources.Load<Texture2D>("Cloudborne/Jungle/RopeBridge/RopeBridge_Albedo"), CbArt.PropOutline);
+            foreach (var r in t.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = new Material[r.sharedMaterials.Length];
+                for (int i = 0; i < mats.Length; i++) mats[i] = bridgeMat;
+                r.sharedMaterials = mats;
+            }
+            return t;
+        }
+
+        /// <summary>
+        /// Strings the rope bridge across c from the kit: an end with its posts at each side, then sections of planks
+        /// and rails along the deck's sag, each tilted to it; the sections in RopeHoles get no planks, and become c's
+        /// holes. Without the kit, the one-piece bridge model, stretched.
+        /// </summary>
+        Transform StringRopeBridge(Crossing c)
+        {
+            var t = CbArt.Joint(root, 0, 0, 0.15f, "ropeBridge");
+            var probe = BridgePart("BridgeRail", t);
+            var probeDeck = BridgePart("BridgeDeck", t);
+            if (probe == null || probeDeck == null)
+            {
+                Object.Destroy(t.gameObject);
+                var whole = PlaceProp("Cloudborne/Jungle/RopeBridge/RopeBridge", new Vector3(c.cx, -0.25f, 0.15f), new Vector3(2 * c.half / 6f, 1, 1), 0);
+                return whole;
+            }
+            // the kit's sizes, measured: a section's length and which way it runs, and its deck's top
+            var rb = LocalBounds(probe, t);
+            var db = LocalBounds(probeDeck, t);
+            float secLen = rb.size.x, deckTop = db.max.y;
+            bool runsLeft = rb.center.x < 0;
+            Object.Destroy(probe.gameObject); Object.Destroy(probeDeck.gameObject);
+            float a = c.X0 + RopeEndIn, b = c.X1 - RopeEndIn, w = (b - a) / RopeSections;
+            c.holes = new List<(float, float)>();
+            for (int k = 0; k < RopeSections; k++)
+            {
+                float x0 = a + k * w, x1 = x0 + w;
+                float y0 = c.Top(x0) - deckTop, y1 = c.Top(x1) - deckTop;
+                var sec = CbArt.Joint(t, x0, y0, 0, "section");
+                sec.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(y1 - y0, w) * Mathf.Rad2Deg);
+                // the section's start at the joint, along +x, stretched a little to fit
+                var fit = CbArt.Joint(sec, 0, 0, 0, "fit");
+                fit.localScale = new Vector3((runsLeft ? -1 : 1) * w / secLen, 1, 1);
+                fit.localPosition = new Vector3(runsLeft ? 0 : -(rb.min.x) * w / secLen, 0, 0);
+                BridgePart("BridgeRail", fit);
+                if (System.Array.IndexOf(RopeHoles, k) >= 0) c.holes.Add((x0, x1));
+                else BridgePart("BridgeDeck", fit);
+            }
+            // the ends: their posts out on the banks, their planks meeting the first and last sections
+            foreach (var (edge, outward) in new[] { (a, -1f), (b, 1f) })
+            {
+                var end = CbArt.Joint(t, edge, 0, 0, "end");
+                var part = BridgePart("BridgeEnd", end);
+                if (part == null) continue;
+                var eb = LocalBounds(part, end);
+                // turned so it reaches outward from the edge
+                bool reachesOut = (eb.center.x - 0) * outward > 0;
+                if (!reachesOut) end.localScale = new Vector3(-1, 1, 1);
+                eb = LocalBounds(part, t);
+                float inner = outward < 0 ? eb.max.x : eb.min.x;
+                end.localPosition = new Vector3(edge - (inner - edge), c.Top(edge) - EndDeckTop, 0);
+            }
+            return t;
+        }
+
+        // the end piece's planks where it meets the sections, above its foot
+        const float EndDeckTop = 0.31f;
+
         Transform PlaceProp(string path, Vector3 at, Vector3 scale, float yaw)
         {
             var t = CbArt.Joint(root, at.x, at.y, at.z, "prop");
@@ -555,7 +656,7 @@ namespace Cloudborne
             float best = InWater(x) ? Deep : 0;
             foreach (var c in crossings)
             {
-                if (x <= c.X0 - HalfWidth * 0.5f || x >= c.X1 + HalfWidth * 0.5f) continue;
+                if (x <= c.X0 - HalfWidth * 0.5f || x >= c.X1 + HalfWidth * 0.5f || c.HoleAt(x)) continue;
                 float top = c.Top(x);
                 if (top <= fromY + (c.deck ? StepUp : 0.05f) && top > best) best = top;
             }
