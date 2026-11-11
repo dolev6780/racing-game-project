@@ -1158,7 +1158,7 @@ namespace RacingGame.Tests
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
             var oldTrace = Application.GetStackTraceLogType(LogType.Log);
             // where, and how high (the bars are over the river: he hangs from them, or he would be in the water)
-            foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("mountain", 152f, 0f), ("bars", 219f, 4.8f - 1.71f),
+            foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("mountain", 152f, 0f), ("bars", 219f, 4.8f - 1.71f),
                 ("thorns", 243f, 0f), ("temple", 266f, 0f), ("seesaw", 433f, 0f) })
             {
                 game.Teleport(x);
