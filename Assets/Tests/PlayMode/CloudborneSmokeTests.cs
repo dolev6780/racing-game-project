@@ -1350,11 +1350,20 @@ namespace RacingGame.Tests
             game.hero.y = 0;
             yield return new WaitForSeconds(0.5f);
             Assert.IsTrue(level.PitOpen(0), "The leaves over the pit held");
-            // the lever opens the first gate
-            Assert.Less(level.BlockX(275f, 279f, 0f), 277.6f - CbLevel.HalfWidth + 0.01f, "The first gate does not stop him");
-            level.Strike(275.5f, 0f, 1, 1.7f, staff: false);
+            // the lever opens the first gate - for a few seconds only (a race past the swinging logs and under a low
+            // log); then it shuts and the lever springs back
+            Assert.Less(level.BlockX(CbLevel.RaceGateX - 2f, CbLevel.RaceGateX + 2f, 0f), CbLevel.RaceGateX - 0.4f - CbLevel.HalfWidth + 0.01f, "The first gate does not stop him");
+            Assert.Less(level.BlockX(CbLevel.RaceLogX - 2f, CbLevel.RaceLogX + 1f, 0f), CbLevel.RaceLogX - 0.35f - CbLevel.HalfWidth + 0.01f, "The low log does not stop him standing");
+            level.Strike(CbLevel.LeverX - 0.5f, 0f, 1, 1.7f, staff: false);
             yield return new WaitForSeconds(1f);
             Assert.IsTrue(level.GateOpen(0), "The lever did not open the gate");
+            Assert.IsTrue(level.LeverPulled);
+            yield return new WaitForSeconds(CbLevel.LeverOpenTime);
+            Assert.IsFalse(level.GateOpen(0), "The lever's gate stays open");
+            Assert.IsFalse(level.LeverPulled, "The lever did not spring back when its gate shut");
+            level.Strike(CbLevel.LeverX - 0.5f, 0f, 1, 1.7f, staff: false);
+            yield return new WaitForSeconds(1f);
+            Assert.IsTrue(level.GateOpen(0), "The lever did not open the gate again");
             // the stone block pushed onto the plate opens the second gate
             Assert.IsFalse(level.GateOpen(1), "The second gate stands open");
             game.Teleport(279.5f);

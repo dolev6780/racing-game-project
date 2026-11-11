@@ -67,7 +67,10 @@ namespace Cloudborne
 
         const float LeafBounce = 19.5f, RaftTop = 0.1f, LogTop = 0.15f, SeesawTop = 0.35f;
         public const float TrunkX = 24.5f;
-        const float StatueX = 251.5f, PlateX = 284.5f, LeverX = 276f, GongX = 296.5f, BridgeFrom = 300f, BridgeTo = 312f;
+        const float StatueX = 251.5f, PlateX = 284.5f, GongX = 296.5f, BridgeFrom = 300f, BridgeTo = 312f;
+        // the race in the temple (its traps were too easy: the user): the lever opens the gate past the swinging logs
+        // and the low log for LeverOpenTime seconds only, then it shuts and the lever springs back
+        public const float LeverX = 259.5f, RaceGateX = 274.5f, RaceLogX = 271.4f, LeverOpenTime = 6f;
         const float ChestX = 467.5f, SeesawX = 430f, MudFrom = 338f, MudTo = 344f;
         const float LogFrom = 370f, LogTo = 378f;
         // the darts fly from the guardian's mouth: over a ducking Raja, into a standing one
@@ -95,6 +98,8 @@ namespace Cloudborne
         const float BlockSink = 0.2f;
         float pushHome, dartT, bridge, logSpin, seesawT = -1, boulderT;
         bool lever, gong, chestOpen, leverModel;
+        // how long the lever's gate has left open
+        float leverT;
         Transform leverHandle, gongDisc, chestLid, chestModel, logT, plank, stone, bridgeT;
 
         /// <summary>The stone lanterns where he comes back after falling.</summary>
@@ -171,7 +176,9 @@ namespace Cloudborne
             AddPendulum(262.5f, 6.2f, 4.6f, 2.4f, 0f);
             AddPendulum(269f, 6.2f, 4.6f, 2.4f, 1.2f);
             BuildLever();
-            AddGate(278f);
+            // a log fallen across the way between the swinging logs and the gate: slide under it, still racing
+            AddOverhang(RaceLogX, 0.7f, 0.95f, 1.65f, false);
+            AddGate(RaceGateX);
             BuildPushBlock(280.5f);
             BuildPlate();
             AddGate(287f);
@@ -1065,11 +1072,12 @@ namespace Cloudborne
             if (!lever && InReach(LeverX, x, dir, range) && y < 1.5f)
             {
                 lever = true; any = true;
+                leverT = LeverOpenTime;
                 if (leverModel) leverHandle.localScale = new Vector3(-1, 1, 1);
                 else leverHandle.localRotation = Quaternion.Euler(0, 0, -35);
                 gates[0].wantOpen = true;
                 CbFx.Sfx("block", 0.8f);
-                g.hud.SetTip("The gate opens!");
+                g.hud.SetTip("The gate opens - <color=#ffb03a>run!</color> It won't stay open long");
             }
             if (!gong && InReach(GongX, x, dir, range) && y < 2f)
             {
@@ -1203,6 +1211,24 @@ namespace Cloudborne
                 CbFx.Puff(new Vector3(PlateX, 0.15f, -0.4f), new Color(0.8f, 0.75f, 0.65f), 6, 1.4f, 0.7f, 0.5f);
                 CbFx.Sfx("heavy", 0.6f);
                 g.shake = Mathf.Max(g.shake, 0.15f);
+            }
+            // the lever's gate: open while the time lasts (ticking, faster at the end), held while he is in it;
+            // then it shuts and the lever springs back, to be pulled again
+            if (lever && gates.Count > 0)
+            {
+                float before = leverT;
+                leverT -= dt;
+                float tick = leverT < 2f ? 0.25f : 0.5f;
+                if (leverT > 0 && Mathf.Floor(before / tick) != Mathf.Floor(leverT / tick)) CbFx.Sfx("block", leverT < 2f ? 0.35f : 0.2f);
+                bool inGate = gates[0].open > 0 && Mathf.Abs(hero.x - (gates[0].b.x0 + gates[0].b.x1) / 2) < 0.8f;
+                gates[0].wantOpen = leverT > 0 || inGate;
+                if (!gates[0].wantOpen)
+                {
+                    lever = false;
+                    if (leverModel) leverHandle.localScale = Vector3.one;
+                    else leverHandle.localRotation = Quaternion.Euler(0, 0, 35);
+                    if (hero.x < RaceGateX) g.hud.SetTip("The gate shut! Strike the lever again - and don't stop for the logs");
+                }
             }
             bool pressed = (Mathf.Abs(hero.x - PlateX) < 0.6f && hero.y < 0.1f) || blockSet || (pushBlock.x0 < PlateX && pushBlock.x1 > PlateX);
             if (gates.Count > 1) gates[1].wantOpen = pressed || (gates[1].open > 0 && Mathf.Abs(hero.x - (gates[1].b.x0 + gates[1].b.x1) / 2) < 0.8f);
@@ -1441,6 +1467,7 @@ namespace Cloudborne
             }
             foreach (var b in boulders) { b.rolling = false; b.cool = 0; b.x = 466f; if (b.t != null) b.t.gameObject.SetActive(false); }
             lever = gong = chestOpen = chestHinted = seesawLaunched = false;
+            leverT = 0;
             if (leverModel) leverHandle.localScale = Vector3.one;
             else leverHandle.localRotation = Quaternion.Euler(0, 0, 35);
             bridge = 0;
