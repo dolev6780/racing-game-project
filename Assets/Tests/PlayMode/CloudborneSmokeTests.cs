@@ -355,7 +355,7 @@ namespace RacingGame.Tests
             foreach (var m in new[] { "Banyan", "Kapok", "Bamboo" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/{m}/{m}"), $"The {m} tree is missing");
             // the long stage's things drawn in Canva, approved and built by Meshy
-            foreach (var m in new[] { "Lantern", "Snapper", "Cage", "Raft", "Statue", "Gate", "Lever", "Leaf", "Chest",
+            foreach (var m in new[] { "Lantern", "Cage", "Raft", "Statue", "Gate", "Lever", "Leaf", "Chest",
                 "LogRam", "BambooBar", "Thorns", "PushBlock", "ZipPost" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/Ways/{m}/{m}"), $"The {m} model is missing");
             Assert.IsNotNull(Resources.Load<GameObject>("Cloudborne/Items/Key/Key"), "The key model is missing");

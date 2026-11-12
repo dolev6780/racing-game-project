@@ -10,9 +10,10 @@ namespace Cloudborne
     /// <item>The vine ravine (196-240): vines to swing across, bamboo bars hung over the water, a giant springy leaf
     /// up to a tiger token.</item>
     /// <item>The temple of traps (240-292): thorns cut with the staff, a dart statue, a hidden pit, swinging logs, a
-    /// lever's gate, a stone block pushed onto a plate for the second gate, a snapping plant.</item>
-    /// <item>After the temple (292-316): two raiders, a cage to break open, a snapping plant.</item>
-    /// <item>The raft river (316-372): rafts drifting down a long river, a rock island with a snapping plant.</item>
+    /// lever's gate, a stone block pushed onto a plate for the second gate.</item>
+    /// <item>After the temple (292-316): two raiders, a cage to break open.</item>
+    /// <item>The raft river (316-372): rafts drifting down a long river, a rock island in the middle.</item>
+    /// (The snapping plants are gone: the user saw no point in them.)
     /// <item>The canopy and the waterfall (372-444): a vine-grown pillar, an updraft, ledges and bars in the treetops
     /// with a key, a zipline down, the waterfall's vine-grown cliff with a cave behind the water (a token), rolling
     /// boulders, a chest the key opens (a token).</item>
@@ -57,7 +58,6 @@ namespace Cloudborne
         class Gate { public Block b; public float open; public bool wantOpen, sinks; public Vector3 home; }
         class Thorns { public Block b; public int hp = 2; public float cool, clang; }
         class Pendulum { public float x, y, len, period, phase; public Transform ram, ropeA, ropeB; }
-        class Snapper { public float x, y, timer, period = 2.2f, cool; public int hp = 3; public bool dead; public Transform t, jaw, model; }
         class Pit { public float x0, x1, stood; public bool open; public Transform cover; }
         class Dart { public float x, y, vx, gone; public Transform t; }
         // the caged monkey turned to the camera and a little toward the way Raja comes; how long it hops for joy when freed
@@ -88,7 +88,6 @@ namespace Cloudborne
         readonly List<Gate> gates = new List<Gate>();
         readonly List<Thorns> thorns = new List<Thorns>();
         readonly List<Pendulum> pendulums = new List<Pendulum>();
-        readonly List<Snapper> snappers = new List<Snapper>();
         readonly List<Pit> pits = new List<Pit>();
         readonly List<Dart> darts = new List<Dart>();
         readonly List<Cage> cages = new List<Cage>();
@@ -102,6 +101,12 @@ namespace Cloudborne
         // how long the lever's gate has left open
         float leverT;
         Transform leverHandle, chestLid, chestModel;
+        // the lever's handle (its own part of the model, turning about where it meets the base): how far it is thrown
+        // (0 at rest, 1 across), its turn at rest and the turn that throws it across; the block on the plate settling
+        // into it, and the plate
+        Transform leverArm, plate;
+        Quaternion leverArmRest;
+        float leverThrow, leverAcross, blockSetT = 1f, blockFromX;
 
         /// <summary>The stone lanterns where he comes back after falling.</summary>
         public IEnumerable<float> Checkpoints { get { foreach (var l in lanterns) yield return l.x; } }
@@ -184,18 +189,15 @@ namespace Cloudborne
             BuildPushBlock(280.5f);
             BuildPlate();
             AddGate(287f);
-            AddSnapper(290f, 0f);
 
             // ---- after the temple: two raiders and a caged monkey (the gong, its bridge and the gorge are gone: the
             // way was a muddle of gadgets - the gong, the mud, the spinning log, the seesaw, the lift: the user)
             AddCage(308f);
-            AddSnapper(312f, 0f);
 
-            // ---- the raft river: rafts drift down it, a rock island with a snapping plant in the middle
+            // ---- the raft river: rafts drift down it, a rock island in the middle
             foreach (var (from, to, offset) in new[] { (320f, 339.5f, 0f), (320f, 339.5f, 10f), (344.8f, 368f, 0f), (344.8f, 368f, 12f) })
                 AddRaft(from, to, offset);
             AddRock(341.8f, 3.6f, 0.6f);
-            AddSnapper(341.8f, 0.6f);
 
             // ---- the canopy and the waterfall
             AddCage(378f);
@@ -489,7 +491,22 @@ namespace Cloudborne
             var t = CbArt.Joint(root, LeverX, 0, 0.2f, "lever");
             // the model: pulled, it is mirrored, so its handle leans the other way
             leverHandle = Model("Lever", t, new Vector3(0.92f, 1.2f, 0.73f), 180f);
-            if (leverHandle != null) { leverModel = true; return; }
+            if (leverHandle != null)
+            {
+                leverModel = true;
+                // the handle (split from the base, its origin where it turns: Tools/Blender/split_part.py) is thrown across
+                // to the other side, swinging over (it jumped there: the user); the turn that mirrors its lean
+                foreach (var part in leverHandle.GetComponentsInChildren<Transform>())
+                    if (part.name == "LeverHandle") leverArm = part;
+                if (leverArm != null && leverArm.GetComponentInChildren<Renderer>() is Renderer r)
+                {
+                    leverArmRest = leverArm.rotation;
+                    var lean = r.bounds.center - leverArm.position;
+                    float phi = Mathf.Atan2(lean.y, lean.x) * Mathf.Rad2Deg;
+                    leverAcross = Mathf.DeltaAngle(0, 180f - 2 * phi);
+                }
+                return;
+            }
             CbArt.Box(StoneGrey, t, new Vector3(0, 0.3f, 0), new Vector3(0.5f, 0.6f, 0.5f));
             leverHandle = CbArt.Joint(t, 0, 0.6f, 0, "handle");
             CbArt.Cylinder(Wood, leverHandle, new Vector3(0, 0.45f, 0), 0.06f, 0.9f);
@@ -559,24 +576,16 @@ namespace Cloudborne
 
         void BuildPlate()
         {
-            CbArt.Box(M("#b89a5a"), root, new Vector3(PlateX, 0.03f, 0.1f), new Vector3(0.9f, 0.06f, 0.9f)).name = "plate";
+            plate = CbArt.Box(M("#b89a5a"), root, new Vector3(PlateX, 0.03f, 0.1f), new Vector3(0.9f, 0.06f, 0.9f));
+            plate.name = "plate";
         }
 
-        void AddSnapper(float x, float y)
+        /// <summary>The lever's handle where leverThrow has it (eased): at rest, thrown across, or on its way.</summary>
+        void ShowLever()
         {
-            var t = CbArt.Joint(root, x, y, 0.1f, "snapper");
-            // the model, its open mouth turned towards the way Raja comes (and a little to the camera); it snaps by
-            // squashing its head down
-            var model = Model("Snapper", t, new Vector3(1.19f, 1.7f, 1.19f), -120f);
-            if (model != null) { snappers.Add(new Snapper { x = x, y = y, t = t, jaw = model, model = model, timer = Random.Range(0f, 1.5f) }); return; }
-            CbArt.Cylinder(VineGreen, t, new Vector3(0, 0.45f, 0), 0.08f, 0.9f);
-            var head = CbArt.Joint(t, 0, 0.95f, 0, "head");
-            CbArt.Part(CbMesh.Dome(0.5f, 10), M("#b8323a"), head, Vector3.zero, new Vector3(0.7f, 0.35f, 0.6f), Quaternion.Euler(180, 0, 0));
-            var jaw = CbArt.Joint(head, -0.3f, 0, 0, "jaw");
-            CbArt.Part(CbMesh.Dome(0.5f, 10), M("#c9483f"), jaw, new Vector3(0.3f, 0, 0), new Vector3(0.7f, 0.35f, 0.6f));
-            for (int k = 0; k < 4; k++)
-                CbArt.Cone(M("#f4eedc"), jaw, new Vector3(0.1f + k * 0.14f, 0.05f, -0.2f), 0.04f, 0.12f, null, 4);
-            snappers.Add(new Snapper { x = x, y = y, t = t, jaw = jaw, timer = Random.Range(0f, 1.5f) });
+            float k = leverThrow * leverThrow * (3 - 2 * leverThrow);
+            if (leverArm != null) leverArm.rotation = Quaternion.AngleAxis(leverAcross * k, Vector3.forward) * leverArmRest;
+            else if (!leverModel && leverHandle != null) leverHandle.localRotation = Quaternion.Euler(0, 0, Mathf.Lerp(35f, -35f, k));
         }
 
         void AddCage(float x)
@@ -972,8 +981,6 @@ namespace Cloudborne
             {
                 lever = true; any = true;
                 leverT = LeverOpenTime;
-                if (leverModel) leverHandle.localScale = new Vector3(-1, 1, 1);
-                else leverHandle.localRotation = Quaternion.Euler(0, 0, -35);
                 gates[0].wantOpen = true;
                 CbFx.Sfx("block", 0.8f);
                 g.hud.SetTip("The gate opens - <color=#ffb03a>run!</color> It won't stay open long");
@@ -989,17 +996,6 @@ namespace Cloudborne
                 CbFx.Sfx("hit", 0.6f);
                 c.t.localRotation = Quaternion.Euler(0, 0, dir * 4f);
                 if (c.hp <= 0) FreeCage(c);
-            }
-            foreach (var s in snappers)
-            {
-                if (s.dead || !InReach(s.x, x, dir, range) || Mathf.Abs(y - s.y) > 1.5f) continue;
-                any = true;
-                if (s.cool > 0) continue;
-                s.cool = 0.25f;
-                s.hp--;
-                CbFx.Spark(new Vector3(s.x, s.y + 1f, -0.4f), new Color(0.8f, 0.3f, 0.3f) * 1.5f, 10, 4, 0.3f, 0.4f, 6);
-                CbFx.Sfx("hit", 0.6f);
-                if (s.hp <= 0) { s.dead = true; s.t.gameObject.SetActive(false); CbFx.Puff(new Vector3(s.x, s.y + 0.8f, -0.3f), new Color(0.6f, 0.5f, 0.4f), 6, 1.6f, 0.7f, 0.5f); }
             }
             foreach (var b in boulders)
             {
@@ -1074,7 +1070,6 @@ namespace Cloudborne
 
             foreach (var th in thorns) { th.cool = Mathf.Max(0, th.cool - dt); th.clang = Mathf.Max(0, th.clang - dt); }
             foreach (var c in cages) c.cool = Mathf.Max(0, c.cool - dt);
-            foreach (var sn in snappers) sn.cool = Mathf.Max(0, sn.cool - dt);
             UpdateTraps(dt, hero);
             UpdateMovers(dt, hero);
 
@@ -1083,12 +1078,29 @@ namespace Cloudborne
             if (!blockSet && Mathf.Abs(PushBlockX - PlateX) < 0.25f)
             {
                 blockSet = true;
+                blockSetT = 0;
+                blockFromX = PushBlockX;
                 pushBlock.x0 = PlateX - 0.5f; pushBlock.x1 = PlateX + 0.5f; pushBlock.top = 1f - BlockSink;
-                pushBlock.t.localPosition = new Vector3(PlateX, -BlockSink, 0);
-                CbFx.Puff(new Vector3(PlateX, 0.15f, -0.4f), new Color(0.8f, 0.75f, 0.65f), 6, 1.4f, 0.7f, 0.5f);
-                CbFx.Sfx("heavy", 0.6f);
-                g.shake = Mathf.Max(g.shake, 0.15f);
             }
+            // (it sank in at once: the user wanted to see it settle) sliding onto the plate's middle and sinking into it,
+            // then a thud
+            if (blockSetT < 1f)
+            {
+                blockSetT = Mathf.Min(1f, blockSetT + dt / 0.4f);
+                float k = blockSetT * blockSetT * (3 - 2 * blockSetT);
+                pushBlock.t.localPosition = new Vector3(Mathf.Lerp(blockFromX, PlateX, k), -BlockSink * k, 0);
+                if (blockSetT >= 1f)
+                {
+                    CbFx.Puff(new Vector3(PlateX, 0.15f, -0.4f), new Color(0.8f, 0.75f, 0.65f), 6, 1.4f, 0.7f, 0.5f);
+                    CbFx.Sfx("heavy", 0.6f);
+                    g.shake = Mathf.Max(g.shake, 0.15f);
+                }
+            }
+            // the lever's handle: thrown across fast, then creeping back as the gate's time runs out (a clock you can
+            // see), and springing home when it shuts
+            float throwTo = lever ? Mathf.Clamp01(leverT / LeverOpenTime * 1.15f) : 0f;
+            leverThrow = Mathf.MoveTowards(leverThrow, throwTo, dt * (throwTo > leverThrow ? 7f : 3f));
+            ShowLever();
             // the lever's gate: open while the time lasts (ticking, faster at the end), held while he is in it;
             // then it shuts and the lever springs back, to be pulled again
             if (lever && gates.Count > 0)
@@ -1102,12 +1114,16 @@ namespace Cloudborne
                 if (!gates[0].wantOpen)
                 {
                     lever = false;
-                    if (leverModel) leverHandle.localScale = Vector3.one;
-                    else leverHandle.localRotation = Quaternion.Euler(0, 0, 35);
                     if (hero.x < RaceGateX) g.hud.SetTip("The gate shut! Strike the lever again - and don't stop for the logs");
                 }
             }
             bool pressed = (Mathf.Abs(hero.x - PlateX) < 0.6f && hero.y < 0.1f) || blockSet || (pushBlock.x0 < PlateX && pushBlock.x1 > PlateX);
+            // the plate goes down under what presses it
+            if (plate != null)
+            {
+                var pp = plate.localPosition;
+                plate.localPosition = new Vector3(pp.x, Mathf.MoveTowards(pp.y, pressed ? -0.015f : 0.03f, dt * 0.3f), pp.z);
+            }
             if (gates.Count > 1) gates[1].wantOpen = pressed || (gates[1].open > 0 && Mathf.Abs(hero.x - (gates[1].b.x0 + gates[1].b.x1) / 2) < 0.8f);
             foreach (var gt in gates)
             {
@@ -1225,20 +1241,9 @@ namespace Cloudborne
                 p.ram.localPosition = new Vector3(Mathf.Sin(a) * p.len, -Mathf.Cos(a) * p.len, 0);
                 float lx = p.x + Mathf.Sin(a) * p.len, ly = p.y - Mathf.Cos(a) * p.len;
                 // the log is level and long: it hits along its length
-                if (Mathf.Abs(hero.x - lx) < 0.95f && hero.y < ly + 0.35f && hero.y + 1.7f > ly - 0.35f)
+                // (as tall as he is: low - crawling, sliding, ducking - he passes under it; it hit him anyway: the user)
+                if (Mathf.Abs(hero.x - lx) < 0.95f && hero.y < ly + 0.35f && hero.y + hero.Height + 0.15f > ly - 0.35f)
                     hero.TakeHit(8, Mathf.Cos(Time.time * Mathf.PI * 2 / p.period + p.phase) >= 0 ? 1 : -1, knock: 4f);
-            }
-            // snapping plants: open, then a snap
-            foreach (var s in snappers)
-            {
-                if (s.dead) continue;
-                float before = s.timer;
-                s.timer = Mathf.Repeat(s.timer + dt, s.period);
-                bool snapping = s.timer > s.period - 0.35f;
-                if (s.model != null) s.model.localScale = snapping ? new Vector3(1.15f, 0.82f, 1.15f) : Vector3.one * (1 + Mathf.Sin(Time.time * 4 + s.x) * 0.02f);
-                else s.jaw.localRotation = Quaternion.Euler(0, 0, snapping ? 0 : -50f * Mathf.Clamp01(s.timer * 3));
-                if (before < s.period - 0.35f && snapping && Mathf.Abs(hero.x - s.x) < 1.05f && hero.y < s.y + 1.3f && hero.y > s.y - 0.5f)
-                    hero.TakeHit(10, hero.x >= s.x ? 1 : -1);
             }
             // rolling boulders down the path past the waterfall
             boulderT -= dt;
@@ -1295,7 +1300,6 @@ namespace Cloudborne
             foreach (var p in pits) { p.open = false; p.stood = 0; p.cover.gameObject.SetActive(true); }
             foreach (var d in darts) Object.Destroy(d.t.gameObject);
             darts.Clear();
-            foreach (var s in snappers) { s.dead = false; s.hp = 3; s.t.gameObject.SetActive(true); }
             foreach (var c in cages)
             {
                 c.freed = false; c.hp = 3; c.hop = 0;
@@ -1307,8 +1311,10 @@ namespace Cloudborne
             foreach (var b in boulders) { b.rolling = false; b.cool = 0; b.x = BoulderFrom; if (b.t != null) b.t.gameObject.SetActive(false); }
             lever = chestOpen = chestHinted = false;
             leverT = 0;
-            if (leverModel) leverHandle.localScale = Vector3.one;
-            else leverHandle.localRotation = Quaternion.Euler(0, 0, 35);
+            leverThrow = 0;
+            ShowLever();
+            blockSetT = 1f;
+            if (plate != null) plate.localPosition = new Vector3(PlateX, 0.03f, 0.1f);
             foreach (var gt in gates) { gt.open = 0; gt.wantOpen = false; gt.b.broken = false; gt.b.t.localPosition = gt.home; }
             pushBlock.x0 = pushHome - 0.5f; pushBlock.x1 = pushHome + 0.5f; pushBlock.t.localPosition = new Vector3(pushHome, 0, 0);
             pushBlock.top = 1f; blockSet = false;
