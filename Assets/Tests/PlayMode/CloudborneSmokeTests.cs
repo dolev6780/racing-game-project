@@ -770,6 +770,21 @@ namespace RacingGame.Tests
             game.TestInput = null;
             Assert.AreEqual(crates - 1, game.items.CrateCount, "Blows did not break the crate");
             Assert.Greater(game.items.ItemCount, things, "The broken crate held nothing");
+            // HEAVY in a jump: the staff slam comes down beside the next crate and its shock bursts it at once
+            game.SkipFights();
+            var hero = game.hero;
+            float crateX = game.items.CrateXs()[0];
+            game.Teleport(crateX - 1.6f);
+            hero.y = 2.5f;
+            hero.vx = hero.vy = 0;
+            hero.facing = 1;
+            hero.state = CbHero.State.Air;
+            crates = game.items.CrateCount;
+            bool slammed = false;
+            game.TestInput = i => { if (!slammed) { i.heavy = true; slammed = true; } };
+            for (float waited = 0; waited < 2f && game.items.CrateCount == crates; waited += Time.deltaTime) yield return null;
+            game.TestInput = null;
+            Assert.AreEqual(crates - 1, game.items.CrateCount, "The slam from a jump did not break the crate beside it");
         }
 
         [UnityTest]

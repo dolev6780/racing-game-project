@@ -55,6 +55,8 @@ namespace Cloudborne
         /// <summary>Tiger coins picked up this run; every coin is also banked for upgrades (PlayerPrefs).</summary>
         public int Coins { get; private set; }
         public int CrateCount => crates.Count;
+        /// <summary>Test hook: where the crates still standing are, in stage order.</summary>
+        public List<float> CrateXs() { var xs = crates.ConvertAll(c => c.x); xs.Sort(); return xs; }
         public int ItemCount => items.Count;
         public const string BankKey = "cb_coins";
 
@@ -234,7 +236,7 @@ namespace Cloudborne
             }
         }
 
-        public bool HitCrates(float x, float y, int dir, float range)
+        public bool HitCrates(float x, float y, int dir, float range, bool wholly = false)
         {
             bool any = false;
             for (int i = crates.Count - 1; i >= 0; i--)
@@ -246,7 +248,7 @@ namespace Cloudborne
                 if (c.cooldown > 0) continue;
                 any = true;
                 c.cooldown = 0.2f;
-                Break(i, dir, wholly: false);
+                Break(i, dir, wholly);
             }
             return any;
         }

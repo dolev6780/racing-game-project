@@ -1241,7 +1241,9 @@ namespace Cloudborne
                             g.HurtEnemy(e, kiCrash ? 22 : 14, e.x >= x ? 1 : -1, kiCrash ? 8 : 5, kiCrash ? 9 : 7, true, true, fire: false, fromPlayer: true, ki: kiCrash);
                         }
                         if (g.level != null) g.level.Strike(x, y, facing, 2f, staff: true);
-                        if (kiCrash && g.items != null) { g.items.HitCrates(x, y, 1, reach); g.items.HitCrates(x, y, -1, reach); }
+                        // crates in the shock burst at once, either side (only the ki crash broke them: the user found the
+                        // heavy blow from a jump did nothing to them)
+                        if (g.items != null) { g.items.HitCrates(x, y, 1, reach, wholly: true); g.items.HitCrates(x, y, -1, reach, wholly: true); }
                         CbFx.Spark(new Vector3(x + facing * 1.1f, y + 0.1f, -0.4f), CbFx.Dust, kiCrash ? 30 : 18, 6, 0.6f, 0.5f, 4);
                         CbFx.Spark(new Vector3(x + facing * 1.1f, y + 0.2f, -0.4f), FireAwake ? CbFx.Fire : CbFx.Hit, 10, 6, 0.4f, 0.4f, 3);
                         g.shake = Mathf.Max(g.shake, kiCrash ? 0.55f : 0.4f);
