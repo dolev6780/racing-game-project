@@ -12,6 +12,7 @@ namespace Cloudborne
     {
         // his hands above his feet hanging from a rope or vine, and from a bar (measured on the model at its game size)
         const float RopeReach = 1.48f, BarReach = 1.71f;
+        const string BarHangClip = "Bar_Hang_Idle", BarMoveClip = "MonkeyBars";
         const float MaxSwing = 1.1f, VineClimbSpeed = 2.6f, BarSpeed = 2.4f, ZipTop = 13f, PitDamage = 10f, PushSpeed = 1.6f;
 
         CbLevel.Vine swingVine;
@@ -274,6 +275,11 @@ namespace Cloudborne
                 case State.Swing:
                 case State.Zip: model.Show("Rope_Hang_Idle", 0.5f, 0.1f); return true;
                 case State.Vine: model.Loop("Climb_Up_Rope", climbPh); return true;
+                // the bar: hanging from it by both hands, arms straight up (Meshy's "Bar Hang Idle"), and along it hand
+                // over hand, facing the way he goes, legs swinging (made in Meshy from a description); the shimmy he
+                // had looked like clinging to a wall, not a pole (the user)
+                case State.Bars when barMoving && model.HasClip(BarMoveClip): model.Loop(BarMoveClip, barPh, 0.12f); return true;
+                case State.Bars when model.HasClip(BarHangClip): model.LoopSeconds(BarHangClip, g.clock, 0.15f); return true;
                 case State.Bars:
                     if (barMoving) model.Loop("Slow_Bar_Hang_Left", barPh);
                     else model.Show("Slow_Bar_Hang_Left", 0f, 0.1f);
