@@ -28,7 +28,7 @@ namespace Cloudborne
         const float FloodFront = -1.15f, GorgeBack = 2.4f;
         // stones from the rim: where (clear of the ledges), how often, the warning before one falls, how hard it falls
         static readonly float[] DropColumns = { 143.1f, 146.3f, 150.3f };
-        const float DropEvery = 2.8f, DropWarn = 0.8f, DropGravity = 22f, DropSize = 0.5f, DropDamage = 8f;
+        const float DropEvery = 3.2f, DropWarn = 1.3f, DropGravity = 22f, DropSize = 0.5f, DropDamage = 8f;
 
         enum Gorge { Open, Flooding, Done }
         Gorge gorge;
@@ -46,8 +46,9 @@ namespace Cloudborne
         class Dropper
         {
             public float x, timer, y, vy;
-            public bool falling;
-            public Transform rock;
+            public bool falling, warned;
+            public Transform rock, warn;
+            public Material warnMat;
         }
         readonly List<Dropper> droppers = new List<Dropper>();
 
@@ -127,7 +128,13 @@ namespace Cloudborne
                 if (Fit("Cloudborne/Jungle/Boulder/Boulder", holder, new Vector3(-DropSize / 2, -DropSize / 2, -DropSize / 2), new Vector3(DropSize / 2, DropSize / 2, DropSize / 2)) == null)
                     CbArt.Box(StoneGrey, holder, Vector3.zero, Vector3.one * DropSize);
                 rock.gameObject.SetActive(false);
-                droppers.Add(new Dropper { x = x, timer = DropEvery * (droppers.Count + 1) * 0.5f, rock = rock });
+                // its warning: a red-orange light down the whole column where it will fall, pulsing faster as it comes
+                // (the grit trickling down alone went unseen: the user)
+                var warnMat = CbArt.Glow(Color.clear, WarnTexture());
+                var warn = CbArt.Part(CbMesh.Quad, warnMat, root, new Vector3(x, GorgeRim / 2, -1.05f), new Vector3(1.1f, GorgeRim + 1f, 1), shadows: false);
+                warn.name = "dropWarning";
+                warn.gameObject.SetActive(false);
+                droppers.Add(new Dropper { x = x, timer = DropEvery * (droppers.Count + 1) * 0.5f, rock = rock, warn = warn, warnMat = warnMat });
             }
             ShowFlood();
         }
@@ -161,10 +168,13 @@ namespace Cloudborne
                     float b = Mathf.Min(x1, right + (c < n - 1 ? Overlap : 0) + Rand(0f, 0.25f) * cw);
                     if (b - a < cw * 0.3f) continue;
                     float lo = y0 + r * rh - (r > 0 ? Overlap + Rand(0f, 0.2f) * rh : 0);
-                    float hi = r == rows - 1 ? y1 + 0.06f : y0 + (r + 1) * rh + Overlap + Rand(0f, 0.25f) * rh;
+                    bool topRow = r == rows - 1;
+                    float hi = topRow ? y1 : y0 + (r + 1) * rh + Overlap + Rand(0f, 0.25f) * rh;
                     float dz = Rand(0f, jitter);
                     var piece = CbArt.Joint(parent, 0, 0, 0, "piece");
-                    if (Fit(CliffRockPath, piece, new Vector3(a, lo, zFront + dz), new Vector3(b, hi, zBack)) == null)
+                    var box0 = new Vector3(a, lo, zFront + dz);
+                    var box1 = new Vector3(b, hi, zBack);
+                    if ((topRow ? FitTop(CliffRockPath, piece, box0, box1) : Fit(CliffRockPath, piece, box0, box1)) == null)
                     {
                         Object.Destroy(piece.gameObject);
                         return false;
@@ -226,7 +236,7 @@ namespace Cloudborne
             FloodLevel = FloodFloor;
             floodWait = FloodWait;
             floodCaught = false;
-            foreach (var d in droppers) { d.timer = DropEvery * 0.5f + (d.x - DropColumns[0]) * 0.4f; d.falling = false; d.rock.gameObject.SetActive(false); }
+            foreach (var d in droppers) { d.timer = DropEvery * 0.5f + (d.x - DropColumns[0]) * 0.4f; d.falling = false; HideDrop(d); }
         }
 
         /// <summary>Back as built: the gap open, the gorge dry (Reset, and when he comes back at a lantern before it).</summary>
@@ -238,7 +248,7 @@ namespace Cloudborne
             if (gate != null) gate.bottom = GateSlot;
             sealT = -1f;
             if (gateBoulder != null) gateBoulder.gameObject.SetActive(false);
-            foreach (var d in droppers) { d.falling = false; d.rock.gameObject.SetActive(false); }
+            foreach (var d in droppers) { d.falling = false; HideDrop(d); }
             ShowFlood();
         }
 
@@ -277,7 +287,7 @@ namespace Cloudborne
                     if ((hero.x > GorgeTo && hero.y > SummitTop - 0.1f) || hero.x > SummitTo)
                     {
                         gorge = Gorge.Done;
-                        foreach (var d in droppers) { d.falling = false; d.rock.gameObject.SetActive(false); }
+                        foreach (var d in droppers) { d.falling = false; HideDrop(d); }
                         if (hero.x < SummitTo) g.hud.SetTip("Made it out! The water drains away");
                         break;
                     }
@@ -323,12 +333,28 @@ namespace Cloudborne
                 if (!d.falling)
                 {
                     d.timer -= dt;
-                    // grit trickling down where it will fall, at his height so he sees it
-                    if (d.timer < DropWarn && Random.value < 0.35f)
-                        CbFx.Spark(new Vector3(d.x + Random.Range(-0.2f, 0.2f), Mathf.Min(GorgeRim, hero.y + 4f), -0.2f), CbFx.Dust, 1, 0.5f, 0.18f, 0.6f, 14);
+                    if (d.timer < DropWarn)
+                    {
+                        // the warning: a "!" over his head the moment it starts, a rumble, the column lit and pulsing
+                        // faster and brighter as the stone comes, grit trickling down it at his height
+                        if (!d.warned)
+                        {
+                            d.warned = true;
+                            d.warn.gameObject.SetActive(true);
+                            g.hud.Popup(new Vector3(d.x, Mathf.Min(GorgeRim - 0.5f, hero.y + 2.6f), 0), "!", CbHud.PopStyle.Big);
+                            CbFx.Sfx("block", 0.35f);
+                        }
+                        float u = 1 - d.timer / DropWarn;
+                        float pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * Mathf.Lerp(9f, 26f, u));
+                        d.warnMat.SetColor("_Color", WarnColor * Mathf.Lerp(0.25f, 0.75f, u) * (0.55f + 0.45f * pulse));
+                        if (Random.value < 0.35f)
+                            CbFx.Spark(new Vector3(d.x + Random.Range(-0.2f, 0.2f), Mathf.Min(GorgeRim, hero.y + 4f), -0.2f), CbFx.Dust, 1, 0.5f, 0.18f, 0.6f, 14);
+                    }
                     if (d.timer <= 0)
                     {
                         d.falling = true;
+                        d.warned = false;
+                        d.warnMat.SetColor("_Color", WarnColor * 0.3f);
                         d.y = GorgeRim;
                         d.vy = 0;
                         d.rock.gameObject.SetActive(true);
@@ -356,7 +382,7 @@ namespace Cloudborne
                     CbFx.Spark(new Vector3(d.x, FloodLevel + 0.1f, -0.3f), CbFx.Water, 12, 5, 0.35f, 0.5f, 12);
                     CbFx.Sfx("splash", 0.4f);
                     d.falling = false;
-                    d.rock.gameObject.SetActive(false);
+                    HideDrop(d);
                     continue;
                 }
                 if (burst)
@@ -365,9 +391,37 @@ namespace Cloudborne
                     CbFx.Spark(new Vector3(d.x, d.y, -0.4f), CbFx.Grey, 8, 4, 0.25f, 0.4f, 10);
                     CbFx.Sfx("block", 0.5f);
                     d.falling = false;
-                    d.rock.gameObject.SetActive(false);
+                    HideDrop(d);
                 }
             }
+        }
+
+        static readonly Color WarnColor = new Color(1f, 0.32f, 0.12f);
+        static Texture2D warnTexture;
+
+        /// <summary>The warning light's shape: brightest down its middle, fading to nothing at its sides.</summary>
+        static Texture2D WarnTexture()
+        {
+            if (warnTexture != null) return warnTexture;
+            const int W = 32;
+            warnTexture = new Texture2D(W, 2, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "dropWarning" };
+            for (int i = 0; i < W; i++)
+            {
+                float f = Mathf.Pow(1 - Mathf.Abs(2 * (i + 0.5f) / W - 1), 1.6f);
+                var c = new Color(f, f, f, f);
+                warnTexture.SetPixel(i, 0, c);
+                warnTexture.SetPixel(i, 1, c);
+            }
+            warnTexture.Apply();
+            return warnTexture;
+        }
+
+        /// <summary>A stone that has burst, or the gorge done with: the stone and its warning gone.</summary>
+        static void HideDrop(Dropper d)
+        {
+            d.rock.gameObject.SetActive(false);
+            d.warn.gameObject.SetActive(false);
+            d.warned = false;
         }
 
         /// <summary>The water's front and surface where its level is now; out of sight under the floor.</summary>

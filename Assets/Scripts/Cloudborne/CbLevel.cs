@@ -239,7 +239,7 @@ namespace Cloudborne
             // rock for a tall one, the round river stone for a broad, low one
             var t = CbArt.Joint(root, x, 0, 0, "riverRock");
             bool tall = top - (WaterLevel - 0.6f) > width;
-            if (Fit(tall ? RiverRockPath : RiverStonePath, t, new Vector3(-width / 2, WaterLevel - 0.6f, -0.8f), new Vector3(width / 2, top + 0.06f, 1f)) == null
+            if (FitTop(tall ? RiverRockPath : RiverStonePath, t, new Vector3(-width / 2, WaterLevel - 0.6f, -0.8f), new Vector3(width / 2, top, 1f)) == null
                 && Fit(CliffDir + "Pillar/Pillar", t, new Vector3(-width / 2, WaterLevel - 0.6f, -0.8f), new Vector3(width / 2, top, 1f)) == null)
                 EarthSlab(t, -width / 2, width / 2, WaterLevel - 0.6f, top, -0.8f, 1f, earth ??= EarthMat(), grass ??= GrassMat());
             blocks.Add(new Block { x0 = x - width / 2, x1 = x + width / 2, top = top, t = t });
@@ -424,6 +424,73 @@ namespace Cloudborne
             return holder;
         }
 
+        /// <summary>
+        /// Like Fit, for a rock he stands on: drawn up so the top of its outline, seen from the front, runs on average at
+        /// hi.y, where he stands. A rough rock's highest point is well above most of its top, and fitted by its highest
+        /// point he walked in the air over it (the user).
+        /// </summary>
+        static Transform FitTop(string path, Transform parent, Vector3 lo, Vector3 hi)
+        {
+            var holder = Fit(path, parent, lo, hi);
+            if (holder == null) return null;
+            float k = TopShare(path, holder);
+            if (k >= 0.999f) return holder;
+            // stretched upwards from lo.y: the outline's average top (k of its height) lands at hi.y
+            var s = holder.localScale;
+            var p = holder.localPosition;
+            float bottom = (lo.y - p.y) / s.y;
+            s.y /= k;
+            holder.localScale = s;
+            holder.localPosition = new Vector3(p.x, lo.y - bottom * s.y, p.z);
+            return holder;
+        }
+
+        static readonly Dictionary<string, float> TopShares = new Dictionary<string, float>();
+
+        /// <summary>
+        /// How far up its height a model's outline seen from the front runs on average (0..1): the highest point of
+        /// its meshes in each of a row of narrow slices across it, averaged over the middle ones. 1 if its meshes can't
+        /// be read.
+        /// </summary>
+        static float TopShare(string path, Transform holder)
+        {
+            if (TopShares.TryGetValue(path, out float k)) return k;
+            k = 1f;
+            const int Slices = 16;
+            var pts = new List<Vector3>();
+            float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
+            foreach (var mf in holder.GetComponentsInChildren<MeshFilter>())
+            {
+                var mesh = mf.sharedMesh;
+                if (mesh == null || !mesh.isReadable) continue;
+                foreach (var v in mesh.vertices)
+                {
+                    var q = holder.InverseTransformPoint(mf.transform.TransformPoint(v));
+                    pts.Add(q);
+                    minX = Mathf.Min(minX, q.x); maxX = Mathf.Max(maxX, q.x);
+                    minY = Mathf.Min(minY, q.y); maxY = Mathf.Max(maxY, q.y);
+                }
+            }
+            if (pts.Count > 0 && maxX > minX && maxY > minY)
+            {
+                var top = new float[Slices];
+                for (int i = 0; i < Slices; i++) top[i] = float.MinValue;
+                foreach (var q in pts)
+                {
+                    int i = Mathf.Clamp((int)((q.x - minX) / (maxX - minX) * Slices), 0, Slices - 1);
+                    top[i] = Mathf.Max(top[i], q.y);
+                }
+                // the middle slices (at its ends a rock falls away to its sides)
+                float sum = 0;
+                int n = 0;
+                for (int i = 2; i < Slices - 2; i++)
+                    if (top[i] > float.MinValue) { sum += top[i]; n++; }
+                if (n > 0) k = Mathf.Clamp((sum / n - minY) / (maxY - minY), 0.6f, 1f);
+            }
+            TopShares[path] = k;
+            return k;
+        }
+
         /// <summary>The bounds of a model's meshes in the space of another transform (from the meshes, not the renderers).</summary>
         static Bounds LocalBounds(Transform model, Transform space)
         {
@@ -473,7 +540,7 @@ namespace Cloudborne
             {
                 float a = x0 + w * i / n - (i > 0 ? Overlap : 0), b = x0 + w * (i + 1) / n + (i < n - 1 ? Overlap : 0);
                 var piece = CbArt.Joint(rock, 0, 0, 0, "piece");
-                if (Fit(model, piece, new Vector3(a, y0, zFront), new Vector3(b, y1 + 0.06f, zBack)) == null)
+                if (FitTop(model, piece, new Vector3(a, y0, zFront), new Vector3(b, y1, zBack)) == null)
                 {
                     Object.Destroy(rock.gameObject);
                     return false;
