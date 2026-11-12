@@ -67,6 +67,7 @@ namespace Cloudborne
         const float LeafBounce = 19.5f, RaftTop = 0.1f;
         public const float TrunkX = 24.5f;
         public static readonly float[] LeafXs = { 28.6f, 176f, 380.2f, 475.5f };
+        const string ClimbVinePath = "Cloudborne/Jungle/ClimbVine/ClimbVine";
         const float StatueX = 251.5f, PlateX = 284.5f;
         // the race in the temple (its traps were too easy: the user): the lever opens the gate past the swinging logs
         // and the low log for LeverOpenTime seconds only, then it shuts and the lever springs back
@@ -659,6 +660,24 @@ namespace Cloudborne
         {
             // (against the rock where it bulges out past its side)
             var t = CbArt.Joint(root, x - TerraceBulge * 0.5f, 0, 0, "climbingVines");
+            // the vine drawn in Canva and built in Meshy (the net of green tubes looked painted on, not part of the
+            // game: the user): two columns of it down the rock's side, facing the camera, one a little behind the
+            // other, each a stack of vines overlapping, every other one mirrored, from just over the top to the ground
+            if (Resources.Load<GameObject>(ClimbVinePath) != null)
+            {
+                const float Piece = 2.9f, Step = 2.6f;
+                int rows = Mathf.CeilToInt((b.top + 0.4f) / Step);
+                int k = 0;
+                foreach (float z in new[] { -0.95f, -0.35f })
+                    for (int r = 0; r < rows; r++, k++)
+                    {
+                        float hi = b.top + 0.4f - r * Step, lo = hi - Piece;
+                        var piece = CbArt.Joint(t, z < -0.5f ? 0f : 0.12f, 0, 0, "vine");
+                        Fit(ClimbVinePath, piece, new Vector3(-0.42f, lo, z - 0.2f), new Vector3(0.42f, hi, z + 0.2f));
+                        if (k % 2 == 1) piece.localScale = new Vector3(-1, 1, 1);
+                    }
+                return;
+            }
             const float zFront = -0.8f, zBack = 0.62f;
             int strands = 5;
             float top = b.top + 0.12f;

@@ -828,7 +828,7 @@ namespace RacingGame.Tests
         [UnityTest]
         public IEnumerator StreamsBridgesAndTheRiver()
         {
-            foreach (var m in new[] { "RopeBridge", "StoneBridge", "Log", "SteppingStone" })
+            foreach (var m in new[] { "RopeBridge", "StoneBridge", "LongBridge", "ClimbVine", "Log", "SteppingStone" })
                 Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/{m}/{m}"), $"The {m} model is missing");
             game = CbGame.Boot();
             yield return Frames(3);

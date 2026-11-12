@@ -114,7 +114,11 @@ namespace Cloudborne
         // copied twice: the user)
         const float StoneArchLength = 8.4f, StoneArchStep = 8f;
         const int StoneArches = 3;
-        public const float StoneBridgeHalf = (StoneArchStep * (StoneArches - 1) + StoneArchLength) / 2, StoneDeck = 1.32f;
+        public const float StoneBridgeHalf = (StoneArchStep * (StoneArches - 1) + StoneArchLength) / 2, StoneDeck = 1.2f;
+        // the long bridge drawn in Canva and built in Meshy (one bridge of three arches, its deck gently humped): drawn
+        // a little lower than its own shape (0.6 of its height) so its deck runs about StoneDeck over the water
+        const string LongBridgePath = "Cloudborne/Jungle/LongBridge/LongBridge";
+        const float LongBridgeHeight = 3.96f * 0.6f, LongBridgeDeck = 3.69f * 0.6f;
         // the mountain: where it stands, its summit's height
         public const float MountainFrom = 137f, MountainTo = 168f, SummitTop = 11.4f;
         // an edge he can catch: its top between these heights above his feet (his raised hands hang at
@@ -186,8 +190,9 @@ namespace Cloudborne
             // the parapets, low enough that the near one hides his feet. The arches overlap a little, their end posts
             // making one pier in the middle.
             var stone = CbArt.Joint(root, StoneBridgeX, 0, 0.15f, "stoneBridge");
-            bool modelled = false;
-            for (int k = 0; k < StoneArches; k++)
+            bool modelled = Fit(LongBridgePath, stone, new Vector3(-StoneBridgeHalf - 0.2f, StoneDeck - LongBridgeDeck, -1.3f),
+                new Vector3(StoneBridgeHalf + 0.2f, StoneDeck - LongBridgeDeck + LongBridgeHeight, 1.5f)) != null;
+            for (int k = 0; k < StoneArches && !modelled; k++)
             {
                 var arch = CbArt.Joint(stone, (k - (StoneArches - 1) * 0.5f) * StoneArchStep, 0, 0, "arch");
                 if (CbArt.Prop("Cloudborne/Jungle/StoneBridge/StoneBridge", arch, CbArt.PropOutline) == null) continue;
