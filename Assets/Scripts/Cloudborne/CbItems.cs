@@ -153,6 +153,13 @@ namespace Cloudborne
             // the temple of traps
             foreach (var x in new[] { 249f, 253f, 258.5f, 260f, 265.8f, 272.5f, 282.5f, 288.6f }) C(x, 1.2f);
             Spawn(Kind.Coin, new Vector3(255.2f, 2.2f, 0), resting: true);
+            // up from each springy leaf: a column of coins to bounce through (over the leaf before the rope bridge, an
+            // arc out over the water)
+            foreach (var lx in CbLevel.LeafXs)
+            {
+                if (lx < 30f) { for (int i = 0; i < 5; i++) C(lx + 1f + i * 1f, 5.6f + Mathf.Sin(i / 4f * Mathf.PI) * 1.4f); continue; }
+                for (float y = 3f; y < 7.6f; y += 1.5f) C(lx, y);
+            }
             // the fight and the cage after the temple
             foreach (var x in new[] { 296f, 305f, 310f }) C(x, 1.2f);
             // the raft river: over the rafts' way, the island

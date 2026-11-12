@@ -66,7 +66,7 @@ namespace Cloudborne
             (57f, 3, null), (66f, 2, null),
             (97f, -1, "They wait on the bank - knock them back into the river!"),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
-            (241f, -1, "The old temple: thorns need the staff, mind the floor, duck <color=#ffb03a>↓</color> the darts"),
+            (241f, -1, "The old temple: thorns need the staff, duck <color=#ffb03a>↓</color> the darts"),
             (300f, -1, "A monkey in a cage! Break it open and set it free"),
             (316f, -1, "Ride the rafts down the river - jump off before they sink"),
             (374f, -1, "Climb the vines (hold <color=#ffb03a>↑</color>), ride the wind up to the treetops"),

@@ -25,7 +25,8 @@ namespace Cloudborne
     public partial class CbLevel
     {
         /// <summary>The temple's hidden pits (x from, to): leaves over a pit of spikes.</summary>
-        public static readonly (float x0, float x1)[] Pits = { (254f, 256.5f) };
+        // (the temple's hidden pit is gone: the user saw no point in it)
+        public static readonly (float x0, float x1)[] Pits = { };
         // a pit's hole: from just behind the ground's front face back to PitBack, PitDepth deep
         public const float PitDepth = 2.8f, PitFront = -1.68f, PitBack = 1.2f;
 
@@ -66,6 +67,7 @@ namespace Cloudborne
 
         const float LeafBounce = 19.5f, RaftTop = 0.1f;
         public const float TrunkX = 24.5f;
+        public static readonly float[] LeafXs = { 28.6f, 176f, 380.2f, 475.5f };
         const float StatueX = 251.5f, PlateX = 284.5f;
         // the race in the temple (its traps were too easy: the user): the lever opens the gate past the swinging logs
         // and the low log for LeverOpenTime seconds only, then it shuts and the lever springs back
@@ -163,6 +165,9 @@ namespace Cloudborne
             AddBar(215.5f, 223f, 4.8f);
             AddVine(226.8f, 9.4f, 5.4f);
             AddLeaf(235.5f, 0.45f);
+            // more springy leaves along the stage (the user liked the one in the ravine): before the rope bridge, past
+            // the gorge, up to the canopy's vine pillar, up onto the ridge's shaft
+            foreach (var x in LeafXs) AddLeaf(x, 0.45f);
             AddLedge(238f, 1.6f, 6.2f, false);
 
             // ---- the temple of traps (the user found its traps crowded together: they are spread out, the dart statue

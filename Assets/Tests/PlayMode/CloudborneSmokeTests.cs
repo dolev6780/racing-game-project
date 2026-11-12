@@ -1367,11 +1367,8 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(0.35f);
             level.Strike(244.9f, 0f, 1, 2.6f, staff: true);
             Assert.IsTrue(level.ThornsCut(0), "Two staff blows did not cut the thorns");
-            // the hidden pit: stood on, its leaves give way
-            game.Teleport(255.2f);
-            game.hero.y = 0;
-            yield return new WaitForSeconds(0.5f);
-            Assert.IsTrue(level.PitOpen(0), "The leaves over the pit held");
+            // no hidden pit any more (the user saw no point in it): solid ground where it was
+            Assert.AreEqual(0f, level.SupportAt(255.2f, 0.5f), 0.001f, "There is still a pit in the temple");
             // the lever opens the first gate - for a few seconds only (a race past the swinging logs and under a low
             // log); then it shuts and the lever springs back
             Assert.Less(level.BlockX(CbLevel.RaceGateX - 2f, CbLevel.RaceGateX + 2f, 0f), CbLevel.RaceGateX - 0.4f - CbLevel.HalfWidth + 0.01f, "The first gate does not stop him");
