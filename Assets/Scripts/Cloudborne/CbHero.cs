@@ -433,13 +433,13 @@ namespace Cloudborne
 
         /// <summary>
         /// The water rising up the gorge has caught him (CbLevel): a splash, health lost, a moment treading water, then
-        /// back at the gorge's foot (where the level drains it) to climb again.
+        /// back at (backX, backY): the gorge's foot (where the level drains it) to climb again, or its summit once out.
         /// </summary>
-        public void CaughtByFlood(float level, float backX)
+        public void CaughtByFlood(float level, float backX, float backY)
         {
             if (state == State.Dead || state == State.Swim) return;
             FellInWater(level, "The water caught you! Keep climbing - don't wait on crumbling ledges");
-            safeX = backX; safeY = 0;
+            safeX = backX; safeY = backY;
         }
 
         /// <summary>Out of the water: back where he last stood safely, dripping.</summary>

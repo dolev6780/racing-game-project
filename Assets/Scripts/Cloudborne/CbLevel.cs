@@ -42,7 +42,7 @@ namespace Cloudborne
         {
             public float x0, x1, top;
             public bool crumbles, gone;
-            public float stood, respawn;
+            public float stood;
             public Transform t;
             public Vector3 home;
         }
@@ -80,8 +80,8 @@ namespace Cloudborne
 
         public const float HalfWidth = 0.35f;
         // the cracked wall: taller than a double jump, two staff blows break it
-        public const float WallX = 76f, WallHeight = 4.6f;
-        const float CrumbleAfter = 0.5f, CrumbleBack = 3f;
+        public const float WallX = 76f, WallHeight = 5.4f;
+        const float CrumbleAfter = 0.5f;
 
         /// <summary>The streams across stage 1-1 (x from, to): the rope bridge's, the long river, the brook.</summary>
         public static readonly (float x0, float x1)[] Waters = { (31.4f, 55.4f), (79f, 103f), (200f, 232f), (319f, 369f), (494.4f, 500.4f) };
@@ -150,7 +150,7 @@ namespace Cloudborne
         void Build()
         {
             // the cracked wall across the path
-            AddBlock(WallX, 1.3f, WallHeight, breakable: true);
+            AddBlock(WallX, 1.5f, WallHeight, breakable: true);
             BuildCrossings();
             BuildMountain();
             // the end of the stage: a shrine gate on the path to walk through
@@ -617,7 +617,7 @@ namespace Cloudborne
             foreach (var l in ledges)
             {
                 l.gone = false;
-                l.stood = l.respawn = 0;
+                l.stood = 0;
                 l.t.localPosition = l.home;
                 l.t.gameObject.SetActive(true);
             }
@@ -625,10 +625,11 @@ namespace Cloudborne
 
         void AddBlock(float x, float width, float height, bool breakable)
         {
-            // the cracked wall: a great cracked boulder (it was a shrine pillar with black stripes, and looked fragile:
-            // the user), a little wider than where it stops him at its widest; else a shrine pillar stretched to the size
+            // the cracked wall: a column of the cliff rock the gorge's gate is built of (it was a shrine pillar with black
+            // stripes and looked fragile, then one pale stone: the user wanted it like the gate's rock, and taller), a
+            // little wider than where it stops him; else a shrine pillar stretched to the size
             var t = CbArt.Joint(root, x, 0, 0.1f, breakable ? "crackedWall" : "pillar");
-            if (breakable && Fit(CrackedRockPath, t, new Vector3(-width / 2 - 0.1f, 0, -0.75f), new Vector3(width / 2 + 0.1f, height, 0.75f)) != null)
+            if (breakable && RockWall(t, -width / 2 - 0.1f, width / 2 + 0.1f, 0f, height, -0.75f, 0.75f, 760, 0f))
             {
                 blocks.Add(new Block { x0 = x - width / 2, x1 = x + width / 2, top = height, breakable = true, hp = 2, t = t });
                 return;
@@ -977,15 +978,16 @@ namespace Cloudborne
                 // it bursts into tumbling rocks and a cloud of dust: the jungle's mossy boulder, a few big chunks that
                 // fall heavily and more small ones thrown further (grey blobs flew off it like foam: the user)
                 Material stone = null;
-                for (int k = 0; k < 11; k++)
+                for (int k = 0; k < 13; k++)
                 {
-                    bool big = k < 4;
+                    bool big = k < 5;
                     float s = big ? Random.Range(0.36f, 0.52f) : Random.Range(0.14f, 0.28f);
                     var chunk = CbArt.Joint(g.transform, (b.x0 + b.x1) / 2 + Random.Range(-0.4f, 0.4f), Random.Range(0.4f, b.top - 0.3f), Random.Range(-0.3f, 0.3f), "rubble");
-                    var rock = CbArt.Prop("Cloudborne/Jungle/Boulder/Boulder", chunk, CbArt.PropOutline);
-                    // the boulder stands on its base; its middle at the chunk's, so it tumbles about it
-                    if (rock != null) rock.localPosition = new Vector3(0, -0.6f, 0);
-                    else CbArt.Part(CbMesh.Blob(6, 4), stone ??= CbArt.Toon("#8f9a8a", CbArt.PropOutline), chunk, Vector3.zero, Vector3.one * 1.2f, shadows: false);
+                    // pieces of the same cliff rock the wall is built of (it burst into round boulders: the user), each
+                    // about its middle so it tumbles about it
+                    if (Fit(CliffRockPath, chunk, new Vector3(-0.6f, -0.6f, -0.6f), new Vector3(0.6f, 0.6f, 0.6f)) == null
+                        && CbArt.Prop("Cloudborne/Jungle/Boulder/Boulder", chunk, CbArt.PropOutline) is Transform rock) rock.localPosition = new Vector3(0, -0.6f, 0);
+                    else if (chunk.childCount == 0) CbArt.Part(CbMesh.Blob(6, 4), stone ??= CbArt.Toon("#8f9a8a", CbArt.PropOutline), chunk, Vector3.zero, Vector3.one * 1.2f, shadows: false);
                     chunk.localScale = new Vector3(s, s * Random.Range(0.7f, 1f), s);
                     chunk.rotation = Random.rotation;
                     var v = big ? new Vector3(dir * Random.Range(1.2f, 3.2f), Random.Range(1.5f, 3.5f), Random.Range(-0.6f, 0.6f))
@@ -1024,18 +1026,12 @@ namespace Cloudborne
                 if (!l.crumbles) continue;
                 if (l.gone)
                 {
-                    l.respawn -= dt;
                     var p = l.t.localPosition;
                     p.y -= dt * 9;
                     l.t.localPosition = p;
+                    // (it stays down: a crumbled ledge that came back held him again, and the user didn't want that; the
+                    // gorge's come back when the water catches him and he starts again)
                     if (p.y < -3) l.t.gameObject.SetActive(false);
-                    if (l.respawn <= 0)
-                    {
-                        l.gone = false;
-                        l.stood = 0;
-                        l.t.localPosition = l.home;
-                        l.t.gameObject.SetActive(true);
-                    }
                     continue;
                 }
                 // standing on it, or hanging from its end, his weight is on it
@@ -1048,7 +1044,6 @@ namespace Cloudborne
                 if (l.stood >= CrumbleAfter)
                 {
                     l.gone = true;
-                    l.respawn = CrumbleBack;
                     CbFx.Spark(new Vector3((l.x0 + l.x1) / 2, l.top, -0.4f), CbFx.Dust, 12, 3, 0.5f, 0.5f, 6);
                     CbFx.Sfx("hit", 0.5f);
                 }

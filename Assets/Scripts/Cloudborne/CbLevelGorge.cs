@@ -8,10 +8,11 @@ namespace Cloudborne
     /// him on - "just climbing, no challenge", its rocks dull and its way muddled: the user).
     /// A cliff closes the path with a low gap at its foot: Raja slides or crawls through, a boulder drops into the gap
     /// behind him and water bursts in. Up the gorge a zigzag of ledges - right, back left, right again, some crumbling -
-    /// to a rock jutting from the back wall and the summit's cliff, the way out at its top. Stones tumble from the rim
-    /// in two places, and the water rises behind him, faster while he is far ahead of it. Caught by it he loses health
-    /// and starts again at the bottom, the water drained. Off the way, high in the corner over the cliff, the golden
-    /// fruit; from the summit, two ledges up to the scroll; ledges down the far side.
+    /// to a rock jutting from the back wall and the summit's cliff, the way out at its top. The water rises behind him,
+    /// faster while he is far ahead of it. Caught by it he loses health and starts again at the bottom, the water
+    /// drained and the crumbled ledges back. Out at the top, the water stays where it got to. Off the way, high in the
+    /// corner over the cliff, the golden fruit; from the summit, two ledges up to the scroll; ledges down the far side.
+    /// (Stones tumbling from the rim are gone: the user didn't like them.)
     /// </summary>
     public partial class CbLevel
     {
@@ -23,12 +24,9 @@ namespace Cloudborne
         // the water: its foot (under the gorge's floor), as high as it comes, how fast it rises (faster while he is
         // more than FloodLead above it), how long after the boulder drops it starts, how far over his feet catches him
         public const float FloodFloor = -0.4f, FloodTop = 9.0f, FloodRise = 0.38f, FloodChase = 1.1f, FloodLead = 4.5f, FloodCatch = 0.9f;
-        const float FloodWait = 1.6f, FloodDrain = 1.6f;
+        const float FloodWait = 1.6f;
         // the water's front, a little in front of everything in the gorge, and the gorge's back wall
         const float FloodFront = -1.15f, GorgeBack = 2.4f;
-        // stones from the rim: where (clear of the ledges), how often, the warning before one falls, how hard it falls
-        static readonly float[] DropColumns = { 143.1f, 146.3f, 150.3f };
-        const float DropEvery = 3.2f, DropWarn = 1.3f, DropGravity = 22f, DropSize = 0.5f, DropDamage = 8f;
 
         enum Gorge { Open, Flooding, Done }
         Gorge gorge;
@@ -42,15 +40,6 @@ namespace Cloudborne
         float sealT = -1f;
         Material floodMat;
         Transform floodFrontQuad, floodSurface;
-
-        class Dropper
-        {
-            public float x, timer, y, vy;
-            public bool falling, warned;
-            public Transform rock, warn;
-            public Material warnMat;
-        }
-        readonly List<Dropper> droppers = new List<Dropper>();
 
         static bool InGorge(float x) => x > GorgeFrom && x < GorgeTo;
 
@@ -66,8 +55,9 @@ namespace Cloudborne
             float half = (GorgeFrom - MountainFrom) / 2;
             if (!RockWall(gateT, -half, half, GateSlot, GorgeRim, -0.9f, GorgeBack, 1370, 0f))
                 CbArt.Box(StoneGrey, gateT, new Vector3(0, (GateSlot + GorgeRim) / 2, (GorgeBack - 0.9f) / 2), new Vector3(half * 2, GorgeRim - GateSlot, GorgeBack + 0.9f));
-            // the gap is a low tunnel through it: dark at its back, a stone either side of its mouth
-            CbArt.Box(CbArt.Toon("#1d1a17"), gateT, new Vector3(0, GateSlot / 2, 1.6f), new Vector3(half * 2, GateSlot + 0.1f, 1.6f));
+            // the gap is a low tunnel through it: dark rock at its back (a black box there looked like a box: the
+            // user), a stone either side of its mouth
+            RockWall(gateT, -half + 0.15f, half - 0.15f, -0.3f, GateSlot + 0.3f, 0.9f, GorgeBack, 1371, 0f, 0.3f);
             foreach (float side in new[] { -1f, 1f })
             {
                 var r = CbArt.Joint(gateT, side * (half - 0.15f), 0, -0.75f, "mouthStone");
@@ -120,22 +110,6 @@ namespace Cloudborne
                 new Vector3(GorgeTo - GorgeFrom, GorgeBack - FloodFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
             floodSurface.name = "floodSurface";
 
-            // the stones that tumble from the rim
-            foreach (var x in DropColumns)
-            {
-                var rock = CbArt.Joint(root, x, GorgeRim, -0.2f, "fallingStone");
-                var holder = CbArt.Joint(rock, 0, 0, 0, "spin");
-                if (Fit("Cloudborne/Jungle/Boulder/Boulder", holder, new Vector3(-DropSize / 2, -DropSize / 2, -DropSize / 2), new Vector3(DropSize / 2, DropSize / 2, DropSize / 2)) == null)
-                    CbArt.Box(StoneGrey, holder, Vector3.zero, Vector3.one * DropSize);
-                rock.gameObject.SetActive(false);
-                // its warning: a red-orange light down the whole column where it will fall, pulsing faster as it comes
-                // (the grit trickling down alone went unseen: the user)
-                var warnMat = CbArt.Glow(Color.clear, WarnTexture());
-                var warn = CbArt.Part(CbMesh.Quad, warnMat, root, new Vector3(x, GorgeRim / 2, -1.05f), new Vector3(1.1f, GorgeRim + 1f, 1), shadows: false);
-                warn.name = "dropWarning";
-                warn.gameObject.SetActive(false);
-                droppers.Add(new Dropper { x = x, timer = DropEvery * (droppers.Count + 1) * 0.5f, rock = rock, warn = warn, warnMat = warnMat });
-            }
             ShowFlood();
         }
 
@@ -236,7 +210,6 @@ namespace Cloudborne
             FloodLevel = FloodFloor;
             floodWait = FloodWait;
             floodCaught = false;
-            foreach (var d in droppers) { d.timer = DropEvery * 0.5f + (d.x - DropColumns[0]) * 0.4f; d.falling = false; HideDrop(d); }
         }
 
         /// <summary>Back as built: the gap open, the gorge dry (Reset, and when he comes back at a lantern before it).</summary>
@@ -248,9 +221,25 @@ namespace Cloudborne
             if (gate != null) gate.bottom = GateSlot;
             sealT = -1f;
             if (gateBoulder != null) gateBoulder.gameObject.SetActive(false);
-            foreach (var d in droppers) { d.falling = false; HideDrop(d); }
+            RestoreGorgeLedges();
             ShowFlood();
         }
+
+        /// <summary>The gorge's crumbled ledges back in place (they stay down otherwise: the user).</summary>
+        void RestoreGorgeLedges()
+        {
+            foreach (var l in ledges)
+                if (InGorge((l.x0 + l.x1) / 2)) { l.gone = false; l.stood = 0; l.t.localPosition = l.home; l.t.gameObject.SetActive(true); }
+        }
+
+        /// <summary>
+        /// How much the camera should draw back to show the gorge (0 away from it, 1 in it): it is tall and wide, and
+        /// the user wanted more of it in view.
+        /// </summary>
+        public float GorgeView(float x) => Mathf.Clamp01(Mathf.Min(x - (MountainFrom - 3f), GorgeTo + 4f - x) / 3f);
+
+        /// <summary>The middle of the gorge, where the camera looks while he climbs it.</summary>
+        public const float GorgeMiddle = (GorgeFrom + GorgeTo) / 2;
 
         /// <summary>He came back at the lantern at x: if that is before the gorge, it is as it was.</summary>
         public void Respawned(float x)
@@ -283,12 +272,11 @@ namespace Cloudborne
                     if (hero.x > GorgeFrom + 0.8f && hero.x < GorgeTo && hero.y < 0.5f && hero.state != CbHero.State.Dead) Seal();
                     break;
                 case Gorge.Flooding:
-                    // out at the top: the water drains away
+                    // out at the top: the water stops where it got to (it drained away, and it needn't: the user)
                     if ((hero.x > GorgeTo && hero.y > SummitTop - 0.1f) || hero.x > SummitTo)
                     {
                         gorge = Gorge.Done;
-                        foreach (var d in droppers) { d.falling = false; HideDrop(d); }
-                        if (hero.x < SummitTo) g.hud.SetTip("Made it out! The water drains away");
+                        if (hero.x < SummitTo) g.hud.SetTip("Made it out!");
                         break;
                     }
                     if (floodCaught)
@@ -299,7 +287,7 @@ namespace Cloudborne
                             floodCaught = false;
                             FloodLevel = FloodFloor;
                             floodWait = FloodWait;
-                            foreach (var l in ledges) if (InGorge((l.x0 + l.x1) / 2)) { l.gone = false; l.stood = 0; l.t.localPosition = l.home; l.t.gameObject.SetActive(true); }
+                            RestoreGorgeLedges();
                         }
                         break;
                     }
@@ -314,114 +302,16 @@ namespace Cloudborne
                     if (InGorge(hero.x) && hero.y + FloodCatch < FloodLevel && hero.state != CbHero.State.Swim && hero.state != CbHero.State.Dead)
                     {
                         floodCaught = true;
-                        hero.CaughtByFlood(FloodLevel, GorgeFrom + 1.4f);
+                        hero.CaughtByFlood(FloodLevel, GorgeFrom + 1.4f, 0f);
                     }
-                    UpdateDroppers(dt, hero);
                     break;
                 case Gorge.Done:
-                    FloodLevel = Mathf.Max(FloodFloor, FloodLevel - dt * FloodDrain);
+                    // back down into it, into the water: up on the summit again
+                    if (InGorge(hero.x) && hero.y + FloodCatch < FloodLevel && hero.state != CbHero.State.Swim && hero.state != CbHero.State.Dead)
+                        hero.CaughtByFlood(FloodLevel, GorgeTo + 1.2f, SummitTop);
                     break;
             }
             ShowFlood();
-        }
-
-        /// <summary>Stones tumbling from the rim: a trickle of grit first, then the stone; it bursts on what it hits.</summary>
-        void UpdateDroppers(float dt, CbHero hero)
-        {
-            foreach (var d in droppers)
-            {
-                if (!d.falling)
-                {
-                    d.timer -= dt;
-                    if (d.timer < DropWarn)
-                    {
-                        // the warning: a "!" over his head the moment it starts, a rumble, the column lit and pulsing
-                        // faster and brighter as the stone comes, grit trickling down it at his height
-                        if (!d.warned)
-                        {
-                            d.warned = true;
-                            d.warn.gameObject.SetActive(true);
-                            g.hud.Popup(new Vector3(d.x, Mathf.Min(GorgeRim - 0.5f, hero.y + 2.6f), 0), "!", CbHud.PopStyle.Big);
-                            CbFx.Sfx("block", 0.35f);
-                        }
-                        float u = 1 - d.timer / DropWarn;
-                        float pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * Mathf.Lerp(9f, 26f, u));
-                        d.warnMat.SetColor("_Color", WarnColor * Mathf.Lerp(0.25f, 0.75f, u) * (0.55f + 0.45f * pulse));
-                        if (Random.value < 0.35f)
-                            CbFx.Spark(new Vector3(d.x + Random.Range(-0.2f, 0.2f), Mathf.Min(GorgeRim, hero.y + 4f), -0.2f), CbFx.Dust, 1, 0.5f, 0.18f, 0.6f, 14);
-                    }
-                    if (d.timer <= 0)
-                    {
-                        d.falling = true;
-                        d.warned = false;
-                        d.warnMat.SetColor("_Color", WarnColor * 0.3f);
-                        d.y = GorgeRim;
-                        d.vy = 0;
-                        d.rock.gameObject.SetActive(true);
-                        d.timer = DropEvery;
-                    }
-                    continue;
-                }
-                float prevY = d.y;
-                d.vy -= DropGravity * dt;
-                d.y += d.vy * dt;
-                d.rock.localPosition = new Vector3(d.x, d.y, -0.2f);
-                d.rock.GetChild(0).localRotation = Quaternion.Euler(0, 0, d.y * 70f);
-                bool burst = false;
-                // on him
-                if (Mathf.Abs(hero.x - d.x) < DropSize * 0.5f + HalfWidth && d.y - DropSize * 0.5f < hero.y + 1.6f && d.y + DropSize * 0.5f > hero.y)
-                {
-                    hero.TakeHit(DropDamage, hero.x < d.x ? -1 : 1, unblockable: true, knock: 3f);
-                    burst = true;
-                }
-                // on a ledge, a rock, the floor; into the water
-                float under = SupportAt(d.x, prevY - DropSize * 0.5f);
-                if (d.y - DropSize * 0.5f <= under) burst = true;
-                if (d.y < FloodLevel)
-                {
-                    CbFx.Spark(new Vector3(d.x, FloodLevel + 0.1f, -0.3f), CbFx.Water, 12, 5, 0.35f, 0.5f, 12);
-                    CbFx.Sfx("splash", 0.4f);
-                    d.falling = false;
-                    HideDrop(d);
-                    continue;
-                }
-                if (burst)
-                {
-                    CbFx.Puff(new Vector3(d.x, d.y, -0.4f), new Color(0.78f, 0.74f, 0.66f), 5, 1.8f, 0.6f, 0.45f);
-                    CbFx.Spark(new Vector3(d.x, d.y, -0.4f), CbFx.Grey, 8, 4, 0.25f, 0.4f, 10);
-                    CbFx.Sfx("block", 0.5f);
-                    d.falling = false;
-                    HideDrop(d);
-                }
-            }
-        }
-
-        static readonly Color WarnColor = new Color(1f, 0.32f, 0.12f);
-        static Texture2D warnTexture;
-
-        /// <summary>The warning light's shape: brightest down its middle, fading to nothing at its sides.</summary>
-        static Texture2D WarnTexture()
-        {
-            if (warnTexture != null) return warnTexture;
-            const int W = 32;
-            warnTexture = new Texture2D(W, 2, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "dropWarning" };
-            for (int i = 0; i < W; i++)
-            {
-                float f = Mathf.Pow(1 - Mathf.Abs(2 * (i + 0.5f) / W - 1), 1.6f);
-                var c = new Color(f, f, f, f);
-                warnTexture.SetPixel(i, 0, c);
-                warnTexture.SetPixel(i, 1, c);
-            }
-            warnTexture.Apply();
-            return warnTexture;
-        }
-
-        /// <summary>A stone that has burst, or the gorge done with: the stone and its warning gone.</summary>
-        static void HideDrop(Dropper d)
-        {
-            d.rock.gameObject.SetActive(false);
-            d.warn.gameObject.SetActive(false);
-            d.warned = false;
         }
 
         /// <summary>The water's front and surface where its level is now; out of sight under the floor.</summary>

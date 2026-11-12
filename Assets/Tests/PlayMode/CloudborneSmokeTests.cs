@@ -796,7 +796,7 @@ namespace RacingGame.Tests
             game.StartGame();
             yield return Frames(2);
             var level = game.level;
-            float wallLeft = CbLevel.WallX - 0.65f - CbLevel.HalfWidth;
+            float wallLeft = CbLevel.WallX - 0.75f - CbLevel.HalfWidth;
             // the cracked wall stops him on the path, and is taller than a double jump
             Assert.LessOrEqual(level.BlockX(CbLevel.WallX - 3f, CbLevel.WallX, 0f), wallLeft + 0.001f, "Raja walked into the cracked wall");
             Assert.LessOrEqual(level.BlockX(CbLevel.WallX - 3f, CbLevel.WallX, 3.9f), wallLeft + 0.001f, "A double jump clears the cracked wall");
@@ -915,7 +915,7 @@ namespace RacingGame.Tests
                 "The shoulder's corner can't be caught");
             Assert.AreEqual(CbLevel.ShoulderX, edgeX, 0.001f);
             Assert.AreEqual(CbLevel.ShoulderTop, top, 0.001f);
-            float wallLeft = CbLevel.WallX - 0.65f - CbLevel.HalfWidth;
+            float wallLeft = CbLevel.WallX - 0.75f - CbLevel.HalfWidth;
             Assert.IsFalse(level.FindEdge(wallLeft, CbLevel.WallHeight - CbHero.HangReach, 1, out _, out _), "Raja can climb over the cracked wall");
             // on the gorge's floor under the shoulder: a jump at it, holding towards it; he catches its edge at the top
             // of the jump, hangs, and pulls himself up onto it
@@ -1010,7 +1010,7 @@ namespace RacingGame.Tests
             yield return Frames(2);
             var level = game.level;
             // the cracked wall is not jumped off; a terrace's side is
-            Assert.IsFalse(level.WallAt(CbLevel.WallX - 0.65f - CbLevel.HalfWidth, 1f, 1), "Raja can wall-jump up the cracked wall");
+            Assert.IsFalse(level.WallAt(CbLevel.WallX - 0.75f - CbLevel.HalfWidth, 1f, 1), "Raja can wall-jump up the cracked wall");
             Assert.IsTrue(level.WallAt(CbLevel.GorgeTo - CbLevel.HalfWidth, 5f, 1), "The summit's cliff is not a wall to jump off");
             // on the shoulder in the gorge, the summit's cliff before him far too high to jump: pressing into it he
             // jumps, slides down it, kicks off it again and again, catches its top edge and pulls himself up onto it
