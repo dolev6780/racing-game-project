@@ -557,11 +557,15 @@ namespace Cloudborne
         }
 
         /// <summary>A terrace of the mountain: solid stone (or earth) from the ground up to top, depth metres deep.</summary>
+        const float TerraceBulge = 0.3f;
+
         void AddTerrace(float x0, float x1, float top, float depth)
         {
             var t = CbArt.Joint(root, (x0 + x1) / 2, 0, 0, "terrace");
             float cx = (x0 + x1) / 2;
-            if (!RockPieces(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, -0.9f + depth, Mathf.RoundToInt(x0 * 10)))
+            // the rock drawn a little wider than where it stops him: a rough rock is narrower than its box over most of
+            // its height, and vines on its side and the waterfall beside it stood off it with a gap (the user)
+            if (!RockPieces(t, x0 - cx - TerraceBulge, x1 - cx + TerraceBulge, -0.3f, top, -0.9f, -0.9f + depth, Mathf.RoundToInt(x0 * 10)))
                 RockFormation(t, x0 - cx, x1 - cx, -0.3f, top, -0.9f, depth, Mathf.RoundToInt(x0 * 10));
             blocks.Add(new Block { x0 = x0, x1 = x1, top = top, t = t });
         }

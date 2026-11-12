@@ -15,8 +15,8 @@ namespace Cloudborne
     /// <item>The raft river (316-372): rafts drifting down a long river, a rock island in the middle.</item>
     /// (The snapping plants are gone: the user saw no point in them.)
     /// <item>The canopy and the waterfall (372-444): a vine-grown pillar, an updraft, ledges and bars in the treetops
-    /// with a key, a zipline down, the waterfall's vine-grown cliff with a cave behind the water (a token), rolling
-    /// boulders, a chest the key opens (a token).</item>
+    /// with a key, a zipline down, the waterfall's vine-grown cliff with a cave behind the water (a token),
+    /// a chest the key opens (a token). (The rolling boulders are gone: they added nothing, the user.)</item>
     /// <item>The ridge (444-490): a shaft to wall-jump up, a cage.</item>
     /// (The gong, the mud, the spinning log, the seesaw and the lift are gone: a muddle of gadgets, the user.)
     /// </list>
@@ -63,7 +63,6 @@ namespace Cloudborne
         // the caged monkey turned to the camera and a little toward the way Raja comes; how long it hops for joy when freed
         const float MonkeyFacing = 205f, MonkeyCheer = 1.2f;
         class Cage { public float x; public int hp = 3; public bool freed; public Transform t, animal, model; public float hop, cool; public CbModel monkey; }
-        class Boulder { public float x, vx, cool; public bool rolling; public Transform t; }
 
         const float LeafBounce = 19.5f, RaftTop = 0.1f;
         public const float TrunkX = 24.5f;
@@ -73,8 +72,6 @@ namespace Cloudborne
         // and the low log for LeverOpenTime seconds only, then it shuts and the lever springs back
         public const float LeverX = 259.5f, RaceGateX = 274.5f, RaceLogX = 271.4f, LeverOpenTime = 6f;
         const float ChestX = 441.5f;
-        // the rolling boulders' road: where they start, where they stop, and from where he sets them off
-        const float BoulderFrom = 440f, BoulderEnd = 424f, BoulderStart = 425f;
         // the darts fly from the guardian's mouth: over a ducking Raja, into a standing one
         const float DartY = 1.35f;
 
@@ -91,12 +88,11 @@ namespace Cloudborne
         readonly List<Pit> pits = new List<Pit>();
         readonly List<Dart> darts = new List<Dart>();
         readonly List<Cage> cages = new List<Cage>();
-        readonly List<Boulder> boulders = new List<Boulder>();
         Block pushBlock;
         // the stone block once pushed onto its plate: sunk into it a little, it stays there (the user)
         bool blockSet;
         const float BlockSink = 0.2f;
-        float pushHome, dartT, boulderT;
+        float pushHome, dartT;
         bool lever, chestOpen, leverModel;
         // how long the lever's gate has left open
         float leverT;
@@ -218,7 +214,6 @@ namespace Cloudborne
             AddLedge(421f, 1.2f, 2.6f, false);
             AddLedge(422.4f, 1.2f, 4.8f, false);
             AddLedge(421.2f, 1.4f, 7f, false);
-            boulders.Add(new Boulder { x = BoulderFrom });
             BuildChest();
 
             // ---- the ridge
@@ -645,7 +640,8 @@ namespace Cloudborne
         /// </summary>
         void DressVines(Block b, float x)
         {
-            var t = CbArt.Joint(root, x, 0, 0, "climbingVines");
+            // (against the rock where it bulges out past its side)
+            var t = CbArt.Joint(root, x - TerraceBulge * 0.5f, 0, 0, "climbingVines");
             const float zFront = -0.8f, zBack = 0.62f;
             int strands = 5;
             float top = b.top + 0.12f;
@@ -713,14 +709,34 @@ namespace Cloudborne
 
         void BuildWaterfall(float x0, float x1, float top)
         {
-            // the cave behind: dark rock; the falling water in front, light and see-through, hiding the ledges a little
-            var cave = RockMat(x1 - x0, top, x0, 0, new Color(0.42f, 0.42f, 0.48f));
-            CbArt.Part(CbMesh.Quad, cave, root, new Vector3((x0 + x1) / 2, top / 2, 1.2f), new Vector3(x1 - x0, top, 1), shadows: false).name = "cave";
-            var water = CbArt.Glow(new Color(0.55f, 0.8f, 1f) * 0.55f, Resources.Load<Texture2D>("Cloudborne/Jungle/Water/Water"));
-            var sheet = CbArt.Part(CbMesh.Quad, water, root, new Vector3((x0 + x1) / 2, top / 2, -1.3f), new Vector3(x1 - x0, top, 1), shadows: false);
+            // the cave behind: dark rock, the cliff's own (it was a flat painting of rock); the falling water in front,
+            // streaming, foaming at its lip and its foot, light and see-through, hiding the ledges a little (it was a
+            // flat panel of the river's texture: the user), starting just over the cliff's side so no gap shows
+            var cave = CbArt.Joint(root, 0, 0, 0, "cave");
+            if (!RockWall(cave, x0 - 0.2f, x1 + 0.4f, -0.3f, top + 0.4f, 1.0f, 2.6f, Mathf.RoundToInt(x0 * 10), 0.2f, 0.45f, 2.2f))
+            {
+                var flat = RockMat(x1 - x0, top, x0, 0, new Color(0.42f, 0.42f, 0.48f));
+                CbArt.Part(CbMesh.Quad, flat, cave, new Vector3((x0 + x1) / 2, top / 2, 1.2f), new Vector3(x1 - x0, top, 1), shadows: false);
+            }
+            float w0 = x0 - TerraceBulge - 0.15f, w1 = x1;
+            var shader = Resources.Load<Shader>("Shaders/Waterfall");
+            Material water;
+            if (shader != null && shader.isSupported)
+            {
+                water = new Material(shader) { name = "waterfall", renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent };
+                water.SetFloat("_X0", w0);
+                water.SetFloat("_X1", w1);
+                water.SetFloat("_Top", top + 0.1f);
+                water.SetFloat("_Bottom", 0f);
+            }
+            else
+            {
+                water = CbArt.Glow(new Color(0.55f, 0.8f, 1f) * 0.55f, Resources.Load<Texture2D>("Cloudborne/Jungle/Water/Water"));
+                waterfallMat = water;
+            }
+            var sheet = CbArt.Part(CbMesh.Quad, water, root, new Vector3((w0 + w1) / 2, (top + 0.3f) / 2, -1.3f), new Vector3(w1 - w0, top + 0.3f, 1), shadows: false);
             sheet.name = "waterfall";
-            waterfallMat = water;
-            waterfall = new Rect(x0, 0, x1 - x0, top);
+            waterfall = new Rect(w0, 0, w1 - w0, top);
         }
         Material waterfallMat;
         Rect waterfall;
@@ -997,12 +1013,6 @@ namespace Cloudborne
                 c.t.localRotation = Quaternion.Euler(0, 0, dir * 4f);
                 if (c.hp <= 0) FreeCage(c);
             }
-            foreach (var b in boulders)
-            {
-                if (!b.rolling || !staff || !InReach(b.x, x, dir, range) || y > 1.5f) continue;
-                any = true;
-                SmashBoulder(b);
-            }
             return any;
         }
 
@@ -1026,15 +1036,6 @@ namespace Cloudborne
             g.hud.Popup(new Vector3(c.x, 2f, 0), "FRIEND FREED!", CbHud.PopStyle.Normal);
             g.hud.SetTip($"A friend freed! ({CagesFreed}/{cages.Count})");
             c.hop = 0.01f;
-        }
-
-        void SmashBoulder(Boulder b)
-        {
-            b.rolling = false; b.cool = 3f;
-            if (b.t != null) b.t.gameObject.SetActive(false);
-            CbFx.Puff(new Vector3(b.x, 0.6f, -0.4f), new Color(0.78f, 0.74f, 0.66f), 8, 2f, 1f, 0.6f);
-            CbFx.Spark(new Vector3(b.x, 0.6f, -0.4f), CbFx.Grey, 10, 6, 0.3f, 0.4f, 12);
-            CbFx.Sfx("heavy", 0.8f);
         }
 
         // ---------- every frame ----------
@@ -1176,6 +1177,9 @@ namespace Cloudborne
                 else if (!chestHinted) { chestHinted = true; g.hud.SetTip("A locked chest. Its key is up in the treetops..."); }
             }
             if (waterfallMat != null) waterfallMat.mainTextureOffset = new Vector2(0, Time.time * 1.2f);
+            // spray and mist where it lands
+            if (Mathf.Abs(hero.x - waterfall.center.x) < 12f && Random.value < 0.08f)
+                CbFx.Puff(new Vector3(Random.Range(waterfall.xMin, waterfall.xMax), 0.3f, -1.5f), new Color(0.9f, 0.97f, 1f), 1, 0.8f, 0.9f, 0.9f);
             if (Mathf.Abs(hero.x - waterfall.center.x) < 12f && Random.value < 0.6f)
                 CbFx.Spark(new Vector3(Random.Range(waterfall.xMin, waterfall.xMax), 0.3f, -1.4f), CbFx.Water, 1, 2, 0.3f, 0.5f, 4);
         }
@@ -1245,31 +1249,6 @@ namespace Cloudborne
                 if (Mathf.Abs(hero.x - lx) < 0.95f && hero.y < ly + 0.35f && hero.y + hero.Height + 0.15f > ly - 0.35f)
                     hero.TakeHit(8, Mathf.Cos(Time.time * Mathf.PI * 2 / p.period + p.phase) >= 0 ? 1 : -1, knock: 4f);
             }
-            // rolling boulders down the path past the waterfall
-            boulderT -= dt;
-            foreach (var b in boulders)
-            {
-                b.cool = Mathf.Max(0, b.cool - dt);
-                if (!b.rolling && b.cool <= 0 && hero.x > BoulderStart && hero.x < b.x - 2f && boulderT <= 0)
-                {
-                    b.rolling = true; b.vx = -6f; boulderT = 3.2f;
-                    if (b.t == null)
-                    {
-                        b.t = CbArt.Joint(root, b.x, 0.6f, 0f, "rollingBoulder");
-                        if (CbArt.Prop("Cloudborne/Jungle/Boulder/Boulder", b.t, CbArt.PropOutline) is Transform m) m.localScale *= 0.75f;
-                        else CbArt.Part(CbMesh.Blob(6, 4), StoneGrey, b.t, Vector3.zero, Vector3.one * 1.2f);
-                    }
-                    b.t.gameObject.SetActive(true);
-                    b.t.localPosition = new Vector3(BoulderFrom, 0.6f, 0);
-                    b.x = BoulderFrom;
-                }
-                if (!b.rolling) continue;
-                b.x += b.vx * dt;
-                b.t.localPosition = new Vector3(b.x, 0.6f, 0);
-                b.t.localRotation *= Quaternion.Euler(0, 0, -b.vx * dt * 95f);
-                if (Mathf.Abs(hero.x - b.x) < 0.9f && hero.y < 1.1f) { hero.TakeHit(10, -1, knock: 5f); SmashBoulder(b); }
-                else if (b.x < BoulderEnd) { b.rolling = false; b.cool = 0.5f; b.t.gameObject.SetActive(false); b.x = BoulderFrom; }
-            }
         }
 
         void UpdateMovers(float dt, CbHero hero)
@@ -1308,7 +1287,6 @@ namespace Cloudborne
                 c.animal.localRotation = Quaternion.Euler(0, MonkeyFacing, 0);
                 c.t.localRotation = Quaternion.identity;
             }
-            foreach (var b in boulders) { b.rolling = false; b.cool = 0; b.x = BoulderFrom; if (b.t != null) b.t.gameObject.SetActive(false); }
             lever = chestOpen = chestHinted = false;
             leverT = 0;
             leverThrow = 0;

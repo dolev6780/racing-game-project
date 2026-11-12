@@ -71,7 +71,6 @@ namespace Cloudborne
             (316f, -1, "Ride the rafts down the river - jump off before they sink"),
             (374f, -1, "Climb the vines (hold <color=#ffb03a>↑</color>), ride the wind up to the treetops"),
             (412f, -1, "Climb the vines up the cliff. Something glints behind the waterfall..."),
-            (424f, -1, "Boulders! Jump over them or smash them with <color=#ffb03a>HEAVY</color>"),
             (444f, 4, null),
             (504f, -1, "Sergeant Snap waits at the shrine gate"),
         };

@@ -177,7 +177,7 @@ namespace Cloudborne
             // behind the waterfall
             C(421f, 3.6f); C(422.4f, 5.8f);
             Spawn(Kind.Token, new Vector3(421.2f, 8.1f, 0), resting: true);
-            // the boulder road, the shaft on the ridge
+            // the road to the chest, the shaft on the ridge
             foreach (var x in new[] { 428f, 431f, 434f, 437f }) C(x, 1.8f);
             for (float y = 1.5f; y < 8f; y += 1.4f) C(480.3f, y);
             Spawn(Kind.Mango, new Vector3(480.3f, 9.3f, 0), resting: true);
