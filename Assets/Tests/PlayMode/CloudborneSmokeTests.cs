@@ -143,7 +143,9 @@ namespace RacingGame.Tests
             yield return WaitForMode(CbGame.Mode.Over, 4f);
             Assert.AreEqual(CbGame.Mode.Over, game.mode, "The stage did not clear at the shrine gate");
             Assert.Greater(game.hero.hp, 0f);
-            Assert.AreEqual(CbHero.State.Victory, game.hero.state, "Raja did not cheer at the shrine gate");
+            // no cheering: the gate opened and he walked on through it (the user)
+            Assert.AreNotEqual(CbHero.State.Victory, game.hero.state, "Raja cheered at the shrine gate");
+            Assert.Greater(game.hero.x, CbWorld.GoalX + 1.6f, "Raja did not walk through the shrine gate");
         }
 
         [UnityTest]

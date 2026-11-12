@@ -114,6 +114,13 @@ namespace Cloudborne
         public IEnumerable<float> Checkpoints { get { foreach (var l in lanterns) yield return l.x; } }
         public bool LeverPulled => lever;
         public bool GateOpen(int i) => gates[i].b.broken;
+        int goalGate = -1;
+
+        /// <summary>The shrine gate at the stage's end opens (Snap beaten), or shuts again.</summary>
+        public void OpenGoalGate(bool open)
+        {
+            if (goalGate >= 0) gates[goalGate].wantOpen = open;
+        }
         public bool ChestOpen => chestOpen;
         public float PushBlockX => (pushBlock.x0 + pushBlock.x1) / 2;
         public bool PitOpen(int i) => pits[i].open;
@@ -227,6 +234,10 @@ namespace Cloudborne
             AddTerrace(478f, 479.4f, 7f, 2f);
             AddTerrace(481.2f, 482.6f, 7f, 2f);
             AddLedge(480.3f, 1.6f, 8.4f, false);
+
+            // ---- the shrine gate: across the path, shut until Sergeant Snap is beaten, then it sinks and he walks through
+            AddGate(CbWorld.GoalX + 1.2f);
+            goalGate = gates.Count - 1;
         }
 
         void AddLantern(float x)

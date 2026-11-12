@@ -106,7 +106,7 @@ namespace Cloudborne
         // the ambush on the long stone bridge (the user: a bridge a screen and a half long, with a fight on it): halfway
         // over, the way shuts either side and raiders come at him from both ends, in two waves; beaten, it opens
         static readonly Zone BridgeZone = new Zone { x = CbLevel.StoneBridgeX, label = "Ambush on the bridge", spawn = new (CbEnemy.Kind, float)[0] };
-        bool bridgeStarted, bridgeDone;
+        bool bridgeStarted, bridgeDone, exiting;
         int bridgeWave;
         public bool BridgeFightDone => bridgeDone;
         /// <summary>Sergeant Snap while he is on the stage.</summary>
@@ -326,6 +326,7 @@ namespace Cloudborne
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false;
             bridgeStarted = bridgeDone = false; bridgeWave = 0;
+            exiting = false;
             hud?.HideBoss();
             hud.SetWave("Chase the raiders");
             hud.SetTip(Tip(0));
@@ -457,6 +458,7 @@ namespace Cloudborne
             lockZone = null;
             hud.HideBoss();
             hud.Banner("SNAP DEFEATED!");
+            level?.OpenGoalGate(true);
             hud.ShowGo(true);
             hud.SetWave("Reach the shrine gate");
             hud.SetTip("The way to the shrine gate is open");
@@ -639,8 +641,9 @@ namespace Cloudborne
                 cleared = true;
                 hud.ShowGo(false);
                 hud.Banner("STAGE CLEAR");
-                // Raja cheers (a hop and a fist punched high) before the results come up
-                hero.Celebrate();
+                // through the open gate he walks on, before the results come up (he jumped and cheered, which was too
+                // much: the user - just open the gate and let him pass)
+                exiting = true;
                 Invoke(nameof(Won), 2.2f);
             }
         }
@@ -1249,6 +1252,13 @@ namespace Cloudborne
             // a test's jumps are full jumps unless it says otherwise
             if (TestInput != null) input.jumpHeld = true;
             TestInput?.Invoke(input);
+            // the stage cleared: he walks on through the shrine gate, nothing else
+            if (exiting)
+            {
+                input.x = 0.55f; input.y = 0;
+                input.jump = input.atk = input.heavy = input.dash = input.skill = input.kiTap = false;
+                input.atkDown = input.heavyDown = input.guard = input.jumpHeld = input.sprint = false;
+            }
             // how long HIT has been held since its last press (HIT, HIT, hold = staff whirl)
             if (input.atk) atkHeldT = 0;
             else if (input.atkDown) atkHeldT += dt;
@@ -1369,6 +1379,7 @@ namespace Cloudborne
             foreach (var p in posts) p.spawned = true;
             bossStarted = bossDone = true;
             bridgeStarted = bridgeDone = true;
+            level?.OpenGoalGate(true);
             boss = null;
             hud.HideBoss();
         }
@@ -1378,6 +1389,7 @@ namespace Cloudborne
         {
             SkipFights();
             bossStarted = bossDone = false;
+            level?.OpenGoalGate(false);
         }
     }
 }

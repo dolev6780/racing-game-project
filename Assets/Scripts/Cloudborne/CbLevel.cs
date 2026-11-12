@@ -157,8 +157,6 @@ namespace Cloudborne
             BuildCrossings();
             BuildMountain();
             // the end of the stage: a shrine gate on the path to walk through
-            var goal = CbArt.Joint(root, CbWorld.GoalX, 0, 0.8f, "goalGate");
-            if (CbArt.Prop("Cloudborne/Jungle/Gate/Gate", goal, CbArt.PropOutline) is Transform gate) gate.localRotation = Quaternion.Euler(0, 180, 0) * gate.localRotation;
         }
 
         // ---------- the water ----------
