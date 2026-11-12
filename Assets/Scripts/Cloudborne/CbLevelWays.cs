@@ -97,6 +97,12 @@ namespace Cloudborne
         // how long the lever's gate has left open
         float leverT;
         Transform leverHandle, chestLid, chestModel;
+        // the chest model's lid (its own part, its origin on the hinge): its turn shut, the hinge's axis, how far it
+        // opens (signed so it swings up and back), and how far it has
+        Transform chestLidPart;
+        Quaternion chestLidRest;
+        Vector3 chestHinge;
+        float chestLidAngle, chestOpenT;
         // the lever's handle (its own part of the model, turning about where it meets the base): how far it is thrown
         // (0 at rest, 1 across), its turn at rest and the turn that throws it across; the block on the plate settling
         // into it, and the plate
@@ -152,7 +158,7 @@ namespace Cloudborne
         {
             // stone lanterns: where he comes back (the start counts as one)
             // (one just before the gorge: caught there for good, he tries again from its foot, not from the shrine)
-            foreach (var x in new[] { 108f, 133f, 196f, 242f, 293f, 318f, 375f, 446f, 510f }) AddLantern(x);
+            foreach (var x in new[] { 108f, 133f, 196f, 242f, 293f, 318f, 375f, 446f, 520f }) AddLantern(x);
             // the ends of the stage: closed gates where he can go no further
             AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
@@ -748,6 +754,17 @@ namespace Cloudborne
             chestModel = Model("Chest", t, new Vector3(1f, 0.81f, 0.88f), 180f);
             if (chestModel != null)
             {
+                // its lid, split from the box (Tools/Blender/split_part.py), swings open on its hinge (the model only
+                // glowed and grew a little: the user saw a chest that stayed shut)
+                foreach (var part in chestModel.GetComponentsInChildren<Transform>())
+                    if (part.name == "ChestLid") chestLidPart = part;
+                if (chestLidPart != null && chestLidPart.GetComponentInChildren<Renderer>() is Renderer lid)
+                {
+                    chestLidRest = chestLidPart.rotation;
+                    chestHinge = chestModel.right;
+                    var c = lid.bounds.center - chestLidPart.position;
+                    chestLidAngle = (Quaternion.AngleAxis(105f, chestHinge) * c).y >= (Quaternion.AngleAxis(-105f, chestHinge) * c).y ? 105f : -105f;
+                }
                 blocks.Add(new Block { x0 = ChestX - 0.5f, x1 = ChestX + 0.5f, top = 0.81f, t = t });
                 return;
             }
@@ -1168,13 +1185,20 @@ namespace Cloudborne
                 {
                     chestOpen = true;
                     if (chestLid != null) chestLid.localRotation = Quaternion.Euler(-70, 0, 0);
-                    if (chestModel != null) { chestModel.localScale = Vector3.one * 1.06f; CbVfx.Ring(new Vector3(ChestX, 0.6f, -0.5f), CbFx.Flame * 0.6f, 1.6f, 0.4f); }
+                    if (chestModel != null) CbVfx.Ring(new Vector3(ChestX, 0.6f, -0.5f), CbFx.Flame * 0.6f, 1.6f, 0.4f);
                     g.items.Spawn(CbItems.Kind.Token, new Vector3(ChestX, 1.2f, 0), resting: true);
                     for (int k = 0; k < 3; k++) g.items.Spawn(CbItems.Kind.Coin, new Vector3(ChestX, 0.8f, 0));
                     CbFx.Spark(new Vector3(ChestX, 0.8f, -0.4f), CbFx.Flame, 16, 4, 0.35f, 0.5f, -3);
                     CbFx.Sfx("pickup");
                 }
                 else if (!chestHinted) { chestHinted = true; g.hud.SetTip("A locked chest. Its key is up in the treetops..."); }
+            }
+            // the lid swinging open, and staying open
+            if (chestOpen && chestLidPart != null && chestOpenT < 1f)
+            {
+                chestOpenT = Mathf.MoveTowards(chestOpenT, 1f, dt / 0.5f);
+                float k = 1 - (1 - chestOpenT) * (1 - chestOpenT);
+                chestLidPart.rotation = Quaternion.AngleAxis(chestLidAngle * k, chestHinge) * chestLidRest;
             }
             if (waterfallMat != null) waterfallMat.mainTextureOffset = new Vector2(0, Time.time * 1.2f);
             // spray and mist where it lands
@@ -1299,6 +1323,8 @@ namespace Cloudborne
 
             if (chestLid != null) chestLid.localRotation = Quaternion.identity;
             if (chestModel != null) chestModel.localScale = Vector3.one;
+            chestOpenT = 0;
+            if (chestLidPart != null) chestLidPart.rotation = chestLidRest;
             foreach (var r in rafts) r.sink = 0;
         }
     }

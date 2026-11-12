@@ -45,7 +45,6 @@ namespace Cloudborne
             (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (259f, CbEnemy.Kind.Hyena, 1.5f, false), (298f, CbEnemy.Kind.Hyena, 3f, false),
             (302f, CbEnemy.Kind.Shield, 3f, false), (372f, CbEnemy.Kind.Shield, 2f, false),
             (450f, CbEnemy.Kind.Hyena, 4f, false), (460f, CbEnemy.Kind.Shield, 4f, false), (473f, CbEnemy.Kind.Hyena, 3f, true),
-            (489f, CbEnemy.Kind.Hyena, 3f, false),
         };
         readonly List<Post> posts = new List<Post>();
         const float PostWakes = 13f;
@@ -55,7 +54,7 @@ namespace Cloudborne
         {
             (0f, "Save Koda"), (70f, "The cracked wall"), (79f, "The long river"), (106f, "The old shrine"), (136f, "The flooded gorge"),
             (194f, "The vine ravine"), (240f, "The temple of traps"), (292f, "The monkey cage"), (316f, "The raft river"),
-            (374f, "The canopy"), (412f, "The waterfall"), (444f, "The ridge"), (494f, "The shrine gate"),
+            (374f, "The canopy"), (412f, "The waterfall"), (444f, "The ridge"), (485f, "The stone bridge"), (512f, "The shrine gate"),
         };
         /// <summary>Tips as Raja reaches them (tip: one of the fight tips; else text).</summary>
         static readonly (float x, int tip, string text)[] Tips =
@@ -72,7 +71,7 @@ namespace Cloudborne
             (374f, -1, "Climb the vines (hold <color=#ffb03a>↑</color>), ride the wind up to the treetops"),
             (412f, -1, "Climb the vines up the cliff. Something glints behind the waterfall..."),
             (444f, 4, null),
-            (504f, -1, "Sergeant Snap waits at the shrine gate"),
+            (514f, -1, "Sergeant Snap waits at the shrine gate"),
         };
         int sectionIdx, tipIdx;
         float checkpointX, lastHp;
@@ -102,8 +101,14 @@ namespace Cloudborne
         public static CbGame I { get; private set; }
 
         // Sergeant Snap, the mini-boss: his arena stands in front of the shrine gate
-        const float BossX = 524f;
+        const float BossX = 534f;
         static readonly Zone BossZone = new Zone { x = BossX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
+        // the ambush on the long stone bridge (the user: a bridge a screen and a half long, with a fight on it): halfway
+        // over, the way shuts either side and raiders come at him from both ends, in two waves; beaten, it opens
+        static readonly Zone BridgeZone = new Zone { x = CbLevel.StoneBridgeX, label = "Ambush on the bridge", spawn = new (CbEnemy.Kind, float)[0] };
+        bool bridgeStarted, bridgeDone;
+        int bridgeWave;
+        public bool BridgeFightDone => bridgeDone;
         /// <summary>Sergeant Snap while he is on the stage.</summary>
         public CbEnemy boss;
         bool bossStarted, bossDone;
@@ -320,6 +325,7 @@ namespace Cloudborne
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false;
+            bridgeStarted = bridgeDone = false; bridgeWave = 0;
             hud?.HideBoss();
             hud.SetWave("Chase the raiders");
             hud.SetTip(Tip(0));
@@ -428,6 +434,14 @@ namespace Cloudborne
             hud.Banner("SGT. SNAP!");
         }
 
+        /// <summary>A raider stepping into a fight at x, on the stone bridge's deck if that is over the water.</summary>
+        void SpawnAt(CbEnemy.Kind kind, float x)
+        {
+            var e = new CbEnemy(this, kind, x, actors);
+            if (level != null && CbLevel.InWater(x)) e.y = Mathf.Max(0, level.SupportAt(x, 50f));
+            enemies.Add(e);
+        }
+
         /// <summary>His whistle: two raiders run in from the arena's sides.</summary>
         public void SummonRaiders()
         {
@@ -486,6 +500,7 @@ namespace Cloudborne
             enemies.Clear();
             pending.Clear();
             if (bossStarted && !bossDone) { bossStarted = false; boss = null; lockZone = null; hud.HideBoss(); hud.ShowGo(true); }
+            if (bridgeStarted && !bridgeDone) { bridgeStarted = false; bridgeWave = 0; lockZone = null; hud.ShowGo(true); }
             hero.RespawnAt(checkpointX);
             level?.Respawned(checkpointX);
             lastHp = hero.hp;
@@ -572,6 +587,41 @@ namespace Cloudborne
             // the stretch's name and a tip as he reaches them
             while (sectionIdx < Sections.Length && hero.x >= Sections[sectionIdx].x) hud.SetWave(Sections[sectionIdx++].name);
             while (tipIdx < Tips.Length && hero.x >= Tips[tipIdx].x) { var tip = Tips[tipIdx++]; hud.SetTip(tip.text ?? Tip(tip.tip)); }
+            // the ambush on the stone bridge
+            if (lockZone == null && !bridgeStarted && hero.x > CbLevel.StoneBridgeX - 4f && hero.x < CbLevel.StoneBridgeX + CbLevel.StoneBridgeHalf)
+            {
+                bridgeStarted = true;
+                bridgeWave = 1;
+                lockZone = BridgeZone;
+                hud.ShowGo(false);
+                hud.Banner("AMBUSH!");
+                hud.SetTip("Raiders on the bridge! Hold your ground");
+                SpawnAt(CbEnemy.Kind.Hyena, BridgeZone.x - 8f);
+                SpawnAt(CbEnemy.Kind.Hyena, BridgeZone.x + 8f);
+                SpawnAt(CbEnemy.Kind.Shield, BridgeZone.x + 9.5f);
+            }
+            if (lockZone == BridgeZone)
+            {
+                if (!enemies.Exists(e => !e.dead))
+                {
+                    if (bridgeWave == 1)
+                    {
+                        bridgeWave = 2;
+                        hud.Banner("MORE OF THEM!", true);
+                        SpawnAt(CbEnemy.Kind.Shield, BridgeZone.x - 9.5f);
+                        SpawnAt(CbEnemy.Kind.Hyena, BridgeZone.x - 7.5f);
+                        SpawnAt(CbEnemy.Kind.Hyena, BridgeZone.x + 8.5f);
+                    }
+                    else
+                    {
+                        bridgeDone = true;
+                        lockZone = null;
+                        hud.Banner("BRIDGE CLEARED!");
+                        hud.ShowGo(true);
+                    }
+                }
+                return;
+            }
             // the sergeant waits in front of the gate
             if (lockZone == null && !bossStarted && hero.x > BossX - 7f)
             {
@@ -1318,6 +1368,7 @@ namespace Cloudborne
             lockZone = null;
             foreach (var p in posts) p.spawned = true;
             bossStarted = bossDone = true;
+            bridgeStarted = bridgeDone = true;
             boss = null;
             hud.HideBoss();
         }

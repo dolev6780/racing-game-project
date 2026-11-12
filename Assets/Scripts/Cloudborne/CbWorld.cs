@@ -15,9 +15,9 @@ namespace Cloudborne
     public class CbWorld
     {
         // the stage runs from LevelMin to LevelMax; it is cleared at the shrine gate at GoalX, once every fight is won
-        public const float LevelMin = -8f, LevelMax = 544f, GoalX = 538f;
+        public const float LevelMin = -8f, LevelMax = 554f, GoalX = 548f;
         // the scenery runs on a little past the end of the stage
-        const float End = 564f;
+        const float End = 574f;
         // the blue-teal haze of the painted backdrop: distant scenery fades into it, not into white
         public static readonly Color Horizon = CbArt.Hex("#7fc0cc");
 

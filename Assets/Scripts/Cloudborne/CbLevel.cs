@@ -84,7 +84,7 @@ namespace Cloudborne
         const float CrumbleAfter = 0.5f;
 
         /// <summary>The streams across stage 1-1 (x from, to): the rope bridge's, the long river, the brook.</summary>
-        public static readonly (float x0, float x1)[] Waters = { (31.4f, 55.4f), (79f, 103f), (200f, 232f), (319f, 369f), (494.4f, 500.4f) };
+        public static readonly (float x0, float x1)[] Waters = { (31.4f, 55.4f), (79f, 103f), (200f, 232f), (319f, 369f), (486f, 510f) };
         /// <summary>The water's surface, below the banks: its channel is cut into the ground.</summary>
         public const float WaterLevel = -0.45f;
         /// <summary>How far back from the path the streams run before they come out of the ground.</summary>
@@ -107,11 +107,14 @@ namespace Cloudborne
             float a = RopeBridgeX - RopeDeckHalf + RopeEndIn, b = RopeBridgeX + RopeDeckHalf - RopeEndIn, w = (b - a) / RopeSections;
             return (a + k * w, a + (k + 1) * w, System.Array.IndexOf(RopeHoles, k) >= 0);
         }
-        public const float StoneBridgeX = 497.4f;
-        // each arch (the model, 4.8 m long, scaled), their spacing, the bridge's half length; the deck between the
-        // parapets is about 1.76 of the model's 2.29 m height (the parapets' tops 2.18)
-        const float StoneArchLength = 4.1f, StoneArchStep = 3.96f;
-        public const float StoneBridgeHalf = (StoneArchStep + StoneArchLength) / 2, StoneDeck = 1.32f;
+        public const float StoneBridgeX = 498f;
+        // each arch (the model, 4.8 m long, drawn out), their spacing, how many, the bridge's half length; the deck
+        // between the parapets is about 1.76 of the model's 2.29 m height (the parapets' tops 2.18). One long bridge
+        // over a wide brook, a screen and a half, with a fight on it (two arches side by side looked like one bridge
+        // copied twice: the user)
+        const float StoneArchLength = 8.4f, StoneArchStep = 8f;
+        const int StoneArches = 3;
+        public const float StoneBridgeHalf = (StoneArchStep * (StoneArches - 1) + StoneArchLength) / 2, StoneDeck = 1.32f;
         // the mountain: where it stands, its summit's height
         public const float MountainFrom = 137f, MountainTo = 168f, SummitTop = 11.4f;
         // an edge he can catch: its top between these heights above his feet (his raised hands hang at
@@ -186,11 +189,12 @@ namespace Cloudborne
             // making one pier in the middle.
             var stone = CbArt.Joint(root, StoneBridgeX, 0, 0.15f, "stoneBridge");
             bool modelled = false;
-            for (int k = 0; k < 2; k++)
+            for (int k = 0; k < StoneArches; k++)
             {
-                var arch = CbArt.Joint(stone, (k - 0.5f) * StoneArchStep, 0, 0, "arch");
+                var arch = CbArt.Joint(stone, (k - (StoneArches - 1) * 0.5f) * StoneArchStep, 0, 0, "arch");
                 if (CbArt.Prop("Cloudborne/Jungle/StoneBridge/StoneBridge", arch, CbArt.PropOutline) == null) continue;
-                arch.localScale = new Vector3(StoneArchLength / 4.8f, 0.75f, 0.75f);
+                // every other one mirrored, so they don't repeat
+                arch.localScale = new Vector3(StoneArchLength / 4.8f * (k % 2 == 1 ? -1 : 1), 0.75f, 0.75f);
                 modelled = true;
             }
             if (!modelled) CbArt.Box(CbArt.Toon("#8f9a8a", CbArt.PropOutline), stone, new Vector3(0, StoneDeck / 2, 0), new Vector3(StoneBridgeHalf * 2, StoneDeck, 1.6f));

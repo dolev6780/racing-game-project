@@ -558,6 +558,7 @@ namespace Cloudborne
                 return;
             }
             hp = Mathf.Max(0, hp - dmg);
+            hitFlash = HitFlash;
             inv = 0.9f;
             vx = dir * 6; vy = 4; air = true;
             state = State.Hurt; t = 0; move = Move.None;
@@ -1427,29 +1428,18 @@ namespace Cloudborne
             float target = state == State.Special && fire ? (t < SpecialWindup ? 1.6f + t / SpecialWindup * 1.6f : 3.2f) : empower ? 1.2f : 0f;
             glow += (target - glow) * Damp(10, dt);
             var col = fire ? new Color(1f, 0.48f, 0.1f) : KiGlow;
-            CbArt.SetGlow(furMat, col * glow);
-            if (model != null) CbArt.SetGlow(model.material, col * glow * 0.35f);
-            // blink while invulnerable after a hit: his renderers hidden, not his body - switching the body off and on
-            // stopped his model's animation, and he slid about frozen in one pose after a fall or a blow (the user)
-            Blink(!(inv > 0 && state != State.Dead && g.slow <= 0 && Mathf.FloorToInt(g.clock * 20) % 2 == 0));
+            // hit: a red flash; then, while nothing can hurt him, a soft white shimmer in his fur. He used to blink out
+            // and in, which looked broken and upset his animation (the user: no blinking - show it some other way)
+            hitFlash = Mathf.Max(0, hitFlash - dt);
+            float shimmer = inv > 0 && state != State.Dead ? (0.5f + 0.5f * Mathf.Sin(g.clock * 16f)) * 0.45f : 0f;
+            var extra = hitFlash > 0 ? new Color(1f, 0.22f, 0.15f) * (hitFlash / HitFlash) * 1.8f : Color.white * shimmer;
+            CbArt.SetGlow(furMat, col * glow + extra);
+            if (model != null) CbArt.SetGlow(model.material, col * glow * 0.35f + extra);
         }
 
-        // the renderers a blink has hidden (only those that were showing), shown again when it ends
-        readonly List<Renderer> blinkHidden = new List<Renderer>();
-
-        void Blink(bool visible)
-        {
-            if (!visible && blinkHidden.Count == 0)
-            {
-                foreach (var r in f.body.GetComponentsInChildren<Renderer>())
-                    if (r.enabled) { r.enabled = false; blinkHidden.Add(r); }
-            }
-            else if (visible && blinkHidden.Count > 0)
-            {
-                foreach (var r in blinkHidden) if (r != null) r.enabled = true;
-                blinkHidden.Clear();
-            }
-        }
+        // the red flash of a blow, as it fades
+        const float HitFlash = 0.18f;
+        float hitFlash;
 
         /// <summary>
         /// Directed by a scene: Raja stands at x facing his way and shows a clip, looped by seconds or at a moment of
@@ -1459,7 +1449,6 @@ namespace Cloudborne
         {
             state = State.Idle; vx = vy = 0; y = 0; t = 0;
             f.body.gameObject.SetActive(true);
-            Blink(true);
             var pose = Pose.Base;
             pose.bob = Mathf.Sin(g.clock * 3) * 0.025f - 0.05f;
             f.Apply(pose, dt, 10);

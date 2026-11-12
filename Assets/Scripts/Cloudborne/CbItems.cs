@@ -91,8 +91,8 @@ namespace Cloudborne
             AddCrate(315f, Kind.KiCrystal, Kind.Coin);
             AddCrate(373.5f, Kind.Mango, Kind.Coin, Kind.Coin);
             AddCrate(448f, Kind.Mango, Kind.KiCrystal);
-            AddCrate(503.5f, Kind.Mango, Kind.Coin);
-            AddCrate(508f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
+            AddCrate(513.5f, Kind.Mango, Kind.Coin);
+            AddCrate(518f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
             // coin trails: an arc to jump through, a row along the rope bridge, an arc in the second fight
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(4 + i * 0.9f, 1.2f + Mathf.Sin(i / 4f * Mathf.PI) * 1.6f, 0), resting: true);
             // over the rope bridge: one above each stretch of planks, an arc over each gap (jump it)
