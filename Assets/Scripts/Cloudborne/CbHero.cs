@@ -237,8 +237,11 @@ namespace Cloudborne
         // ---------- the slide and the crawl ----------
         // (the user: obstacles to slide or crawl under) running, down drops him into a slide along the ground, low,
         // knocking a soldier in his way off his feet; held down he crawls; under a low passage he can't stand up
-        const float SlideFrom = 5f, SlideSpeed = 10f, SlideTime = 0.55f, CrawlSpeed = 2.3f, SlideDmg = 6f;
-        const string SlideClip = "slide_light", CrawlClip = "Motion_Crawl";
+        // He crawls on hands and knees (Meshy's "Crawl and Look Back", one clean cycle of it: Raja_More_Clips); a
+        // cycle carries him CrawlStride metres, so his hands and knees keep pace with the ground (the old crawl slid
+        // along at 2.3 m/s and he seemed to drift on the floor: the user)
+        const float SlideFrom = 5f, SlideSpeed = 10f, SlideTime = 0.55f, CrawlSpeed = 1.1f, CrawlStride = 0.5f, SlideDmg = 6f;
+        const string SlideClip = "slide_light", CrawlClip = "Crawl";
         bool downBefore;
         float crawlPh;
 
@@ -917,10 +920,10 @@ namespace Cloudborne
             {
                 // ducking (a clip made in Meshy from a description): drops in 0.12 s into a low crouching guard, knees
                 // deep, one foot forward, fists up at his chin (hips from 0.75 to 0.43), then breathes in it
-                // crawling (a clip made in Meshy from a description), as fast as he moves
-                case State.Run when crouching && Mathf.Abs(vx) > 0.4f && model.HasClip(CrawlClip):
-                    crawlPh += Time.deltaTime * Mathf.Abs(vx) / CrawlSpeed;
-                    model.LoopSeconds(CrawlClip, crawlPh, 0.12f);
+                // crawling on hands and knees, a cycle for every CrawlStride metres he goes
+                case State.Run when crouching && Mathf.Abs(vx) > 0.2f && model.HasClip(CrawlClip):
+                    crawlPh += Time.deltaTime * Mathf.Abs(vx) / CrawlStride;
+                    model.Loop(CrawlClip, crawlPh, 0.12f);
                     break;
                 // the slide: Meshy's "Slide Light", from the drop to the low glide along the ground
                 case State.Slide when model.HasClip(SlideClip):

@@ -87,9 +87,11 @@ namespace Cloudborne
             anim = go.GetComponent<Animation>();
             anim.playAutomatically = false;
             anim.cullingType = AnimationCullingType.AlwaysAnimate;
-            // clips made later on a new rig of the same model (Meshy's rigs expire), in path_Clips: added to its own
-            // (Tools/Blender/meshy_character.py --clips-only)
-            foreach (var extra in Resources.LoadAll<AnimationClip>(path + "_Clips"))
+            // clips made later on a new rig of the same model (Meshy's rigs expire), in path_Clips and path_More_Clips:
+            // added to its own (Tools/Blender/meshy_character.py --clips-only)
+            var extras = new List<AnimationClip>(Resources.LoadAll<AnimationClip>(path + "_Clips"));
+            extras.AddRange(Resources.LoadAll<AnimationClip>(path + "_More_Clips"));
+            foreach (var extra in extras)
             {
                 if (extra == null || !extra.legacy || extra.name.StartsWith("__preview__")) continue;
                 string clipName = extra.name.Substring(extra.name.LastIndexOf('|') + 1);
