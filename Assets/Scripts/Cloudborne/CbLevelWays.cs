@@ -665,16 +665,24 @@ namespace Cloudborne
             // other, each a stack of vines overlapping, every other one mirrored, from just over the top to the ground
             if (Resources.Load<GameObject>(ClimbVinePath) != null)
             {
-                const float Piece = 2.9f, Step = 2.6f;
+                // (in the stage's pictures they came out pale and thin against the rock: wider, three columns, a
+                // deeper green)
+                const float Piece = 2.9f, Step = 2.5f, Wide = 0.6f;
                 int rows = Mathf.CeilToInt((b.top + 0.4f) / Step);
                 int k = 0;
-                foreach (float z in new[] { -0.95f, -0.35f })
+                Material tint = null;
+                foreach (float z in new[] { -1.0f, -0.55f, -0.1f })
                     for (int r = 0; r < rows; r++, k++)
                     {
-                        float hi = b.top + 0.4f - r * Step, lo = hi - Piece;
-                        var piece = CbArt.Joint(t, z < -0.5f ? 0f : 0.12f, 0, 0, "vine");
-                        Fit(ClimbVinePath, piece, new Vector3(-0.42f, lo, z - 0.2f), new Vector3(0.42f, hi, z + 0.2f));
+                        float hi = b.top + 0.4f - r * Step - (k % 3) * 0.3f, lo = hi - Piece;
+                        var piece = CbArt.Joint(t, (k % 3 - 1) * 0.1f, 0, 0, "vine");
+                        Fit(ClimbVinePath, piece, new Vector3(-Wide, lo, z - 0.2f), new Vector3(Wide, hi, z + 0.2f));
                         if (k % 2 == 1) piece.localScale = new Vector3(-1, 1, 1);
+                        foreach (var rend in piece.GetComponentsInChildren<Renderer>())
+                        {
+                            tint ??= new Material(rend.sharedMaterial) { color = new Color(0.62f, 0.9f, 0.5f) };
+                            rend.sharedMaterial = tint;
+                        }
                     }
                 return;
             }

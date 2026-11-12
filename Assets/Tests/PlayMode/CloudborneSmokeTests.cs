@@ -783,8 +783,10 @@ namespace RacingGame.Tests
             hero.facing = 1;
             hero.state = CbHero.State.Air;
             crates = game.items.CrateCount;
+            // (pressed once he is falling: on the very first frame he still counts as standing, and HEAVY is the smash)
             bool slammed = false;
-            game.TestInput = i => { if (!slammed) { i.heavy = true; slammed = true; } };
+            yield return Frames(3);
+            game.TestInput = i => { if (!slammed && hero.vy < 0) { i.heavy = true; slammed = true; } };
             for (float waited = 0; waited < 2f && game.items.CrateCount == crates; waited += Time.deltaTime) yield return null;
             game.TestInput = null;
             Assert.AreEqual(crates - 1, game.items.CrateCount, "The slam from a jump did not break the crate beside it");
