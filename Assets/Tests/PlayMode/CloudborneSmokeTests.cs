@@ -836,14 +836,17 @@ namespace RacingGame.Tests
             var level = game.level;
             // over a stream there is nothing to stand on (between two stones of the long river)...
             Assert.Less(level.SupportAt(96.3f, 1f), -1f, "There is ground in the river between the stones");
-            // ...but the rope bridge's planks hold him, walked onto from the bank and sagging in the middle - except where
-            // its planks are missing
+            // ...but the rope bridge's planks hold him, walked onto from the bank and sagging in the middle - all along
+            // it (soldiers fight him on it: the user wanted it whole)
             var (p0, p1, _) = CbLevel.RopeSection(4);
             Assert.That(level.SupportAt((p0 + p1) / 2, 0f), Is.InRange(-0.7f, 0f), "The rope bridge does not hold him in the middle");
             Assert.That(level.SupportAt(CbLevel.RopeBridgeX - CbLevel.RopeDeckHalf + 0.1f, 0f), Is.InRange(0f, 0.3f), "The rope bridge can't be walked onto from the bank");
-            var (h0, h1, hole) = CbLevel.RopeSection(5);
-            Assert.IsTrue(hole, "The rope bridge has no gap in its planks");
-            Assert.Less(level.SupportAt((h0 + h1) / 2, 0f), -1f, "Raja stands on the rope bridge where its planks are missing");
+            for (int k = 0; k < CbLevel.RopeSections; k++)
+            {
+                var (s0, s1, gap) = CbLevel.RopeSection(k);
+                Assert.IsFalse(gap, "The rope bridge has a gap in its planks");
+                Assert.Greater(level.SupportAt((s0 + s1) / 2, 0f), -1f, "Raja falls through the rope bridge");
+            }
             Assert.Greater(CbLevel.RopeDeckHalf * 2, 20f, "The rope bridge is short (a screen and a half: the user)");
             // a stepping stone is landed on from above, not climbed onto from the water
             Assert.That(level.SupportAt(97.4f, 1f), Is.InRange(-0.1f, 0.1f), "The stepping stone does not hold him");
@@ -936,27 +939,26 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator ASoldierKnockedIntoAHoleInTheBridgeFallsIn()
+        public IEnumerator ASoldierKnockedIntoTheRiverFallsIn()
         {
             game = CbGame.Boot();
             yield return Frames(3);
             game.StartGame();
             game.SkipFights();
             yield return Frames(2);
-            // a soldier on the rope bridge just short of a hole in its planks (his stretch ends before it)
-            var (h0, h1, hole) = CbLevel.RopeSection(5);
-            Assert.IsTrue(hole);
-            var e = new CbEnemy(game, CbEnemy.Kind.Hyena, h0 - 0.9f, game.transform) { minX = h0 - 3f, maxX = h0 - 0.6f };
+            // a soldier on the far bank of the long river, his back to it (his stretch ends short of the water)
+            float bank = CbLevel.Waters[1].x1;
+            var e = new CbEnemy(game, CbEnemy.Kind.Hyena, bank + 0.9f, game.transform) { minX = bank + 0.6f, maxX = bank + 3f };
             game.enemies.Add(e);
-            game.Teleport(h0 - 6f);
+            game.Teleport(bank + 6f);
             yield return Frames(3);
-            // walking, he keeps to his stretch; a blow that throws him towards the hole sends him through it
-            Assert.Less(e.x, h0, "The soldier walked into the hole");
+            // walking, he keeps to his stretch; a blow that throws him towards the river sends him into it
+            Assert.Greater(e.x, bank, "The soldier walked into the river");
             int score = game.score;
-            game.HurtEnemy(e, 1f, 1, 8f, 2f, false, false, false, true);
+            game.HurtEnemy(e, 1f, -1, 8f, 2f, false, false, false, true);
             for (float w = 0; w < 3f && game.enemies.Contains(e); w += Time.deltaTime) yield return null;
-            Assert.IsFalse(game.enemies.Contains(e), "The soldier was not thrown through the hole");
-            Assert.IsTrue(e.dead, "A soldier in the stream is not beaten");
+            Assert.IsFalse(game.enemies.Contains(e), "The soldier was not thrown into the river");
+            Assert.IsTrue(e.dead, "A soldier in the river is not beaten");
             Assert.Greater(game.score, score + 200, "No bonus for throwing him in");
         }
 

@@ -224,7 +224,8 @@ namespace Cloudborne
         public void Show(string clip, float t, float blend = 0.08f)
         {
             if (!clips.TryGetValue(clip, out var s)) return;
-            if (s != current)
+            // (a clip stopped under it - its object switched off and on - starts again too: it froze in one pose)
+            if (s != current || !s.enabled)
             {
                 anim.CrossFade(s.name, blend);
                 current = s;

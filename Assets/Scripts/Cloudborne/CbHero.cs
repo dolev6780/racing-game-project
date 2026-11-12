@@ -1429,9 +1429,26 @@ namespace Cloudborne
             var col = fire ? new Color(1f, 0.48f, 0.1f) : KiGlow;
             CbArt.SetGlow(furMat, col * glow);
             if (model != null) CbArt.SetGlow(model.material, col * glow * 0.35f);
-            // blink while invulnerable after a hit
-            bool visible = !(inv > 0 && state != State.Dead && g.slow <= 0 && Mathf.FloorToInt(g.clock * 20) % 2 == 0);
-            f.body.gameObject.SetActive(visible);
+            // blink while invulnerable after a hit: his renderers hidden, not his body - switching the body off and on
+            // stopped his model's animation, and he slid about frozen in one pose after a fall or a blow (the user)
+            Blink(!(inv > 0 && state != State.Dead && g.slow <= 0 && Mathf.FloorToInt(g.clock * 20) % 2 == 0));
+        }
+
+        // the renderers a blink has hidden (only those that were showing), shown again when it ends
+        readonly List<Renderer> blinkHidden = new List<Renderer>();
+
+        void Blink(bool visible)
+        {
+            if (!visible && blinkHidden.Count == 0)
+            {
+                foreach (var r in f.body.GetComponentsInChildren<Renderer>())
+                    if (r.enabled) { r.enabled = false; blinkHidden.Add(r); }
+            }
+            else if (visible && blinkHidden.Count > 0)
+            {
+                foreach (var r in blinkHidden) if (r != null) r.enabled = true;
+                blinkHidden.Clear();
+            }
         }
 
         /// <summary>
@@ -1442,6 +1459,7 @@ namespace Cloudborne
         {
             state = State.Idle; vx = vy = 0; y = 0; t = 0;
             f.body.gameObject.SetActive(true);
+            Blink(true);
             var pose = Pose.Base;
             pose.bob = Mathf.Sin(g.clock * 3) * 0.025f - 0.05f;
             f.Apply(pose, dt, 10);

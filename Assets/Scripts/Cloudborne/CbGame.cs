@@ -34,7 +34,7 @@ namespace Cloudborne
         static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan =
         {
             (22f, CbEnemy.Kind.Hyena, 6f, false),
-            // on the rope bridge, between the holes in its planks: knocked into one, a soldier drops into the stream
+            // on the rope bridge (whole: the user wanted to fight on it without gaps underfoot)
             (40.2f, CbEnemy.Kind.Hyena, 1.5f, false), (46.6f, CbEnemy.Kind.Shield, 1.5f, false),
             (64f, CbEnemy.Kind.Shield, 5f, false), (71f, CbEnemy.Kind.Hyena, 4f, true),
             // on the rock in the middle of the long river
@@ -62,7 +62,7 @@ namespace Cloudborne
         {
             (17f, 1, null),
             (21f, -1, "A fallen trunk! Run and press <color=#ffb03a>↓</color> to slide under it, or hold <color=#ffb03a>↓</color> to crawl"),
-            (29f, -1, "Soldiers on the rope bridge! Knock them through the gaps into the water"),
+            (29f, -1, "Soldiers on the rope bridge!"),
             (57f, 3, null), (66f, 2, null),
             (97f, -1, "They wait on the bank - knock them back into the river!"),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),

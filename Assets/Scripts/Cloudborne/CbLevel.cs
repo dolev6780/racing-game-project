@@ -98,7 +98,8 @@ namespace Cloudborne
         // (it sagged 0.55 m and its middle touched the water: the user)
         const float RopeSag = 0.25f, RopeEndIn = 0.6f;
         public const int RopeSections = 11;
-        static readonly int[] RopeHoles = { 2, 5, 8 };
+        // (none now: soldiers fight Raja on it, and the user wanted the bridge whole for that fight)
+        static readonly int[] RopeHoles = { };
 
         /// <summary>Where the rope bridge's section k runs (x0 to x1), and whether it has no planks.</summary>
         public static (float x0, float x1, bool hole) RopeSection(int k)
