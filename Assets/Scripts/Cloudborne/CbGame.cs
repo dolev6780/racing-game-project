@@ -73,6 +73,7 @@ namespace Cloudborne
             (412f, -1, "Climb the vines up the cliff. Something glints behind the waterfall..."),
             (444f, 4, null),
             (449f, -1, "A spear thrower! Crawl under the trunk - his spears fly over you"),
+            (483f, -1, "The old stone bridge - the shrine gate lies beyond it"),
             (514f, -1, "Sergeant Snap waits at the shrine gate"),
         };
         int sectionIdx, tipIdx;
