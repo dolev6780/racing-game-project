@@ -911,6 +911,50 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheAmbushOnTheStoneBridgeComesInWavesAndLetsHimGo()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            // a soldier left behind on the ridge, asleep (the ambush waited on him: its second wave never came, and the
+            // bridge stayed shut: the user)
+            game.Teleport(462f);
+            game.hero.y = 0;
+            yield return Frames(3);
+            Assert.IsTrue(game.enemies.Exists(e => !e.dead && Mathf.Abs(e.x - 460f) < 3f), "No soldier at his post on the ridge");
+            // onto the stone bridge: the ambush
+            game.Teleport(CbLevel.StoneBridgeX - 2f);
+            game.hero.y = CbLevel.StoneDeck;
+            game.hero.vy = 0;
+            // (the raiders can't beat him while the test beats them)
+            game.hero.inv = 999f;
+            yield return Frames(3);
+            Assert.AreEqual(1, game.BridgeWave, "No ambush on the stone bridge");
+            int raiders = 0;
+            for (int wave = 1; wave <= 3; wave++)
+            {
+                Assert.AreEqual(wave, game.BridgeWave, $"Wave {wave} of the ambush did not come");
+                var foes = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.StoneBridgeX) < 12f);
+                Assert.Greater(foes.Count, 2, $"Wave {wave} has too few raiders");
+                raiders += foes.Count;
+                foreach (var e in foes) { e.y = CbLevel.StoneDeck; e.vx = e.vy = 0; e.Kill(1); }
+                // their coins come to rest on the deck, not under it where he can't reach them
+                yield return new WaitForSeconds(CbEnemy.DyingTime + 1.2f);
+                foreach (var (pos, resting) in game.items.ItemsNear(CbLevel.StoneBridgeX, 11f))
+                    if (resting) Assert.Greater(pos.y, CbLevel.StoneDeck, "A raider's coin lies under the stone bridge's deck");
+            }
+            Assert.GreaterOrEqual(raiders, 7, "The ambush is too short (at least seven: the user)");
+            Assert.IsTrue(game.BridgeFightDone, "The ambush did not end with every raider beaten");
+            Assert.IsNull(game.lockZone, "The bridge stays shut after the ambush");
+            // and he walks on off the bridge
+            game.TestInput = i => { i.x = 1; };
+            for (float w = 0; w < 4f && game.hero.x < CbLevel.StoneBridgeX + CbLevel.StoneBridgeHalf + 1f; w += Time.deltaTime) yield return null;
+            game.TestInput = null;
+            Assert.Greater(game.hero.x, CbLevel.StoneBridgeX + CbLevel.StoneBridgeHalf + 1f, "Raja can't walk off the bridge after the ambush");
+        }
+
+        [UnityTest]
         public IEnumerator RajaCatchesAnEdgeAndPullsHimselfUp()
         {
             game = CbGame.Boot();

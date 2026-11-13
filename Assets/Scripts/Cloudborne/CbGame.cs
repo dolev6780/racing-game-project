@@ -111,7 +111,14 @@ namespace Cloudborne
         static readonly Zone BridgeZone = new Zone { x = CbLevel.StoneBridgeX, label = "Ambush on the bridge", spawn = new (CbEnemy.Kind, float)[0] };
         bool bridgeStarted, bridgeDone, exiting;
         int bridgeWave;
+        // The soldiers of the fight going on (the ambush on the bridge, the sergeant and his raiders): the fight is won
+        // when they are beaten. (It waited on every soldier on the stage: one left behind - asleep on the ridge - and
+        // the second wave never came, and the bridge stayed shut: the user.)
+        readonly List<CbEnemy> arenaFoes = new List<CbEnemy>();
+        bool ArenaClear => !arenaFoes.Exists(e => !e.dead);
         public bool BridgeFightDone => bridgeDone;
+        /// <summary>Which wave of the ambush on the bridge is on (0 before it).</summary>
+        public int BridgeWave => bridgeWave;
         /// <summary>Sergeant Snap while he is on the stage.</summary>
         public CbEnemy boss;
         bool bossStarted, bossDone;
@@ -310,6 +317,7 @@ namespace Cloudborne
         {
             foreach (var e in enemies) e.f.Destroy();
             enemies.Clear();
+            arenaFoes.Clear();
             pending.Clear();
             foreach (var s in shots) Destroy(s.t.gameObject);
             shots.Clear();
@@ -434,6 +442,8 @@ namespace Cloudborne
         {
             boss = new CbEnemy(this, CbEnemy.Kind.Sergeant, x, actors);
             enemies.Add(boss);
+            arenaFoes.Clear();
+            arenaFoes.Add(boss);
             hud.ShowBoss("SGT. SNAP");
             hud.SetWave("Defeat Sergeant Snap");
             hud.SetTip("<color=#ffb03a>GUARD</color> his three blows, then strike. Purple flash: get away! A <color=#ffb03a>KI</color> move stops his whistle");
@@ -441,19 +451,30 @@ namespace Cloudborne
         }
 
         /// <summary>A raider stepping into a fight at x, on the stone bridge's deck if that is over the water.</summary>
-        void SpawnAt(CbEnemy.Kind kind, float x)
+        CbEnemy SpawnAt(CbEnemy.Kind kind, float x)
         {
             var e = new CbEnemy(this, kind, x, actors);
             if (level != null && CbLevel.InWater(x)) e.y = Mathf.Max(0, level.SupportAt(x, 50f));
             enemies.Add(e);
+            return e;
+        }
+
+        /// <summary>Soldiers stepping into the fight going on, at x + each offset.</summary>
+        void Ambush(params (CbEnemy.Kind kind, float dx)[] foes)
+        {
+            foreach (var (kind, dx) in foes) arenaFoes.Add(SpawnAt(kind, lockZone.x + dx));
         }
 
         /// <summary>His whistle: two raiders run in from the arena's sides.</summary>
         public void SummonRaiders()
         {
             if (lockZone == null) return;
-            enemies.Add(new CbEnemy(this, CbEnemy.Kind.Hyena, lockZone.x - 9.5f, actors));
-            enemies.Add(new CbEnemy(this, CbEnemy.Kind.Hyena, lockZone.x + 9.5f, actors));
+            foreach (var dx in new[] { -9.5f, 9.5f })
+            {
+                var e = new CbEnemy(this, CbEnemy.Kind.Hyena, lockZone.x + dx, actors);
+                enemies.Add(e);
+                arenaFoes.Add(e);
+            }
             hud.Banner("REINFORCEMENTS!", true);
         }
 
@@ -505,6 +526,7 @@ namespace Cloudborne
             foreach (var p in posts) if (p.enemy != null && !p.enemy.dead) { p.spawned = false; p.enemy = null; }
             foreach (var e in enemies) e.f.Destroy();
             enemies.Clear();
+            arenaFoes.Clear();
             pending.Clear();
             if (bossStarted && !bossDone) { bossStarted = false; boss = null; lockZone = null; hud.HideBoss(); hud.ShowGo(true); }
             if (bridgeStarted && !bridgeDone) { bridgeStarted = false; bridgeWave = 0; lockZone = null; hud.ShowGo(true); }
@@ -600,24 +622,28 @@ namespace Cloudborne
                 bridgeStarted = true;
                 bridgeWave = 1;
                 lockZone = BridgeZone;
+                arenaFoes.Clear();
                 hud.ShowGo(false);
                 hud.Banner("AMBUSH!");
                 hud.SetTip("Raiders on the bridge! Hold your ground");
-                SpawnAt(CbEnemy.Kind.Hyena, BridgeZone.x - 8f);
-                SpawnAt(CbEnemy.Kind.Hyena, BridgeZone.x + 8f);
-                SpawnAt(CbEnemy.Kind.Shield, BridgeZone.x + 9.5f);
+                Ambush((CbEnemy.Kind.Hyena, -8f), (CbEnemy.Kind.Hyena, 8f), (CbEnemy.Kind.Shield, 9.5f));
             }
             if (lockZone == BridgeZone)
             {
-                if (!enemies.Exists(e => !e.dead))
+                // three waves, ten raiders in all (three were too few: the user), the last the biggest
+                if (ArenaClear)
                 {
                     if (bridgeWave == 1)
                     {
                         bridgeWave = 2;
                         hud.Banner("MORE OF THEM!", true);
-                        SpawnAt(CbEnemy.Kind.Shield, BridgeZone.x - 9.5f);
-                        SpawnAt(CbEnemy.Kind.Hyena, BridgeZone.x - 7.5f);
-                        SpawnAt(CbEnemy.Kind.Thrower, BridgeZone.x + 9f);
+                        Ambush((CbEnemy.Kind.Shield, -9.5f), (CbEnemy.Kind.Hyena, -7.5f), (CbEnemy.Kind.Thrower, 9f));
+                    }
+                    else if (bridgeWave == 2)
+                    {
+                        bridgeWave = 3;
+                        hud.Banner("THE LAST OF THEM!", true);
+                        Ambush((CbEnemy.Kind.Hyena, -9f), (CbEnemy.Kind.Hyena, 9f), (CbEnemy.Kind.Shield, -7f), (CbEnemy.Kind.Thrower, 9.5f));
                     }
                     else
                     {
@@ -638,7 +664,7 @@ namespace Cloudborne
             if (lockZone == BossZone)
             {
                 if (boss != null) hud.SetBoss(boss.hp / boss.max);
-                if (boss != null && boss.dead && !enemies.Exists(e => !e.dead)) BossBeaten();
+                if (boss != null && boss.dead && ArenaClear) BossBeaten();
                 return;
             }
             if (lockZone == null && bossDone && !cleared && hero.x >= CbWorld.GoalX)
@@ -1381,6 +1407,7 @@ namespace Cloudborne
             pending.Clear();
             foreach (var e in enemies) e.f.Destroy();
             enemies.Clear();
+            arenaFoes.Clear();
             lockZone = null;
             foreach (var p in posts) p.spawned = true;
             bossStarted = bossDone = true;

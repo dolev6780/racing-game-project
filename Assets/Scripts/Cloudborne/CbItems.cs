@@ -33,6 +33,8 @@ namespace Cloudborne
 
         public const float MangoHeal = 25f, KiCrystalKi = 40f;
         const float PickupX = 0.75f, PickupY = 1.7f, CrateHalfWidth = 0.55f;
+        // a dropped item comes to rest floating this high over what it lands on
+        const float Float = 0.55f;
         // a crate is solid (the user: nothing should be walked through): Raja can't pass through one and can stand on
         // it; its body is the model's, 0.89 m across and 0.95 m tall
         const float CrateBody = 0.445f, CrateTop = 0.95f;
@@ -58,6 +60,9 @@ namespace Cloudborne
         /// <summary>Test hook: where the crates still standing are, in stage order.</summary>
         public List<float> CrateXs() { var xs = crates.ConvertAll(c => c.x); xs.Sort(); return xs; }
         public int ItemCount => items.Count;
+        /// <summary>Test hook: where the items within `within` of x are, and whether each has come to rest.</summary>
+        public List<(Vector3 pos, bool resting)> ItemsNear(float x, float within) =>
+            items.FindAll(i => Mathf.Abs(i.pos.x - x) < within).ConvertAll(i => (i.pos, i.resting));
         public const string BankKey = "cb_coins";
 
         public CbItems(CbGame game, Transform parent)
@@ -338,10 +343,14 @@ namespace Cloudborne
                 it.age += dt;
                 if (!it.resting)
                 {
-                    // dropped: arcs out and bounces to rest on the path
+                    // dropped: arcs out and bounces to rest on what is under it - the path, a bridge's deck, a rock
+                    // (they all fell to the path's height: dropped on the stone bridge, they lay under its deck where
+                    // no one could reach them: the user); over the water, at the path's height as before
+                    float under = g.level != null ? g.level.SupportAt(it.pos.x, it.pos.y - Float + 0.05f) : 0f;
+                    float rest = (under < -0.5f ? 0f : under) + Float;
                     it.vel.y -= 22 * dt;
                     it.pos += it.vel * dt;
-                    if (it.pos.y < 0.55f) { it.pos.y = 0.55f; it.vel.y = Mathf.Abs(it.vel.y) * 0.35f; it.vel.x *= 0.6f; if (it.vel.y < 1f) it.resting = true; }
+                    if (it.pos.y < rest) { it.pos.y = rest; it.vel.y = Mathf.Abs(it.vel.y) * 0.35f; it.vel.x *= 0.6f; if (it.vel.y < 1f) it.resting = true; }
                 }
                 float bob = it.resting ? Mathf.Sin(it.age * 3f + it.phase) * 0.12f : 0;
                 it.t.localPosition = it.pos + Vector3.up * bob;
