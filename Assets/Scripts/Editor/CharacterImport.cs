@@ -17,23 +17,25 @@ namespace RacingGame.EditorTools
         const string Story = Folder + "Story/";
 
         const string Cards = Folder + "Jungle/Cards/", Layers = Folder + "Jungle/Backdrop/Jungle";
+        // the butterflies and birds (CbCritters), cut out like the cards
+        const string Critters = Folder + "Jungle/Critters/";
         // the new look's cut-outs: the hanging leaves and the grass lip along the ground's edge
         const string Lip = Folder + "Jungle/Ground/GroundLip",
             Clump = Folder + "Jungle/Backdrop/BushClump", WaterSide = Folder + "Jungle/Water/WaterSide";
 
-        public override uint GetVersion() => 6;
+        public override uint GetVersion() => 7;
 
         void OnPreprocessTexture()
         {
             // the cut-out grass cards and painted jungle layers: their mipmaps keep the painted shape's coverage, so they
             // don't thin out and vanish in the distance; a card doesn't repeat (its base would show at its top)
             if (assetPath.StartsWith(Cards) || assetPath.StartsWith(Layers) || assetPath.StartsWith(Lip)
-                || assetPath.StartsWith(Clump) || assetPath.StartsWith(WaterSide))
+                || assetPath.StartsWith(Clump) || assetPath.StartsWith(WaterSide) || assetPath.StartsWith(Critters))
             {
                 var cut = (TextureImporter)assetImporter;
                 cut.mipMapsPreserveCoverage = true;
                 cut.alphaTestReferenceValue = 0.5f;
-                if (assetPath.StartsWith(Cards)) cut.wrapMode = UnityEngine.TextureWrapMode.Clamp;
+                if (assetPath.StartsWith(Cards) || assetPath.StartsWith(Critters)) cut.wrapMode = UnityEngine.TextureWrapMode.Clamp;
                 return;
             }
             if (!assetPath.StartsWith(Story)) return;
