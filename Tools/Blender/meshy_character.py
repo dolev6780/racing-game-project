@@ -23,7 +23,9 @@ Writes OUT_DIR/NAME.fbx (mesh, skeleton, every clip) and OUT_DIR/NAME_Albedo.png
 
 --clips-only writes OUT_DIR/NAME_Clips.fbx instead: the skeleton and its clips, no mesh and no colours. Clips for a
 character already in the game, made on a new rig of the same model (Meshy's rigs expire after three days; a new
-one of the same model has the same skeleton): the game adds them to the character's own clips.
+one of the same model has the same skeleton): the game adds them to the character's own clips. NAME must be the
+character's own name (Raja): it names the skeleton, and the clips' paths start with it - clips under another
+skeleton name drive nothing. --file FILE writes OUT_DIR/FILE.fbx instead (a second file of clips, Raja_More_Clips).
 """
 
 import math
@@ -45,6 +47,11 @@ def option(flag):
 
 upright, drop, takes = option("--upright"), option("--drop"), option("--take")
 clips_only = "--clips-only" in args
+file_name = None
+if "--file" in args:
+    i = args.index("--file")
+    file_name = args[i + 1]
+    del args[i:i + 2]
 if clips_only:
     args.remove("--clips-only")
 out_dir, name, sources = args[0], args[1], args[2:]
@@ -220,7 +227,7 @@ for track_action in clips:                              # an NLA strip per clip:
 for o in bpy.context.scene.objects:
     o.select_set(o is arm or (o is body and not clips_only))
 bpy.context.view_layer.objects.active = arm
-fbx = os.path.join(out_dir, name + ("_Clips" if clips_only else "") + ".fbx")
+fbx = os.path.join(out_dir, (file_name or name + ("_Clips" if clips_only else "")) + ".fbx")
 bpy.ops.export_scene.fbx(filepath=fbx, use_selection=True, object_types={"ARMATURE"} if clips_only else {"ARMATURE", "MESH"}, add_leaf_bones=False,
                          bake_anim=True, bake_anim_use_all_actions=False, bake_anim_use_nla_strips=True,
                          bake_anim_force_startend_keying=True, apply_scale_options="FBX_SCALE_ALL",
