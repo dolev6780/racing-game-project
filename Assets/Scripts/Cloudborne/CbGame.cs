@@ -64,6 +64,7 @@ namespace Cloudborne
             (29f, -1, "Soldiers on the rope bridge!"),
             (57f, 3, null), (66f, 2, null),
             (97f, -1, "They wait on the bank - knock them back into the river!"),
+            (179f, -1, "Another fallen trunk, thorns on top: slide under it"),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
             (241f, -1, "The old temple: thorns need the staff, duck <color=#ffb03a>↓</color> the darts"),
             (300f, -1, "A monkey in a cage! Break it open and set it free"),
@@ -71,6 +72,7 @@ namespace Cloudborne
             (374f, -1, "Climb the vines (hold <color=#ffb03a>↑</color>), ride the wind up to the treetops"),
             (412f, -1, "Climb the vines up the cliff. Something glints behind the waterfall..."),
             (444f, 4, null),
+            (449f, -1, "A spear thrower! Crawl under the trunk - his spears fly over you"),
             (514f, -1, "Sergeant Snap waits at the shrine gate"),
         };
         int sectionIdx, tipIdx;

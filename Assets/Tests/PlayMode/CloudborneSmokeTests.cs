@@ -454,6 +454,12 @@ namespace RacingGame.Tests
             // standing, the fallen trunk stops him; low, he passes under it
             Assert.Less(level.BlockX(x - 3f, x + 1f, 0f), near + 0.01f, "The low passage does not stop him standing");
             Assert.AreEqual(x + 1f, level.BlockX(x - 3f, x + 1f, 0f, CbLevel.LowHeight), 0.001f, "The low passage stops him even low");
+            // more of them along the stage
+            foreach (var lx in CbLevel.LowLogXs)
+            {
+                Assert.Less(level.BlockX(lx - 3f, lx + 1f, 0f), lx - 0.35f - CbLevel.HalfWidth + 0.01f, $"The trunk at {lx} does not stop him standing");
+                Assert.AreEqual(lx + 1f, level.BlockX(lx - 3f, lx + 1f, 0f, CbLevel.LowHeight), 0.001f, $"The trunk at {lx} stops him even low");
+            }
             // running at it, down: a slide, then a crawl, carries him under
             game.Teleport(x - 6f);
             game.hero.y = 0;

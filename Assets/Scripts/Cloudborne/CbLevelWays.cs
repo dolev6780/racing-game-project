@@ -67,6 +67,7 @@ namespace Cloudborne
         const float LeafBounce = 19.5f, RaftTop = 0.1f;
         public const float TrunkX = 24.5f;
         public static readonly float[] LeafXs = { 28.6f, 176f, 380.2f, 475.5f };
+        public static readonly float[] LowLogXs = { 183f, 452.5f };
         const string ClimbVinePath = "Cloudborne/Jungle/ClimbVine/ClimbVine";
         const float StatueX = 251.5f, PlateX = 284.5f;
         // the race in the temple (its traps were too easy: the user): the lever opens the gate past the swinging logs
@@ -173,6 +174,10 @@ namespace Cloudborne
 
             // ---- after the first fight: a fallen trunk across the path, thorns on it - slide or crawl under it
             AddOverhang(TrunkX, 0.7f, 0.95f, 1.65f, true);
+            // more trunks fallen across the way to slide under: past the gorge (thorny on top), and on the ridge in
+            // front of a spear thrower (low, his spears fly over)
+            AddOverhang(LowLogXs[0], 0.7f, 0.95f, 1.65f, true);
+            AddOverhang(LowLogXs[1], 0.7f, 0.95f, 1.65f, false);
 
             // ---- the vine ravine
             AddVine(204f, 9f, 5f);
