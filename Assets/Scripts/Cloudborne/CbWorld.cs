@@ -153,6 +153,8 @@ namespace Cloudborne
         static readonly string[] GrassCards = { "Grass1", "Grass2", "Grass3", "Grass4", "Grass5" };
         static readonly string[] FlowerCards = { "Flower1", "Flower2", "Flower3", "Flower4", "Flower5" };
         static Shader cutout;
+        // how far the tops of the grass and flower cards sway in the breeze, in metres
+        const float CardSway = 0.05f;
 
         /// <summary>An unlit cut-out material for a painting with a clear background; null if it can't be drawn.</summary>
         /// <summary>
@@ -169,6 +171,9 @@ namespace Cloudborne
             m.mainTextureScale = new Vector2(w / 5f, depth / 10f);
             return m;
         }
+
+        /// <summary>A painting cut out of its background (unlit), hazed by haze toward the horizon; null if it can't be drawn.</summary>
+        public static Material Painted(Texture2D tex, float haze = 0f) => Cutout(tex, haze);
 
         static Material Cutout(Texture2D tex, float haze = 0f, Color? tint = null)
         {
@@ -200,7 +205,10 @@ namespace Cloudborne
                     var tex = Resources.Load<Texture2D>(CardDir + n);
                     // a little darker and bluer, like the rest of the painted ground under the toon light
                     var m = Cutout(tex, 0f, new Color(0.86f, 0.88f, 0.86f));
-                    if (m != null) list.Add((m, tex.width / (float)tex.height, flower));
+                    if (m == null) continue;
+                    // their tops sway in the breeze (the jungle stood still)
+                    m.SetFloat("_Sway", CardSway);
+                    list.Add((m, tex.width / (float)tex.height, flower));
                 }
             return list;
         }

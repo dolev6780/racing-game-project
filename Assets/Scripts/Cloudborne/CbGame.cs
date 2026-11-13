@@ -120,6 +120,7 @@ namespace Cloudborne
         public CbHero hero;
         public CbHud hud;
         public CbWorld world;
+        public CbCritters critters;
         /// <summary>Pickups, crates and secrets.</summary>
         public CbItems items;
         /// <summary>Things to climb and things in the way.</summary>
@@ -200,6 +201,7 @@ namespace Cloudborne
             CbFx.Init(transform);
             CbVfx.Init(transform);
             world = new CbWorld(transform);
+            critters = new CbCritters(transform);
             items = new CbItems(this, transform);
             level = new CbLevel(this, transform);
             actors = new GameObject("Actors").transform;
@@ -1192,6 +1194,7 @@ namespace Cloudborne
                 }
             }
             world.Update(clock, camX);
+            critters.Update(clock, camX, camY, hero.x, hero.y);
             UpdateCamera(raw);
             CbVfx.Update(cam, raw);
             hud.Tick(raw);

@@ -1,6 +1,8 @@
 // A painting with its background cut away (grass and flower cards, the painted jungle layers behind the path): the
 // texture as painted, unlit, the pixels whose alpha is below _Cutoff not drawn at all. _Color tints it; _Haze blends
-// it towards _HazeColor, the farther the layer the more, so the layers recede into the backdrop's haze.
+// it towards _HazeColor, the farther the layer the more, so the layers recede into the backdrop's haze. _Sway (metres)
+// sways the top of the painting in a breeze, its foot still (the grass and flower cards: the jungle stood still); the
+// breeze rolls along the stage, so neighbours sway a little out of step.
 Shader "Cloudborne/PaintedCutout"
 {
     Properties
@@ -10,6 +12,7 @@ Shader "Cloudborne/PaintedCutout"
         _HazeColor ("Haze", Color) = (0.5, 0.75, 0.8, 1)
         _Haze ("Haze amount", Range(0, 1)) = 0
         _Cutoff ("Cutoff", Range(0, 1)) = 0.5
+        _Sway ("Sway (m)", Float) = 0
     }
 
     // ---------- Universal Render Pipeline ----------
@@ -31,6 +34,7 @@ Shader "Cloudborne/PaintedCutout"
                 half4 _HazeColor;
                 half _Haze;
                 half _Cutoff;
+                float _Sway;
             CBUFFER_END
             TEXTURE2D(_MainTex);
             SAMPLER(sampler_MainTex);
@@ -41,7 +45,10 @@ Shader "Cloudborne/PaintedCutout"
             Varyings vert (Attributes v)
             {
                 Varyings o;
-                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                float3 world = TransformObjectToWorld(v.positionOS.xyz);
+                float t = _Time.y;
+                world.x += _Sway * v.uv.y * v.uv.y * (0.7 * sin(t * 1.6 + world.x * 0.55 + world.z * 0.3) + 0.3 * sin(t * 2.7 + world.x * 1.3));
+                o.positionCS = TransformWorldToHClip(world);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }
@@ -73,6 +80,7 @@ Shader "Cloudborne/PaintedCutout"
             float4 _MainTex_ST;
             fixed4 _Color, _HazeColor;
             half _Haze, _Cutoff;
+            float _Sway;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
             struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
@@ -80,7 +88,10 @@ Shader "Cloudborne/PaintedCutout"
             v2f vert (appdata v)
             {
                 v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
+                float3 world = mul(unity_ObjectToWorld, v.vertex).xyz;
+                float t = _Time.y;
+                world.x += _Sway * v.uv.y * v.uv.y * (0.7 * sin(t * 1.6 + world.x * 0.55 + world.z * 0.3) + 0.3 * sin(t * 2.7 + world.x * 1.3));
+                o.pos = UnityWorldToClipPos(world);
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }

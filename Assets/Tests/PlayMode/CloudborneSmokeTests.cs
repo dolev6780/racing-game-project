@@ -1268,6 +1268,42 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ButterfliesScatterAndBirdsCrossTheSky()
+        {
+            // the jungle's small life (it stood still): butterflies flutter about the meadow behind the path and scatter
+            // up and away when he comes by; now and then a flock of birds crosses the sky
+            game = CbGame.Boot();
+            yield return Frames(3);
+            var critters = game.critters;
+            Assert.IsNotNull(critters);
+            if (critters.Butterflies == 0) Assert.Ignore("The butterfly's painting is not in the project");
+            game.StartGame();
+            game.SkipFights();
+            // a patch on the open ground near the start, and Raja well away from it
+            var patch = critters.ButterfliesNear(12f, 8f);
+            Assert.Greater(patch.Count, 0, "No butterflies near the start");
+            var home = patch[0].home;
+            Assert.Greater(home.z, 2f, "A butterfly flutters on the path, not behind it");
+            game.Teleport(Mathf.Max(home.x - 12f, -5f));
+            game.hero.y = 0;
+            yield return new WaitForSeconds(0.6f);
+            var calm = critters.ButterfliesNear(home.x, 0.01f)[0];
+            Assert.Less(calm.fear, 0.05f, "A butterfly is frightened with Raja far off");
+            Assert.Less(Mathf.Abs(calm.at.y - home.y), 0.6f, "A calm butterfly strays from its patch");
+            // he comes by: it flies up and away
+            game.Teleport(home.x - 0.5f);
+            yield return new WaitForSeconds(1f);
+            var fled = critters.ButterfliesNear(home.x, 0.01f)[0];
+            Assert.Greater(fled.fear, 0.8f, "A butterfly isn't frightened with Raja beside it");
+            Assert.Greater(fled.at.y, home.y + 1f, "A frightened butterfly doesn't fly up");
+            Assert.Greater(fled.at.x, home.x + 0.5f, "A frightened butterfly doesn't fly away from him");
+            if (!critters.HasBirds) yield break;
+            critters.FlockNow();
+            yield return Frames(3);
+            Assert.Greater(critters.BirdsFlying, 1, "No flock of birds set off");
+        }
+
+        [UnityTest]
         public IEnumerator SoldiersStandAloneAndLanternsBringHimBack()
         {
             game = CbGame.Boot();
