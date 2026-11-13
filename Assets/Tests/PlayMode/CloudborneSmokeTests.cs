@@ -1032,6 +1032,22 @@ namespace RacingGame.Tests
                 }
                 Assert.Greater(moved, 0.02f, $"Raja's {clip} clip does not move his hands at all");
             }
+            // he crawls flat on his belly, on his elbows (on hands and knees he was up on all fours: the user): his chest
+            // is down near the ground, under half as high as standing (on all fours it was well over half)
+            float ChestAt(string clip, float u)
+            {
+                AnimationState st = null;
+                foreach (AnimationState a in anim) { a.enabled = false; a.weight = 0; if (a.name.EndsWith(clip)) st = a; }
+                Assert.IsNotNull(st, $"Raja has no {clip} clip");
+                st.enabled = true;
+                st.weight = 1;
+                st.normalizedTime = u;
+                anim.Sample();
+                return model.chest.position.y - model.root.position.y;
+            }
+            float standing = ChestAt("Combat_Stance", 0.2f);
+            for (float u = 0.1f; u < 1f; u += 0.2f)
+                Assert.Less(ChestAt("Crawl", u), standing * 0.55f, "Raja crawls up on all fours, not flat on his elbows");
             // hanging from the bar, his hands are up over his chest
             AnimationState hang = null;
             foreach (AnimationState st in anim) { st.enabled = false; st.weight = 0; if (st.name.EndsWith("Bar_Hang_Idle")) hang = st; }
