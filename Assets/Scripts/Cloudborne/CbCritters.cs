@@ -22,16 +22,17 @@ namespace Cloudborne
         // back over Settle seconds once he has gone.
         const float Fright = 2.4f, FleeX = 2.2f, FleeY = 1.9f, Settle = 3.5f;
         // The wings: from Open degrees to Open + Beat folded, open most of the time and snapping shut, Rate beats
-        // (radians a second), quicker in a fright. The body leans Lean degrees back from the camera, so it is seen a
+        // (radians a second: about one and a half a second, unhurried - quicker, they buzzed: the user), Scared times as
+        // quick in a fright. The body leans Lean degrees back from the camera, so it is seen a
         // little from above as it flies (leant far back, it was seen edge-on: a thin sliver).
-        const float Open = 4f, Beat = 70f, Rate = 15f, Lean = 22f;
+        const float Open = 4f, Beat = 70f, Rate = 9f, Scared = 1.5f, Lean = 22f;
         // Birds: a flock every FlockFrom to FlockTo seconds, of two to five birds, BirdSpan across, BirdFrom to BirdTo
         // deep (in front of the far painted trees), BirdUp to BirdUp + BirdBand over the camera's aim (higher, they
         // crossed under the score), BirdSpeed m/s.
         const float FlockFrom = 14f, FlockTo = 26f, BirdSpan = 1.15f, BirdFrom = 16f, BirdTo = 24f, BirdUp = 2.2f,
             BirdBand = 2.6f, BirdSpeed = 6.5f, BirdReach = 46f;
 
-        class Fly { public Transform body, left, right; public Vector3 home, at; public float ph, rate, fear, heading; public int away; public bool shown; }
+        class Fly { public Transform body, left, right; public Vector3 home, at; public float ph, rate, fear, heading, wing; public int away; public bool shown; }
         class Bird { public Transform t; public float x, y, z, ph, flap; public int dir; }
 
         readonly Transform root;
@@ -143,7 +144,11 @@ namespace Cloudborne
                     Mathf.Sin(t * 0.53f * r + s) * 0.9f + Mathf.Sin(t * 1.31f * r + s * 2f) * 0.35f,
                     Mathf.Sin(t * 0.77f * r + s * 3f) * 0.3f + Mathf.Sin(t * 2.3f * r + s) * 0.08f,
                     Mathf.Sin(t * 0.41f * r + s * 1.7f) * 0.15f);
-                float beat = t * Rate * r * (1 + f.fear * 0.7f) + s;
+                // the wings' own clock, run on at the beat's pace (worked out as the clock times a pace that rose in a
+                // fright, the beat leapt ahead by the whole clock's worth as the pace changed: the wings went into a
+                // blur whenever he came near: the user)
+                f.wing += dt * Rate * r * Mathf.Lerp(1f, Scared, f.fear);
+                float beat = f.wing + s;
                 var pos = f.home + wander + new Vector3(f.away * FleeX, FleeY, 0.3f) * k;
                 // a little lift with each downbeat
                 pos.y += Mathf.Sin(beat) * 0.03f;
