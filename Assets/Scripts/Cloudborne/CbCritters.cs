@@ -14,19 +14,22 @@ namespace Cloudborne
         const string Dir = "Cloudborne/Jungle/Critters/";
         public const string ButterflyName = "Butterfly", BirdName = "Bird";
         // Butterflies: a patch every PatchGap metres or so, two or three in it, Span across the wings, from BackFrom to
-        // BackTo behind the path (clear of the rocks, whose backs reach about 2.1) and from Low to High over the grass.
-        // Only those within Near metres of the camera are drawn and moved.
-        const float PatchGap = 11f, Span = 0.34f, BackFrom = 2.6f, BackTo = 4.2f, Low = 0.35f, High = 1.5f, Near = 26f;
+        // BackTo behind the path: clear of the rocks (whose backs reach about 2.1) and in front of the painted hedge (at
+        // 3, 1.75 tall: behind it they were hidden). From Low to High over the grass. Only those within Near metres of
+        // the camera are drawn and moved.
+        const float PatchGap = 11f, Span = 0.5f, BackFrom = 2.25f, BackTo = 2.65f, Low = 0.5f, High = 1.8f, Near = 26f;
         // A butterfly takes fright when he comes within Fright metres and flees FleeX away and FleeY up, then settles
         // back over Settle seconds once he has gone.
         const float Fright = 2.4f, FleeX = 2.2f, FleeY = 1.9f, Settle = 3.5f;
-        // The wings: from Open degrees to Open + Beat folded, Rate beats (radians a second), quicker in a fright. The body
-        // leans Lean degrees back from the camera, so it is seen from above at an angle, as it flies.
-        const float Open = 8f, Beat = 68f, Rate = 15f, Lean = 55f;
+        // The wings: from Open degrees to Open + Beat folded, open most of the time and snapping shut, Rate beats
+        // (radians a second), quicker in a fright. The body leans Lean degrees back from the camera, so it is seen a
+        // little from above as it flies (leant far back, it was seen edge-on: a thin sliver).
+        const float Open = 4f, Beat = 70f, Rate = 15f, Lean = 22f;
         // Birds: a flock every FlockFrom to FlockTo seconds, of two to five birds, BirdSpan across, BirdFrom to BirdTo
-        // deep (in front of the far painted trees), BirdUp to BirdUp + BirdBand over the camera's aim, BirdSpeed m/s.
-        const float FlockFrom = 14f, FlockTo = 26f, BirdSpan = 1.15f, BirdFrom = 16f, BirdTo = 24f, BirdUp = 3.6f,
-            BirdBand = 3.4f, BirdSpeed = 6.5f, BirdReach = 46f;
+        // deep (in front of the far painted trees), BirdUp to BirdUp + BirdBand over the camera's aim (higher, they
+        // crossed under the score), BirdSpeed m/s.
+        const float FlockFrom = 14f, FlockTo = 26f, BirdSpan = 1.15f, BirdFrom = 16f, BirdTo = 24f, BirdUp = 2.2f,
+            BirdBand = 2.6f, BirdSpeed = 6.5f, BirdReach = 46f;
 
         class Fly { public Transform body, left, right; public Vector3 home, at; public float ph, rate, fear, heading; public int away; public bool shown; }
         class Bird { public Transform t; public float x, y, z, ph, flap; public int dir; }
@@ -139,20 +142,21 @@ namespace Cloudborne
                 var wander = new Vector3(
                     Mathf.Sin(t * 0.53f * r + s) * 0.9f + Mathf.Sin(t * 1.31f * r + s * 2f) * 0.35f,
                     Mathf.Sin(t * 0.77f * r + s * 3f) * 0.3f + Mathf.Sin(t * 2.3f * r + s) * 0.08f,
-                    Mathf.Sin(t * 0.41f * r + s * 1.7f) * 0.5f);
+                    Mathf.Sin(t * 0.41f * r + s * 1.7f) * 0.15f);
                 float beat = t * Rate * r * (1 + f.fear * 0.7f) + s;
-                var pos = f.home + wander + new Vector3(f.away * FleeX, FleeY, 0.8f) * k;
+                var pos = f.home + wander + new Vector3(f.away * FleeX, FleeY, 0.3f) * k;
                 // a little lift with each downbeat
                 pos.y += Mathf.Sin(beat) * 0.03f;
                 pos.y = Mathf.Max(pos.y, 0.15f);
                 var v = (pos - f.at) / Mathf.Max(dt, 0.001f);
                 f.at = pos;
                 f.body.localPosition = pos;
-                // its head the way it flies, turning smoothly
-                if (dt > 0 && v.sqrMagnitude > 0.01f)
-                    f.heading = Mathf.LerpAngle(f.heading, Mathf.Atan2(v.y, v.x) * Mathf.Rad2Deg - 90f, 1 - Mathf.Exp(-6f * dt));
+                // tipped toward the way it flies, turning smoothly (turned all the way, it flew on its side)
+                if (dt > 0)
+                    f.heading = Mathf.Lerp(f.heading, Mathf.Clamp(-v.x * 25f, -35f, 35f), 1 - Mathf.Exp(-6f * dt));
                 f.body.localRotation = Quaternion.Euler(0, 0, f.heading) * Quaternion.Euler(Lean, 0, 0);
-                float a = Open + Beat * (0.5f + 0.5f * Mathf.Sin(beat));
+                float shut = 0.5f + 0.5f * Mathf.Sin(beat);
+                float a = Open + Beat * shut * shut;
                 // the wings fold up over its back, toward the camera
                 f.left.localRotation = Quaternion.Euler(0, -a, 0);
                 f.right.localRotation = Quaternion.Euler(0, a, 0);
