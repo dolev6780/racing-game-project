@@ -11,7 +11,7 @@ namespace Cloudborne
     /// </summary>
     public class CbEnemy
     {
-        public enum Kind { Hyena, Shield, Sergeant }
+        public enum Kind { Hyena, Shield, Sergeant, Thrower }
         public enum State { Move, Atk, Hurt, Dying }
         /// <summary>Sergeant Snap's attacks.</summary>
         public enum BossMove { Combo, Chop, Leap, Whistle }
@@ -84,12 +84,12 @@ namespace Cloudborne
             g = game;
             kind = k;
             x = x0;
-            bool shield = k == Kind.Shield, sergeant = k == Kind.Sergeant;
-            hp = max = sergeant ? 320 : shield ? 46 : 34;
+            bool shield = k == Kind.Shield, sergeant = k == Kind.Sergeant, thrower = k == Kind.Thrower;
+            hp = max = sergeant ? 320 : shield ? 46 : thrower ? 28 : 34;
             speed = sergeant ? 2.3f : shield ? 2.1f : 2.7f;
             dmg = sergeant ? 9 : shield ? 10 : 8;
             reach = sergeant ? 1.9f : shield ? 1.6f : 1.5f;
-            scoreValue = sergeant ? 3000 : shield ? 500 : 300;
+            scoreValue = sergeant ? 3000 : shield ? 500 : thrower ? 400 : 300;
             if (shield) w = 0.6f;
             if (sergeant) { w = 0.7f; hy = 1.5f; }
             guard = shield;
@@ -101,11 +101,13 @@ namespace Cloudborne
                 fur = CbArt.Hex("#b8925a"), paw = CbArt.Hex("#8a6a40"), top = CbArt.Hex("#6b727d"), armor = CbArt.Hex("#7d8590"),
                 pants = CbArt.Hex("#4a3a2e"), belt = CbArt.Hex("#2a1f1a"), wrap = CbArt.Hex("#4a3a2e"), bulk = sergeant ? 1.25f : shield ? 1.12f : 1f,
                 scale = sergeant ? 1.15f : 1f,
-            }, sergeant ? "SgtSnap" : shield ? "ShieldHyena" : "Hyena");
+            }, sergeant ? "SgtSnap" : shield ? "ShieldHyena" : thrower ? "SpearHyena" : "Hyena");
             RigBuilder.HyenaHead(f);
             // the modelled machete and shield when they are in the project, else boxes as before
-            blade = CbArt.Joint(f.R.hand, 0, -0.02f, 0.02f, "machete");
-            if (CbArt.Prop("Cloudborne/Props/Machete/Machete", blade) == null)
+            blade = CbArt.Joint(f.R.hand, 0, -0.02f, 0.02f, thrower ? "spear" : "machete");
+            // the thrower holds a spear (a shaft with a stone head), and has another to hand as soon as one is thrown
+            if (thrower) SpearShape(blade, f.M("#7a5a36"), f.M("#9aa2ab"));
+            else if (CbArt.Prop("Cloudborne/Props/Machete/Machete", blade) == null)
             {
                 CbArt.Box(f.M("#c9ced6"), blade, new Vector3(0, 0, 0.38f), new Vector3(0.03f, 0.1f, 0.62f));
                 CbArt.Box(f.M("#2a1f1a"), blade, new Vector3(0, 0, 0.02f), new Vector3(0.05f, 0.06f, 0.16f));
@@ -137,8 +139,24 @@ namespace Cloudborne
                 blade.SetParent(f.body, true);
                 if (f.shield != null) f.shield.SetParent(f.body, true);
                 f.mats.Add(model.material);
+                // the thrower: the raider's model with a darker, redder coat, so he is told apart from afar
+                if (thrower) model.material.color = new Color(0.95f, 0.72f, 0.62f);
                 PlaceGear(1f);
             }
+        }
+
+        // The spear thrower (the user wanted more action): he keeps his distance, ThrowNear to ThrowFar from Raja,
+        // backing off when Raja closes in, and every few seconds draws back and throws a spear at chest height (ducked
+        // under, jumped over, guarded or struck away); up close he still slashes with it.
+        const float ThrowNear = 4.5f, ThrowFar = 10f, ThrowWind = 0.55f, ThrowSpeed = 12f, SpearDamage = 8f;
+        bool throwing;
+        float spearAway;
+
+        /// <summary>A spear along +Z from the fist: a wooden shaft and a stone head.</summary>
+        public static void SpearShape(Transform parent, Material shaft, Material head)
+        {
+            CbArt.Cylinder(shaft, parent, new Vector3(0, 0, 0.25f), 0.025f, 1.5f, Quaternion.Euler(90, 0, 0));
+            CbArt.Cone(head, parent, new Vector3(0, 0, 1.0f), 0.06f, 0.2f, Quaternion.Euler(90, 0, 0), 4);
         }
 
         /// <summary>
@@ -172,6 +190,8 @@ namespace Cloudborne
                 case State.Atk:
                     // the blow lands at the end of the 0.45 s wind-up, a little past the middle of the clip
                     if (shield && guard) model.Window("Shield_Push_Left", 0.1f, 0.8f, t / 0.8f);
+                    // the throw: the slash's overhand swing, the spear leaving his hand as it comes forward
+                    else if (throwing) model.Window("Right_Hand_Sword_Slash", 0.05f, 0.75f, t / (ThrowWind + 0.4f));
                     else model.Window("Right_Hand_Sword_Slash", 0.1f, 0.85f, t / 0.8f);
                     break;
                 default:
@@ -515,6 +535,29 @@ namespace Cloudborne
                 case State.Move when Boss:
                     BossThink(ref pose, dt, hero, dx, dist);
                     break;
+                case State.Atk when throwing:
+                {
+                    // drawn back over the shoulder (a glint on the head), then thrown
+                    if (t < ThrowWind)
+                    {
+                        pose.twist = -1f; pose.sRx = 1.4f; pose.eR = -1.2f; pose.lean = -0.2f; pose.hLx = -0.3f; pose.kL = 0.5f;
+                        if (t <= dt && blade != null)
+                            CbFx.Spark(blade.position + new Vector3(0, 0, -0.3f), new Color(1f, 0.95f, 0.7f) * 2f, 5, 2.2f, 0.12f, 0.22f, 0);
+                    }
+                    else
+                    {
+                        pose.twist = 0.7f; pose.sRx = -1.4f; pose.eR = 0; pose.lean = 0.3f; pose.hLx = -0.8f; pose.hRx = 0.5f;
+                        if (!hitDone)
+                        {
+                            hitDone = true;
+                            g.level?.ThrowSpear(x + facing * 0.6f, y + 1.25f, facing * ThrowSpeed, SpearDamage);
+                            spearAway = 0.9f;
+                            CbFx.Sfx("swing", 0.6f);
+                        }
+                    }
+                    if (t > ThrowWind + 0.4f) { state = State.Move; throwing = false; cd = Random.Range(2.2f, 3.2f); }
+                    break;
+                }
                 case State.Atk:
                 {
                     const float wind = 0.45f;
@@ -578,6 +621,17 @@ namespace Cloudborne
                     }
                     float want;
                     if (backT > 0) { backT -= dt; want = -Mathf.Sign(dx) * speed * 0.6f; charging = false; }
+                    else if (kind == Kind.Thrower && dist < Notice + 2f)
+                    {
+                        // backing off when he comes close, closing in when he is far, else standing to throw
+                        charging = false;
+                        want = dist < ThrowNear && dist > reach + 0.3f ? -Mathf.Sign(dx) * speed * 0.8f : dist > ThrowFar ? Mathf.Sign(dx) * speed : 0;
+                        if (dist > ThrowNear - 1f && dist < ThrowFar + 1.5f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)
+                        {
+                            state = State.Atk; t = 0; hitDone = false; vx = 0; throwing = true;
+                            FaceTarget();
+                        }
+                    }
                     else
                     {
                         // from afar he charges, up close he comes on in his fighting walk
@@ -585,9 +639,9 @@ namespace Cloudborne
                         want = dist > reach && (Boss || dist < Notice) ? Mathf.Sign(dx) * speed * (charging ? ChargeBoost : 1f) : 0;
                     }
                     vx += (want + push - vx) * (1 - Mathf.Exp(-8 * dt));
-                    if (dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)
+                    if (state != State.Atk && dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)
                     {
-                        state = State.Atk; t = 0; hitDone = false; vx = 0; backT = 0; charging = false;
+                        state = State.Atk; t = 0; hitDone = false; vx = 0; backT = 0; charging = false; throwing = false;
                     }
                     if (Mathf.Abs(vx) > 0.4f)
                     {
@@ -645,6 +699,11 @@ namespace Cloudborne
             f.body.localRotation = Quaternion.Euler(0, Mathf.LerpAngle(f.body.localEulerAngles.y, target, 1 - Mathf.Exp(-12 * dt)), 0);
             Animate();
             PlaceGear(1 - Mathf.Exp(-25 * dt));
+            if (kind == Kind.Thrower && blade != null)
+            {
+                spearAway = Mathf.Max(0, spearAway - dt);
+                blade.gameObject.SetActive(spearAway <= 0);
+            }
 
             // white flash when hit, white blink on wind-up, orange while burning
             // white on a hit; the modelled hyenas take less, or bloom turns them into a white cut-out

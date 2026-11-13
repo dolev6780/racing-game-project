@@ -40,11 +40,11 @@ namespace Cloudborne
             // on the rock in the middle of the long river
             (89f, CbEnemy.Kind.Hyena, 1f, false),
             // waiting together on the far bank of the long river, by the shrine: three at once, the river at their backs
-            (106.5f, CbEnemy.Kind.Hyena, 3f, false), (109.5f, CbEnemy.Kind.Shield, 3f, false), (112.5f, CbEnemy.Kind.Hyena, 3f, false),
+            (106.5f, CbEnemy.Kind.Hyena, 3f, false), (109.5f, CbEnemy.Kind.Shield, 3f, false), (112.5f, CbEnemy.Kind.Thrower, 3f, false),
             (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
             (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (259f, CbEnemy.Kind.Hyena, 1.5f, false), (298f, CbEnemy.Kind.Hyena, 3f, false),
-            (302f, CbEnemy.Kind.Shield, 3f, false), (372f, CbEnemy.Kind.Shield, 2f, false),
-            (450f, CbEnemy.Kind.Hyena, 4f, false), (460f, CbEnemy.Kind.Shield, 4f, false), (473f, CbEnemy.Kind.Hyena, 3f, true),
+            (302f, CbEnemy.Kind.Shield, 3f, false), (306f, CbEnemy.Kind.Thrower, 3f, false), (372f, CbEnemy.Kind.Shield, 2f, false),
+            (450f, CbEnemy.Kind.Hyena, 4f, false), (456f, CbEnemy.Kind.Thrower, 4f, false), (460f, CbEnemy.Kind.Shield, 4f, false), (473f, CbEnemy.Kind.Hyena, 3f, true),
         };
         readonly List<Post> posts = new List<Post>();
         const float PostWakes = 13f;
@@ -612,7 +612,7 @@ namespace Cloudborne
                         hud.Banner("MORE OF THEM!", true);
                         SpawnAt(CbEnemy.Kind.Shield, BridgeZone.x - 9.5f);
                         SpawnAt(CbEnemy.Kind.Hyena, BridgeZone.x - 7.5f);
-                        SpawnAt(CbEnemy.Kind.Hyena, BridgeZone.x + 8.5f);
+                        SpawnAt(CbEnemy.Kind.Thrower, BridgeZone.x + 9f);
                     }
                     else
                     {

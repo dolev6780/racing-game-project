@@ -59,7 +59,7 @@ namespace Cloudborne
         class Thorns { public Block b; public int hp = 2; public float cool, clang; }
         class Pendulum { public float x, y, len, period, phase; public Transform ram, ropeA, ropeB; }
         class Pit { public float x0, x1, stood; public bool open; public Transform cover; }
-        class Dart { public float x, y, vx, gone; public Transform t; }
+        class Dart { public float x, y, vx, gone, dmg = 6f; public Transform t; }
         // the caged monkey turned to the camera and a little toward the way Raja comes; how long it hops for joy when freed
         const float MonkeyFacing = 205f, MonkeyCheer = 1.2f;
         class Cage { public float x; public int hp = 3; public bool freed; public Transform t, animal, model; public float hop, cool; public CbModel monkey; }
@@ -239,6 +239,20 @@ namespace Cloudborne
             // ---- the shrine gate: across the path, shut until Sergeant Snap is beaten, then it sinks and he walks through
             AddGate(CbWorld.GoalX + 1.2f);
             goalGate = gates.Count - 1;
+        }
+
+        /// <summary>
+        /// A spear thrown by a raider from (x, y) at speed vx: it flies level, like the statue's darts - over a ducking
+        /// Raja, into a standing one, stopped by his guard from the front and by anything solid.
+        /// </summary>
+        public void ThrowSpear(float x, float y, float vx, float dmg)
+        {
+            var t = CbArt.Joint(root, x, y, 0, "spear");
+            var turn = CbArt.Joint(t, 0, 0, 0, "turn");
+            turn.localRotation = Quaternion.Euler(0, vx > 0 ? 90 : -90, 0);
+            var shape = CbArt.Joint(turn, 0, 0, -0.6f, "shape");
+            CbEnemy.SpearShape(shape, M("#7a5a36"), M("#9aa2ab"));
+            darts.Add(new Dart { x = x, y = y, vx = vx, dmg = dmg, t = t });
         }
 
         void AddLantern(float x)
@@ -1287,7 +1301,7 @@ namespace Cloudborne
                 d.t.localPosition = new Vector3(d.x, d.y, 0);
                 float topOfHim = hero.Ducking ? 0.95f : 1.75f;
                 bool hit = Mathf.Abs(hero.x - d.x) < 0.35f && d.y > hero.y + 0.15f && d.y < hero.y + topOfHim;
-                if (hit) hero.TakeHit(6, d.vx > 0 ? 1 : -1);
+                if (hit) hero.TakeHit(d.dmg, d.vx > 0 ? 1 : -1);
                 // the thorns (until cut) and anything else solid stop it
                 bool stopped = false;
                 foreach (var b in blocks)

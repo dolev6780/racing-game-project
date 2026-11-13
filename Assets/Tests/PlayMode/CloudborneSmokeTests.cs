@@ -967,6 +967,36 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ASpearThrowerKeepsHisDistanceAndThrows()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            // on open ground, a spear thrower seven metres off: he stays away and throws spears at chest height
+            game.Teleport(184f);
+            game.hero.y = 0;
+            var e = new CbEnemy(game, CbEnemy.Kind.Thrower, 191f, game.transform);
+            game.enemies.Add(e);
+            float hp = game.hero.hp;
+            float closest = float.MaxValue;
+            for (float w = 0; w < 5f && game.hero.hp >= hp; w += Time.deltaTime)
+            {
+                closest = Mathf.Min(closest, Mathf.Abs(e.x - game.hero.x));
+                yield return null;
+            }
+            Assert.Less(game.hero.hp, hp, "No spear hit Raja standing in its way");
+            Assert.Greater(closest, 3f, "The thrower came up close instead of throwing");
+            // ducking, the spears pass over him
+            game.hero.hp = hp = 100;
+            game.TestInput = i => i.y = -1;
+            yield return new WaitForSeconds(4f);
+            game.TestInput = null;
+            Assert.AreEqual(hp, game.hero.hp, 0.01f, "A spear hit Raja while he ducked");
+        }
+
+        [UnityTest]
         public IEnumerator TheGorgeFloodsBehindHimAndTheWaterCatchesHim()
         {
             game = CbGame.Boot();
