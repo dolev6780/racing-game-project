@@ -1003,6 +1003,47 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator RajasLaterClipsMoveHim()
+        {
+            // clips made later on a new rig (Raja_Clips, Raja_More_Clips) must drive his own bones: a file whose skeleton
+            // had another name added clips that moved nothing, and he slid about frozen as he crawled and on the bars
+            game = CbGame.Boot();
+            yield return Frames(3);
+            var model = game.hero.model;
+            Assert.IsNotNull(model);
+            var anim = model.root.GetComponent<Animation>();
+            foreach (var clip in new[] { "Crawl", "MonkeyBars", "Motion_Divekick", "slide_light" })
+            {
+                AnimationState state = null;
+                foreach (AnimationState st in anim) if (st.name.EndsWith(clip)) state = st;
+                Assert.IsNotNull(state, $"Raja has no {clip} clip");
+                foreach (AnimationState st in anim) { st.enabled = false; st.weight = 0; }
+                state.enabled = true;
+                state.weight = 1;
+                state.normalizedTime = 0f;
+                anim.Sample();
+                var restHand = model.rightHand.position;
+                float moved = 0;
+                for (float u = 0.1f; u <= 1f; u += 0.1f)
+                {
+                    state.normalizedTime = u;
+                    anim.Sample();
+                    moved = Mathf.Max(moved, (model.rightHand.position - restHand).magnitude);
+                }
+                Assert.Greater(moved, 0.02f, $"Raja's {clip} clip does not move his hands at all");
+            }
+            // hanging from the bar, his hands are up over his chest
+            AnimationState hang = null;
+            foreach (AnimationState st in anim) { st.enabled = false; st.weight = 0; if (st.name.EndsWith("Bar_Hang_Idle")) hang = st; }
+            Assert.IsNotNull(hang, "Raja has no Bar_Hang_Idle clip");
+            hang.enabled = true;
+            hang.weight = 1;
+            hang.normalizedTime = 0.3f;
+            anim.Sample();
+            Assert.Greater(model.rightHand.position.y, model.chest.position.y + 0.3f, "Hanging from the bar, Raja's hands are not up");
+        }
+
+        [UnityTest]
         public IEnumerator TheGorgeFloodsBehindHimAndTheWaterCatchesHim()
         {
             game = CbGame.Boot();
