@@ -115,10 +115,12 @@ namespace Cloudborne
         const float StoneArchLength = 8.4f, StoneArchStep = 8f;
         const int StoneArches = 3;
         public const float StoneBridgeHalf = (StoneArchStep * (StoneArches - 1) + StoneArchLength) / 2, StoneDeck = 1.2f;
-        // the long bridge drawn in Canva and built in Meshy (one bridge of three arches, its deck gently humped): drawn
-        // a little lower than its own shape (0.6 of its height) so its deck runs about StoneDeck over the water
+        // the long bridge drawn in Canva and built in Meshy (one bridge of three arches; its deck arched up in the
+        // middle, and the user saw a crooked bridge under a Raja walking level: straightened with
+        // Tools/Blender/flatten_deck.py), drawn a little lower than its own shape (0.6 of its height) so its level
+        // deck runs at StoneDeck over the water
         const string LongBridgePath = "Cloudborne/Jungle/LongBridge/LongBridge";
-        const float LongBridgeHeight = 3.96f * 0.6f, LongBridgeDeck = 3.69f * 0.6f;
+        const float LongBridgeHeight = 3.89f * 0.6f, LongBridgeDeck = 3.76f * 0.6f;
         // the mountain: where it stands, its summit's height
         public const float MountainFrom = 137f, MountainTo = 168f, SummitTop = 11.4f;
         // an edge he can catch: its top between these heights above his feet (his raised hands hang at
