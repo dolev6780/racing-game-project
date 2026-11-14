@@ -39,8 +39,8 @@ namespace Cloudborne
             // waiting together on the far bank of the long river, by the shrine: three at once, the river at their backs
             (106.5f, CbEnemy.Kind.Hyena, 3f, false), (109.5f, CbEnemy.Kind.Shield, 3f, false), (112.5f, CbEnemy.Kind.Thrower, 3f, false),
             (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
-            (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (259f, CbEnemy.Kind.Hyena, 1.5f, false), (298f, CbEnemy.Kind.Hyena, 3f, false),
-            (302f, CbEnemy.Kind.Shield, 3f, false), (306f, CbEnemy.Kind.Thrower, 3f, false), (372f, CbEnemy.Kind.Shield, 2f, false),
+            (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (259f, CbEnemy.Kind.Hyena, 1.5f, false), (289f, CbEnemy.Kind.Hyena, 3f, false),
+            (293f, CbEnemy.Kind.Shield, 3f, false), (297f, CbEnemy.Kind.Thrower, 3f, false), (363f, CbEnemy.Kind.Shield, 2f, false),
             // (the ridge and its four soldiers are gone: the stage was long for a phone - the user)
         };
         readonly List<Post> posts = new List<Post>();
@@ -50,8 +50,8 @@ namespace Cloudborne
         static readonly (float x, string name)[] Sections =
         {
             (0f, "Save Koda"), (70f, "The cracked wall"), (79f, "The long river"), (106f, "The old shrine"), (136f, "The flooded gorge"),
-            (194f, "The vine ravine"), (240f, "The temple of traps"), (292f, "The monkey cage"), (316f, "The raft river"),
-            (374f, "The canopy"), (412f, "The waterfall"), (445f, "The stone bridge"), (472f, "The shrine gate"),
+            (194f, "The vine ravine"), (240f, "The temple of traps"), (283f, "The monkey cage"), (307f, "The raft river"),
+            (365f, "The canopy"), (392f, "The waterfall"), (425f, "The stone bridge"), (452f, "The shrine gate"),
         };
         /// <summary>Tips as Raja reaches them (tip: one of the fight tips; else text).</summary>
         static readonly (float x, int tip, string text)[] Tips =
@@ -65,13 +65,13 @@ namespace Cloudborne
             (179f, -1, "Another fallen trunk, thorns on top: slide under it"),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
             (241f, -1, "The old temple: thorns need the staff (hold <color=#ffb03a>ATTACK</color>), slide under the darts (<color=#ffb03a>swipe ↓</color>)"),
-            (294f, 4, null),
-            (300f, -1, "A monkey in a cage! Break it open and set it free"),
-            (316f, -1, "Ride the rafts down the river - jump off before they sink"),
-            (374f, -1, "Climb the vines (push into them), ride the wind up to the treetops"),
-            (412f, -1, "Climb the vines up the cliff. Something glints behind the waterfall..."),
-            (443f, -1, "The old stone bridge - the shrine gate lies beyond it"),
-            (474f, -1, "Sergeant Snap waits at the shrine gate"),
+            (285f, 4, null),
+            (291f, -1, "A monkey in a cage! Break it open and set it free"),
+            (307f, -1, "Ride the rafts down the river - jump off before they sink"),
+            (365f, -1, "Climb the vines (push into them), ride the wind up to the treetops"),
+            (390f, -1, "Down from the treetops, up the waterfall's cliff by its vines. Something glints behind the water..."),
+            (423f, -1, "The old stone bridge - the shrine gate lies beyond it"),
+            (454f, -1, "Sergeant Snap waits at the shrine gate"),
         };
         int sectionIdx, tipIdx;
         float checkpointX, lastHp;
@@ -101,7 +101,7 @@ namespace Cloudborne
         public static CbGame I { get; private set; }
 
         // Sergeant Snap, the mini-boss: his arena stands in front of the shrine gate
-        const float BossX = 494f;
+        const float BossX = 474f;
         static readonly Zone BossZone = new Zone { x = BossX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
         /// <summary>
         /// An ambush on a bridge: once he is from metres along it, the way shuts either side and raiders come at him

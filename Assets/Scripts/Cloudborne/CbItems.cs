@@ -93,11 +93,11 @@ namespace Cloudborne
             AddCrate(131f, Kind.Mango, Kind.Coin);
             AddCrate(191f, Kind.KiCrystal, Kind.Coin, Kind.Coin);
             AddCrate(244f, Kind.Mango, Kind.Coin);
-            AddCrate(315f, Kind.KiCrystal, Kind.Coin);
-            AddCrate(373.5f, Kind.Mango, Kind.Coin, Kind.Coin);
-            AddCrate(444.2f, Kind.Mango, Kind.KiCrystal);
-            AddCrate(472.5f, Kind.Mango, Kind.Coin);
-            AddCrate(480.5f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
+            AddCrate(306f, Kind.KiCrystal, Kind.Coin);
+            AddCrate(364.5f, Kind.Mango, Kind.Coin, Kind.Coin);
+            AddCrate(424.2f, Kind.Mango, Kind.KiCrystal);
+            AddCrate(452.5f, Kind.Mango, Kind.Coin);
+            AddCrate(460.5f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
             // coin trails: an arc to jump through, a row along the rope bridge, an arc in the second fight
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(4 + i * 0.9f, 1.2f + Mathf.Sin(i / 4f * Mathf.PI) * 1.6f, 0), resting: true);
             // over the rope bridge: one above each stretch of planks, an arc over each gap (jump it)
@@ -156,7 +156,7 @@ namespace Cloudborne
             for (int i = 0; i < 4; i++) C(235.5f + i * 0.6f, 2f + i * 1.3f);
             Spawn(Kind.Token, new Vector3(238f, 7.3f, 0), resting: true);
             // the temple of traps
-            foreach (var x in new[] { 249f, 253f, 258.5f, 260f, 265.8f, 272.5f, 282.5f, 288.6f }) C(x, 1.2f);
+            foreach (var x in new[] { 249f, 253f, 258.5f, 260f, 263.5f, 273.5f, 279.6f }) C(x, 1.2f);
             Spawn(Kind.Coin, new Vector3(255.2f, 2.2f, 0), resting: true);
             // up from each springy leaf: a column of coins to bounce through (over the leaf before the rope bridge, an
             // arc out over the water)
@@ -172,24 +172,23 @@ namespace Cloudborne
                 for (float y = 3f; y < 7.6f; y += 1.5f) C(lx, y);
             }
             // the fight and the cage after the temple
-            foreach (var x in new[] { 296f, 305f, 310f }) C(x, 1.2f);
+            foreach (var x in new[] { 287f, 296f, 301f }) C(x, 1.2f);
             // the raft river: over the rafts' way, the island
-            foreach (var x in new[] { 323f, 327f, 331f, 335f, 339f, 346f, 350f, 354f, 358f, 362f, 366f }) C(x, 1.3f);
-            C(341.8f, 2f);
-            // the canopy: up the vine pillar, along the ledges and the bars, down the zipline
-            for (float y = 1.5f; y < 7.5f; y += 1.3f) C(381.4f, y);
-            C(385.6f, 9.4f); C(389.6f, 10.2f);
-            for (float x = 391.6f; x < 396f; x += 1.1f) C(x, 9.8f);
-            Spawn(Kind.Key, new Vector3(397.6f, 10.6f, 0), resting: true);
-            for (float x = 400.5f; x < 411f; x += 1.8f) C(x, Mathf.Lerp(11f, 3.4f, Mathf.InverseLerp(398.6f, 411.2f, x)) - 0.8f);
+            foreach (var x in new[] { 314f, 318f, 322f, 326f, 330f, 337f, 341f, 345f, 349f, 353f, 357f }) C(x, 1.3f);
+            C(332.8f, 2f);
+            // the canopy: up the vine pillar, along the ledges and the bars
+            for (float y = 1.5f; y < 7.5f; y += 1.3f) C(372.4f, y);
+            C(376.6f, 9.4f); C(380.6f, 10.2f);
+            for (float x = 382.6f; x < 387f; x += 1.1f) C(x, 9.8f);
+            Spawn(Kind.Key, new Vector3(388.6f, 10.6f, 0), resting: true);
             // up the waterfall's vine-grown cliff, along its top
-            for (float y = 1.5f; y < 9f; y += 1.5f) C(413.4f, y);
-            for (float x = 415f; x < 420f; x += 1.2f) C(x, 10.4f);
+            for (float y = 1.5f; y < 9f; y += 1.5f) C(393.4f, y);
+            for (float x = 395f; x < 400f; x += 1.2f) C(x, 10.4f);
             // behind the waterfall
-            C(421f, 3.6f); C(422.4f, 5.8f);
-            Spawn(Kind.Token, new Vector3(421.2f, 8.1f, 0), resting: true);
+            C(401f, 3.6f); C(402.4f, 5.8f);
+            Spawn(Kind.Token, new Vector3(401.2f, 8.1f, 0), resting: true);
             // the road to the chest
-            foreach (var x in new[] { 428f, 431f, 434f, 437f }) C(x, 1.8f);
+            foreach (var x in new[] { 408f, 411f, 414f, 417f }) C(x, 1.8f);
         }
 
         // ---------- items ----------

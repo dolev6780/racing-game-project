@@ -996,7 +996,7 @@ namespace RacingGame.Tests
             Assert.Greater(hero.x, trunk + 1.2f, "Raja did not get under the fallen trunk with a swipe down");
             yield return Settle();
             // pushing into the vine-grown pillar: he takes hold and climbs
-            game.Teleport(380.6f);
+            game.Teleport(371.6f);
             hero.y = 0;
             yield return Settle();
             bool held = false;
@@ -1168,10 +1168,10 @@ namespace RacingGame.Tests
             yield return Frames(2);
             // a soldier left behind at his post before the canopy (the ambush waited on one left behind: its second wave
             // never came, and the bridge stayed shut: the user)
-            game.Teleport(370f);
+            game.Teleport(361f);
             game.hero.y = 0;
             yield return Frames(3);
-            Assert.IsTrue(game.enemies.Exists(e => !e.dead && Mathf.Abs(e.x - 372f) < 3f), "No soldier at his post before the canopy");
+            Assert.IsTrue(game.enemies.Exists(e => !e.dead && Mathf.Abs(e.x - 363f) < 3f), "No soldier at his post before the canopy");
             // onto the stone bridge: the ambush
             game.Teleport(CbLevel.StoneBridgeX - 2f);
             game.hero.y = CbLevel.StoneDeck;
@@ -1679,7 +1679,7 @@ namespace RacingGame.Tests
             var oldTrace = Application.GetStackTraceLogType(LogType.Log);
             // where, and how high (the bars are over the river: he hangs from them, or he would be in the water)
             foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("summit", 154f, CbLevel.SummitTop), ("bars", 219f, 4.8f - 1.71f),
-                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 412.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck) })
+                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 392.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck) })
             {
                 game.Teleport(x);
                 game.hero.y = y;
@@ -1731,7 +1731,7 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator VinesBarsAndTheZipline()
+        public IEnumerator VinesAndBars()
         {
             game = CbGame.Boot();
             yield return Frames(3);
@@ -1770,18 +1770,6 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(0.8f);
             game.TestInput = null;
             Assert.Greater(hero.x, from + 1f, "Raja did not go along the bar");
-            // the zipline: he slides down it
-            var zip = level.zips[0];
-            game.Teleport(zip.x0 + 1.5f);
-            hero.y = zip.At(zip.x0 + 1.5f) - 1.48f;
-            hero.vx = hero.vy = 0;
-            hero.state = CbHero.State.Air;
-            yield return Frames(3);
-            Assert.AreEqual(CbHero.State.Zip, hero.state, "Raja did not take hold of the zipline");
-            float x0 = hero.x, y0 = hero.y;
-            yield return new WaitForSeconds(0.5f);
-            Assert.Greater(hero.x, x0 + 1f, "Raja did not slide along the zipline");
-            Assert.Less(hero.y, y0, "Raja did not slide down the zipline");
         }
 
         [UnityTest]
@@ -1819,12 +1807,12 @@ namespace RacingGame.Tests
             Assert.IsTrue(level.GateOpen(0), "The lever did not open the gate again");
             // the stone block pushed onto the plate opens the second gate
             Assert.IsFalse(level.GateOpen(1), "The second gate stands open");
-            game.Teleport(279.5f);
+            game.Teleport(270.5f);
             game.hero.y = 0;
             game.TestInput = i => i.x = 1;
             for (float w = 0; w < 6f && !level.GateOpen(1); w += Time.deltaTime) yield return null;
             game.TestInput = null;
-            Assert.Greater(level.PushBlockX, 281f, "Raja did not push the stone block");
+            Assert.Greater(level.PushBlockX, 272f, "Raja did not push the stone block");
             Assert.IsTrue(level.GateOpen(1), "Pushing the block onto the plate did not open the second gate");
             // past the temple the path is plain ground up to the raft river (the gong and its gorge are gone)
             Assert.AreEqual(0f, level.SupportAt(306f, 1f), 0.01f, "There is still a gorge after the temple");
@@ -1839,7 +1827,7 @@ namespace RacingGame.Tests
             game.SkipFights();
             yield return Frames(2);
             // shut without the key
-            game.Teleport(440.6f);
+            game.Teleport(420.6f);
             yield return new WaitForSeconds(0.3f);
             Assert.IsFalse(game.level.ChestOpen, "The chest opened without its key");
             // the key (up in the treetops) opens it, a tiger token inside
@@ -1847,7 +1835,7 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(0.3f);
             Assert.IsTrue(game.level.ChestOpen, "The key did not open the chest");
             int tokens = game.Tokens;
-            for (float w = 0; w < 2f && game.Tokens == tokens; w += Time.deltaTime) { game.Teleport(441.5f); yield return null; }
+            for (float w = 0; w < 2f && game.Tokens == tokens; w += Time.deltaTime) { game.Teleport(421.5f); yield return null; }
             Assert.AreEqual(tokens + 1, game.Tokens, "No tiger token in the chest");
         }
     }
