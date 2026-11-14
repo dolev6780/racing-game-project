@@ -407,8 +407,9 @@ namespace Cloudborne
 
         /// <summary>
         /// The soil of a bank seen in the front cross-section, sloping from the grass at edge down into the river, out
-        /// towards the water (toWater) as it goes down, a little uneven; behind the water's see-through front, so the
-        /// water tints what is under it. The earth's picture lines up with the face's.
+        /// towards the water (toWater) as it goes down, a little uneven; in front of the water's cross-section (behind
+        /// it, it was hidden: the water's front is nearly opaque), as the earth would be in a cut through the bank. The
+        /// earth's picture lines up with the face's.
         /// </summary>
         void BankSlope(Material face, float edge, int toWater, float bottom)
         {
@@ -434,7 +435,7 @@ namespace Cloudborne
             var mesh = new Mesh { name = "bankSlope", vertices = verts, uv = uvs, triangles = tris };
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
-            CbArt.Part(mesh, new Material(face), root, new Vector3(0, 0, GroundFront - 0.011f), Vector3.one, shadows: false).name = "bankSlope";
+            CbArt.Part(mesh, new Material(face), root, new Vector3(0, 0, GroundFront - 0.015f), Vector3.one, shadows: false).name = "bankSlope";
         }
 
         // the lip: drawn a little smaller than the face, so the leaves rise only a hand's breadth over the path's edge
