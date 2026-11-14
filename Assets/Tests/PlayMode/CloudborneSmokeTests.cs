@@ -844,6 +844,8 @@ namespace RacingGame.Tests
             game.SkipFights();
             yield return Frames(2);
             var level = game.level;
+            // the banks end in mossy stones and grass, not a square cut like a block in a building game (the user)
+            Assert.Greater(level.BankStones, 20, "The river banks end in a square cut");
             // over a stream there is nothing to stand on (between two stones of the long river)...
             Assert.Less(level.SupportAt(96.3f, 1f), -1f, "There is ground in the river between the stones");
             // ...but the rope bridge's planks hold him, walked onto from the bank and sagging in the middle - all along

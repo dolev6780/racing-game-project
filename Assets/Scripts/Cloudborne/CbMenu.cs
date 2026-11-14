@@ -323,7 +323,7 @@ namespace Cloudborne
                 buy.label.color = price > 0 && CbSave.Coins >= price ? Paper : Dim;
             }
             volumeTxt.text = Mathf.RoundToInt(CbSave.Volume * 100) + "%";
-            padsTxt.text = CbSave.Pads == 0 ? "PHONES ONLY" : CbSave.Pads == 1 ? "ALWAYS" : "OFF";
+            padsTxt.text = CbSave.Pads == 0 ? "AUTO" : CbSave.Pads == 1 ? "ALWAYS" : "OFF";
             replayTxt.text = CbSave.IntroSeen ? "PLAY IT AGAIN" : "PLAYS NEXT TIME";
             resetTxt.text = resetArmed ? "SURE? TAP AGAIN" : "RESET";
         }

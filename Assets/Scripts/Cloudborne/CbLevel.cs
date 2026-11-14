@@ -146,6 +146,64 @@ namespace Cloudborne
             root.SetParent(parent, false);
             Build();
             BuildWays();
+            DressBanks();
+        }
+
+        // ---------- the river banks ----------
+
+        // Where the ground met a river it ended in a square cut, a grassy box side like a block in a building game (the
+        // user). Along each bank now, mossy river stones set into it from the front edge back to where the water comes
+        // out of the ground: under the grass where he walks (he must not walk through one), rising in front of the path
+        // and behind it, the front one round the corner; tufts of grass along the top, leaning over the water.
+        public int BankStones { get; private set; }
+
+        void DressBanks()
+        {
+            var banks = CbArt.Joint(root, 0, 0, 0, "banks");
+            var rnd = new System.Random(5);
+            float R(float a, float b) => a + (float)rnd.NextDouble() * (b - a);
+            float front = CbWorld.GroundFront;
+            foreach (var (x0, x1) in Waters)
+                foreach (var (edge, land) in new[] { (x0, -1), (x1, 1) })
+                {
+                    // a bridge's end or a rock built over the bank: its own stonework there, nothing in front of it
+                    bool bridged = Mathf.Abs(edge - RopeBridgeX) < RopeDeckHalf + 2f || Mathf.Abs(edge - StoneBridgeX) < StoneBridgeHalf + 2f;
+                    bool built = blocks.Exists(b => !b.broken && b.top > 0.3f && edge > b.x0 - 0.8f && edge < b.x1 + 0.8f);
+                    for (float z = front - 0.25f; z < WaterBack - 0.3f;)
+                    {
+                        float len = z < front ? 1.3f : R(1.3f, 1.8f), z1 = z + len;
+                        bool corner = z < front;
+                        bool path = z1 > -1.1f && z < 1.5f;
+                        if (!((bridged && z1 > -1.5f && z < 1.7f) || (built && z1 > -1.9f && z < 2.3f)))
+                        {
+                            // on the path: just under the grass; the corner and behind the path: up over it
+                            float top = corner ? R(0.22f, 0.34f) : path ? -0.04f : R(0.08f, 0.38f);
+                            float into = corner ? 0.55f : 0.35f, over = corner ? 0.7f : R(0.45f, 0.65f);
+                            var lo = new Vector3(Mathf.Min(edge + land * into, edge - land * over), WaterLevel - 0.6f, z);
+                            var hi = new Vector3(Mathf.Max(edge + land * into, edge - land * over), top, z1);
+                            var stone = Fit(RiverStonePath, banks, lo, hi);
+                            if (stone != null)
+                            {
+                                stone.name = "bankStone";
+                                BankStones++;
+                            }
+                        }
+                        z = z1 - 0.25f;
+                    }
+                    // grass along the top of the bank, in front of the path and behind it, some leaning out over the water
+                    for (int i = 0; i < 7; i++)
+                    {
+                        float z = i < 2 ? R(front + 0.05f, front + 0.4f) : R(1.7f, WaterBack - 0.2f);
+                        if ((bridged && z > -1.5f && z < 1.7f) || (built && z < 2.3f)) continue;
+                        var card = i % 3 == 2 ? CbWorld.FlowerCard(rnd.Next(5)) : CbWorld.GrassCard(rnd.Next(5));
+                        if (card == null) break;
+                        var (m, aspect) = card.Value;
+                        float h = R(0.4f, 0.7f);
+                        var at = new Vector3(edge + land * R(-0.15f, 0.35f), h * 0.46f, z);
+                        CbArt.Part(CbMesh.Quad, m, banks, at, new Vector3(h * aspect * (rnd.Next(2) == 0 ? -1 : 1), h, 1),
+                            Quaternion.Euler(0, R(-25f, 25f), land * R(0f, 12f)), shadows: false).name = "bankGrass";
+                    }
+                }
         }
 
         /// <summary>Whether x is over one of the streams (margin widens them, for keeping scenery off the water).</summary>

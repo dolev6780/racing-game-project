@@ -98,7 +98,8 @@ namespace Cloudborne
 
         // The ground is a platform, as in 2.5D side-scrollers: its grassy top at y = 0 with the path along its front
         // edge, and a front face of earth from that edge down out of view.
-        const float GroundFront = -1.7f, GroundBack = 10f, GroundDepth = 10f;
+        public const float GroundFront = -1.7f;
+        const float GroundBack = 10f, GroundDepth = 10f;
         // painted ground textures drawn in Canva; until they are in the project the speckled ones are used
         const string GroundDir = "Cloudborne/Jungle/Ground/";
         const string GroundFacePath = GroundDir + "GroundFace";
@@ -192,6 +193,15 @@ namespace Cloudborne
         {
             var tex = Resources.Load<Texture2D>(CardDir + FlowerCards[((i % FlowerCards.Length) + FlowerCards.Length) % FlowerCards.Length]);
             var m = Cutout(tex, 0f, new Color(0.9f, 0.9f, 0.9f));
+            return m != null ? (m, tex.width / (float)tex.height) : ((Material, float)?)null;
+        }
+
+        /// <summary>One of the painted grass cards (cut out, unlit) and its width over height; null if it isn't in the project.</summary>
+        public static (Material m, float aspect)? GrassCard(int i)
+        {
+            var tex = Resources.Load<Texture2D>(CardDir + GrassCards[((i % GrassCards.Length) + GrassCards.Length) % GrassCards.Length]);
+            var m = Cutout(tex, 0f, new Color(0.86f, 0.88f, 0.86f));
+            if (m != null) m.SetFloat("_Sway", CardSway);
             return m != null ? (m, tex.width / (float)tex.height) : ((Material, float)?)null;
         }
 

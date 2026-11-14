@@ -368,8 +368,11 @@ namespace Cloudborne
             if (bubble != null) bubble.gameObject.SetActive(false);
         }
 
-        /// <summary>The touch buttons: on phones, unless the settings say always or never.</summary>
-        public static bool ShowPads => CbSave.Pads == 1 || (CbSave.Pads == 0 && Application.isMobilePlatform);
+        /// <summary>
+        /// The touch buttons: on phones and in the Unity editor (to try them there with the mouse and the keyboard: the
+        /// user), unless the settings say always or never.
+        /// </summary>
+        public static bool ShowPads => CbSave.Pads == 1 || (CbSave.Pads == 0 && (Application.isMobilePlatform || Application.isEditor));
 
         /// <summary>The results: score, combo, time; tiger tokens, friends freed, stars (and a badge for no hit taken).</summary>
         public void ShowResult(bool won, int score, int maxCombo, float time, int tokens = 0, int friends = 0, int stars = 0, bool flawless = false)
