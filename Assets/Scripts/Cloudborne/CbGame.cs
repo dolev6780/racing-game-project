@@ -1317,6 +1317,10 @@ namespace Cloudborne
             ReadKeys(input, dt);
             TestControls?.Invoke(input);
             OneButtonMoves(input, dt);
+            // a move of the controls done: its hint goes for good
+            if (input.slide) hud.Did(CbHud.Hint.SwipeDown);
+            if (input.dash) hud.Did(CbHud.Hint.SwipeAcross);
+            if (input.heavy) hud.Did(CbHud.Hint.Hold);
             // a test's jumps are full jumps unless it says otherwise
             if (TestInput != null) input.jumpHeld = true;
             TestInput?.Invoke(input);

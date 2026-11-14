@@ -40,7 +40,15 @@ namespace Cloudborne
         public const float TypeSpeed = 40f;
         const float BarHeight = 46f;
         readonly List<Pad> buttons = new List<Pad>();
-        readonly Pad kiPad, sp;
+        readonly Pad kiPad, sp, atkPad;
+        // The controls' hints (text alone didn't show a phone player what a swipe was): a finger sliding down or
+        // across in the swipe area, or HOLD pulsing over ATTACK, while a tip names that move, until it is done once.
+        public enum Hint { None = 0, SwipeDown = 1, SwipeAcross = 2, Hold = 4 }
+        readonly RectTransform gesture, finger;
+        readonly Text gestureTxt, holdTxt;
+        readonly Image[] fingerImgs;
+        Hint hint;
+        float hintT;
         // the SKILL button: bamboo gold for the staff techniques, orange once it shoots fire
         static readonly Color KiPadCol = CbArt.Hex("#c48a2c"), FirePadCol = CbArt.Hex("#e8642a");
         readonly List<(RectTransform rt, Text t, float age, Vector2 from)> pops = new List<(RectTransform, Text, float, Vector2)>();
@@ -153,12 +161,22 @@ namespace Cloudborne
             // SKILL above ATTACK - KI, FIRE once Raja's fire is awake (SetBars keeps it right) - and SPECIAL above JUMP,
             // a button of its own (the user), lit when ki is high enough. The rest of the right side takes swipes:
             // down a slide, across a dodge.
-            AddPad("atk", "ATTACK", new Vector2(-14 - 52, 12 + 52), 104, CbArt.Hex("#d8453f"), 17);
+            atkPad = AddPad("atk", "ATTACK", new Vector2(-14 - 52, 12 + 52), 104, CbArt.Hex("#d8453f"), 17);
             AddPad("jump", "JUMP", new Vector2(-14 - 124 - 44, 12 + 44), 88, CbArt.Hex("#3aa862"), 17);
             kiPad = AddPad("ki", "KI", new Vector2(-14 - 40 - 38, 12 + 124 + 38), 76, KiPadCol, 15);
             sp = AddPad("sp", "SPECIAL", new Vector2(-14 - 150 - 34, 12 + 112 + 34), 68, CbArt.Hex("#b8401f"), 12);
             UIKit.Label(pads, "SWIPE  ↓ slide   ↔ dodge", 13, new Color(1, 1, 1, 0.55f), new Vector2(1, 0), new Vector2(1, 0),
                 new Vector2(-14, 12 + 214), new Vector2(260, 20), TextAnchor.MiddleRight, true);
+            // the hints: a finger in the swipe area over the buttons, HOLD over ATTACK
+            gesture = UIKit.Rect(pads, "gesture", new Vector2(1, 0), new Vector2(0.5f, 0.5f), new Vector2(-170, 330), new Vector2(160, 160));
+            gestureTxt = UIKit.Label(gesture, "", 15, Gold, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, -24), new Vector2(200, 22), TextAnchor.MiddleCenter, true);
+            finger = UIKit.Rect(gesture, "finger", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(44, 44));
+            UIKit.Image(finger, UIKit.Circle, new Color(1, 1, 1, 0.85f));
+            UIKit.Image(UIKit.Rect(finger, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(44, 44)), UIKit.Ring, Gold);
+            fingerImgs = finger.GetComponentsInChildren<Image>();
+            gesture.gameObject.SetActive(false);
+            holdTxt = UIKit.Label(atkPad.rt, "HOLD", 14, Gold, new Vector2(0.5f, 1), new Vector2(0.5f, 0), new Vector2(0, 6), new Vector2(120, 20), TextAnchor.MiddleCenter, true);
+            holdTxt.gameObject.SetActive(false);
 
             // cinematics: black bars that slide in at the top and bottom, a speech box over the lower one, SKIP
             barTop = UIKit.Rect(root, "barTop", new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(4000, 0));
@@ -385,7 +403,41 @@ namespace Cloudborne
         }
 
         public void SetWave(string s) => waveTxt.text = s;
-        public void SetTip(string s) { tipTxt.text = s; tipTxt.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(s)); }
+        public void SetTip(string s)
+        {
+            tipTxt.text = s;
+            tipTxt.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(s));
+            // a tip naming a move of the controls shows its hint, until it has been done once
+            var want = Hint.None;
+            if (!string.IsNullOrEmpty(s))
+            {
+                string low = s.ToLowerInvariant();
+                if (low.Contains("swipe ↓")) want = Hint.SwipeDown;
+                else if (low.Contains("swipe ↔")) want = Hint.SwipeAcross;
+                else if (low.Contains("hold <color=#ffb03a>attack") || low.Contains("hold it for the staff") || low.Contains("holding <color=#ffb03a>attack")) want = Hint.Hold;
+            }
+            if (want != Hint.None && (CbSave.Learned & (int)want) != 0) want = Hint.None;
+            ShowHint(want);
+        }
+
+        /// <summary>The hint shown now.</summary>
+        public Hint ShownHint => hint;
+
+        void ShowHint(Hint h)
+        {
+            hint = ShowPads ? h : Hint.None;
+            hintT = 0;
+            gesture.gameObject.SetActive(hint == Hint.SwipeDown || hint == Hint.SwipeAcross);
+            holdTxt.gameObject.SetActive(hint == Hint.Hold);
+            gestureTxt.text = hint == Hint.SwipeDown ? "SWIPE ↓" : hint == Hint.SwipeAcross ? "SWIPE ↔" : "";
+        }
+
+        /// <summary>The player did a move of the controls: its hint goes, for good.</summary>
+        public void Did(Hint h)
+        {
+            if ((CbSave.Learned & (int)h) == 0) CbSave.Learned |= (int)h;
+            if (hint == h) ShowHint(Hint.None);
+        }
         public void ShowGo(bool on) => goTxt.gameObject.SetActive(on);
 
         public void SetBars(float hp, float ki)
@@ -604,6 +656,17 @@ namespace Cloudborne
         /// <summary>Animates popups, banners and flashes. Unscaled time, so it keeps moving during hit-stop.</summary>
         public void Tick(float dt)
         {
+            // the hints: the finger slides down (or across and back), fading in and out; HOLD pulses
+            if (hint != Hint.None)
+            {
+                hintT += dt;
+                float u = Mathf.Repeat(hintT, 1.3f) / 1.3f, k = Mathf.Clamp01(u / 0.75f);
+                float fade = Mathf.Sin(Mathf.Clamp01(u / 0.85f) * Mathf.PI);
+                if (hint == Hint.SwipeDown) finger.anchoredPosition = new Vector2(0, Mathf.Lerp(55, -55, k * k * (3 - 2 * k)));
+                else if (hint == Hint.SwipeAcross) finger.anchoredPosition = new Vector2(Mathf.Lerp(-60, 60, k * k * (3 - 2 * k)) * (Mathf.Repeat(hintT, 2.6f) < 1.3f ? 1 : -1), 0);
+                foreach (var img in fingerImgs) { var c = img.color; c.a = 0.85f * fade; img.color = c; }
+                holdTxt.transform.localScale = Vector3.one * (1f + 0.15f * Mathf.Sin(hintT * 6f));
+            }
             for (int i = pops.Count - 1; i >= 0; i--)
             {
                 var p = pops[i];

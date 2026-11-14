@@ -975,6 +975,10 @@ namespace RacingGame.Tests
             for (float w = 0; w < 0.2f; w += Time.deltaTime) { dodged |= hero.state == CbHero.State.Dash && hero.facing == -1; yield return null; }
             Assert.IsTrue(dodged, "A swipe to the left did not dodge to the left");
             yield return Settle();
+            // a tip naming a swipe shows its hint (a finger sliding) until it is done once
+            CbSave.Learned = 0;
+            game.hud.SetTip("A fallen trunk! <color=#ffb03a>Swipe ↓</color> to slide under it");
+            if (CbHud.ShowPads) Assert.AreEqual(CbHud.Hint.SwipeDown, game.hud.ShownHint, "No hint for the swipe down");
             // a swipe down at the fallen trunk: he slides under it and crawls out the far side by himself
             float trunk = CbLevel.TrunkX;
             game.Teleport(trunk - 3f);
@@ -986,6 +990,9 @@ namespace RacingGame.Tests
             game.TestControls = i => { i.x = 1; i.slide = first; first = false; };
             for (float w = 0; w < 5f && hero.x < trunk + 1.2f; w += Time.deltaTime) { slid |= hero.state == CbHero.State.Slide; yield return null; }
             Assert.IsTrue(slid, "A swipe down did not slide");
+            Assert.AreEqual(CbHud.Hint.None, game.hud.ShownHint, "The swipe's hint stays after the swipe");
+            game.hud.SetTip("<color=#ffb03a>Swipe ↓</color> again");
+            Assert.AreEqual(CbHud.Hint.None, game.hud.ShownHint, "The swipe's hint comes back once it was learned");
             Assert.Greater(hero.x, trunk + 1.2f, "Raja did not get under the fallen trunk with a swipe down");
             yield return Settle();
             // pushing into the vine-grown pillar: he takes hold and climbs

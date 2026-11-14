@@ -108,6 +108,17 @@ namespace Cloudborne
             set { PlayerPrefs.SetFloat(VolumeKey, Mathf.Clamp01(value)); PlayerPrefs.Save(); AudioListener.volume = Volume; }
         }
 
+        /// <summary>
+        /// Which of the controls' moves the player has done once (bit 1: a swipe down, 2: a swipe across, 4: ATTACK
+        /// held): their animated hint isn't shown again.
+        /// </summary>
+        public static int Learned
+        {
+            get => PlayerPrefs.GetInt(LearnedKey, 0);
+            set { PlayerPrefs.SetInt(LearnedKey, value); PlayerPrefs.Save(); }
+        }
+        const string LearnedKey = "cb_learned";
+
         /// <summary>The touch buttons: 0 shown on phones only (auto), 1 always, 2 never (a controller).</summary>
         public static int Pads
         {
@@ -121,6 +132,7 @@ namespace Cloudborne
             PlayerPrefs.DeleteKey(CbItems.BankKey);
             PlayerPrefs.DeleteKey(IntroKey);
             PlayerPrefs.DeleteKey(FireKey);
+            PlayerPrefs.DeleteKey(LearnedKey);
             fireAwake = 0;
             foreach (var u in Upgrades) PlayerPrefs.DeleteKey(UpgradePrefix + u.id);
             foreach (var s in CbMenu.Stages)
