@@ -153,8 +153,11 @@ namespace Cloudborne
                         Object.Destroy(piece.gameObject);
                         return false;
                     }
-                    // one of its four sides to the camera: mirrored across, front to back, or both (turned round)
+                    // one of its four sides to the camera: mirrored across, front to back, or both (turned round) - a
+                    // top stone only across: fitted to where he walks on it, turned front to back its top under his
+                    // feet would be another
                     int side = rng.Next(4);
+                    if (topRow) side &= 1;
                     bool flipX = (side & 1) == 1, flipZ = (side & 2) == 2;
                     piece.localScale = new Vector3(flipX ? -1 : 1, 1, flipZ ? -1 : 1);
                     piece.localPosition = new Vector3(flipX ? a + b : 0, 0, flipZ ? zFront + dz + zBack : 0);

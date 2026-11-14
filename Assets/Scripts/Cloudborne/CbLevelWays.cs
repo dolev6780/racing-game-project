@@ -433,7 +433,9 @@ namespace Cloudborne
         void AddThorns(float x)
         {
             var t = CbArt.Joint(root, x, 0, 0f, "thorns");
-            if (Model("Thorns", t, new Vector3(1.45f, 2.6f, 1.05f), 180f) == null)
+            // (drawn taller than its box: its spikes stick up above where he would stand on it, 2.4, which is what
+            // its top along his line reaches this way - he stood in the air over it: the test that measures it)
+            if (Model("Thorns", t, new Vector3(1.45f, 2.97f, 1.05f), 180f) == null)
             for (int k = 0; k < 5; k++)
             {
                 float s = Random.Range(0.45f, 0.7f);
@@ -483,7 +485,8 @@ namespace Cloudborne
             // the model: a guardian's head on a pillar, its open mouth turned towards the way Raja comes
             if (Model("Statue", t, new Vector3(0.79f, 1.9f, 0.81f), -110f) != null)
             {
-                blocks.Add(new Block { x0 = StatueX - 0.42f, x1 = StatueX + 0.42f, top = 1.9f, t = t, smooth = true });
+                // he stands on its head, a little below the top of its outline (he stood in the air: the standing test)
+                blocks.Add(new Block { x0 = StatueX - 0.42f, x1 = StatueX + 0.42f, top = 1.55f, t = t, smooth = true });
                 return;
             }
             CbArt.Box(StoneGrey, t, new Vector3(0, 0.6f, 0), new Vector3(0.9f, 1.2f, 0.9f));
@@ -574,6 +577,8 @@ namespace Cloudborne
         /// <summary>How far along the path the end gate reaches from its middle, where it crosses his line (the half of its thickness, slanted).</summary>
         static float EndGateHalf => 1.24f * EndGateScale / 2 / Mathf.Sin(EndGateTurn * Mathf.Deg2Rad);
 
+        const float GateWall = 4.4f;
+
         void AddGate(float x)
         {
             var t = CbArt.Joint(root, x, 0, 0f, "gate");
@@ -584,7 +589,9 @@ namespace Cloudborne
             var model = Model("Gate", t, new Vector3(3.45f, 3.6f, 1.24f), 0f);
             if (model != null)
             {
-                var mb = new Block { x0 = x - 0.4f, x1 = x + 0.4f, top = 3.6f, t = t, smooth = true };
+                // higher than he can jump (3.9 m with both jumps): never stood on, so never in the air over its bars,
+                // which reach 3.1 where he would have stood (the standing test), and never jumped over
+                var mb = new Block { x0 = x - 0.4f, x1 = x + 0.4f, top = GateWall, t = t, smooth = true, noTop = true };
                 blocks.Add(mb);
                 gates.Add(new Gate { b = mb, home = t.localPosition, sinks = true });
                 return;

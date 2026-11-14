@@ -36,6 +36,8 @@ namespace Cloudborne
             // a rock jutting from the gorge's back wall stands clear of the ground: nothing under its bottom
             public float bottom;
             public int vines;
+            // too high to be stood on (a gate): left out of the standing test
+            public bool noTop;
         }
 
         class Ledge
@@ -161,7 +163,7 @@ namespace Cloudborne
         public List<(float x0, float x1, float top, Transform t)> Standables()
         {
             var list = new List<(float, float, float, Transform)>();
-            foreach (var b in blocks) if (!b.broken && b.t != null) list.Add((b.x0, b.x1, b.top, b.t));
+            foreach (var b in blocks) if (!b.broken && !b.noTop && b.t != null) list.Add((b.x0, b.x1, b.top, b.t));
             foreach (var l in ledges) if (!l.gone && l.t != null) list.Add((l.x0, l.x1, l.top, l.t));
             return list;
         }
@@ -540,7 +542,10 @@ namespace Cloudborne
         {
             var holder = Fit(path, parent, lo, hi);
             if (holder == null) return null;
-            float k = TopShare(path, holder);
+            // along the line he walks if the box is across it (the outline seen from the front ran higher than the
+            // rock under his feet where its top was domed or peaked behind him, and he stood in the air over it: the
+            // user, and the test that measures it), else the outline
+            float k = WalkShare(path, holder) ?? TopShare(path, holder);
             if (k >= 0.999f) return holder;
             // stretched upwards from lo.y: the outline's average top (k of its height) lands at hi.y
             var s = holder.localScale;
@@ -553,6 +558,70 @@ namespace Cloudborne
         }
 
         static readonly Dictionary<string, float> TopShares = new Dictionary<string, float>();
+
+        /// <summary>
+        /// How far up its height a fitted model's top runs (0..1) along the line he walks (z = 0), and just in front of
+        /// it: straight down onto its triangles in a row of narrow slices across it, the middle value of the middle
+        /// ones. Null if that line misses the model or its meshes can't be read.
+        /// </summary>
+        static float? WalkShare(string path, Transform holder)
+        {
+            var tris = new List<Vector3>();
+            float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue;
+            foreach (var mf in holder.GetComponentsInChildren<MeshFilter>())
+            {
+                var mesh = mf.sharedMesh;
+                if (mesh == null || !mesh.isReadable) return null;
+                var vs = mesh.vertices;
+                var w = new Vector3[vs.Length];
+                for (int i = 0; i < vs.Length; i++)
+                {
+                    var q = holder.InverseTransformPoint(mf.transform.TransformPoint(vs[i]));
+                    w[i] = q;
+                    minX = Mathf.Min(minX, q.x); maxX = Mathf.Max(maxX, q.x);
+                    minY = Mathf.Min(minY, q.y); maxY = Mathf.Max(maxY, q.y);
+                    minZ = Mathf.Min(minZ, q.z); maxZ = Mathf.Max(maxZ, q.z);
+                }
+                foreach (var ix in mesh.triangles) tris.Add(w[ix]);
+            }
+            if (tris.Count == 0 || maxX <= minX || maxY <= minY) return null;
+            // where z = 0 runs through the model, in its own units
+            var walk = holder.InverseTransformPoint(new Vector3(holder.position.x, 0, 0));
+            float zl = walk.z, front = 0.2f / Mathf.Max(0.01f, Mathf.Abs(holder.lossyScale.z));
+            if (zl < minZ || zl > maxZ) return null;
+            string key = path + "@" + Mathf.RoundToInt((zl - minZ) / (maxZ - minZ) * 20f);
+            if (TopShares.TryGetValue(key, out float cached)) return cached;
+            float Down(float x, float z)
+            {
+                float best = float.MinValue;
+                for (int t = 0; t + 2 < tris.Count; t += 3)
+                {
+                    Vector3 p = tris[t], q = tris[t + 1], r = tris[t + 2];
+                    if (x < Mathf.Min(p.x, q.x, r.x) || x > Mathf.Max(p.x, q.x, r.x) || z < Mathf.Min(p.z, q.z, r.z) || z > Mathf.Max(p.z, q.z, r.z)) continue;
+                    float d = (q.z - r.z) * (p.x - r.x) + (r.x - q.x) * (p.z - r.z);
+                    if (Mathf.Abs(d) < 1e-12f) continue;
+                    float l1 = ((q.z - r.z) * (x - r.x) + (r.x - q.x) * (z - r.z)) / d;
+                    float l2 = ((r.z - p.z) * (x - r.x) + (p.x - r.x) * (z - r.z)) / d;
+                    float l3 = 1 - l1 - l2;
+                    if (l1 < -1e-4f || l2 < -1e-4f || l3 < -1e-4f) continue;
+                    best = Mathf.Max(best, l1 * p.y + l2 * q.y + l3 * r.y);
+                }
+                return best;
+            }
+            const int Slices = 16;
+            var tops = new List<float>();
+            for (int i = 2; i < Slices - 2; i++)
+            {
+                float x = Mathf.Lerp(minX, maxX, (i + 0.5f) / Slices);
+                float y = Mathf.Max(Down(x, zl), Down(x, zl - front));
+                if (y > float.MinValue) tops.Add(y);
+            }
+            if (tops.Count < 4) return null;
+            tops.Sort();
+            float k = Mathf.Clamp((tops[tops.Count / 2] - minY) / (maxY - minY), 0.4f, 1f);
+            TopShares[key] = k;
+            return k;
+        }
 
         /// <summary>
         /// How far up its height a model's outline seen from the front runs on average (0..1): the highest point of
