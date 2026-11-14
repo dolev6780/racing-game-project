@@ -441,21 +441,18 @@ namespace Cloudborne
             if (haze != null) haze.SetFloat("_Cutoff", 0f);
             else haze = CbArt.Toon("#1c3326");
             var mist = CbArt.Glow(new Color(0.75f, 0.85f, 0.8f, 0.25f), CbArt.Mist);
-            float back = CbLevel.WaterBack;
             foreach (var (x0, x1) in CbLevel.Waters)
             {
                 float w = x1 - x0, c = (x0 + x1) / 2;
-                // (a floor near the top read as a green pond: it lies deep, dark, under a thin mist)
+                // (a floor near the top read as a green pond: it lies deep, dark, under a thin mist, all the way back -
+                // the grass behind the gap read as a lawn going on: the CI's pictures)
+                const float Far = 40f;
                 CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -6f, GroundFront - 0.012f), new Vector3(w + 0.1f, 12f, 1), shadows: false).name = "dropFront";
-                CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -11f, (GroundFront + back) / 2), new Vector3(w + 0.1f, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropFloor";
-                CbArt.Part(CbMesh.Quad, mist, root, new Vector3(c, -2.5f, (GroundFront + back) / 2), new Vector3(w * 1.2f, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropMist";
+                CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -11f, (GroundFront + Far) / 2), new Vector3(w + 0.1f, Far - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropFloor";
+                CbArt.Part(CbMesh.Quad, mist, root, new Vector3(c, -2.5f, (GroundFront + Far) / 2), new Vector3(w * 1.2f, Far - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropMist";
                 // the boughs' ends: the soil rounding down into the gap from each side
                 BankSlope(face, x0, 1, -3.5f);
                 BankSlope(face, x1, -1, -3.5f);
-                // behind the gap the canopy goes on
-                var grass = GrassMaterial();
-                grass.mainTextureScale = new Vector2(w / GrassTile, (GroundBack - back) / GrassTile);
-                CbArt.Box(grass, root, new Vector3(c, -GroundDepth / 2, (back + GroundBack) / 2), new Vector3(w, GroundDepth, GroundBack - back));
             }
         }
 
