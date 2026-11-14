@@ -977,7 +977,7 @@ namespace Cloudborne
                 {
                     CbFx.Spark(at, CbFx.Grey, 6, 4, 0.3f, 0.25f, 4);
                     CbFx.Sfx("block", 0.7f);
-                    g.hud.SetTip("Cracked stone: break it with the staff (<color=#ffb03a>HEAVY</color>)");
+                    g.hud.SetTip("Cracked stone: break it with the staff (hold <color=#ffb03a>ATTACK</color>)");
                     return true;
                 }
                 b.hp--;
@@ -1030,7 +1030,7 @@ namespace Cloudborne
             if (!climbTold && hero.x > MountainFrom - 5f && hero.x < MountainFrom)
             {
                 climbTold = true;
-                g.hud.SetTip("A low gap under the cliff: run and press <color=#ffb03a>↓</color> to slide through, or hold <color=#ffb03a>↓</color> to crawl");
+                g.hud.SetTip("A low gap under the cliff: <color=#ffb03a>swipe ↓</color> to slide through");
             }
             UpdateCrossings(dt, hero);
             UpdateGorge(dt, hero);

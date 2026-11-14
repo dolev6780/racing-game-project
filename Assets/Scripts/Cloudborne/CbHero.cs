@@ -3,18 +3,25 @@ using UnityEngine;
 
 namespace Cloudborne
 {
-    /// <summary>One frame of player input: stick, edges (pressed this frame) and holds.</summary>
+    /// <summary>
+    /// One frame of player input: stick, edges (pressed this frame) and holds. What he does, not which button: the
+    /// controls (CbHud, CbGame.ReadKeys) are three buttons and two swipes - JUMP; ATTACK (tapped: atk, the combo; held:
+    /// heavy, the staff); SKILL (kiTap: KI, FIRE once his fire is awake; with ki full: skill, SPECIAL); a swipe down:
+    /// slide; a swipe across: dash (a dodge) that way. (Seven buttons and their combinations were too much on a phone:
+    /// the user.) guard and y (duck, sweep, launcher) are on no control now; the hero still knows them.
+    /// </summary>
     public class CbInput
     {
         public float x, y;                 // stick, y > 0 is up
-        // atk: HIT (light), heavy: HEAVY (the staff), kiTap: KI (FIRE once his fire is awake), skill: SPECIAL
-        public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm, menu;
+        public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm, menu, slide;
         public bool atkDown, heavyDown, guard, jumpHeld;   // held
+        // a dodge swiped one way: the way it goes (0: the way he is going or facing)
+        public int dashDir;
         // the way he runs pressed twice (CbGame): he sprints until it is let go
         public bool sprint;
         public float atkHeldT, heavyHeldT;
 
-        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = menu = false; }
+        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = menu = slide = false; dashDir = 0; }
     }
 
     /// <summary>
@@ -118,6 +125,8 @@ namespace Cloudborne
         /// <summary>How tall he is now: low ducking, crawling or sliding (under a low passage), else standing.</summary>
         public float Height => state == State.Slide || (crouching && !air) ? CbLevel.LowHeight : CbLevel.StandHeight;
         public bool Guarding => state == State.Guard;
+        /// <summary>Off the ground (jumping, falling).</summary>
+        public bool InAir => air;
         /// <summary>Which blow of the HIT combo is out (0 to 3, 4 the sweep).</summary>
         public int Combo => combo;
         /// <summary>Hanging from an edge (his weight on it: a crumbling ledge gives way).</summary>
@@ -689,9 +698,10 @@ namespace Cloudborne
                     break;
             }
 
-            // down at a run: a slide
+            // a swipe down: a slide (from a stand too); down at a run: a slide
             bool downNow = input.y < -0.5f;
-            if (!air && state == State.Run && downNow && !downBefore && Mathf.Abs(vx) > SlideFrom) StartSlide();
+            if (!air && (state == State.Run || state == State.Idle) && input.slide) StartSlide();
+            else if (!air && state == State.Run && downNow && !downBefore && Mathf.Abs(vx) > SlideFrom) StartSlide();
             downBefore = downNow;
             bool free = state == State.Idle || state == State.Run || state == State.Air;
             if (free)
@@ -730,7 +740,8 @@ namespace Cloudborne
                 }
                 if (input.dash && dashCd <= 0 && !(air && airDashed))
                 {
-                    if (Mathf.Abs(input.x) > 0.2f) facing = input.x > 0 ? 1 : -1;
+                    if (input.dashDir != 0) facing = input.dashDir;
+                    else if (Mathf.Abs(input.x) > 0.2f) facing = input.x > 0 ? 1 : -1;
                     state = State.Dash; t = 0; vx = facing * 16; dashCd = 0.35f; sinceDash = 0; ghostT = 0;
                     g.hud.SpeedLines(0.4f, 0.25f);
                     if (air) airDashed = true;
@@ -1068,6 +1079,8 @@ namespace Cloudborne
                 pose.lean = 0.38f; pose.hLx = -0.8f; pose.kL = 0.45f; pose.hRx = 0.55f; pose.kR = 0.3f; pose.bob = -0.14f;
                 if (u > 0.42f && u < 0.6f && Random.value < 0.8f) CbFx.Spark(new Vector3(x + facing * Random.Range(0.6f, 1.4f), y + Random.Range(0.9f, 1.9f), -0.5f), CbFx.Hit, 1, 1, 0.25f, 0.15f, 0);
             }
+            // ATTACK held through a strike (a blow landing holds it up): the staff follows it
+            if (u > 0.6f && heavyBuffer > 0 && !air) { heavyBuffer = 0; combo = 0; StartStaff(Move.Smash); return; }
             if (u >= 1)
             {
                 if (buffer > 0 && combo < 3 && (!air || airHits < 3)) StartPaw(combo + 1);

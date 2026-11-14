@@ -60,19 +60,19 @@ namespace Cloudborne
         static readonly (float x, int tip, string text)[] Tips =
         {
             (17f, 1, null),
-            (21f, -1, "A fallen trunk! Run and press <color=#ffb03a>↓</color> to slide under it, or hold <color=#ffb03a>↓</color> to crawl"),
+            (21f, -1, "A fallen trunk! <color=#ffb03a>Swipe ↓</color> to slide under it"),
             (29f, -1, "Soldiers on the rope bridge!"),
             (57f, 3, null), (66f, 2, null),
             (97f, -1, "They wait on the bank - knock them back into the river!"),
             (179f, -1, "Another fallen trunk, thorns on top: slide under it"),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
-            (241f, -1, "The old temple: thorns need the staff, duck <color=#ffb03a>↓</color> the darts"),
+            (241f, -1, "The old temple: thorns need the staff (hold <color=#ffb03a>ATTACK</color>), slide under the darts (<color=#ffb03a>swipe ↓</color>)"),
             (300f, -1, "A monkey in a cage! Break it open and set it free"),
             (316f, -1, "Ride the rafts down the river - jump off before they sink"),
-            (374f, -1, "Climb the vines (hold <color=#ffb03a>↑</color>), ride the wind up to the treetops"),
+            (374f, -1, "Climb the vines (push into them), ride the wind up to the treetops"),
             (412f, -1, "Climb the vines up the cliff. Something glints behind the waterfall..."),
             (444f, 4, null),
-            (449f, -1, "A spear thrower! Crawl under the trunk - his spears fly over you"),
+            (449f, -1, "A spear thrower! Slide under the trunk (<color=#ffb03a>swipe ↓</color>) - his spears fly over you"),
             (483f, -1, "The old stone bridge - the shrine gate lies beyond it"),
             (514f, -1, "Sergeant Snap waits at the shrine gate"),
         };
@@ -90,14 +90,14 @@ namespace Cloudborne
         {
             switch (i)
             {
-                case 0: return "Tap <color=#ffb03a>HIT</color> four times for a combo, <color=#ffb03a>HEAVY</color> for the staff";
-                case 1: return "Hold <color=#ffb03a>HEAVY</color> to whirl the staff. Hold <color=#ffb03a>GUARD</color> to block";
+                case 0: return "Tap <color=#ffb03a>ATTACK</color> for a combo, hold it for the staff";
+                case 1: return "Keep holding <color=#ffb03a>ATTACK</color> to whirl the staff. <color=#ffb03a>Swipe ↔</color> to dodge a blow";
                 case 2:
                     return CbSave.FireAwake
-                        ? "<color=#ffb03a>FIRE</color> shoots a fireball. Duck under a slash with <color=#ffb03a>↓</color>"
-                        : "<color=#ffb03a>KI</color>: a staff lunge. <color=#ffb03a>HIT, HIT, KI</color>: the staff cyclone. Duck with <color=#ffb03a>↓</color>";
-                case 3: return "Shields stop paws. Use the staff: <color=#ffb03a>HEAVY</color>, <color=#ffb03a>↑ + HEAVY</color> or <color=#ffb03a>DASH → HEAVY</color>";
-                default: return "<color=#ffb03a>DASH</color> just before a blow lands: slow motion, double damage. <color=#ffb03a>SPECIAL</color> when ki is high";
+                        ? "<color=#ffb03a>FIRE</color> shoots a fireball. When ki is full it becomes your <color=#ffb03a>SPECIAL</color>"
+                        : "<color=#ffb03a>KI</color>: a staff lunge. When ki is full it becomes your <color=#ffb03a>SPECIAL</color>";
+                case 3: return "Shields stop paws: hold <color=#ffb03a>ATTACK</color> for the staff";
+                default: return "<color=#ffb03a>Swipe ↔</color> just before a blow lands: slow motion, double damage";
             }
         }
 
@@ -422,7 +422,7 @@ namespace Cloudborne
             CbSave.IntroSeen = true;
             hud.SetWave("Chase the raiders");
             hud.SetTip(CbSave.FireAwake ? "<color=#ffb03a>FIRE</color> shoots a fireball"
-                : "No powers, only the staff: <color=#ffb03a>KI</color> for staff techniques, <color=#ffb03a>SPECIAL</color> when ki is high");
+                : "No powers, only the staff: <color=#ffb03a>KI</color> for staff techniques, <color=#ffb03a>SPECIAL</color> when ki is full");
             hud.Banner("SAVE KODA!");
         }
 
@@ -446,7 +446,7 @@ namespace Cloudborne
             arenaFoes.Add(boss);
             hud.ShowBoss("SGT. SNAP");
             hud.SetWave("Defeat Sergeant Snap");
-            hud.SetTip("<color=#ffb03a>GUARD</color> his three blows, then strike. Purple flash: get away! A <color=#ffb03a>KI</color> move stops his whistle");
+            hud.SetTip("<color=#ffb03a>Swipe ↔</color> to dodge his three blows, then strike. Purple flash: get away! A <color=#ffb03a>KI</color> move stops his whistle");
             hud.Banner("SGT. SNAP!");
         }
 
@@ -1210,7 +1210,7 @@ namespace Cloudborne
                     if (enemies[i].Update(edt)) { enemies[i].f.Destroy(); enemies.RemoveAt(i); }
                 UpdateShots(dt);
                 if (mode == Mode.Play) { UpdateFlow(dt); items.Update(dt, hero, cam); level.Update(dt, hero); }
-                hud.SetBars(hero.hp / hero.MaxHp * 100f, hero.ki);
+                hud.SetBars(hero.hp / hero.MaxHp * 100f, hero.ki, SkillIsSpecial);
                 if (score != lastScore) { lastScore = score; hud.SetScore(score); }
                 if (mode == Mode.Over)
                 {
@@ -1281,6 +1281,8 @@ namespace Cloudborne
             input.atkDown = input.heavyDown = input.guard = input.jumpHeld = false;
             hud.ReadTouch(input, dt);
             ReadKeys(input, dt);
+            TestControls?.Invoke(input);
+            OneButtonMoves(input, dt);
             // a test's jumps are full jumps unless it says otherwise
             if (TestInput != null) input.jumpHeld = true;
             TestInput?.Invoke(input);
@@ -1288,7 +1290,7 @@ namespace Cloudborne
             if (exiting)
             {
                 input.x = 0.55f; input.y = 0;
-                input.jump = input.atk = input.heavy = input.dash = input.skill = input.kiTap = false;
+                input.jump = input.atk = input.heavy = input.dash = input.skill = input.kiTap = input.slide = false;
                 input.atkDown = input.heavyDown = input.guard = input.jumpHeld = input.sprint = false;
             }
             // how long HIT has been held since its last press (HIT, HIT, hold = staff whirl)
@@ -1304,6 +1306,32 @@ namespace Cloudborne
             input.y = Mathf.Clamp(input.y, -1, 1);
             ReadSprint(input);
         }
+
+        // ATTACK held past HoldHeavy is the staff (HEAVY): the smash, and held on, the whirl. One button for both (the
+        // user: too many buttons on a phone).
+        const float HoldHeavy = 0.28f;
+        float attackHold;
+        bool holdFired;
+
+        /// <summary>
+        /// The moves that share a control: ATTACK held is the staff; SKILL with ki full, on the ground, is the special.
+        /// (Before a test's own input, which says the move itself.)
+        /// </summary>
+        void OneButtonMoves(CbInput inp, float dt)
+        {
+            if (inp.atk) { attackHold = 0; holdFired = false; }
+            else if (inp.atkDown) attackHold += dt;
+            else { attackHold = 0; holdFired = false; }
+            if (inp.atkDown && attackHold >= HoldHeavy)
+            {
+                if (!holdFired) { inp.heavy = true; holdFired = true; }
+                inp.heavyDown = true;
+            }
+            if (inp.kiTap && SkillIsSpecial) { inp.kiTap = false; inp.skill = true; }
+        }
+
+        /// <summary>SKILL is the special now: ki full, on the ground (the button says so).</summary>
+        public bool SkillIsSpecial => hero != null && CbHero.SpecialUnlocked && hero.ki >= 99.5f && !hero.InAir;
 
         // a press is the stick pushed past SprintPress (a light push only walks); pressed again the same way within
         // SprintTap of letting go, he sprints until it is let go
@@ -1331,7 +1359,17 @@ namespace Cloudborne
 
         /// <summary>Test hook: edits the input every frame after touch and keyboard are read.</summary>
         public System.Action<CbInput> TestInput;
+        /// <summary>Test hook: presses the controls themselves (ATTACK held, SKILL), before they are read as moves.</summary>
+        public System.Action<CbInput> TestControls;
 
+        // a pad's stick (or its d-pad) pushed down: a slide, once per push
+        bool padDown;
+
+        /// <summary>
+        /// The keyboard and a pad, laid out like the phone's controls: move, JUMP, ATTACK (held: the staff), SKILL, a
+        /// dodge, and down for a slide (the swipe down). Keyboard: A/D or arrows, Space, J or Z, K or X, L or Shift or
+        /// C, S or down.
+        /// </summary>
         void ReadKeys(CbInput inp, float dt)
         {
 #if ENABLE_INPUT_SYSTEM
@@ -1340,18 +1378,13 @@ namespace Cloudborne
             {
                 if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) inp.x -= 1;
                 if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) inp.x += 1;
-                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) inp.y += 1;
-                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) inp.y -= 1;
+                if (kb.sKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame) inp.slide = true;
                 if (kb.spaceKey.wasPressedThisFrame) inp.jump = true;
                 if (kb.spaceKey.isPressed) inp.jumpHeld = true;
                 if (kb.jKey.wasPressedThisFrame || kb.zKey.wasPressedThisFrame) inp.atk = true;
                 if (kb.jKey.isPressed || kb.zKey.isPressed) inp.atkDown = true;
-                if (kb.kKey.wasPressedThisFrame || kb.xKey.wasPressedThisFrame) inp.heavy = true;
-                if (kb.kKey.isPressed || kb.xKey.isPressed) inp.heavyDown = true;
-                if (kb.lKey.wasPressedThisFrame || kb.leftShiftKey.wasPressedThisFrame) inp.dash = true;
-                if (kb.oKey.isPressed || kb.cKey.isPressed) inp.guard = true;
-                if (kb.uKey.wasPressedThisFrame || kb.fKey.wasPressedThisFrame) inp.kiTap = true;
-                if (kb.iKey.wasPressedThisFrame || kb.vKey.wasPressedThisFrame) inp.skill = true;
+                if (kb.kKey.wasPressedThisFrame || kb.xKey.wasPressedThisFrame) inp.kiTap = true;
+                if (kb.lKey.wasPressedThisFrame || kb.leftShiftKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) inp.dash = true;
                 if (kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame) inp.pause = true;
                 if (kb.mKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame) inp.menu = true;
                 if (kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame) inp.confirm = true;
@@ -1361,37 +1394,30 @@ namespace Cloudborne
             {
                 var s = pad.leftStick.ReadValue();
                 if (Mathf.Abs(s.x) > 0.2f) inp.x += s.x;
-                if (Mathf.Abs(s.y) > 0.4f) inp.y += s.y;
                 if (pad.dpad.left.isPressed) inp.x -= 1;
                 if (pad.dpad.right.isPressed) inp.x += 1;
+                bool down = s.y < -0.6f || pad.dpad.down.isPressed;
+                if (down && !padDown) inp.slide = true;
+                padDown = down;
                 if (pad.buttonSouth.wasPressedThisFrame) { inp.jump = true; inp.confirm = true; }
                 if (pad.buttonSouth.isPressed) inp.jumpHeld = true;
                 if (pad.buttonWest.wasPressedThisFrame) inp.atk = true;
                 if (pad.buttonWest.isPressed) inp.atkDown = true;
-                if (pad.buttonNorth.wasPressedThisFrame) inp.heavy = true;
-                if (pad.buttonNorth.isPressed) inp.heavyDown = true;
-                if (pad.buttonEast.wasPressedThisFrame) inp.dash = true;
-                if (pad.leftShoulder.isPressed) inp.guard = true;
-                if (pad.rightTrigger.wasPressedThisFrame) inp.kiTap = true;
-                if (pad.rightShoulder.wasPressedThisFrame) inp.skill = true;
+                if (pad.buttonNorth.wasPressedThisFrame) inp.kiTap = true;
+                if (pad.buttonEast.wasPressedThisFrame || pad.rightShoulder.wasPressedThisFrame) inp.dash = true;
                 if (pad.startButton.wasPressedThisFrame) inp.pause = true;
                 if (pad.selectButton.wasPressedThisFrame) inp.menu = true;
             }
 #else
             if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) inp.x -= 1;
             if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) inp.x += 1;
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) inp.y += 1;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) inp.y -= 1;
+            if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) inp.slide = true;
             if (Input.GetKeyDown(KeyCode.Space)) inp.jump = true;
             if (Input.GetKey(KeyCode.Space)) inp.jumpHeld = true;
-            if (Input.GetKeyDown(KeyCode.J)) inp.atk = true;
-            if (Input.GetKey(KeyCode.J)) inp.atkDown = true;
-            if (Input.GetKeyDown(KeyCode.K)) inp.heavy = true;
-            if (Input.GetKey(KeyCode.K)) inp.heavyDown = true;
-            if (Input.GetKeyDown(KeyCode.L) || Input.GetKeyDown(KeyCode.LeftShift)) inp.dash = true;
-            if (Input.GetKey(KeyCode.O)) inp.guard = true;
-            if (Input.GetKeyDown(KeyCode.U)) inp.kiTap = true;
-            if (Input.GetKeyDown(KeyCode.I)) inp.skill = true;
+            if (Input.GetKeyDown(KeyCode.J) || Input.GetKeyDown(KeyCode.Z)) inp.atk = true;
+            if (Input.GetKey(KeyCode.J) || Input.GetKey(KeyCode.Z)) inp.atkDown = true;
+            if (Input.GetKeyDown(KeyCode.K) || Input.GetKeyDown(KeyCode.X)) inp.kiTap = true;
+            if (Input.GetKeyDown(KeyCode.L) || Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.C)) inp.dash = true;
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P)) inp.pause = true;
             if (Input.GetKeyDown(KeyCode.M) || Input.GetKeyDown(KeyCode.Backspace)) inp.menu = true;
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.J)) inp.confirm = true;

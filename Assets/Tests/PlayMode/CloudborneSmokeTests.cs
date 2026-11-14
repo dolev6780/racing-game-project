@@ -911,6 +911,93 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ThreeButtonsAndTwoSwipesDoEverything()
+        {
+            // the phone's controls (seven buttons and their combinations were too much: the user): ATTACK tapped is the
+            // combo and held the staff; SKILL is the ki move, and the special when ki is full; a swipe down slides (under
+            // a low trunk), a swipe across dodges that way; pushing into vines climbs them
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            IEnumerator Settle()
+            {
+                game.TestControls = null;
+                for (float w = 0; w < 2f && hero.state != CbHero.State.Idle; w += Time.deltaTime) yield return null;
+                yield return Frames(2);
+            }
+            game.Teleport(8f);
+            hero.y = 0;
+            yield return Settle();
+            // ATTACK tapped: a paw, not the staff
+            bool first = true, staff = false, paw = false;
+            game.TestControls = i => { i.atk = first; i.atkDown = first; first = false; };
+            for (float w = 0; w < 0.5f; w += Time.deltaTime) { paw |= hero.state == CbHero.State.Atk; staff |= hero.state == CbHero.State.Staff; yield return null; }
+            Assert.IsTrue(paw, "A tap of ATTACK did not strike");
+            Assert.IsFalse(staff, "A tap of ATTACK drew the staff");
+            yield return Settle();
+            // ATTACK held: the staff
+            first = true; staff = false;
+            game.TestControls = i => { i.atk = first; i.atkDown = true; first = false; };
+            for (float w = 0; w < 0.8f; w += Time.deltaTime) { staff |= hero.state == CbHero.State.Staff; yield return null; }
+            Assert.IsTrue(staff, "Holding ATTACK did not bring out the staff");
+            yield return Settle();
+            // SKILL: the ki move; with ki full, on the ground, the special (and the button says so)
+            hero.ki = 60f;
+            yield return null;
+            Assert.AreNotEqual("SPECIAL", game.hud.SkillLabel, "SKILL says SPECIAL with ki not full");
+            first = true;
+            bool special = false;
+            game.TestControls = i => { i.kiTap = first; first = false; };
+            for (float w = 0; w < 0.3f; w += Time.deltaTime) { special |= hero.state == CbHero.State.Special; yield return null; }
+            Assert.IsFalse(special, "SKILL fired the special with ki not full");
+            yield return Settle();
+            hero.ki = 100f;
+            yield return null;
+            Assert.AreEqual("SPECIAL", game.hud.SkillLabel, "SKILL does not say SPECIAL with ki full");
+            first = true;
+            game.TestControls = i => { i.kiTap = first; first = false; };
+            for (float w = 0; w < 0.3f; w += Time.deltaTime) { special |= hero.state == CbHero.State.Special; yield return null; }
+            Assert.IsTrue(special, "SKILL with ki full did not fire the special");
+            for (float w = 0; w < 4f && hero.state == CbHero.State.Special; w += Time.deltaTime) yield return null;
+            yield return Settle();
+            // a swipe across: a dodge that way, whichever way he faced
+            hero.facing = 1;
+            first = true;
+            bool dodged = false;
+            game.TestControls = i => { if (first) { i.dash = true; i.dashDir = -1; } first = false; };
+            for (float w = 0; w < 0.2f; w += Time.deltaTime) { dodged |= hero.state == CbHero.State.Dash && hero.facing == -1; yield return null; }
+            Assert.IsTrue(dodged, "A swipe to the left did not dodge to the left");
+            yield return Settle();
+            // a swipe down at the fallen trunk: he slides under it and crawls out the far side by himself
+            float trunk = CbLevel.TrunkX;
+            game.Teleport(trunk - 3f);
+            hero.y = 0;
+            hero.facing = 1;
+            yield return Settle();
+            first = true;
+            bool slid = false;
+            game.TestControls = i => { i.x = 1; i.slide = first; first = false; };
+            for (float w = 0; w < 5f && hero.x < trunk + 1.2f; w += Time.deltaTime) { slid |= hero.state == CbHero.State.Slide; yield return null; }
+            Assert.IsTrue(slid, "A swipe down did not slide");
+            Assert.Greater(hero.x, trunk + 1.2f, "Raja did not get under the fallen trunk with a swipe down");
+            yield return Settle();
+            // pushing into the vine-grown pillar: he takes hold and climbs
+            game.Teleport(380.6f);
+            hero.y = 0;
+            yield return Settle();
+            bool held = false;
+            float top = 0;
+            game.TestControls = i => { i.x = 1; };
+            for (float w = 0; w < 2.5f; w += Time.deltaTime) { held |= hero.state == CbHero.State.Vine; top = Mathf.Max(top, hero.y); yield return null; }
+            game.TestControls = null;
+            Assert.IsTrue(held, "Pushing into the vines did not take hold of them");
+            Assert.Greater(top, 1.5f, "Pushing into the vines did not climb them");
+        }
+
+        [UnityTest]
         public IEnumerator TheAmbushOnTheStoneBridgeComesInWavesAndLetsHimGo()
         {
             game = CbGame.Boot();

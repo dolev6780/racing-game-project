@@ -33,7 +33,8 @@ namespace Cloudborne
         {
             var lv = g.level;
             int into = input.x > 0.3f ? 1 : input.x < -0.3f ? -1 : 0;
-            if (into != 0 && input.y > 0.4f && lv.VineWallAt(x, y, into, out float edgeX, out float top)) { StartVine(into, edgeX, top); return true; }
+            // pushing into it is enough (there is no up on the controls now)
+            if (into != 0 && input.y > -0.3f && lv.VineWallAt(x, y, into, out float edgeX, out float top)) { StartVine(into, edgeX, top); return true; }
             if (state != State.Air || grabCd > 0) return false;
             var v = lv.VineNear(x, y + RopeReach);
             if (v != null) { StartSwing(v); return true; }
@@ -151,7 +152,9 @@ namespace Cloudborne
         void UpdateVine(ref Pose pose, CbInput input, float dt)
         {
             x = vineEdge - vineDir * CbLevel.HalfWidth;
-            float step = (Mathf.Abs(input.y) > 0.3f ? input.y : 0) * VineClimbSpeed * dt;
+            // up while he pushes into the rock (or up on a stick), down with down; let go, he holds on
+            float climb = Mathf.Abs(input.y) > 0.3f ? input.y : input.x * vineDir > 0.3f ? 1f : 0f;
+            float step = climb * VineClimbSpeed * dt;
             y = Mathf.Max(0, y + step);
             vx = vy = 0;
             climbPh += Mathf.Abs(step) * 0.6f;

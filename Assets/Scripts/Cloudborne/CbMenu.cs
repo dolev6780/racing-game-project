@@ -245,15 +245,14 @@ namespace Cloudborne
             var p = NewPage(Page.Help);
             var panel = Panel(p, "HOW TO PLAY", out _);
             var t = UIKit.Label(panel,
-                "push the stick a little  walk   ·   all the way  run   ·   twice  <color=#ffc94a>sprint</color>\n" +
-                "<color=#ffc94a>HIT</color>  paw and kick combo   ·   <color=#ffc94a>↓ + HIT</color>  low sweep   ·   <color=#ffc94a>HIT</color> in the air  dive kick\n" +
-                "<color=#ffc94a>HEAVY</color>  staff smash   ·   <color=#ffc94a>↑ + HEAVY</color>  launcher   ·   hold <color=#ffc94a>HEAVY</color>  staff whirl\n" +
-                "<color=#ffc94a>DASH → HEAVY</color>  thrust   ·   <color=#ffc94a>HEAVY</color> in the air  slam   ·   <color=#ffc94a>JUMP</color> twice  double somersault\n" +
-                "<color=#ffc94a>KI</color>  staff lunge   ·   <color=#ffc94a>HIT, HIT, KI</color>  staff cyclone   ·   <color=#ffc94a>SPECIAL</color>  staff storm   (fire comes with the fire crystal)\n" +
-                "hold <color=#ffc94a>GUARD</color>  block from the front   ·   <color=#ffc94a>↓</color>  duck   ·   <color=#ffc94a>DASH</color> just before a blow  slow motion\n\n" +
+                "the stick: left and right - a little  walk   ·   all the way  run   ·   twice  <color=#ffc94a>sprint</color>\n" +
+                "<color=#ffc94a>ATTACK</color>  paw and kick combo   ·   hold  staff smash, keep holding  staff whirl   ·   in the air  dive kick\n" +
+                "<color=#ffc94a>JUMP</color>  twice  double somersault   ·   against a wall  wall jump   ·   push into vines  climb\n" +
+                "<color=#ffc94a>SKILL</color>  KI: staff lunge (FIRE with the fire crystal)   ·   ki full  <color=#ffc94a>SPECIAL</color>\n" +
+                "<color=#ffc94a>swipe ↓</color>  slide (under low trunks)   ·   <color=#ffc94a>swipe ↔</color>  dodge - just before a blow: slow motion\n\n" +
                 "Break crates for mangoes and coins. Cracked stone gives way only to the staff.\n" +
                 "Spend coins in Baba's workshop.\n\n" +
-                "<color=#ffffff99>Keyboard: A/D move · W/S up/down · Space jump · J hit · K heavy · O guard · U ki · I special · L dash · Esc pause</color>",
+                "<color=#ffffff99>Keyboard: A/D move · Space jump · J attack (hold: staff) · K skill · S slide · Shift or L dodge · Esc pause</color>",
                 13, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 6), new Vector2(740, 230), TextAnchor.MiddleCenter);
             t.supportRichText = true;
             t.horizontalOverflow = HorizontalWrapMode.Wrap;

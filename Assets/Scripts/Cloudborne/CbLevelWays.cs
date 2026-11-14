@@ -1057,7 +1057,7 @@ namespace Cloudborne
                 // paws clang off them (a hint); a blow lands every frame of its hit window: count each once
                 if (!staff)
                 {
-                    if (th.clang <= 0) { th.clang = 0.25f; g.hud.SetTip("Thorns! Cut them with the staff (<color=#ffb03a>HEAVY</color>)"); CbFx.Sfx("block", 0.6f); }
+                    if (th.clang <= 0) { th.clang = 0.25f; g.hud.SetTip("Thorns! Cut them with the staff (hold <color=#ffb03a>ATTACK</color>)"); CbFx.Sfx("block", 0.6f); }
                     continue;
                 }
                 if (th.cool > 0) continue;
