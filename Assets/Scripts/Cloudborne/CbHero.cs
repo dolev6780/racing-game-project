@@ -232,8 +232,27 @@ namespace Cloudborne
             if (!silent) CbFx.Sfx("staff", 0.6f);
         }
 
+        // A strike turns him to a soldier close behind him when none is in front (on a phone the stick is often let go
+        // facing the wrong way, and the blow went into thin air): within TurnReach behind, none within FrontReach ahead.
+        const float TurnReach = 2.4f, FrontReach = 2.6f;
+
+        void FaceTheFoe()
+        {
+            if (g.enemies == null) return;
+            float behind = float.MaxValue;
+            foreach (var e in g.enemies)
+            {
+                if (e.dead || Mathf.Abs(e.y - y) > 1.6f) continue;
+                float ahead = (e.x - x) * facing;
+                if (ahead >= 0 && ahead < FrontReach) return;
+                if (ahead < 0 && -ahead < TurnReach) behind = Mathf.Min(behind, -ahead);
+            }
+            if (behind < float.MaxValue) facing = -facing;
+        }
+
         void StartPaw(int i)
         {
+            if (i == 0) FaceTheFoe();
             state = State.Atk; combo = i; t = 0; buffer = 0; hitSet.Clear();
             if (!air) vx = facing * 2.5f;
             else { vy = Mathf.Max(vy, 2.5f); airHits++; }
@@ -361,6 +380,7 @@ namespace Cloudborne
 
         void StartStaff(Move m)
         {
+            if (m == Move.Smash || m == Move.Lunge) FaceTheFoe();
             state = State.Staff; move = m; t = 0; hitSet.Clear(); buffer = 0; tick = 0; hits = 0; kiCrash = false;
             SetStaff(true);
             if (m == Move.Thrust) vx = facing * 9;

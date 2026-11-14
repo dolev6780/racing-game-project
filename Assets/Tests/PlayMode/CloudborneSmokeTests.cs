@@ -1009,6 +1009,28 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator AStrikeTurnsHimToAFoeCloseBehind()
+        {
+            // on a phone he was often left facing the wrong way and struck thin air: a strike turns him to a soldier
+            // close behind him, if none is in front
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            game.Teleport(8f);
+            game.hero.y = 0;
+            yield return Frames(3);
+            game.hero.facing = 1;
+            var e = new CbEnemy(game, CbEnemy.Kind.Hyena, 6.6f, game.transform) { minX = 5f, maxX = 7f };
+            game.enemies.Add(e);
+            bool first = true;
+            game.TestControls = i => { i.atk = first; first = false; };
+            yield return Frames(2);
+            game.TestControls = null;
+            Assert.AreEqual(-1, game.hero.facing, "A strike did not turn him to the soldier close behind him");
+        }
+
+        [UnityTest]
         public IEnumerator TheRopeBridgeAtTheStartIsAnAmbush()
         {
             // at least five raiders on the rope bridge (the user), in waves; beaten, the way opens. No soldier stands on
