@@ -405,6 +405,38 @@ namespace Cloudborne
             t.name = "groundFace";
         }
 
+        /// <summary>
+        /// The soil of a bank seen in the front cross-section, sloping from the grass at edge down into the river, out
+        /// towards the water (toWater) as it goes down, a little uneven; behind the water's see-through front, so the
+        /// water tints what is under it. The earth's picture lines up with the face's.
+        /// </summary>
+        void BankSlope(Material face, float edge, int toWater, float bottom)
+        {
+            float tileW = FaceTileWidth(face.mainTexture);
+            const int N = 14;
+            var verts = new Vector3[2 * (N + 1)];
+            var uvs = new Vector2[verts.Length];
+            var tris = new int[6 * N];
+            for (int i = 0; i <= N; i++)
+            {
+                float k = i / (float)N, y = Mathf.Lerp(0.02f, bottom, k);
+                float reach = 1.5f * Mathf.Sqrt(k) + 0.06f * Mathf.Sin(k * 23f + edge) * k;
+                float xa = edge - toWater * 0.02f, xb = edge + toWater * reach;
+                verts[2 * i] = new Vector3(xa, y, 0);
+                verts[2 * i + 1] = new Vector3(xb, y, 0);
+                uvs[2 * i] = new Vector2(xa / tileW, 1 + y / FaceHeight);
+                uvs[2 * i + 1] = new Vector2(xb / tileW, 1 + y / FaceHeight);
+                if (i == 0) continue;
+                int a = 2 * i - 2, t = 6 * (i - 1);
+                tris[t] = a; tris[t + 1] = a + 2; tris[t + 2] = a + 1;
+                tris[t + 3] = a + 1; tris[t + 4] = a + 2; tris[t + 5] = a + 3;
+            }
+            var mesh = new Mesh { name = "bankSlope", vertices = verts, uv = uvs, triangles = tris };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            CbArt.Part(mesh, new Material(face), root, new Vector3(0, 0, GroundFront - 0.011f), Vector3.one, shadows: false).name = "bankSlope";
+        }
+
         // the lip: drawn a little smaller than the face, so the leaves rise only a hand's breadth over the path's edge
         const float LipScale = 0.7f;
 
@@ -508,8 +540,10 @@ namespace Cloudborne
                     under = top - depth;
                 }
                 else CbArt.Part(CbMesh.Quad, WaterSide(), root, new Vector3(c, (level + bed) / 2, GroundFront - 0.012f), new Vector3(w, level - bed, 1), shadows: false).name = "waterSide";
-                // and the soil below
+                // and the soil below; the banks slope down into it (they dropped straight, a square cut: the user)
                 FaceQuad(face, x0, x1, under, -GroundDepth);
+                BankSlope(face, x0, 1, under);
+                BankSlope(face, x1, -1, under);
                 // where it comes out of the ground: a little cascade between leaves
                 Material cascade;
                 if (paintedSurface != null) cascade = new Material(paintedSurface) { mainTextureScale = new Vector2(w / 3f, 0.4f) };

@@ -222,13 +222,14 @@ namespace Cloudborne
                     // grass along the top of the bank, in front of the path and behind it, some leaning out over the water
                     for (int i = 0; i < 7; i++)
                     {
-                        float z = i < 2 ? R(front + 0.05f, front + 0.4f) : R(1.7f, WaterBack - 0.2f);
+                        // the first right on the front corner, over the slope of the bank
+                        float z = i == 0 ? front - 0.06f : i < 2 ? R(front + 0.05f, front + 0.4f) : R(1.7f, WaterBack - 0.2f);
                         if ((bridged && z > -1.5f && z < 1.7f) || (built && z < 2.3f)) continue;
                         var card = i % 3 == 2 ? CbWorld.FlowerCard(rnd.Next(5)) : CbWorld.GrassCard(rnd.Next(5));
                         if (card == null) break;
                         var (m, aspect) = card.Value;
                         float h = R(0.4f, 0.7f);
-                        var at = new Vector3(edge + land * R(-0.15f, 0.35f), h * 0.46f, z);
+                        var at = new Vector3(i == 0 ? edge - land * 0.12f : edge + land * R(-0.15f, 0.35f), h * 0.46f - (i == 0 ? 0.12f : 0f), z);
                         CbArt.Part(CbMesh.Quad, m, banks, at, new Vector3(h * aspect * (rnd.Next(2) == 0 ? -1 : 1), h, 1),
                             Quaternion.Euler(0, R(-25f, 25f), land * R(0f, 12f)), shadows: false).name = "bankGrass";
                     }
