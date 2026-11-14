@@ -435,7 +435,7 @@ namespace Cloudborne
         {
             var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "drop" };
             for (int i = 0; i < 64; i++)
-                tex.SetPixel(0, i, Color.Lerp(new Color(0.04f, 0.1f, 0.07f), new Color(0.3f, 0.48f, 0.36f), Mathf.Pow(i / 63f, 1.6f)));
+                tex.SetPixel(0, i, Color.Lerp(new Color(0.02f, 0.05f, 0.04f), new Color(0.16f, 0.3f, 0.22f), Mathf.Pow(i / 63f, 2.2f)));
             tex.Apply();
             var haze = Cutout(tex, 0f, Color.white);
             if (haze != null) haze.SetFloat("_Cutoff", 0f);
@@ -445,9 +445,10 @@ namespace Cloudborne
             foreach (var (x0, x1) in CbLevel.Waters)
             {
                 float w = x1 - x0, c = (x0 + x1) / 2;
-                CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -4f, GroundFront - 0.012f), new Vector3(w + 0.1f, 8f, 1), shadows: false).name = "dropFront";
-                CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -3.5f, (GroundFront + back) / 2), new Vector3(w + 0.1f, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropFloor";
-                CbArt.Part(CbMesh.Quad, mist, root, new Vector3(c, -1.2f, (GroundFront + back) / 2), new Vector3(w * 1.2f, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropMist";
+                // (a floor near the top read as a green pond: it lies deep, dark, under a thin mist)
+                CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -6f, GroundFront - 0.012f), new Vector3(w + 0.1f, 12f, 1), shadows: false).name = "dropFront";
+                CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -11f, (GroundFront + back) / 2), new Vector3(w + 0.1f, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropFloor";
+                CbArt.Part(CbMesh.Quad, mist, root, new Vector3(c, -2.5f, (GroundFront + back) / 2), new Vector3(w * 1.2f, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropMist";
                 // the boughs' ends: the soil rounding down into the gap from each side
                 BankSlope(face, x0, 1, -3.5f);
                 BankSlope(face, x1, -1, -3.5f);

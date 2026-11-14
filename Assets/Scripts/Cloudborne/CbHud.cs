@@ -24,7 +24,7 @@ namespace Cloudborne
         readonly RectTransform root;
         readonly Image hpFill, kiFill, kiFrame, hurtFlash, slowFx, speedLines, impactFlash;
         float speedT, speedDur, speedStrength, linesFlip, flashT, flashA, flashGap;
-        readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt;
+        readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt, stageTxt;
         readonly RectTransform comboBox, pads, stickBase, stickKnob, paused, result, pauseBtn, pauseMenuBtn, resultMenuBtn;
         readonly Text resultTitle, resultStats;
         // the play HUD (hidden in a cinematic) and the cinematic's own layer: black bars, the speech box, SKIP
@@ -113,7 +113,7 @@ namespace Cloudborne
             kiFill = Bar(status, new Vector2(80, -48), new Vector2(160, 9), FireCol, out kiFrame);
 
             // stage title, wave, tip
-            UIKit.Label(play, "STAGE 1-1 · THE JUNGLE GATE", 11, new Color(1, 1, 1, 0.9f), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -12), new Vector2(320, 16), TextAnchor.MiddleCenter);
+            stageTxt = UIKit.Label(play, CbStage.Title, 11, new Color(1, 1, 1, 0.9f), new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -12), new Vector2(320, 16), TextAnchor.MiddleCenter);
             waveTxt = UIKit.Label(play, "", 20, Paper, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -28), new Vector2(360, 26), TextAnchor.MiddleCenter, true);
             var tipBox = UIKit.Panel(play, "tip", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -58), new Vector2(270, 34), Glass);
             tipTxt = UIKit.Label(tipBox.transform, "", 11, Paper, TextAnchor.MiddleCenter, false, false);
@@ -402,7 +402,7 @@ namespace Cloudborne
             SetScreen(Screen.Result);
         }
 
-        public void SetWave(string s) => waveTxt.text = s;
+        public void SetWave(string s) { waveTxt.text = s; stageTxt.text = CbStage.Title; }
         public void SetTip(string s)
         {
             tipTxt.text = s;
