@@ -6,7 +6,7 @@ namespace Cloudborne
     /// <summary>
     /// The jungle's small life (the jungle stood still): butterflies flutter about the meadow behind the path, a few to
     /// a patch, and scatter up and away when Raja comes by, then drift back; now and then a little flock of birds
-    /// crosses the sky far behind. Painted in Canva (Resources/Cloudborne/Jungle/Critters, cut out of their white
+    /// crosses the sky far behind, and a fish leaps out of a river in view and dives back in with a splash. Painted in Canva (Resources/Cloudborne/Jungle/Critters, cut out of their white
     /// background); without a painting there are none of that kind. Scenery only: nothing in the game touches them.
     /// </summary>
     public class CbCritters
@@ -34,6 +34,15 @@ namespace Cloudborne
 
         class Fly { public Transform body, left, right; public Vector3 home, at; public float ph, rate, fear, heading, wing; public int away; public bool shown; }
         class Bird { public Transform t; public float x, y, z, ph, flap; public int dir; }
+        class Leap { public Transform t; public float x0, x1, z, t0, dur, h; public int dir; }
+        // Fish: one leaps every FishFrom to FishTo seconds from a river in view, FishLen long, behind the line he walks
+        // (FishBack metres back and more), up Low..High over the water and back in over Dur seconds
+        public const string FishName = "Fish";
+        const float FishFrom = 2.5f, FishTo = 6f, FishLen = 0.5f, FishBack = 1.5f, FishView = 11f;
+        readonly List<Leap> leaps = new List<Leap>();
+        readonly Material fishMat;
+        readonly float fishAspect;
+        float nextLeap = 2f;
 
         readonly Transform root;
         readonly List<Fly> flies = new List<Fly>();
@@ -48,6 +57,9 @@ namespace Cloudborne
         public int BirdsFlying => birds.Count;
         /// <summary>Whether the birds' painting is in the project.</summary>
         public bool HasBirds => birdMat != null;
+        /// <summary>Whether the fish's painting is in the project, and how many are in the air now.</summary>
+        public bool HasFish => fishMat != null;
+        public int FishLeaping => leaps.Count;
 
         public CbCritters(Transform parent)
         {
@@ -91,6 +103,10 @@ namespace Cloudborne
                     }
                 }
             }
+
+            var fish = Resources.Load<Texture2D>(Dir + FishName);
+            fishMat = CbWorld.Painted(fish);
+            if (fishMat != null) fishAspect = fish.width / (float)fish.height;
 
             var bird = Resources.Load<Texture2D>(Dir + BirdName);
             // a little hazed: they are far off
@@ -167,6 +183,7 @@ namespace Cloudborne
                 f.right.localRotation = Quaternion.Euler(0, a, 0);
             }
 
+            UpdateFish(t, dt, camX);
             if (birdMat == null) return;
             // now and then a flock sets off from one side of the view to the other
             if (t > nextFlock)
@@ -208,6 +225,60 @@ namespace Cloudborne
             }
         }
 
+        /// <summary>Now and then a fish leaps from a river in view: an arc out of the water and back, nose along it.</summary>
+        void UpdateFish(float t, float dt, float camX)
+        {
+            if (fishMat == null) return;
+            if (t > nextLeap)
+            {
+                nextLeap = t + Random.Range(FishFrom, FishTo);
+                float lo = 0, hi = 0;
+                bool found = false;
+                foreach (var (x0, x1) in CbLevel.Waters)
+                {
+                    float a = Mathf.Max(x0 + 1f, camX - FishView), b = Mathf.Min(x1 - 1f, camX + FishView);
+                    if (b > a) { lo = a; hi = b; found = true; break; }
+                }
+                if (found)
+                {
+                    int dir = Random.value < 0.5f ? 1 : -1;
+                    float x = Random.Range(lo, hi);
+                    var leap = new Leap
+                    {
+                        dir = dir, x0 = x, x1 = Mathf.Clamp(x + dir * Random.Range(0.8f, 1.6f), lo - 0.5f, hi + 0.5f),
+                        z = Random.Range(FishBack, CbLevel.WaterBack - 1f), t0 = t, dur = Random.Range(0.75f, 1f), h = Random.Range(0.9f, 1.5f),
+                    };
+                    leap.t = CbArt.Part(CbMesh.Quad, fishMat, root, new Vector3(x, CbLevel.WaterLevel, leap.z), Vector3.zero, shadows: false);
+                    leap.t.name = "fish";
+                    leaps.Add(leap);
+                    Splash(x, leap.z);
+                }
+            }
+            for (int i = leaps.Count - 1; i >= 0; i--)
+            {
+                var l = leaps[i];
+                float u = (t - l.t0) / l.dur;
+                if (u >= 1f)
+                {
+                    Splash(l.x1, l.z);
+                    Object.Destroy(l.t.gameObject);
+                    leaps.RemoveAt(i);
+                    continue;
+                }
+                float x = Mathf.Lerp(l.x0, l.x1, u), y = CbLevel.WaterLevel - 0.1f + 4f * l.h * u * (1 - u);
+                // nose along the arc
+                float angle = Mathf.Atan2(4f * l.h * (1 - 2 * u), Mathf.Max(0.2f, Mathf.Abs(l.x1 - l.x0))) * Mathf.Rad2Deg;
+                l.t.localPosition = new Vector3(x, y, l.z);
+                l.t.localRotation = Quaternion.Euler(0, 0, l.dir * angle);
+                l.t.localScale = new Vector3(FishLen * l.dir, FishLen / fishAspect, 1);
+            }
+        }
+
+        static void Splash(float x, float z)
+        {
+            CbFx.Spark(new Vector3(x, CbLevel.WaterLevel + 0.05f, z), CbFx.Water, 7, 2.6f, 0.22f, 0.4f, 9f);
+        }
+
         // ---------- test hooks ----------
 
         /// <summary>The butterflies nearest x: their home, where they are now, and how frightened they are.</summary>
@@ -221,5 +292,8 @@ namespace Cloudborne
 
         /// <summary>Sends a flock off now.</summary>
         public void FlockNow() => nextFlock = 0f;
+
+        /// <summary>A fish leaps now (from a river in view).</summary>
+        public void FishNow() => nextLeap = 0f;
     }
 }

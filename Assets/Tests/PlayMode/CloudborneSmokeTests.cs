@@ -1581,6 +1581,14 @@ namespace RacingGame.Tests
             critters.FlockNow();
             yield return Frames(3);
             Assert.Greater(critters.BirdsFlying, 1, "No flock of birds set off");
+            // by the long river, a fish leaps out of it
+            if (!critters.HasFish) yield break;
+            game.Teleport(78f);
+            game.hero.y = 0;
+            yield return new WaitForSeconds(1.5f);
+            critters.FishNow();
+            yield return Frames(3);
+            Assert.Greater(critters.FishLeaping, 0, "No fish leapt from the river in view");
         }
 
         [UnityTest]
