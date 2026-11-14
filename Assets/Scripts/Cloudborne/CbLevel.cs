@@ -157,6 +157,28 @@ namespace Cloudborne
         // and behind it, the front one round the corner; tufts of grass along the top, leaning over the water.
         public int BankStones { get; private set; }
 
+        /// <summary>A mossy river stone width across, turned about the vertical; its height and depth at that size.</summary>
+        Transform BankStone(Transform parent, float width, float turn, out float height, out float depth)
+        {
+            height = depth = 0;
+            var holder = CbArt.Joint(parent, 0, 0, 0, "bankStone");
+            var model = CbArt.Prop(RiverStonePath, holder, CbArt.PropOutline);
+            if (model == null) { Object.Destroy(holder.gameObject); return null; }
+            foreach (var r in model.GetComponentsInChildren<Renderer>()) r.sharedMaterial.color = NaturalRockTone;
+            model.localRotation = Quaternion.Euler(0, turn, 0) * model.localRotation;
+            var b = LocalBounds(model, holder);
+            float s = width / Mathf.Max(0.01f, Mathf.Max(b.size.x, b.size.z));
+            holder.localScale = Vector3.one * s;
+            height = b.size.y * s;
+            depth = b.size.z * s;
+            // remembered for placing: the model's bottom centre, in the holder's own units
+            holder.localPosition = -new Vector3(b.center.x, b.min.y, b.center.z) * s;
+            return holder;
+        }
+
+        /// <summary>Sets a bank stone (BankStone) down with its bottom centre at bottom.</summary>
+        static void PlaceBankStone(Transform stone, Vector3 bottom) => stone.localPosition += bottom;
+
         void DressBanks()
         {
             var banks = CbArt.Joint(root, 0, 0, 0, "banks");
@@ -169,26 +191,33 @@ namespace Cloudborne
                     // a bridge's end or a rock built over the bank: its own stonework there, nothing in front of it
                     bool bridged = Mathf.Abs(edge - RopeBridgeX) < RopeDeckHalf + 2f || Mathf.Abs(edge - StoneBridgeX) < StoneBridgeHalf + 2f;
                     bool built = blocks.Exists(b => !b.broken && b.top > 0.3f && edge > b.x0 - 0.8f && edge < b.x1 + 0.8f);
-                    for (float z = front - 0.25f; z < WaterBack - 0.3f;)
+                    // stones along the waterline, at their own shape (stretched to fill a box, the corner one stood up
+                    // like a pillar: the CI's picture), mostly out over the water so they hide the cut
+                    for (float z = front - 0.15f; z < WaterBack - 0.2f;)
                     {
-                        float len = z < front ? 1.3f : R(1.3f, 1.8f), z1 = z + len;
                         bool corner = z < front;
+                        float width = corner ? R(1.0f, 1.2f) : R(0.75f, 1.05f);
+                        var stone = BankStone(banks, width, R(0f, 360f), out float h, out float d);
+                        if (stone == null) break;
+                        float z1 = z + d;
                         bool path = z1 > -1.1f && z < 1.5f;
-                        if (!((bridged && z1 > -1.5f && z < 1.7f) || (built && z1 > -1.9f && z < 2.3f)))
+                        if ((bridged && z1 > -1.5f && z < 1.7f) || (built && z1 > -1.9f && z < 2.3f)) Object.Destroy(stone.gameObject);
+                        else
                         {
-                            // on the path: just under the grass; the corner and behind the path: up over it
-                            float top = corner ? R(0.22f, 0.34f) : path ? -0.04f : R(0.08f, 0.38f);
-                            float into = corner ? 0.55f : 0.35f, over = corner ? 0.7f : R(0.45f, 0.65f);
-                            var lo = new Vector3(Mathf.Min(edge + land * into, edge - land * over), WaterLevel - 0.6f, z);
-                            var hi = new Vector3(Mathf.Max(edge + land * into, edge - land * over), top, z1);
-                            var stone = Fit(RiverStonePath, banks, lo, hi);
-                            if (stone != null)
-                            {
-                                stone.name = "bankStone";
-                                BankStones++;
-                            }
+                            // on the path: just under the grass (he must not walk through one); else up over it a little
+                            float top = path && !corner ? -0.03f : corner ? R(0.05f, 0.15f) : R(0f, 0.18f);
+                            PlaceBankStone(stone, new Vector3(edge - land * width * 0.2f, top - h, z + d / 2));
+                            BankStones++;
                         }
-                        z = z1 - 0.25f;
+                        z = z1 - d * 0.25f;
+                    }
+                    // a few small ones in the water off the bank
+                    for (int i = 0; i < 2; i++)
+                    {
+                        float zz = R(1.8f, WaterBack - 0.6f), width = R(0.35f, 0.55f);
+                        var pebble = BankStone(banks, width, R(0f, 360f), out float h, out _);
+                        if (pebble == null) break;
+                        PlaceBankStone(pebble, new Vector3(edge - land * R(0.9f, 1.6f), WaterLevel + R(0.05f, 0.15f) - h, zz));
                     }
                     // grass along the top of the bank, in front of the path and behind it, some leaning out over the water
                     for (int i = 0; i < 7; i++)
