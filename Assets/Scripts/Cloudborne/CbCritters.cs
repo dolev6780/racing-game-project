@@ -38,7 +38,8 @@ namespace Cloudborne
         // Fish: one leaps every FishFrom to FishTo seconds from a river in view, FishLen long, behind the line he walks
         // (FishBack metres back and more), up Low..High over the water and back in over Dur seconds
         public const string FishName = "Fish";
-        const float FishFrom = 2.5f, FishTo = 6f, FishLen = 0.5f, FishBack = 1.5f, FishView = 11f;
+        // (the painting has the fish leaping already, its nose FishTilt degrees up: turned back by that much)
+        const float FishFrom = 2.5f, FishTo = 6f, FishLen = 0.6f, FishBack = 1.5f, FishView = 11f, FishTilt = 38f;
         readonly List<Leap> leaps = new List<Leap>();
         readonly Material fishMat;
         readonly float fishAspect;
@@ -269,7 +270,7 @@ namespace Cloudborne
                 // nose along the arc
                 float angle = Mathf.Atan2(4f * l.h * (1 - 2 * u), Mathf.Max(0.2f, Mathf.Abs(l.x1 - l.x0))) * Mathf.Rad2Deg;
                 l.t.localPosition = new Vector3(x, y, l.z);
-                l.t.localRotation = Quaternion.Euler(0, 0, l.dir * angle);
+                l.t.localRotation = Quaternion.Euler(0, 0, l.dir * (angle - FishTilt));
                 l.t.localScale = new Vector3(FishLen * l.dir, FishLen / fishAspect, 1);
             }
         }
