@@ -15,9 +15,11 @@ namespace Cloudborne
     public class CbWorld
     {
         // the stage runs from LevelMin to LevelMax; it is cleared at the shrine gate at GoalX, once every fight is won
-        public const float LevelMin = -8f, LevelMax = 494f, GoalX = 488f;
+        public const float LevelMin = -8f;
+        public static float LevelMax => CbStage.Treetops ? CbLevel.TreetopsMax : 494f;
+        public static float GoalX => CbStage.Treetops ? CbLevel.TreetopsGoal : 488f;
         // the scenery runs on a little past the end of the stage
-        const float End = 514f;
+        static float End => LevelMax + 20f;
         // the blue-teal haze of the painted backdrop: distant scenery fades into it, not into white
         public static readonly Color Horizon = CbArt.Hex("#7fc0cc");
 
@@ -54,12 +56,19 @@ namespace Cloudborne
         // The stage changes scenery on the way: the jungle, then a waterfall gorge from GorgeAt, then temple ruins at
         // sunset from TempleAt, each painting cross-fading into the next over BackdropFade metres. A part whose
         // painting isn't in the project keeps the one before.
-        static readonly (string path, float from)[] BackdropParts =
+        static readonly (string path, float from)[] JungleBackdrops =
         {
             ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
             ("Cloudborne/Jungle/Backdrop/GorgeBackdrop", 76f),
             ("Cloudborne/Jungle/Backdrop/TempleBackdrop", 110f),
         };
+        // stage 1-2: high in the canopy (the jungle's painting until its own is in the project)
+        static readonly (string path, float from)[] TreetopsBackdrops =
+        {
+            ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
+            ("Cloudborne/Treetops/Backdrop/TreetopsBackdrop", float.MinValue),
+        };
+        static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : JungleBackdrops;
         const float BackdropFade = 12f;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         int shownPart = -1;
@@ -111,7 +120,8 @@ namespace Cloudborne
         // the painted face shows its full height over FaceHeight metres, then repeats its bottom row (dark earth)
         public const float FaceHeight = 3.5f;
         // the ground runs from GroundFrom to GroundTo, cut where the streams cross it
-        const float GroundFrom = -80f, GroundTo = End + 50f;
+        const float GroundFrom = -80f;
+        static float GroundTo => End + 50f;
         readonly List<Material> waterMats = new List<Material>();
         // the painted cross-sections at the streams' front edges, their foam crests rolling along and rising and falling
         // (they stood still like a picture: the user)
@@ -326,7 +336,9 @@ namespace Cloudborne
                 var behind = new Material(grass) { mainTextureScale = new Vector2((x1 - x0) / GrassTile, (GroundBack - CbLevel.PitBack) / GrassTile), mainTextureOffset = new Vector2(x0 / GrassTile, 0) };
                 CbArt.Box(behind, root, new Vector3((x0 + x1) / 2, -GroundDepth / 2, (CbLevel.PitBack + GroundBack) / 2), new Vector3(x1 - x0, GroundDepth, GroundBack - CbLevel.PitBack));
             }
-            BuildStreams(grass, face, far);
+            // the streams cross the jungle's ground; in the treetops the gaps between the branches drop away
+            if (CbStage.Treetops) BuildDrops(face);
+            else BuildStreams(grass, face, far);
             CbArt.Part(CbMesh.Quad, CbArt.Toon("#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
 
             // grass blades and fern fronds, merged straight into a few meshes
@@ -412,6 +424,38 @@ namespace Cloudborne
             };
             var t = CbArt.Part(CbMesh.Quad, m, root, new Vector3((a + b) / 2, (yTop + yBottom) / 2, GroundFront - 0.01f), new Vector3(w, h, 1), shadows: false);
             t.name = "groundFace";
+        }
+
+        /// <summary>
+        /// Stage 1-2's gaps between the boughs: the canopy's depths seen through them, a green haze darkening down (in
+        /// the front cross-section and as a floor of mist below), the boughs' ends rounding down into it, and the ground
+        /// behind going on as the rest of the canopy.
+        /// </summary>
+        void BuildDrops(Material face)
+        {
+            var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "drop" };
+            for (int i = 0; i < 64; i++)
+                tex.SetPixel(0, i, Color.Lerp(new Color(0.04f, 0.1f, 0.07f), new Color(0.3f, 0.48f, 0.36f), Mathf.Pow(i / 63f, 1.6f)));
+            tex.Apply();
+            var haze = Cutout(tex, 0f, Color.white);
+            if (haze != null) haze.SetFloat("_Cutoff", 0f);
+            else haze = CbArt.Toon("#1c3326");
+            var mist = CbArt.Glow(new Color(0.75f, 0.85f, 0.8f, 0.25f), CbArt.Mist);
+            float back = CbLevel.WaterBack;
+            foreach (var (x0, x1) in CbLevel.Waters)
+            {
+                float w = x1 - x0, c = (x0 + x1) / 2;
+                CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -4f, GroundFront - 0.012f), new Vector3(w + 0.1f, 8f, 1), shadows: false).name = "dropFront";
+                CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -3.5f, (GroundFront + back) / 2), new Vector3(w + 0.1f, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropFloor";
+                CbArt.Part(CbMesh.Quad, mist, root, new Vector3(c, -1.2f, (GroundFront + back) / 2), new Vector3(w * 1.2f, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropMist";
+                // the boughs' ends: the soil rounding down into the gap from each side
+                BankSlope(face, x0, 1, -3.5f);
+                BankSlope(face, x1, -1, -3.5f);
+                // behind the gap the canopy goes on
+                var grass = GrassMaterial();
+                grass.mainTextureScale = new Vector2(w / GrassTile, (GroundBack - back) / GrassTile);
+                CbArt.Box(grass, root, new Vector3(c, -GroundDepth / 2, (back + GroundBack) / 2), new Vector3(w, GroundDepth, GroundBack - back));
+            }
         }
 
         /// <summary>

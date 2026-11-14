@@ -229,7 +229,8 @@ namespace Cloudborne
         /// <summary>Now and then a fish leaps from a river in view: an arc out of the water and back, nose along it.</summary>
         void UpdateFish(float t, float dt, float camX)
         {
-            if (fishMat == null) return;
+            // (no fish in the treetops: its gaps are drops, not rivers)
+            if (fishMat == null || CbStage.Treetops) return;
             if (t > nextLeap)
             {
                 nextLeap = t + Random.Range(FishFrom, FishTo);
@@ -290,6 +291,9 @@ namespace Cloudborne
                 if (Mathf.Abs(f.home.x - x) < within) list.Add((f.home, f.at, f.fear));
             return list;
         }
+
+        /// <summary>Takes them away (another stage is built).</summary>
+        public void Destroy() => Object.Destroy(root.gameObject);
 
         /// <summary>Sends a flock off now.</summary>
         public void FlockNow() => nextFlock = 0f;

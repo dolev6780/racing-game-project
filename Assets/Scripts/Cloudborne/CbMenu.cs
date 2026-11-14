@@ -27,7 +27,8 @@ namespace Cloudborne
         public static readonly StageInfo[] Stages =
         {
             new StageInfo { id = "1-1", name = "THE JUNGLE GATE", open = true },
-            new StageInfo { id = "1-2", name = "THE TREETOPS" },
+            // (open to try while it is being built)
+            new StageInfo { id = "1-2", name = "THE TREETOPS", open = true },
             new StageInfo { id = "1-3", name = "BABA'S GROVE" },
             new StageInfo { id = "1-4", name = "THE STORMY RIVER" },
             new StageInfo { id = "1-5", name = "THE EMBER TEMPLE" },

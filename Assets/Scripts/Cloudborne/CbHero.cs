@@ -473,6 +473,22 @@ namespace Cloudborne
             safeX = backX; safeY = backY;
         }
 
+        /// <summary>Down a gap between the boughs (stage 1-2): health lost, a burst of leaves, back on the last bough he stood on.</summary>
+        void FellFromTheTrees()
+        {
+            CbFx.Puff(new Vector3(x, y + 1f, -0.3f), new Color(0.35f, 0.6f, 0.3f), 10, 2.4f, 0.8f, 0.6f);
+            CbFx.Sfx("hit", 0.6f);
+            hp = Mathf.Max(0, hp - WaterDamage);
+            g.hud.Popup(new Vector3(safeX, safeY + 2.2f, 0), "-" + Mathf.RoundToInt(WaterDamage), CbHud.PopStyle.Hurt);
+            g.hud.FlashHurt();
+            g.hud.SetTip("A long way down! Back on the bough - mind the gaps");
+            move = Move.None; combo = 0; jumps = 0; airDashed = false; flipT = 0; wallT = 0; sliding = false; crouching = false;
+            x = safeX; y = safeY; vx = vy = 0; air = false;
+            state = State.Idle; t = 0;
+            inv = Mathf.Max(inv, 1f);
+            if (hp <= 0) { state = State.Dead; t = 0; g.Invoke(nameof(CbGame.Defeated), 1.4f); }
+        }
+
         /// <summary>Out of the water: back where he last stood safely, dripping.</summary>
         void LeaveWater()
         {
@@ -939,7 +955,9 @@ namespace Cloudborne
             // a vine, a bar, a zipline within reach of his hands; vines grown over rock to climb
             if (g.level != null && (state == State.Air || state == State.Idle || state == State.Run) && TryCatch(input)) return;
             // into the water: a splash, a moment treading water, and back where he last stood safely
-            if (y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater(CbLevel.WaterLevel, "Into the water! Pale stones sink, logs drift - jump on quickly");
+            // in the treetops the gaps drop away: he falls through the leaves and is back on the last bough he stood on
+            if (CbStage.Treetops) { if (y < -2.6f && CbLevel.InWater(x)) FellFromTheTrees(); }
+            else if (y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater(CbLevel.WaterLevel, "Into the water! Pale stones sink, logs drift - jump on quickly");
         }
 
         /// <summary>

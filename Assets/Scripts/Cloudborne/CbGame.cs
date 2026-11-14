@@ -31,7 +31,38 @@ namespace Cloudborne
         /// one waits until Raja is right by him. No arena: only Sergeant Snap shuts one.
         /// </summary>
         class Post { public float x, range; public CbEnemy.Kind kind; public bool asleep, spawned; public CbEnemy enemy; public Transform seat; }
-        static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan =
+        static (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan => CbStage.Treetops ? TreetopsPosts : JunglePosts;
+        static (float x, string name)[] Sections => CbStage.Treetops ? TreetopsSections : JungleSections;
+        static (float x, int tip, string text)[] Tips => CbStage.Treetops ? TreetopsTips : JungleTips;
+
+        // stage 1-2, The Treetops: soldiers along the boughs and on the long bridge, a group at the loggers' camp
+        static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] TreetopsPosts =
+        {
+            (16f, CbEnemy.Kind.Hyena, 5f, false), (52f, CbEnemy.Kind.Shield, 4f, false), (114f, CbEnemy.Kind.Hyena, 2.5f, true),
+            (152f, CbEnemy.Kind.Hyena, 2f, false), (174f, CbEnemy.Kind.Thrower, 3f, false), (264f, CbEnemy.Kind.Hyena, 2f, false),
+            (300f, CbEnemy.Kind.Hyena, 3f, false), (314f, CbEnemy.Kind.Shield, 3f, false),
+            (326f, CbEnemy.Kind.Hyena, 3f, false), (330f, CbEnemy.Kind.Shield, 3f, false), (334f, CbEnemy.Kind.Thrower, 3f, false),
+        };
+        static readonly (float x, string name)[] TreetopsSections =
+        {
+            (0f, "Into the treetops"), (60f, "The vine gap"), (90f, "The saw drones"), (118f, "Crumbling branches"),
+            (148f, "The swinging logs"), (180f, "Hand over hand"), (212f, "The big bough"), (250f, "The long bridge"),
+            (288f, "Thorny boughs"), (320f, "The loggers' camp"),
+        };
+        static readonly (float x, int tip, string text)[] TreetopsTips =
+        {
+            (2f, -1, "The raiders fled into the treetops with Koda - after them!"),
+            (20f, -1, "Mind the gaps between the boughs - it's a long way down"),
+            (58f, -1, "Swing across on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go"),
+            (90f, -1, "A saw drone! Slide under it (<color=#ffb03a>swipe ↓</color>), jump over it, or smash it with the staff (hold <color=#ffb03a>ATTACK</color>)"),
+            (118f, -1, "Cracked branches give way under you - don't wait on them"),
+            (148f, -1, "Swinging logs! Time your run"),
+            (178f, -1, "Hang from the bar and go hand over hand. The wind blows up from below..."),
+            (248f, -1, "A long rope bridge - and saw drones flying over it"),
+            (286f, -1, "Thorns: cut them with the staff (hold <color=#ffb03a>ATTACK</color>)"),
+            (318f, -1, "The loggers' camp! Koda must be here"),
+        };
+        static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] JunglePosts =
         {
             (22f, CbEnemy.Kind.Hyena, 6f, false),
             // (the rope bridge has an ambush of its own; the soldier on the rock in the long river is gone: the user)
@@ -47,14 +78,14 @@ namespace Cloudborne
         const float PostWakes = 13f;
 
         /// <summary>The stretches of the stage, named at the top of the screen as Raja reaches them.</summary>
-        static readonly (float x, string name)[] Sections =
+        static readonly (float x, string name)[] JungleSections =
         {
             (0f, "Save Koda"), (70f, "The cracked wall"), (79f, "The long river"), (106f, "The old shrine"), (136f, "The flooded gorge"),
             (194f, "The vine ravine"), (240f, "The temple of traps"), (283f, "The monkey cage"), (307f, "The raft river"),
             (365f, "The canopy"), (392f, "The waterfall"), (425f, "The stone bridge"), (452f, "The shrine gate"),
         };
         /// <summary>Tips as Raja reaches them (tip: one of the fight tips; else text).</summary>
-        static readonly (float x, int tip, string text)[] Tips =
+        static readonly (float x, int tip, string text)[] JungleTips =
         {
             (17f, 1, null),
             (21f, -1, "A fallen trunk! <color=#ffb03a>Swipe ↓</color> to slide under it"),
@@ -143,8 +174,21 @@ namespace Cloudborne
                 new[] { (CbEnemy.Kind.Hyena, -9f), (CbEnemy.Kind.Hyena, 9f), (CbEnemy.Kind.Shield, -7f), (CbEnemy.Kind.Thrower, 9.5f) },
             },
         };
-        Ambush[] ambushes;
-        Ambush[] Ambushes => ambushes ??= new[] { ropeAmbush, stoneAmbush };
+        // stage 1-2: on the big bough, six raiders in two waves
+        readonly Ambush boughAmbush = new Ambush
+        {
+            zone = new Zone { x = CbLevel.BoughAmbushX, label = "Ambush on the big bough", spawn = new (CbEnemy.Kind, float)[0] },
+            from = CbLevel.BoughAmbushX - 4f, to = CbLevel.BoughAmbushX + 8f,
+            tip = "Raiders on the bough! Hold your ground",
+            cleared = "BOUGH CLEARED!",
+            waves = new[]
+            {
+                new[] { (CbEnemy.Kind.Hyena, -8f), (CbEnemy.Kind.Hyena, 8f), (CbEnemy.Kind.Shield, 9.5f) },
+                new[] { (CbEnemy.Kind.Thrower, 9f), (CbEnemy.Kind.Hyena, -9f), (CbEnemy.Kind.Hyena, -7f) },
+            },
+        };
+        Ambush[] jungleAmbushes, treetopsAmbushes;
+        Ambush[] Ambushes => CbStage.Treetops ? (treetopsAmbushes ??= new[] { boughAmbush }) : (jungleAmbushes ??= new[] { ropeAmbush, stoneAmbush });
         bool exiting;
         // The soldiers of the fight going on (the ambush on the bridge, the sergeant and his raiders): the fight is won
         // when they are beaten. (It waited on every soldier on the stage: one left behind - asleep along the way - and
@@ -179,6 +223,8 @@ namespace Cloudborne
         /// <summary>The cinematic playing (mode Scene), else null.</summary>
         public CbScene scene;
         bool cleared, introSeen;
+        /// <summary>Whether the stage has been cleared this run.</summary>
+        public bool Cleared => cleared;
         public readonly List<CbEnemy> enemies = new List<CbEnemy>();
         public Zone lockZone;
         public float clock, time, hitstop, shake, slow;
@@ -233,6 +279,8 @@ namespace Cloudborne
         void Awake()
         {
             I = this;
+            // every new game starts at stage 1-1 (the stage chosen is built when it is played)
+            CbStage.Set("1-1");
             Application.targetFrameRate = 60;
             Screen.sleepTimeout = SleepTimeout.NeverSleep;
             QualitySettings.shadowDistance = 45f;
@@ -376,6 +424,8 @@ namespace Cloudborne
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false;
+            // (stage 1-2's boss, Tusk, is still to come: its goal is open from the start)
+            if (CbStage.Treetops) bossStarted = bossDone = true;
             foreach (var a in Ambushes) { a.started = a.done = false; a.wave = 0; }
             exiting = false;
             hud?.HideBoss();
@@ -409,13 +459,41 @@ namespace Cloudborne
         {
             if (mode == Mode.Loading || fade.Busy) return;
             mode = Mode.Loading;
-            fade.Loading("STAGE 1-1 · THE JUNGLE GATE", 1.3f, () =>
+            CbStage.Set(id);
+            fade.Loading(CbStage.Title, 1.3f, () =>
             {
                 menu.Hide();
-                if (introSeen) StartGame();
+                BuildStage();
+                // the opening is stage 1-1's; stage 1-2 starts straight away
+                if (introSeen || CbStage.Treetops) StartGame();
                 else if (CbComic.Available(CbStory.Prologue)) PlayPrologue();
                 else PlayOpening();
             });
+        }
+
+        string builtStage = "1-1";
+
+        /// <summary>
+        /// The stage's scenery, critters, items and level built afresh when another stage is chosen (each is built for
+        /// the stage being played: CbStage).
+        /// </summary>
+        public void BuildStage()
+        {
+            if (builtStage == CbStage.Id) return;
+            builtStage = CbStage.Id;
+            foreach (var e in enemies) e.f.Destroy();
+            enemies.Clear();
+            foreach (var p in posts) if (p.seat != null) Destroy(p.seat.gameObject);
+            posts.Clear();
+            Destroy(world.root.gameObject);
+            critters.Destroy();
+            items.Destroy();
+            level.Destroy();
+            world = new CbWorld(transform);
+            critters = new CbCritters(transform);
+            items = new CbItems(this, transform);
+            level = new CbLevel(this, transform);
+            jungleAmbushes = treetopsAmbushes = null;
         }
 
         /// <summary>The drawn prologue (the night the cloud temple fell), then a fade into the opening scene.</summary>
@@ -612,7 +690,7 @@ namespace Cloudborne
             if (mode != Mode.Play) return;
             mode = Mode.Over;
             overT = 0;
-            CbSave.StageResult("1-1", won, score, time);
+            CbSave.StageResult(CbStage.Id, won, score, time);
             // stars: cleared, every tiger token, and under seven minutes; a badge for no hit taken
             int stars = (won ? 1 : 0) + (Tokens >= 3 ? 1 : 0) + (won && time < 420f ? 1 : 0);
             hud.ShowResult(won, score, maxCombo, time, Tokens, level.CagesFreed, stars, won && !hurtOnce);
@@ -794,7 +872,7 @@ namespace Cloudborne
         /// </summary>
         public void EnemyFellIn(CbEnemy e)
         {
-            bool water = CbLevel.InWater(e.x);
+            bool water = CbLevel.InWater(e.x) && !CbStage.Treetops;
             var at = new Vector3(e.x, water ? CbLevel.WaterLevel + 0.1f : -0.3f, -0.3f);
             if (water)
             {

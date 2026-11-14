@@ -239,7 +239,7 @@ namespace Cloudborne
         /// How much the camera should draw back to show the gorge (0 away from it, 1 in it): it is tall and wide, and
         /// the user wanted more of it in view.
         /// </summary>
-        public float GorgeView(float x) => Mathf.Clamp01(Mathf.Min(x - (MountainFrom - 3f), GorgeTo + 4f - x) / 3f);
+        public float GorgeView(float x) => CbStage.Treetops ? 0f : Mathf.Clamp01(Mathf.Min(x - (MountainFrom - 3f), GorgeTo + 4f - x) / 3f);
 
         /// <summary>The middle of the gorge, where the camera looks while he climbs it.</summary>
         public const float GorgeMiddle = (GorgeFrom + GorgeTo) / 2;
@@ -247,6 +247,7 @@ namespace Cloudborne
         /// <summary>He came back at the lantern at x: if that is before the gorge, it is as it was.</summary>
         public void Respawned(float x)
         {
+            if (CbStage.Treetops) return;
             if (x < MountainFrom) ResetGorge();
         }
 

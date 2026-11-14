@@ -65,6 +65,9 @@ namespace Cloudborne
             items.FindAll(i => Mathf.Abs(i.pos.x - x) < within).ConvertAll(i => (i.pos, i.resting));
         public const string BankKey = "cb_coins";
 
+        /// <summary>Takes the stage's items away (another stage is built).</summary>
+        public void Destroy() => Object.Destroy(root.gameObject);
+
         public CbItems(CbGame game, Transform parent)
         {
             g = game;
@@ -74,7 +77,7 @@ namespace Cloudborne
 
         // ---------- the stage's layout ----------
 
-        /// <summary>Clears everything and lays out stage 1-1's crates, coin trails and secrets.</summary>
+        /// <summary>Clears everything and lays out the stage's crates, coin trails and secrets.</summary>
         public void Reset()
         {
             foreach (var i in items) Object.Destroy(i.t.gameObject);
@@ -82,6 +85,7 @@ namespace Cloudborne
             foreach (var c in crates) Object.Destroy(c.t.gameObject);
             crates.Clear();
             Coins = 0;
+            if (CbStage.Treetops) { LayOutTreetops(); return; }
 
             // crates along the path, each with something in it
             AddCrate(9f, Kind.Coin, Kind.Coin, Kind.Coin);
@@ -122,6 +126,36 @@ namespace Cloudborne
             // it, the water rising), and the scroll on the higher of the two ledges over the summit (CbLevelGorge)
             Spawn(Kind.GoldenFruit, new Vector3(140.1f, 11.2f + 1.2f, 0), resting: true);
             Spawn(Kind.Scroll, new Vector3(153.6f, 16.2f, 0), resting: true);
+        }
+
+        /// <summary>
+        /// Stage 1-2's crates, coin trails and secrets: coins along the bridges and over the ledges, swinging vines and
+        /// bars; the staff-throw scroll in the hidden nest up the updraft; three tiger tokens - in the nest, on the high
+        /// ledge over the crumbling branches, on the ledge the springy leaf throws him up to.
+        /// </summary>
+        void LayOutTreetops()
+        {
+            void C(float x, float y) => Spawn(Kind.Coin, new Vector3(x, y, 0), resting: true);
+            AddCrate(10f, Kind.Coin, Kind.Coin, Kind.Coin);
+            AddCrate(40f, Kind.Mango, Kind.Coin);
+            AddCrate(91f, Kind.KiCrystal, Kind.Coin);
+            AddCrate(150f, Kind.Mango, Kind.Coin, Kind.Coin);
+            AddCrate(214f, Kind.KiCrystal, Kind.Coin);
+            AddCrate(290f, Kind.Mango, Kind.Coin);
+            AddCrate(322f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
+            AddCrate(338f, Kind.Mango, Kind.Mango);
+            foreach (var x in new[] { 25.5f, 27.5f, 29.5f }) C(x, 1.1f);
+            foreach (var x in new[] { 69.2f, 75.8f }) C(x, 4.4f);
+            foreach (var (x, top) in new[] { (124.6f, 1.2f), (128.6f, 2.2f), (132.6f, 2.8f), (136.6f, 2.2f), (140.6f, 1.6f), (144.2f, 0.8f) }) C(x, top + 1f);
+            Spawn(Kind.Token, new Vector3(132.2f, 6.5f, 0), resting: true);
+            for (float x = 185f; x < 194f; x += 1.6f) C(x, 3.2f);
+            for (float y = 3f; y < CbLevel.NestTop; y += 1.4f) C(199.9f, y);
+            Spawn(Kind.Scroll, new Vector3(CbLevel.NestX - 0.3f, CbLevel.NestTop + 1f, 0), resting: true);
+            Spawn(Kind.Token, new Vector3(CbLevel.NestX + 0.4f, CbLevel.NestTop + 1.1f, 0), resting: true);
+            for (float x = 255f; x < 285f; x += 3.5f) C(x, 1.1f);
+            for (int i = 0; i < 4; i++) C(304.4f + i * 0.6f, 2.4f + i * 1.2f);
+            Spawn(Kind.Token, new Vector3(306.6f, 7.3f, 0), resting: true);
+            foreach (var x in new[] { 326f, 329f, 332f, 335f }) C(x, 1.2f);
         }
 
         void AddCrate(float x, params Kind[] contents)

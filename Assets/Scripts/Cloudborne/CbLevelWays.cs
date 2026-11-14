@@ -1076,7 +1076,7 @@ namespace Cloudborne
                 CbFx.Sfx("hit", 0.7f);
                 if (th.hp <= 0) { th.b.broken = true; th.b.t.gameObject.SetActive(false); CbFx.Puff(new Vector3((th.b.x0 + th.b.x1) / 2, 0.6f, -0.3f), new Color(0.5f, 0.7f, 0.4f), 6, 1.6f, 0.8f, 0.5f); }
             }
-            if (!lever && InReach(LeverX, x, dir, range) && y < 1.5f)
+            if (Temple && !lever && InReach(LeverX, x, dir, range) && y < 1.5f)
             {
                 lever = true; any = true;
                 leverT = LeverOpenTime;
@@ -1158,57 +1158,8 @@ namespace Cloudborne
             UpdateMovers(dt, hero);
 
             // gates slide up when opened; the second opens while its plate is pressed
-            // the block pushed onto the plate settles into it with a thud and stays
-            if (!blockSet && Mathf.Abs(PushBlockX - PlateX) < 0.25f)
-            {
-                blockSet = true;
-                blockSetT = 0;
-                blockFromX = PushBlockX;
-                pushBlock.x0 = PlateX - 0.5f; pushBlock.x1 = PlateX + 0.5f; pushBlock.top = 1f - BlockSink;
-            }
-            // (it sank in at once: the user wanted to see it settle) sliding onto the plate's middle and sinking into it,
-            // then a thud
-            if (blockSetT < 1f)
-            {
-                blockSetT = Mathf.Min(1f, blockSetT + dt / 0.4f);
-                float k = blockSetT * blockSetT * (3 - 2 * blockSetT);
-                pushBlock.t.localPosition = new Vector3(Mathf.Lerp(blockFromX, PlateX, k), -BlockSink * k, 0);
-                if (blockSetT >= 1f)
-                {
-                    CbFx.Puff(new Vector3(PlateX, 0.15f, -0.4f), new Color(0.8f, 0.75f, 0.65f), 6, 1.4f, 0.7f, 0.5f);
-                    CbFx.Sfx("heavy", 0.6f);
-                    g.shake = Mathf.Max(g.shake, 0.15f);
-                }
-            }
-            // the lever's handle: thrown across fast, then creeping back as the gate's time runs out (a clock you can
-            // see), and springing home when it shuts
-            float throwTo = lever ? Mathf.Clamp01(leverT / LeverOpenTime * 1.15f) : 0f;
-            leverThrow = Mathf.MoveTowards(leverThrow, throwTo, dt * (throwTo > leverThrow ? 7f : 3f));
-            ShowLever();
-            // the lever's gate: open while the time lasts (ticking, faster at the end), held while he is in it;
-            // then it shuts and the lever springs back, to be pulled again
-            if (lever && gates.Count > 0)
-            {
-                float before = leverT;
-                leverT -= dt;
-                float tick = leverT < 2f ? 0.25f : 0.5f;
-                if (leverT > 0 && Mathf.Floor(before / tick) != Mathf.Floor(leverT / tick)) CbFx.Sfx("block", leverT < 2f ? 0.35f : 0.2f);
-                bool inGate = gates[0].open > 0 && Mathf.Abs(hero.x - (gates[0].b.x0 + gates[0].b.x1) / 2) < 0.8f;
-                gates[0].wantOpen = leverT > 0 || inGate;
-                if (!gates[0].wantOpen)
-                {
-                    lever = false;
-                    if (hero.x < RaceGateX) g.hud.SetTip("The gate shut! Strike the lever again - and don't stop for the logs");
-                }
-            }
-            bool pressed = (Mathf.Abs(hero.x - PlateX) < 0.6f && hero.y < 0.1f) || blockSet || (pushBlock.x0 < PlateX && pushBlock.x1 > PlateX);
-            // the plate goes down under what presses it
-            if (plate != null)
-            {
-                var pp = plate.localPosition;
-                plate.localPosition = new Vector3(pp.x, Mathf.MoveTowards(pp.y, pressed ? -0.015f : 0.03f, dt * 0.3f), pp.z);
-            }
-            if (gates.Count > 1) gates[1].wantOpen = pressed || (gates[1].open > 0 && Mathf.Abs(hero.x - (gates[1].b.x0 + gates[1].b.x1) / 2) < 0.8f);
+            // (the temple's lever, gates, block and plate are stage 1-1's)
+            if (Temple) UpdateTemple(dt, hero);
             foreach (var gt in gates)
             {
                 float was = gt.open;
@@ -1268,11 +1219,69 @@ namespace Cloudborne
             }
             if (waterfallMat != null) waterfallMat.mainTextureOffset = new Vector2(0, Time.time * 1.2f);
             // spray and mist where it lands
-            if (Mathf.Abs(hero.x - waterfall.center.x) < 12f && Random.value < 0.08f)
+            if (waterfallMat != null && Mathf.Abs(hero.x - waterfall.center.x) < 12f && Random.value < 0.08f)
                 CbFx.Puff(new Vector3(Random.Range(waterfall.xMin, waterfall.xMax), 0.3f, -1.5f), new Color(0.9f, 0.97f, 1f), 1, 0.8f, 0.9f, 0.9f);
-            if (Mathf.Abs(hero.x - waterfall.center.x) < 12f && Random.value < 0.6f)
+            if (waterfallMat != null && Mathf.Abs(hero.x - waterfall.center.x) < 12f && Random.value < 0.6f)
                 CbFx.Spark(new Vector3(Random.Range(waterfall.xMin, waterfall.xMax), 0.3f, -1.4f), CbFx.Water, 1, 2, 0.3f, 0.5f, 4);
         }
+        bool Temple => pushBlock != null;
+
+        /// <summary>Stage 1-1's temple: the block on the plate, the lever and its gate, the plate's gate.</summary>
+        void UpdateTemple(float dt, CbHero hero)
+        {
+            // the block pushed onto the plate settles into it with a thud and stays
+            if (!blockSet && Mathf.Abs(PushBlockX - PlateX) < 0.25f)
+            {
+                blockSet = true;
+                blockSetT = 0;
+                blockFromX = PushBlockX;
+                pushBlock.x0 = PlateX - 0.5f; pushBlock.x1 = PlateX + 0.5f; pushBlock.top = 1f - BlockSink;
+            }
+            // (it sank in at once: the user wanted to see it settle) sliding onto the plate's middle and sinking into it,
+            // then a thud
+            if (blockSetT < 1f)
+            {
+                blockSetT = Mathf.Min(1f, blockSetT + dt / 0.4f);
+                float k = blockSetT * blockSetT * (3 - 2 * blockSetT);
+                pushBlock.t.localPosition = new Vector3(Mathf.Lerp(blockFromX, PlateX, k), -BlockSink * k, 0);
+                if (blockSetT >= 1f)
+                {
+                    CbFx.Puff(new Vector3(PlateX, 0.15f, -0.4f), new Color(0.8f, 0.75f, 0.65f), 6, 1.4f, 0.7f, 0.5f);
+                    CbFx.Sfx("heavy", 0.6f);
+                    g.shake = Mathf.Max(g.shake, 0.15f);
+                }
+            }
+            // the lever's handle: thrown across fast, then creeping back as the gate's time runs out (a clock you can
+            // see), and springing home when it shuts
+            float throwTo = lever ? Mathf.Clamp01(leverT / LeverOpenTime * 1.15f) : 0f;
+            leverThrow = Mathf.MoveTowards(leverThrow, throwTo, dt * (throwTo > leverThrow ? 7f : 3f));
+            ShowLever();
+            // the lever's gate: open while the time lasts (ticking, faster at the end), held while he is in it;
+            // then it shuts and the lever springs back, to be pulled again
+            if (lever && gates.Count > 0)
+            {
+                float before = leverT;
+                leverT -= dt;
+                float tick = leverT < 2f ? 0.25f : 0.5f;
+                if (leverT > 0 && Mathf.Floor(before / tick) != Mathf.Floor(leverT / tick)) CbFx.Sfx("block", leverT < 2f ? 0.35f : 0.2f);
+                bool inGate = gates[0].open > 0 && Mathf.Abs(hero.x - (gates[0].b.x0 + gates[0].b.x1) / 2) < 0.8f;
+                gates[0].wantOpen = leverT > 0 || inGate;
+                if (!gates[0].wantOpen)
+                {
+                    lever = false;
+                    if (hero.x < RaceGateX) g.hud.SetTip("The gate shut! Strike the lever again - and don't stop for the logs");
+                }
+            }
+            bool pressed = (Mathf.Abs(hero.x - PlateX) < 0.6f && hero.y < 0.1f) || blockSet || (pushBlock.x0 < PlateX && pushBlock.x1 > PlateX);
+            // the plate goes down under what presses it
+            if (plate != null)
+            {
+                var pp = plate.localPosition;
+                plate.localPosition = new Vector3(pp.x, Mathf.MoveTowards(pp.y, pressed ? -0.015f : 0.03f, dt * 0.3f), pp.z);
+            }
+            if (gates.Count > 1) gates[1].wantOpen = pressed || (gates[1].open > 0 && Mathf.Abs(hero.x - (gates[1].b.x0 + gates[1].b.x1) / 2) < 0.8f);
+        }
+
         bool chestHinted;
 
         void UpdateTraps(float dt, CbHero hero)
@@ -1301,7 +1310,7 @@ namespace Cloudborne
             // the dart statue: a dart every 2.4 s along the path at chest height (duck under, jump over), at Raja coming
             // towards it
             dartT -= dt;
-            if (dartT <= 0 && hero.x < StatueX && StatueX - hero.x < 12f)
+            if (Temple && dartT <= 0 && hero.x < StatueX && StatueX - hero.x < 12f)
             {
                 dartT = 2.4f;
                 var t = CbArt.Cylinder(M("#3a2a1a"), root, new Vector3(StatueX - 0.5f, DartY, 0), 0.03f, 0.5f, Quaternion.Euler(0, 0, 90));
@@ -1380,12 +1389,15 @@ namespace Cloudborne
             lever = chestOpen = chestHinted = false;
             leverT = 0;
             leverThrow = 0;
-            ShowLever();
+            if (Temple) ShowLever();
             blockSetT = 1f;
             if (plate != null) plate.localPosition = new Vector3(PlateX, 0.03f, 0.1f);
             foreach (var gt in gates) { gt.open = 0; gt.wantOpen = false; gt.b.broken = false; gt.b.t.localPosition = gt.home; }
-            pushBlock.x0 = pushHome - 0.5f; pushBlock.x1 = pushHome + 0.5f; pushBlock.t.localPosition = new Vector3(pushHome, 0, 0);
-            pushBlock.top = 1f; blockSet = false;
+            if (Temple)
+            {
+                pushBlock.x0 = pushHome - 0.5f; pushBlock.x1 = pushHome + 0.5f; pushBlock.t.localPosition = new Vector3(pushHome, 0, 0);
+                pushBlock.top = 1f; blockSet = false;
+            }
 
             if (chestLid != null) chestLid.localRotation = Quaternion.identity;
             if (chestModel != null) chestModel.localScale = Vector3.one;

@@ -1659,6 +1659,81 @@ namespace RacingGame.Tests
             game.StartGame();
             game.SkipFights();
             yield return Frames(2);
+            yield return TakePictures(new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("summit", 154f, CbLevel.SummitTop), ("bars", 219f, 4.8f - 1.71f),
+                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 392.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck) });
+        }
+
+        [UnityTest]
+        public IEnumerator TheTreetopsStageIsBuiltAndPlays()
+        {
+            // stage 1-2 (the user: on to the next stage): built when chosen, its own length, gaps, drones, bridges
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-2");
+            game.BuildStage();
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(3);
+            Assert.AreEqual(CbLevel.TreetopsGoal, CbWorld.GoalX, 0.01f, "Stage 1-2 has stage 1-1's goal");
+            Assert.Greater(game.level.SawCount, 3, "Stage 1-2 has too few saw drones");
+            Assert.IsTrue(CbLevel.InWater(70f), "No gap between the boughs at the vine gap");
+            // the rope bridge over the first gap holds him
+            Assert.Greater(game.level.SupportAt(27.5f, 1f), -0.5f, "The first rope bridge does not hold him");
+            // down a gap: health lost, back on the bough he stood on
+            game.Teleport(58f);
+            game.hero.y = 0;
+            yield return new WaitForSeconds(0.4f);
+            float hp = game.hero.hp;
+            game.Teleport(70f);
+            game.hero.y = 1f;
+            game.hero.vy = 0;
+            game.hero.state = CbHero.State.Air;
+            for (float w = 0; w < 2.5f && game.hero.hp >= hp; w += Time.deltaTime) yield return null;
+            Assert.Less(game.hero.hp, hp, "Falling down a gap cost no health");
+            Assert.Less(game.hero.x, 62f, "Falling down a gap did not put him back on the bough");
+            // a saw drone: a paw clangs off it, two staff blows smash it
+            yield return new WaitForSeconds(1.2f);
+            var blade = game.level.SawBlade(0);
+            int flying = game.level.SawsFlying;
+            game.level.Strike(blade.x - 1f, blade.y - 1f, 1, 2.2f, staff: false);
+            Assert.AreEqual(flying, game.level.SawsFlying, "A paw smashed a saw drone");
+            blade = game.level.SawBlade(0);
+            game.level.Strike(blade.x - 1f, blade.y - 1f, 1, 2.2f, staff: true);
+            blade = game.level.SawBlade(0);
+            game.level.Strike(blade.x - 1f, blade.y - 1f, 1, 2.2f, staff: true);
+            Assert.AreEqual(flying - 1, game.level.SawsFlying, "Two staff blows did not smash the saw drone");
+            // the end: at the goal the stage is cleared
+            game.Teleport(CbWorld.GoalX + 0.5f);
+            game.hero.y = 0;
+            for (float w = 0; w < 2f && game.mode == CbGame.Mode.Play && !game.Cleared; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(game.Cleared, "Reaching the loggers' camp's end did not clear stage 1-2");
+            // and back to stage 1-1: its rivers again
+            CbStage.Set("1-1");
+            game.BuildStage();
+            Assert.IsTrue(CbLevel.InWater(90f), "Stage 1-1's long river is gone after playing stage 1-2");
+            Assert.AreEqual(488f, CbWorld.GoalX, 0.01f, "Stage 1-1's goal did not come back");
+        }
+
+        [UnityTest]
+        public IEnumerator ZzTreetopsPictures()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-2");
+            game.BuildStage();
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            yield return TakePictures(new[] { ("treetops_start", 8f, 0f), ("treetops_vines", 60.5f, 0f), ("treetops_saw", 98f, 0f),
+                ("treetops_ledges", 132.6f, 2.8f), ("treetops_logs", 160f, 0f), ("treetops_bridge", 262f, 0f), ("treetops_camp", 330f, 0f) });
+        }
+
+        /// <summary>
+        /// Photographs the stage being played at each spot (Raja there, the camera eased after him) and logs the pictures
+        /// for the CI to collect ("SHOT name i base64").
+        /// </summary>
+        IEnumerator TakePictures((string name, float x, float y)[] spots)
+        {
             // the game's own camera (Camera.main can be another scene's: the first pictures were of the kart race)
             var cam = game.GetComponentInChildren<Camera>();
             Assert.IsNotNull(cam, "No game camera");
@@ -1678,8 +1753,7 @@ namespace RacingGame.Tests
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
             var oldTrace = Application.GetStackTraceLogType(LogType.Log);
             // where, and how high (the bars are over the river: he hangs from them, or he would be in the water)
-            foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("summit", 154f, CbLevel.SummitTop), ("bars", 219f, 4.8f - 1.71f),
-                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 392.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck) })
+            foreach (var (name, x, y) in spots)
             {
                 game.Teleport(x);
                 game.hero.y = y;
@@ -1729,6 +1803,8 @@ namespace RacingGame.Tests
             if (hud != null) hud.renderMode = RenderMode.ScreenSpaceOverlay;
             Application.logMessageReceived -= Told;
         }
+
+
 
         [UnityTest]
         public IEnumerator VinesAndBars()
