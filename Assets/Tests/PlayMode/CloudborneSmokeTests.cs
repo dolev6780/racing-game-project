@@ -1073,29 +1073,57 @@ namespace RacingGame.Tests
                 if (top < 0.25f) continue;
                 float a = x0 + 0.2f, b = x1 - 0.2f;
                 if (b - a < 0.3f) { a = (x0 + x1) / 2 - 0.15f; b = a + 0.3f; }
-                const int Slices = 8;
-                var tops = new float[Slices];
-                for (int i = 0; i < Slices; i++) tops[i] = float.MinValue;
+                // the model's triangles near the line he walks, in the world (a flat top has its corners far apart:
+                // its vertices alone missed it)
+                var tris = new List<(Vector3 p, Vector3 q, Vector3 r)>();
                 foreach (var mf in t.GetComponentsInChildren<MeshFilter>())
                 {
                     var mesh = mf.sharedMesh;
                     if (mesh == null || !mesh.isReadable) continue;
                     var m = mf.transform.localToWorldMatrix;
-                    foreach (var v in mesh.vertices)
+                    var vs = mesh.vertices;
+                    var w = new Vector3[vs.Length];
+                    for (int i = 0; i < vs.Length; i++) w[i] = m.MultiplyPoint3x4(vs[i]);
+                    var ix = mesh.triangles;
+                    for (int k = 0; k < ix.Length; k += 3)
                     {
-                        var w = m.MultiplyPoint3x4(v);
-                        if (Mathf.Abs(w.z) > 0.35f || w.x < a || w.x > b) continue;
-                        int i = Mathf.Clamp((int)((w.x - a) / (b - a) * Slices), 0, Slices - 1);
-                        tops[i] = Mathf.Max(tops[i], w.y);
+                        Vector3 p = w[ix[k]], q = w[ix[k + 1]], r = w[ix[k + 2]];
+                        if (Mathf.Max(p.x, q.x, r.x) < a || Mathf.Min(p.x, q.x, r.x) > b) continue;
+                        if (Mathf.Max(p.z, q.z, r.z) < -0.3f || Mathf.Min(p.z, q.z, r.z) > 0.1f) continue;
+                        tris.Add((p, q, r));
                     }
                 }
+                if (tris.Count == 0) continue;
+                // straight down onto them at (x, z): the highest surface there
+                float Down(float x, float z)
+                {
+                    float best = float.MinValue;
+                    foreach (var (p, q, r) in tris)
+                    {
+                        float d = (q.z - r.z) * (p.x - r.x) + (r.x - q.x) * (p.z - r.z);
+                        if (Mathf.Abs(d) < 1e-9f) continue;
+                        float l1 = ((q.z - r.z) * (x - r.x) + (r.x - q.x) * (z - r.z)) / d;
+                        float l2 = ((r.z - p.z) * (x - r.x) + (p.x - r.x) * (z - r.z)) / d;
+                        float l3 = 1 - l1 - l2;
+                        if (l1 < -1e-4f || l2 < -1e-4f || l3 < -1e-4f) continue;
+                        best = Mathf.Max(best, l1 * p.y + l2 * q.y + l3 * r.y);
+                    }
+                    return best;
+                }
+                const int Slices = 8;
                 var found = new List<float>();
-                foreach (var v in tops) if (v > float.MinValue) found.Add(v);
+                for (int i = 0; i < Slices; i++)
+                {
+                    float x = Mathf.Lerp(a, b, (i + 0.5f) / Slices);
+                    // under his feet and just in front of them (what the camera sees him stand on)
+                    float y = Mathf.Max(Down(x, 0f), Down(x, -0.2f));
+                    if (y > float.MinValue) found.Add(y);
+                }
                 if (found.Count < Slices / 2) continue;
                 found.Sort();
                 measured++;
                 float surface = found[found.Count / 2];
-                Debug.Log($"STAND {x0:0.0}-{x1:0.0} top {top:0.00} surface {surface:0.00} low {found[0]:0.00} ({t.name})");
+                Debug.Log($"STAND {x0:0.0}-{x1:0.0} top {top:0.00} surface {surface:0.00} low {found[0]:0.00} high {found[found.Count - 1]:0.00} ({t.name})");
                 if (surface < top - 0.2f) bad.Add($"{x0:0.0}-{x1:0.0} ({t.name}): he stands at {top:0.00}, the rock under him is at {surface:0.00}");
             }
             Assert.Greater(measured, 5, "Too few rocks measured");
