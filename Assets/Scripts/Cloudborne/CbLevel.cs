@@ -245,6 +245,8 @@ namespace Cloudborne
                             Quaternion.Euler(0, R(-25f, 25f), land * R(0f, 12f)), shadows: false).name = "bankGrass";
                     }
                 }
+            // they never move: drawn together, a few batches for the lot (a phone draws each piece separately otherwise)
+            StaticBatchingUtility.Combine(banks.gameObject);
         }
 
         /// <summary>Whether x is over one of the streams (margin widens them, for keeping scenery off the water).</summary>

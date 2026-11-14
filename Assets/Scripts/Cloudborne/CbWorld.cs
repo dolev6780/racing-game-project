@@ -191,18 +191,27 @@ namespace Cloudborne
         /// <summary>One of the painted flower cards (cut out, unlit) and its width over height; null if it isn't in the project.</summary>
         public static (Material m, float aspect)? FlowerCard(int i)
         {
-            var tex = Resources.Load<Texture2D>(CardDir + FlowerCards[((i % FlowerCards.Length) + FlowerCards.Length) % FlowerCards.Length]);
+            string name = FlowerCards[((i % FlowerCards.Length) + FlowerCards.Length) % FlowerCards.Length];
+            // one material for each card, shared (a new one for every flower kept them from being drawn together)
+            if (cardCache.TryGetValue(name, out var cached) && cached.m != null) return cached;
+            var tex = Resources.Load<Texture2D>(CardDir + name);
             var m = Cutout(tex, 0f, new Color(0.9f, 0.9f, 0.9f));
-            return m != null ? (m, tex.width / (float)tex.height) : ((Material, float)?)null;
+            if (m == null) return null;
+            return cardCache[name] = (m, tex.width / (float)tex.height);
         }
+
+        static readonly Dictionary<string, (Material m, float aspect)> cardCache = new Dictionary<string, (Material, float)>();
 
         /// <summary>One of the painted grass cards (cut out, unlit) and its width over height; null if it isn't in the project.</summary>
         public static (Material m, float aspect)? GrassCard(int i)
         {
-            var tex = Resources.Load<Texture2D>(CardDir + GrassCards[((i % GrassCards.Length) + GrassCards.Length) % GrassCards.Length]);
+            string name = GrassCards[((i % GrassCards.Length) + GrassCards.Length) % GrassCards.Length];
+            if (cardCache.TryGetValue(name, out var cached) && cached.m != null) return cached;
+            var tex = Resources.Load<Texture2D>(CardDir + name);
             var m = Cutout(tex, 0f, new Color(0.86f, 0.88f, 0.86f));
-            if (m != null) m.SetFloat("_Sway", CardSway);
-            return m != null ? (m, tex.width / (float)tex.height) : ((Material, float)?)null;
+            if (m == null) return null;
+            m.SetFloat("_Sway", CardSway);
+            return cardCache[name] = (m, tex.width / (float)tex.height);
         }
 
         /// <summary>The grass and flower cards in the project: their material, width over height, and whether a flower.</summary>
