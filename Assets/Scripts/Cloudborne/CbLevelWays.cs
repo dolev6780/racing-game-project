@@ -66,7 +66,12 @@ namespace Cloudborne
 
         const float LeafBounce = 19.5f, RaftTop = 0.1f;
         public const float TrunkX = 24.5f;
-        public static readonly float[] LeafXs = { 28.6f, 176f, 380.2f, 475.5f };
+        // Springy leaves, each for something (the one before the rope bridge and the one past the gorge led nowhere:
+        // the user): up to a ledge over the old shrine with a ki crystal on it, up the canopy's vine pillar, up onto
+        // the ridge's shaft (and the ravine's, up to its token ledge)
+        public static readonly float[] LeafXs = { 118f, 380.2f, 475.5f };
+        /// <summary>The ledge over the old shrine the springy leaf there throws him up to: its middle and top.</summary>
+        public const float ShrineLedgeX = 120.6f, ShrineLedgeTop = 6.2f;
         public static readonly float[] LowLogXs = { 183f, 452.5f };
         const string ClimbVinePath = "Cloudborne/Jungle/ClimbVine/ClimbVine";
         const float StatueX = 251.5f, PlateX = 284.5f;
@@ -185,9 +190,9 @@ namespace Cloudborne
             AddBar(215.5f, 223f, 4.8f);
             AddVine(226.8f, 9.4f, 5.4f);
             AddLeaf(235.5f, 0.45f);
-            // more springy leaves along the stage (the user liked the one in the ravine): before the rope bridge, past
-            // the gorge, up to the canopy's vine pillar, up onto the ridge's shaft
+            // more springy leaves along the stage (the user liked the one in the ravine), each for something
             foreach (var x in LeafXs) AddLeaf(x, 0.45f);
+            AddLedge(ShrineLedgeX, 1.6f, ShrineLedgeTop, false);
             AddLedge(238f, 1.6f, 6.2f, false);
 
             // ---- the temple of traps (the user found its traps crowded together: they are spread out, the dart statue

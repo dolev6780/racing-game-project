@@ -162,7 +162,13 @@ namespace Cloudborne
             // arc out over the water)
             foreach (var lx in CbLevel.LeafXs)
             {
-                if (lx < 30f) { for (int i = 0; i < 5; i++) C(lx + 1f + i * 1f, 5.6f + Mathf.Sin(i / 4f * Mathf.PI) * 1.4f); continue; }
+                // over the shrine: up from the leaf to its ledge, a ki crystal waiting there
+                if (lx < 130f)
+                {
+                    for (int i = 0; i < 4; i++) C(lx + i * 0.8f, 3f + i * 1.2f);
+                    Spawn(Kind.KiCrystal, new Vector3(CbLevel.ShrineLedgeX + 0.3f, CbLevel.ShrineLedgeTop + 0.9f, 0), resting: true);
+                    continue;
+                }
                 for (float y = 3f; y < 7.6f; y += 1.5f) C(lx, y);
             }
             // the fight and the cage after the temple

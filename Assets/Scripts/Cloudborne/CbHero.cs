@@ -5,9 +5,9 @@ namespace Cloudborne
 {
     /// <summary>
     /// One frame of player input: stick, edges (pressed this frame) and holds. What he does, not which button: the
-    /// controls (CbHud, CbGame.ReadKeys) are three buttons and two swipes - JUMP; ATTACK (tapped: atk, the combo; held:
-    /// heavy, the staff); SKILL (kiTap: KI, FIRE once his fire is awake; with ki full: skill, SPECIAL); a swipe down:
-    /// slide; a swipe across: dash (a dodge) that way. (Seven buttons and their combinations were too much on a phone:
+    /// controls (CbHud, CbGame.ReadKeys) are four buttons and two swipes - JUMP; ATTACK (tapped: atk, the combo; held:
+    /// heavy, the staff); KI (kiTap; FIRE once his fire is awake); SPECIAL (skill); a swipe down: slide; a swipe
+    /// across: dash (a dodge) that way. (Seven buttons and their combinations were too much on a phone:
     /// the user.) guard and y (duck, sweep, launcher) are on no control now; the hero still knows them.
     /// </summary>
     public class CbInput

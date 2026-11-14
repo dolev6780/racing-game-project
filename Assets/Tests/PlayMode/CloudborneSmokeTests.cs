@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using Cloudborne;
 using NUnit.Framework;
@@ -916,8 +917,8 @@ namespace RacingGame.Tests
         public IEnumerator ThreeButtonsAndTwoSwipesDoEverything()
         {
             // the phone's controls (seven buttons and their combinations were too much: the user): ATTACK tapped is the
-            // combo and held the staff; SKILL is the ki move, and the special when ki is full; a swipe down slides (under
-            // a low trunk), a swipe across dodges that way; pushing into vines climbs them
+            // combo and held the staff; KI the ki move; SPECIAL a button of its own (the user), lit when ki is high; a
+            // swipe down slides (under a low trunk), a swipe across dodges that way; pushing into vines climbs them
             game = CbGame.Boot();
             yield return Frames(3);
             game.StartGame();
@@ -946,23 +947,24 @@ namespace RacingGame.Tests
             for (float w = 0; w < 0.8f; w += Time.deltaTime) { staff |= hero.state == CbHero.State.Staff; yield return null; }
             Assert.IsTrue(staff, "Holding ATTACK did not bring out the staff");
             yield return Settle();
-            // SKILL: the ki move; with ki full, on the ground, the special (and the button says so)
-            hero.ki = 60f;
+            // KI: the ki move, never the special, even with ki full
+            hero.ki = 100f;
             yield return null;
-            Assert.AreNotEqual("SPECIAL", game.hud.SkillLabel, "SKILL says SPECIAL with ki not full");
+            Assert.AreEqual(CbHero.FireAwake ? "FIRE" : "KI", game.hud.SkillLabel, "The KI button says something else");
             first = true;
             bool special = false;
             game.TestControls = i => { i.kiTap = first; first = false; };
             for (float w = 0; w < 0.3f; w += Time.deltaTime) { special |= hero.state == CbHero.State.Special; yield return null; }
-            Assert.IsFalse(special, "SKILL fired the special with ki not full");
+            Assert.IsFalse(special, "KI fired the special");
             yield return Settle();
+            // SPECIAL: its own button, lit when ki is high
             hero.ki = 100f;
             yield return null;
-            Assert.AreEqual("SPECIAL", game.hud.SkillLabel, "SKILL does not say SPECIAL with ki full");
+            Assert.IsTrue(game.hud.SpecialLit, "The SPECIAL button is not lit with ki full");
             first = true;
-            game.TestControls = i => { i.kiTap = first; first = false; };
+            game.TestControls = i => { i.skill = first; first = false; };
             for (float w = 0; w < 0.3f; w += Time.deltaTime) { special |= hero.state == CbHero.State.Special; yield return null; }
-            Assert.IsTrue(special, "SKILL with ki full did not fire the special");
+            Assert.IsTrue(special, "SPECIAL did not fire the special");
             for (float w = 0; w < 4f && hero.state == CbHero.State.Special; w += Time.deltaTime) yield return null;
             yield return Settle();
             // a swipe across: a dodge that way, whichever way he faced
@@ -997,6 +999,107 @@ namespace RacingGame.Tests
             game.TestControls = null;
             Assert.IsTrue(held, "Pushing into the vines did not take hold of them");
             Assert.Greater(top, 1.5f, "Pushing into the vines did not climb them");
+        }
+
+        [UnityTest]
+        public IEnumerator TheRopeBridgeAtTheStartIsAnAmbush()
+        {
+            // at least five raiders on the rope bridge (the user), in waves; beaten, the way opens. No soldier stands on
+            // the rock in the long river after it any more (the user)
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            game.hero.inv = 999f;
+            game.Teleport(CbLevel.RopeBridgeX - 6f);
+            game.hero.y = game.level.SupportAt(game.hero.x, 2f);
+            game.hero.vy = 0;
+            yield return Frames(3);
+            Assert.AreEqual(1, game.RopeAmbushWave, "No ambush on the rope bridge");
+            int raiders = 0;
+            for (int wave = 1; wave <= 6 && !game.RopeAmbushDone; wave++)
+            {
+                var foes = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.RopeBridgeX) < 12f);
+                Assert.Greater(foes.Count, 0, $"Wave {wave} of the rope bridge's ambush has no raiders");
+                raiders += foes.Count;
+                foreach (var e in foes) { e.vx = e.vy = 0; e.Kill(1); }
+                yield return new WaitForSeconds(0.5f);
+            }
+            Assert.GreaterOrEqual(raiders, 5, "The rope bridge's ambush is too small (at least five: the user)");
+            Assert.IsTrue(game.RopeAmbushDone, "The rope bridge's ambush did not end");
+            Assert.IsNull(game.lockZone, "The rope bridge stays shut after its ambush");
+            // past it, the long river: no soldier on its rock
+            game.Teleport(84f);
+            game.hero.y = 0;
+            yield return Frames(5);
+            Assert.IsFalse(game.enemies.Exists(e => !e.dead && Mathf.Abs(e.x - 89f) < 1.5f), "A soldier still stands on the rock in the long river");
+        }
+
+        [UnityTest]
+        public IEnumerator SpringyLeavesLeadSomewhere()
+        {
+            // the leaf before the rope bridge led nowhere (the user): each leaf now throws him up to something; over
+            // the old shrine, up to a ledge with a ki crystal
+            Assert.IsFalse(System.Array.Exists(CbLevel.LeafXs, x => x < 100f), "A springy leaf still stands before the rope bridge");
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            float leaf = CbLevel.LeafXs[0];
+            Assert.That(leaf, Is.InRange(110f, 130f), "No springy leaf at the old shrine");
+            Assert.AreEqual(CbLevel.ShrineLedgeTop, game.level.SupportAt(CbLevel.ShrineLedgeX, 20f), 0.01f, "No ledge over the old shrine");
+            // dropped onto it, he bounces up past the ledge's height
+            game.Teleport(leaf);
+            game.hero.y = 3f;
+            game.hero.vy = 0;
+            game.hero.state = CbHero.State.Air;
+            float high = 0;
+            for (float w = 0; w < 1.5f; w += Time.deltaTime) { high = Mathf.Max(high, game.hero.y); yield return null; }
+            Assert.Greater(high, CbLevel.ShrineLedgeTop + 0.3f, "The springy leaf at the old shrine does not throw him up to its ledge");
+        }
+
+        [UnityTest]
+        public IEnumerator HeStandsOnTheRocksNotAboveThem()
+        {
+            // he looked to walk in the air over some rocks (the user): along the line he walks, the top of each rock's
+            // model must be where he stands
+            game = CbGame.Boot();
+            yield return Frames(3);
+            var bad = new List<string>();
+            int measured = 0;
+            foreach (var (x0, x1, top, t) in game.level.Standables())
+            {
+                if (top < 0.25f) continue;
+                float a = x0 + 0.2f, b = x1 - 0.2f;
+                if (b - a < 0.3f) { a = (x0 + x1) / 2 - 0.15f; b = a + 0.3f; }
+                const int Slices = 8;
+                var tops = new float[Slices];
+                for (int i = 0; i < Slices; i++) tops[i] = float.MinValue;
+                foreach (var mf in t.GetComponentsInChildren<MeshFilter>())
+                {
+                    var mesh = mf.sharedMesh;
+                    if (mesh == null || !mesh.isReadable) continue;
+                    var m = mf.transform.localToWorldMatrix;
+                    foreach (var v in mesh.vertices)
+                    {
+                        var w = m.MultiplyPoint3x4(v);
+                        if (Mathf.Abs(w.z) > 0.35f || w.x < a || w.x > b) continue;
+                        int i = Mathf.Clamp((int)((w.x - a) / (b - a) * Slices), 0, Slices - 1);
+                        tops[i] = Mathf.Max(tops[i], w.y);
+                    }
+                }
+                var found = new List<float>();
+                foreach (var v in tops) if (v > float.MinValue) found.Add(v);
+                if (found.Count < Slices / 2) continue;
+                found.Sort();
+                measured++;
+                float surface = found[found.Count / 2];
+                Debug.Log($"STAND {x0:0.0}-{x1:0.0} top {top:0.00} surface {surface:0.00} low {found[0]:0.00} ({t.name})");
+                if (surface < top - 0.2f) bad.Add($"{x0:0.0}-{x1:0.0} ({t.name}): he stands at {top:0.00}, the rock under him is at {surface:0.00}");
+            }
+            Assert.Greater(measured, 5, "Too few rocks measured");
+            Assert.IsEmpty(bad, "Raja stands in the air over:\n" + string.Join("\n", bad));
         }
 
         [UnityTest]

@@ -8,8 +8,8 @@ namespace Cloudborne
 {
     /// <summary>
     /// Screen layer: health and ki bars, stage title and tips, score, combo counter, banners and damage numbers,
-    /// the touch controls (a floating stick for left and right; JUMP, ATTACK and SKILL; swipes on the right of the
-    /// screen: down a slide, across a dodge) and the title / pause / result screens.
+    /// the touch controls (a floating stick for left and right; JUMP, ATTACK, SKILL and SPECIAL; swipes on the right of
+    /// the screen: down a slide, across a dodge) and the title / pause / result screens.
     /// Touches are read directly (no EventSystem), so several fingers work at once.
     /// </summary>
     public class CbHud
@@ -40,10 +40,9 @@ namespace Cloudborne
         public const float TypeSpeed = 40f;
         const float BarHeight = 46f;
         readonly List<Pad> buttons = new List<Pad>();
-        readonly Pad kiPad;
-        // the SKILL button: bamboo gold for the staff techniques, orange once it shoots fire, red and pulsing when ki
-        // is full and it is the special
-        static readonly Color KiPadCol = CbArt.Hex("#c48a2c"), FirePadCol = CbArt.Hex("#e8642a"), SpecialPadCol = CbArt.Hex("#d9341f");
+        readonly Pad kiPad, sp;
+        // the SKILL button: bamboo gold for the staff techniques, orange once it shoots fire
+        static readonly Color KiPadCol = CbArt.Hex("#c48a2c"), FirePadCol = CbArt.Hex("#e8642a");
         readonly List<(RectTransform rt, Text t, float age, Vector2 from)> pops = new List<(RectTransform, Text, float, Vector2)>();
         readonly List<(RectTransform rt, float age, float life)> banners = new List<(RectTransform, float, float)>();
         float comboPop, hurtT;
@@ -149,13 +148,15 @@ namespace Cloudborne
             UIKit.Image(UIKit.Rect(stickBase, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(120, 120)), UIKit.Ring, new Color(1, 1, 1, 0.5f));
             stickKnob = UIKit.Rect(stickBase, "knob", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(54, 54));
             UIKit.Image(stickKnob, UIKit.Circle, new Color(0.95f, 0.93f, 0.88f, 0.95f));
-            // three buttons under the right thumb (seven, and their combinations, were too much on a phone: the user),
+            // four buttons under the right thumb (seven, and their combinations, were too much on a phone: the user),
             // centres measured from the bottom-right corner: ATTACK in the corner (held: the staff), JUMP beside it,
-            // SKILL above it - KI, FIRE once Raja's fire is awake, SPECIAL when ki is full (SetBars keeps it right).
-            // The rest of the right side takes swipes: down a slide, across a dodge.
+            // SKILL above ATTACK - KI, FIRE once Raja's fire is awake (SetBars keeps it right) - and SPECIAL above JUMP,
+            // a button of its own (the user), lit when ki is high enough. The rest of the right side takes swipes:
+            // down a slide, across a dodge.
             AddPad("atk", "ATTACK", new Vector2(-14 - 52, 12 + 52), 104, CbArt.Hex("#d8453f"), 17);
             AddPad("jump", "JUMP", new Vector2(-14 - 124 - 44, 12 + 44), 88, CbArt.Hex("#3aa862"), 17);
             kiPad = AddPad("ki", "KI", new Vector2(-14 - 40 - 38, 12 + 124 + 38), 76, KiPadCol, 15);
+            sp = AddPad("sp", "SPECIAL", new Vector2(-14 - 150 - 34, 12 + 112 + 34), 68, CbArt.Hex("#b8401f"), 12);
             UIKit.Label(pads, "SWIPE  ↓ slide   ↔ dodge", 13, new Color(1, 1, 1, 0.55f), new Vector2(1, 0), new Vector2(1, 0),
                 new Vector2(-14, 12 + 214), new Vector2(260, 20), TextAnchor.MiddleRight, true);
 
@@ -387,25 +388,26 @@ namespace Cloudborne
         public void SetTip(string s) { tipTxt.text = s; tipTxt.transform.parent.gameObject.SetActive(!string.IsNullOrEmpty(s)); }
         public void ShowGo(bool on) => goTxt.gameObject.SetActive(on);
 
-        /// <summary>Health and ki; special: SKILL is the special now (ki full, on the ground).</summary>
-        public void SetBars(float hp, float ki, bool special = false)
+        public void SetBars(float hp, float ki)
         {
             SetFill(hpFill, hp / 100f);
             SetFill(kiFill, ki / 100f);
+            bool ready = ki >= 50 && CbHero.SpecialUnlocked;
             bool fire = CbHero.FireAwake;
-            string label = special ? "SPECIAL" : fire ? "FIRE" : "KI";
-            if (kiPad.label.text != label)
+            if (kiPad.label.text != (fire ? "FIRE" : "KI"))
             {
-                kiPad.label.text = label;
-                kiPad.label.fontSize = special ? 13 : 15;
-                kiPad.img.color = special ? SpecialPadCol : fire ? FirePadCol : KiPadCol;
+                kiPad.label.text = fire ? "FIRE" : "KI";
+                kiPad.img.color = fire ? FirePadCol : KiPadCol;
             }
-            kiFrame.color = special ? Color.Lerp(Paper, FireCol, 0.5f + 0.5f * Mathf.Sin(Time.time * 8)) : Paper;
-            if (kiPad.pointer == int.MinValue) kiPad.rt.localScale = Vector3.one * (special ? 1f + 0.06f * Mathf.Sin(Time.time * 7) : 1f);
+            kiFrame.color = ready ? Color.Lerp(Paper, FireCol, 0.5f + 0.5f * Mathf.Sin(Time.time * 8)) : Paper;
+            if (sp.pointer == int.MinValue) sp.rt.localScale = Vector3.one * (ready ? 1f + 0.05f * Mathf.Sin(Time.time * 7) : 1f);
+            sp.img.color = ready ? CbArt.Hex("#d9541f") : new Color(0.72f, 0.25f, 0.12f, 0.45f);
         }
 
-        /// <summary>What SKILL does now, as its button says it: "KI", "FIRE" or "SPECIAL".</summary>
+        /// <summary>What SKILL says it does: "KI" or "FIRE".</summary>
         public string SkillLabel => kiPad.label.text;
+        /// <summary>Whether the SPECIAL button is lit (ki high enough).</summary>
+        public bool SpecialLit => sp.img.color.a > 0.9f;
 
         public void SetScore(int s) => scoreTxt.text = s.ToString("N0");
 
@@ -738,6 +740,7 @@ namespace Cloudborne
                         case "atk": input.atk = true; break;
                         case "jump": input.jump = true; input.jumpHeld = true; break;
                         case "ki": input.kiTap = true; break;
+                        case "sp": input.skill = true; break;
                     }
                 }
                 else if (stickId == int.MinValue && p.Position.x < UnityEngine.Screen.width * 0.45f && p.Position.y < UnityEngine.Screen.height * 0.7f)

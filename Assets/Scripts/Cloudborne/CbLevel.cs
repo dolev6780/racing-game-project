@@ -157,6 +157,15 @@ namespace Cloudborne
         // and behind it, the front one round the corner; tufts of grass along the top, leaning over the water.
         public int BankStones { get; private set; }
 
+        /// <summary>Test hook: every block and ledge he can stand on: its span, the height he stands at, and its model.</summary>
+        public List<(float x0, float x1, float top, Transform t)> Standables()
+        {
+            var list = new List<(float, float, float, Transform)>();
+            foreach (var b in blocks) if (!b.broken && b.t != null) list.Add((b.x0, b.x1, b.top, b.t));
+            foreach (var l in ledges) if (!l.gone && l.t != null) list.Add((l.x0, l.x1, l.top, l.t));
+            return list;
+        }
+
         /// <summary>A mossy river stone width across, turned about the vertical; its height and depth at that size.</summary>
         Transform BankStone(Transform parent, float width, float turn, out float height, out float depth)
         {

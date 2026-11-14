@@ -34,11 +34,8 @@ namespace Cloudborne
         static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan =
         {
             (22f, CbEnemy.Kind.Hyena, 6f, false),
-            // on the rope bridge (whole: the user wanted to fight on it without gaps underfoot)
-            (40.2f, CbEnemy.Kind.Hyena, 1.5f, false), (46.6f, CbEnemy.Kind.Shield, 1.5f, false),
+            // (the rope bridge has an ambush of its own; the soldier on the rock in the long river is gone: the user)
             (64f, CbEnemy.Kind.Shield, 5f, false), (71f, CbEnemy.Kind.Hyena, 4f, true),
-            // on the rock in the middle of the long river
-            (89f, CbEnemy.Kind.Hyena, 1f, false),
             // waiting together on the far bank of the long river, by the shrine: three at once, the river at their backs
             (106.5f, CbEnemy.Kind.Hyena, 3f, false), (109.5f, CbEnemy.Kind.Shield, 3f, false), (112.5f, CbEnemy.Kind.Thrower, 3f, false),
             (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
@@ -61,9 +58,10 @@ namespace Cloudborne
         {
             (17f, 1, null),
             (21f, -1, "A fallen trunk! <color=#ffb03a>Swipe ↓</color> to slide under it"),
-            (29f, -1, "Soldiers on the rope bridge!"),
+            (29f, -1, "The rope bridge - careful, it's a fine place for an ambush"),
             (57f, 3, null), (66f, 2, null),
             (97f, -1, "They wait on the bank - knock them back into the river!"),
+            (115f, -1, "A springy leaf: jump on it to bounce up to the ledge"),
             (179f, -1, "Another fallen trunk, thorns on top: slide under it"),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
             (241f, -1, "The old temple: thorns need the staff (hold <color=#ffb03a>ATTACK</color>), slide under the darts (<color=#ffb03a>swipe ↓</color>)"),
@@ -94,8 +92,8 @@ namespace Cloudborne
                 case 1: return "Keep holding <color=#ffb03a>ATTACK</color> to whirl the staff. <color=#ffb03a>Swipe ↔</color> to dodge a blow";
                 case 2:
                     return CbSave.FireAwake
-                        ? "<color=#ffb03a>FIRE</color> shoots a fireball. When ki is full it becomes your <color=#ffb03a>SPECIAL</color>"
-                        : "<color=#ffb03a>KI</color>: a staff lunge. When ki is full it becomes your <color=#ffb03a>SPECIAL</color>";
+                        ? "<color=#ffb03a>FIRE</color> shoots a fireball. <color=#ffb03a>SPECIAL</color> when it lights up"
+                        : "<color=#ffb03a>KI</color>: a staff lunge. <color=#ffb03a>SPECIAL</color> when it lights up";
                 case 3: return "Shields stop paws: hold <color=#ffb03a>ATTACK</color> for the staff";
                 default: return "<color=#ffb03a>Swipe ↔</color> just before a blow lands: slow motion, double damage";
             }
@@ -106,19 +104,60 @@ namespace Cloudborne
         // Sergeant Snap, the mini-boss: his arena stands in front of the shrine gate
         const float BossX = 534f;
         static readonly Zone BossZone = new Zone { x = BossX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
-        // the ambush on the long stone bridge (the user: a bridge a screen and a half long, with a fight on it): halfway
-        // over, the way shuts either side and raiders come at him from both ends, in two waves; beaten, it opens
-        static readonly Zone BridgeZone = new Zone { x = CbLevel.StoneBridgeX, label = "Ambush on the bridge", spawn = new (CbEnemy.Kind, float)[0] };
-        bool bridgeStarted, bridgeDone, exiting;
-        int bridgeWave;
+        /// <summary>
+        /// An ambush on a bridge: once he is from metres along it, the way shuts either side and raiders come at him
+        /// from both ends, wave after wave (offsets from the zone's middle); when they are beaten, it opens.
+        /// </summary>
+        class Ambush
+        {
+            public Zone zone;
+            public float from, to;
+            public string tip, cleared;
+            public (CbEnemy.Kind kind, float dx)[][] waves;
+            public bool started, done;
+            public int wave;
+        }
+        // On the rope bridge at the start: six raiders in two waves (the user: at least five). On the long stone bridge
+        // (the user: a bridge a screen and a half long, with a fight on it): ten in three waves, the last the biggest.
+        readonly Ambush ropeAmbush = new Ambush
+        {
+            zone = new Zone { x = CbLevel.RopeBridgeX, label = "Ambush on the rope bridge", spawn = new (CbEnemy.Kind, float)[0] },
+            from = CbLevel.RopeBridgeX - 8f, to = CbLevel.RopeBridgeX + CbLevel.RopeDeckHalf,
+            tip = "Raiders on the rope bridge! Shields stop paws: hold <color=#ffb03a>ATTACK</color> for the staff",
+            cleared = "BRIDGE CLEARED!",
+            waves = new[]
+            {
+                new[] { (CbEnemy.Kind.Hyena, -8f), (CbEnemy.Kind.Hyena, 8f), (CbEnemy.Kind.Hyena, 9.5f) },
+                new[] { (CbEnemy.Kind.Shield, 9f), (CbEnemy.Kind.Hyena, -9f), (CbEnemy.Kind.Hyena, -7f) },
+            },
+        };
+        readonly Ambush stoneAmbush = new Ambush
+        {
+            zone = new Zone { x = CbLevel.StoneBridgeX, label = "Ambush on the bridge", spawn = new (CbEnemy.Kind, float)[0] },
+            from = CbLevel.StoneBridgeX - 4f, to = CbLevel.StoneBridgeX + CbLevel.StoneBridgeHalf,
+            tip = "Raiders on the bridge! Hold your ground",
+            cleared = "BRIDGE CLEARED!",
+            waves = new[]
+            {
+                new[] { (CbEnemy.Kind.Hyena, -8f), (CbEnemy.Kind.Hyena, 8f), (CbEnemy.Kind.Shield, 9.5f) },
+                new[] { (CbEnemy.Kind.Shield, -9.5f), (CbEnemy.Kind.Hyena, -7.5f), (CbEnemy.Kind.Thrower, 9f) },
+                new[] { (CbEnemy.Kind.Hyena, -9f), (CbEnemy.Kind.Hyena, 9f), (CbEnemy.Kind.Shield, -7f), (CbEnemy.Kind.Thrower, 9.5f) },
+            },
+        };
+        Ambush[] ambushes;
+        Ambush[] Ambushes => ambushes ??= new[] { ropeAmbush, stoneAmbush };
+        bool exiting;
         // The soldiers of the fight going on (the ambush on the bridge, the sergeant and his raiders): the fight is won
         // when they are beaten. (It waited on every soldier on the stage: one left behind - asleep on the ridge - and
         // the second wave never came, and the bridge stayed shut: the user.)
         readonly List<CbEnemy> arenaFoes = new List<CbEnemy>();
         bool ArenaClear => !arenaFoes.Exists(e => !e.dead);
-        public bool BridgeFightDone => bridgeDone;
-        /// <summary>Which wave of the ambush on the bridge is on (0 before it).</summary>
-        public int BridgeWave => bridgeWave;
+        public bool BridgeFightDone => stoneAmbush.done;
+        /// <summary>Which wave of the ambush on the stone bridge is on (0 before it).</summary>
+        public int BridgeWave => stoneAmbush.wave;
+        /// <summary>The ambush on the rope bridge at the start: which wave is on (0 before it), and whether it is won.</summary>
+        public int RopeAmbushWave => ropeAmbush.wave;
+        public bool RopeAmbushDone => ropeAmbush.done;
         /// <summary>Sergeant Snap while he is on the stage.</summary>
         public CbEnemy boss;
         bool bossStarted, bossDone;
@@ -338,7 +377,7 @@ namespace Cloudborne
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false;
-            bridgeStarted = bridgeDone = false; bridgeWave = 0;
+            foreach (var a in Ambushes) { a.started = a.done = false; a.wave = 0; }
             exiting = false;
             hud?.HideBoss();
             hud.SetWave("Chase the raiders");
@@ -422,7 +461,7 @@ namespace Cloudborne
             CbSave.IntroSeen = true;
             hud.SetWave("Chase the raiders");
             hud.SetTip(CbSave.FireAwake ? "<color=#ffb03a>FIRE</color> shoots a fireball"
-                : "No powers, only the staff: <color=#ffb03a>KI</color> for staff techniques, <color=#ffb03a>SPECIAL</color> when ki is full");
+                : "No powers, only the staff: <color=#ffb03a>KI</color> for staff techniques, <color=#ffb03a>SPECIAL</color> when it lights up");
             hud.Banner("SAVE KODA!");
         }
 
@@ -460,7 +499,7 @@ namespace Cloudborne
         }
 
         /// <summary>Soldiers stepping into the fight going on, at x + each offset.</summary>
-        void Ambush(params (CbEnemy.Kind kind, float dx)[] foes)
+        void SpawnFoes(params (CbEnemy.Kind kind, float dx)[] foes)
         {
             foreach (var (kind, dx) in foes) arenaFoes.Add(SpawnAt(kind, lockZone.x + dx));
         }
@@ -529,7 +568,8 @@ namespace Cloudborne
             arenaFoes.Clear();
             pending.Clear();
             if (bossStarted && !bossDone) { bossStarted = false; boss = null; lockZone = null; hud.HideBoss(); hud.ShowGo(true); }
-            if (bridgeStarted && !bridgeDone) { bridgeStarted = false; bridgeWave = 0; lockZone = null; hud.ShowGo(true); }
+            foreach (var a in Ambushes)
+                if (a.started && !a.done) { a.started = false; a.wave = 0; lockZone = null; hud.ShowGo(true); }
             hero.RespawnAt(checkpointX);
             level?.Respawned(checkpointX);
             lastHp = hero.hp;
@@ -616,40 +656,34 @@ namespace Cloudborne
             // the stretch's name and a tip as he reaches them
             while (sectionIdx < Sections.Length && hero.x >= Sections[sectionIdx].x) hud.SetWave(Sections[sectionIdx++].name);
             while (tipIdx < Tips.Length && hero.x >= Tips[tipIdx].x) { var tip = Tips[tipIdx++]; hud.SetTip(tip.text ?? Tip(tip.tip)); }
-            // the ambush on the stone bridge
-            if (lockZone == null && !bridgeStarted && hero.x > CbLevel.StoneBridgeX - 4f && hero.x < CbLevel.StoneBridgeX + CbLevel.StoneBridgeHalf)
+            // the ambushes on the bridges
+            foreach (var a in Ambushes)
             {
-                bridgeStarted = true;
-                bridgeWave = 1;
-                lockZone = BridgeZone;
-                arenaFoes.Clear();
-                hud.ShowGo(false);
-                hud.Banner("AMBUSH!");
-                hud.SetTip("Raiders on the bridge! Hold your ground");
-                Ambush((CbEnemy.Kind.Hyena, -8f), (CbEnemy.Kind.Hyena, 8f), (CbEnemy.Kind.Shield, 9.5f));
-            }
-            if (lockZone == BridgeZone)
-            {
-                // three waves, ten raiders in all (three were too few: the user), the last the biggest
+                if (lockZone == null && !a.started && hero.x > a.from && hero.x < a.to)
+                {
+                    a.started = true;
+                    a.wave = 1;
+                    lockZone = a.zone;
+                    arenaFoes.Clear();
+                    hud.ShowGo(false);
+                    hud.Banner("AMBUSH!");
+                    hud.SetTip(a.tip);
+                    SpawnFoes(a.waves[0]);
+                }
+                if (lockZone != a.zone) continue;
                 if (ArenaClear)
                 {
-                    if (bridgeWave == 1)
+                    if (a.wave < a.waves.Length)
                     {
-                        bridgeWave = 2;
-                        hud.Banner("MORE OF THEM!", true);
-                        Ambush((CbEnemy.Kind.Shield, -9.5f), (CbEnemy.Kind.Hyena, -7.5f), (CbEnemy.Kind.Thrower, 9f));
-                    }
-                    else if (bridgeWave == 2)
-                    {
-                        bridgeWave = 3;
-                        hud.Banner("THE LAST OF THEM!", true);
-                        Ambush((CbEnemy.Kind.Hyena, -9f), (CbEnemy.Kind.Hyena, 9f), (CbEnemy.Kind.Shield, -7f), (CbEnemy.Kind.Thrower, 9.5f));
+                        a.wave++;
+                        hud.Banner(a.wave == a.waves.Length && a.waves.Length > 2 ? "THE LAST OF THEM!" : "MORE OF THEM!", true);
+                        SpawnFoes(a.waves[a.wave - 1]);
                     }
                     else
                     {
-                        bridgeDone = true;
+                        a.done = true;
                         lockZone = null;
-                        hud.Banner("BRIDGE CLEARED!");
+                        hud.Banner(a.cleared);
                         hud.ShowGo(true);
                     }
                 }
@@ -1210,7 +1244,7 @@ namespace Cloudborne
                     if (enemies[i].Update(edt)) { enemies[i].f.Destroy(); enemies.RemoveAt(i); }
                 UpdateShots(dt);
                 if (mode == Mode.Play) { UpdateFlow(dt); items.Update(dt, hero, cam); level.Update(dt, hero); }
-                hud.SetBars(hero.hp / hero.MaxHp * 100f, hero.ki, SkillIsSpecial);
+                hud.SetBars(hero.hp / hero.MaxHp * 100f, hero.ki);
                 if (score != lastScore) { lastScore = score; hud.SetScore(score); }
                 if (mode == Mode.Over)
                 {
@@ -1314,7 +1348,7 @@ namespace Cloudborne
         bool holdFired;
 
         /// <summary>
-        /// The moves that share a control: ATTACK held is the staff; SKILL with ki full, on the ground, is the special.
+        /// The moves that share a control: ATTACK held is the staff.
         /// (Before a test's own input, which says the move itself.)
         /// </summary>
         void OneButtonMoves(CbInput inp, float dt)
@@ -1327,11 +1361,7 @@ namespace Cloudborne
                 if (!holdFired) { inp.heavy = true; holdFired = true; }
                 inp.heavyDown = true;
             }
-            if (inp.kiTap && SkillIsSpecial) { inp.kiTap = false; inp.skill = true; }
         }
-
-        /// <summary>SKILL is the special now: ki full, on the ground (the button says so).</summary>
-        public bool SkillIsSpecial => hero != null && CbHero.SpecialUnlocked && hero.ki >= 99.5f && !hero.InAir;
 
         // a press is the stick pushed past SprintPress (a light push only walks); pressed again the same way within
         // SprintTap of letting go, he sprints until it is let go
@@ -1366,9 +1396,9 @@ namespace Cloudborne
         bool padDown;
 
         /// <summary>
-        /// The keyboard and a pad, laid out like the phone's controls: move, JUMP, ATTACK (held: the staff), SKILL, a
-        /// dodge, and down for a slide (the swipe down). Keyboard: A/D or arrows, Space, J or Z, K or X, L or Shift or
-        /// C, S or down.
+        /// The keyboard and a pad, laid out like the phone's controls: move, JUMP, ATTACK (held: the staff), SKILL,
+        /// SPECIAL, a dodge, and down for a slide (the swipe down). Keyboard: A/D or arrows, Space, J or Z, K or X, I or
+        /// V, L or Shift or C, S or down.
         /// </summary>
         void ReadKeys(CbInput inp, float dt)
         {
@@ -1384,6 +1414,7 @@ namespace Cloudborne
                 if (kb.jKey.wasPressedThisFrame || kb.zKey.wasPressedThisFrame) inp.atk = true;
                 if (kb.jKey.isPressed || kb.zKey.isPressed) inp.atkDown = true;
                 if (kb.kKey.wasPressedThisFrame || kb.xKey.wasPressedThisFrame) inp.kiTap = true;
+                if (kb.iKey.wasPressedThisFrame || kb.vKey.wasPressedThisFrame) inp.skill = true;
                 if (kb.lKey.wasPressedThisFrame || kb.leftShiftKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) inp.dash = true;
                 if (kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame) inp.pause = true;
                 if (kb.mKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame) inp.menu = true;
@@ -1404,7 +1435,8 @@ namespace Cloudborne
                 if (pad.buttonWest.wasPressedThisFrame) inp.atk = true;
                 if (pad.buttonWest.isPressed) inp.atkDown = true;
                 if (pad.buttonNorth.wasPressedThisFrame) inp.kiTap = true;
-                if (pad.buttonEast.wasPressedThisFrame || pad.rightShoulder.wasPressedThisFrame) inp.dash = true;
+                if (pad.buttonEast.wasPressedThisFrame) inp.dash = true;
+                if (pad.rightShoulder.wasPressedThisFrame || pad.rightTrigger.wasPressedThisFrame) inp.skill = true;
                 if (pad.startButton.wasPressedThisFrame) inp.pause = true;
                 if (pad.selectButton.wasPressedThisFrame) inp.menu = true;
             }
@@ -1417,6 +1449,7 @@ namespace Cloudborne
             if (Input.GetKeyDown(KeyCode.J) || Input.GetKeyDown(KeyCode.Z)) inp.atk = true;
             if (Input.GetKey(KeyCode.J) || Input.GetKey(KeyCode.Z)) inp.atkDown = true;
             if (Input.GetKeyDown(KeyCode.K) || Input.GetKeyDown(KeyCode.X)) inp.kiTap = true;
+            if (Input.GetKeyDown(KeyCode.I) || Input.GetKeyDown(KeyCode.V)) inp.skill = true;
             if (Input.GetKeyDown(KeyCode.L) || Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.C)) inp.dash = true;
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P)) inp.pause = true;
             if (Input.GetKeyDown(KeyCode.M) || Input.GetKeyDown(KeyCode.Backspace)) inp.menu = true;
@@ -1437,7 +1470,7 @@ namespace Cloudborne
             lockZone = null;
             foreach (var p in posts) p.spawned = true;
             bossStarted = bossDone = true;
-            bridgeStarted = bridgeDone = true;
+            foreach (var a in Ambushes) a.started = a.done = true;
             level?.OpenGoalGate(true);
             boss = null;
             hud.HideBoss();
