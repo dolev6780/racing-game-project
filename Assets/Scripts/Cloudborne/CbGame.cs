@@ -41,7 +41,7 @@ namespace Cloudborne
             (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
             (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (259f, CbEnemy.Kind.Hyena, 1.5f, false), (298f, CbEnemy.Kind.Hyena, 3f, false),
             (302f, CbEnemy.Kind.Shield, 3f, false), (306f, CbEnemy.Kind.Thrower, 3f, false), (372f, CbEnemy.Kind.Shield, 2f, false),
-            (450f, CbEnemy.Kind.Hyena, 4f, false), (456f, CbEnemy.Kind.Thrower, 4f, false), (460f, CbEnemy.Kind.Shield, 4f, false), (473f, CbEnemy.Kind.Hyena, 3f, true),
+            // (the ridge and its four soldiers are gone: the stage was long for a phone - the user)
         };
         readonly List<Post> posts = new List<Post>();
         const float PostWakes = 13f;
@@ -51,7 +51,7 @@ namespace Cloudborne
         {
             (0f, "Save Koda"), (70f, "The cracked wall"), (79f, "The long river"), (106f, "The old shrine"), (136f, "The flooded gorge"),
             (194f, "The vine ravine"), (240f, "The temple of traps"), (292f, "The monkey cage"), (316f, "The raft river"),
-            (374f, "The canopy"), (412f, "The waterfall"), (444f, "The ridge"), (485f, "The stone bridge"), (512f, "The shrine gate"),
+            (374f, "The canopy"), (412f, "The waterfall"), (445f, "The stone bridge"), (472f, "The shrine gate"),
         };
         /// <summary>Tips as Raja reaches them (tip: one of the fight tips; else text).</summary>
         static readonly (float x, int tip, string text)[] Tips =
@@ -65,14 +65,13 @@ namespace Cloudborne
             (179f, -1, "Another fallen trunk, thorns on top: slide under it"),
             (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
             (241f, -1, "The old temple: thorns need the staff (hold <color=#ffb03a>ATTACK</color>), slide under the darts (<color=#ffb03a>swipe ↓</color>)"),
+            (294f, 4, null),
             (300f, -1, "A monkey in a cage! Break it open and set it free"),
             (316f, -1, "Ride the rafts down the river - jump off before they sink"),
             (374f, -1, "Climb the vines (push into them), ride the wind up to the treetops"),
             (412f, -1, "Climb the vines up the cliff. Something glints behind the waterfall..."),
-            (444f, 4, null),
-            (449f, -1, "A spear thrower! Slide under the trunk (<color=#ffb03a>swipe ↓</color>) - his spears fly over you"),
-            (483f, -1, "The old stone bridge - the shrine gate lies beyond it"),
-            (514f, -1, "Sergeant Snap waits at the shrine gate"),
+            (443f, -1, "The old stone bridge - the shrine gate lies beyond it"),
+            (474f, -1, "Sergeant Snap waits at the shrine gate"),
         };
         int sectionIdx, tipIdx;
         float checkpointX, lastHp;
@@ -102,7 +101,7 @@ namespace Cloudborne
         public static CbGame I { get; private set; }
 
         // Sergeant Snap, the mini-boss: his arena stands in front of the shrine gate
-        const float BossX = 534f;
+        const float BossX = 494f;
         static readonly Zone BossZone = new Zone { x = BossX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
         /// <summary>
         /// An ambush on a bridge: once he is from metres along it, the way shuts either side and raiders come at him
@@ -148,7 +147,7 @@ namespace Cloudborne
         Ambush[] Ambushes => ambushes ??= new[] { ropeAmbush, stoneAmbush };
         bool exiting;
         // The soldiers of the fight going on (the ambush on the bridge, the sergeant and his raiders): the fight is won
-        // when they are beaten. (It waited on every soldier on the stage: one left behind - asleep on the ridge - and
+        // when they are beaten. (It waited on every soldier on the stage: one left behind - asleep along the way - and
         // the second wave never came, and the bridge stayed shut: the user.)
         readonly List<CbEnemy> arenaFoes = new List<CbEnemy>();
         bool ArenaClear => !arenaFoes.Exists(e => !e.dead);

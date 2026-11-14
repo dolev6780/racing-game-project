@@ -17,7 +17,8 @@ namespace Cloudborne
     /// <item>The canopy and the waterfall (372-444): a vine-grown pillar, an updraft, ledges and bars in the treetops
     /// with a key, a zipline down, the waterfall's vine-grown cliff with a cave behind the water (a token),
     /// a chest the key opens (a token). (The rolling boulders are gone: they added nothing, the user.)</item>
-    /// <item>The ridge (444-490): a shaft to wall-jump up, a cage.</item>
+    /// <item>The stone bridge (445-472) and the shrine gate (472-508): an ambush on the bridge, a cage, Sergeant Snap.
+    /// (The ridge is gone: the stage was long for a phone, the user.)</item>
     /// (The gong, the mud, the spinning log, the seesaw and the lift are gone: a muddle of gadgets, the user.)
     /// </list>
     /// Stone lanterns light up as he passes: falling, he comes back at the last one (CbGame).
@@ -67,12 +68,12 @@ namespace Cloudborne
         const float LeafBounce = 19.5f, RaftTop = 0.1f;
         public const float TrunkX = 24.5f;
         // Springy leaves, each for something (the one before the rope bridge and the one past the gorge led nowhere:
-        // the user): up to a ledge over the old shrine with a ki crystal on it, up the canopy's vine pillar, up onto
-        // the ridge's shaft (and the ravine's, up to its token ledge)
-        public static readonly float[] LeafXs = { 118f, 380.2f, 475.5f };
+        // the user): up to a ledge over the old shrine with a ki crystal on it, up the canopy's vine pillar (and the
+        // ravine's, up to its token ledge)
+        public static readonly float[] LeafXs = { 118f, 380.2f };
         /// <summary>The ledge over the old shrine the springy leaf there throws him up to: its middle and top.</summary>
         public const float ShrineLedgeX = 120.6f, ShrineLedgeTop = 6.2f;
-        public static readonly float[] LowLogXs = { 183f, 452.5f };
+        public static readonly float[] LowLogXs = { 183f };
         const string ClimbVinePath = "Cloudborne/Jungle/ClimbVine/ClimbVine";
         const float StatueX = 251.5f, PlateX = 284.5f;
         // the race in the temple (its traps were too easy: the user): the lever opens the gate past the swinging logs
@@ -172,17 +173,16 @@ namespace Cloudborne
         {
             // stone lanterns: where he comes back (the start counts as one)
             // (one just before the gorge: caught there for good, he tries again from its foot, not from the shrine)
-            foreach (var x in new[] { 108f, 133f, 196f, 242f, 293f, 318f, 375f, 446f, 520f }) AddLantern(x);
+            // (one at the stone bridge's foot, for the ambush on it)
+            foreach (var x in new[] { 108f, 133f, 196f, 242f, 293f, 318f, 375f, 443f, 478f }) AddLantern(x);
             // the ends of the stage: closed gates where he can go no further
             AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
 
             // ---- after the first fight: a fallen trunk across the path, thorns on it - slide or crawl under it
             AddOverhang(TrunkX, 0.7f, 0.95f, 1.65f, true);
-            // more trunks fallen across the way to slide under: past the gorge (thorny on top), and on the ridge in
-            // front of a spear thrower (low, his spears fly over)
+            // another trunk fallen across the way to slide under, past the gorge (thorny on top)
             AddOverhang(LowLogXs[0], 0.7f, 0.95f, 1.65f, true);
-            AddOverhang(LowLogXs[1], 0.7f, 0.95f, 1.65f, false);
 
             // ---- the vine ravine
             AddVine(204f, 9f, 5f);
@@ -240,11 +240,8 @@ namespace Cloudborne
             AddLedge(421.2f, 1.4f, 7f, false);
             BuildChest();
 
-            // ---- the ridge
-            AddCage(466f);
-            AddTerrace(478f, 479.4f, 7f, 2f);
-            AddTerrace(481.2f, 482.6f, 7f, 2f);
-            AddLedge(480.3f, 1.6f, 8.4f, false);
+            // (the ridge is gone - the stage was long for a phone: the user; its monkey's cage waits by the shrine gate)
+            AddCage(475.5f);
 
             // ---- the shrine gate: across the path, shut until Sergeant Snap is beaten, then it sinks and he walks through
             AddGate(CbWorld.GoalX + 1.2f);

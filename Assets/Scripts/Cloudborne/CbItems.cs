@@ -95,9 +95,9 @@ namespace Cloudborne
             AddCrate(244f, Kind.Mango, Kind.Coin);
             AddCrate(315f, Kind.KiCrystal, Kind.Coin);
             AddCrate(373.5f, Kind.Mango, Kind.Coin, Kind.Coin);
-            AddCrate(448f, Kind.Mango, Kind.KiCrystal);
-            AddCrate(513.5f, Kind.Mango, Kind.Coin);
-            AddCrate(518f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
+            AddCrate(444.2f, Kind.Mango, Kind.KiCrystal);
+            AddCrate(472.5f, Kind.Mango, Kind.Coin);
+            AddCrate(480.5f, Kind.Coin, Kind.Coin, Kind.KiCrystal);
             // coin trails: an arc to jump through, a row along the rope bridge, an arc in the second fight
             for (int i = 0; i < 5; i++) Spawn(Kind.Coin, new Vector3(4 + i * 0.9f, 1.2f + Mathf.Sin(i / 4f * Mathf.PI) * 1.6f, 0), resting: true);
             // over the rope bridge: one above each stretch of planks, an arc over each gap (jump it)
@@ -188,10 +188,8 @@ namespace Cloudborne
             // behind the waterfall
             C(421f, 3.6f); C(422.4f, 5.8f);
             Spawn(Kind.Token, new Vector3(421.2f, 8.1f, 0), resting: true);
-            // the road to the chest, the shaft on the ridge
+            // the road to the chest
             foreach (var x in new[] { 428f, 431f, 434f, 437f }) C(x, 1.8f);
-            for (float y = 1.5f; y < 8f; y += 1.4f) C(480.3f, y);
-            Spawn(Kind.Mango, new Vector3(480.3f, 9.3f, 0), resting: true);
         }
 
         // ---------- items ----------

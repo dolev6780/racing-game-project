@@ -1166,12 +1166,12 @@ namespace RacingGame.Tests
             yield return Frames(3);
             game.StartGame();
             yield return Frames(2);
-            // a soldier left behind on the ridge, asleep (the ambush waited on him: its second wave never came, and the
-            // bridge stayed shut: the user)
-            game.Teleport(462f);
+            // a soldier left behind at his post before the canopy (the ambush waited on one left behind: its second wave
+            // never came, and the bridge stayed shut: the user)
+            game.Teleport(370f);
             game.hero.y = 0;
             yield return Frames(3);
-            Assert.IsTrue(game.enemies.Exists(e => !e.dead && Mathf.Abs(e.x - 460f) < 3f), "No soldier at his post on the ridge");
+            Assert.IsTrue(game.enemies.Exists(e => !e.dead && Mathf.Abs(e.x - 372f) < 3f), "No soldier at his post before the canopy");
             // onto the stone bridge: the ambush
             game.Teleport(CbLevel.StoneBridgeX - 2f);
             game.hero.y = CbLevel.StoneDeck;
@@ -1679,7 +1679,7 @@ namespace RacingGame.Tests
             var oldTrace = Application.GetStackTraceLogType(LogType.Log);
             // where, and how high (the bars are over the river: he hangs from them, or he would be in the water)
             foreach (var (name, x, y) in new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("summit", 154f, CbLevel.SummitTop), ("bars", 219f, 4.8f - 1.71f),
-                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 412.5f, 0f), ("stonebridge", 492f, CbLevel.StoneDeck) })
+                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 412.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck) })
             {
                 game.Teleport(x);
                 game.hero.y = y;
