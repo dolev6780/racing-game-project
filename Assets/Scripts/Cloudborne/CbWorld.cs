@@ -28,8 +28,8 @@ namespace Cloudborne
         // of big painted trees, a hedge of bushes and flowers right behind the path, a thick grass lip on the ground's
         // front edge. On when its paintings are in the project. (Leaves hung into the top of the view too, held in front
         // of the camera: they jumped with every jump, and the user had them taken out.)
-        const string LipPath = "Cloudborne/Jungle/Ground/GroundLip",
-            WaterSidePath = "Cloudborne/Jungle/Water/WaterSide", WaterSurfacePath = "Cloudborne/Jungle/Water/WaterSurface", ClumpPath = "Cloudborne/Jungle/Backdrop/BushClump";
+        static string LipPath => GroundPath("GroundLip");
+        const string WaterSidePath = "Cloudborne/Jungle/Water/WaterSide", WaterSurfacePath = "Cloudborne/Jungle/Water/WaterSurface", ClumpPath = "Cloudborne/Jungle/Backdrop/BushClump";
         // the painted river cross-section: SideDepth tall (all of the painting), its foam crests SideCrest over the
         // water's surface, repeating every SideTile metres
         const float SideDepth = 3.4f, SideCrest = 0.23f, SideTile = SideDepth * 1563f / 846f;
@@ -110,8 +110,14 @@ namespace Cloudborne
         public const float GroundFront = -1.7f;
         const float GroundBack = 10f, GroundDepth = 10f;
         // painted ground textures drawn in Canva; until they are in the project the speckled ones are used
-        const string GroundDir = "Cloudborne/Jungle/Ground/";
-        const string GroundFacePath = GroundDir + "GroundFace";
+        const string GroundDir = "Cloudborne/Jungle/Ground/", TreetopsGroundDir = "Cloudborne/Treetops/Ground/";
+        static string GroundFacePath => GroundPath("GroundFace");
+        /// <summary>
+        /// A painting of the ground: in stage 1-2 the boughs' own (bark and moss, when they are in the project), else the
+        /// jungle's.
+        /// </summary>
+        static string GroundPath(string name) =>
+            CbStage.Treetops && Resources.Load<Texture2D>(TreetopsGroundDir + name) != null ? TreetopsGroundDir + name : GroundDir + name;
         // the painted grass repeats every GrassTile metres, the path every PathWidth (it is square)
         public const float GrassTile = 4f;
         const float PathWidth = 3.2f;
@@ -150,7 +156,7 @@ namespace Cloudborne
         /// <summary>The ground's grass (the painting if it's in the project), for the top of any earth.</summary>
         public static Material GrassMaterial()
         {
-            var painted = Resources.Load<Texture2D>(GroundDir + "Grass");
+            var painted = Resources.Load<Texture2D>(GroundPath("Grass"));
             var grass = CbArt.NewToon(GroundTone, 0f, painted != null ? painted : CbArt.Grass);
             grass.SetFloat("_SpecStrength", 0f);
             return grass;
@@ -302,7 +308,7 @@ namespace Cloudborne
         {
             // the ground is laid in stretches between the streams, each painting lined up with the world
             var grass = GrassMaterial();
-            var paintedPath = Resources.Load<Texture2D>(GroundDir + "Path");
+            var paintedPath = Resources.Load<Texture2D>(GroundPath("Path"));
             var path = CbArt.NewToon(paintedPath != null ? PathTone : Color.white, 0f, paintedPath != null ? paintedPath : CbArt.Path);
             path.SetFloat("_SpecStrength", 0f);
             var face = FaceMaterial();
