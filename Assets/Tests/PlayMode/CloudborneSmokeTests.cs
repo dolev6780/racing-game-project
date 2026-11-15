@@ -1835,6 +1835,9 @@ namespace RacingGame.Tests
             yield return Frames(3);
             var hero = game.hero;
             var level = game.level;
+            // a steady 30 frames a second: the game takes at most a twentieth of a second a frame, so on CI's slow
+            // frames a second of real time carried him only a metre or so (he never reached the first rock)
+            Time.captureDeltaTime = 1f / 30f;
             Assert.IsTrue(game.Riding, "Raja is not riding the river");
             hero.hp = 9999;
             float x0 = hero.x;
@@ -1859,6 +1862,7 @@ namespace RacingGame.Tests
             game.TestControls = i => { i.y = -1; i.slide = first; first = false; };
             for (float w = 0; w < 1f && hero.x < level.BranchX(0) + 1f; w += Time.deltaTime) yield return null;
             game.TestControls = null;
+            Assert.Greater(hero.x, level.BranchX(0), "He was not carried past the low branch");
             Assert.AreEqual(hp, hero.hp, 0.01f, "Ducking under a low branch still hurt him");
             // the staff smashes an oil barrel
             game.Teleport(level.BarrelX(1) - 2.2f);
@@ -1923,7 +1927,9 @@ namespace RacingGame.Tests
             yield return Frames(2);
             game.hero.hp = 9999;
             game.hero.inv = 999f;
-            // (he is carried along while the camera settles: put him that far before each spot)
+            // (he is carried along while the camera settles: put him that far before each spot; at a steady 30 frames
+            // a second, so the game's time goes as the wait's)
+            Time.captureDeltaTime = 1f / 30f;
             float lead = CbLevel.RideSpeed * 2f;
             game.Teleport(game.level.RockX(1) - 3f - lead);
             yield return TakePictures(new[] { ("river_rocks", float.NaN, 0f) }, 2f);

@@ -362,7 +362,9 @@ namespace Cloudborne
             // the streams cross the jungle's ground; in the treetops the gaps between the branches drop away
             if (CbStage.Treetops) BuildDrops(face);
             else BuildStreams(grass, face, far);
-            CbArt.Part(CbMesh.Quad, CbArt.Toon("#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
+            // the lawn running back to the trees (not on the river: it lay over the water, a flat green band)
+            if (!CbStage.River)
+                CbArt.Part(CbMesh.Quad, CbArt.Toon("#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
 
             // grass blades and fern fronds, merged straight into a few meshes
             var blade = CbMesh.Cone(3);
@@ -765,7 +767,8 @@ namespace Cloudborne
         static bool Has(string name) => Resources.Load<GameObject>(ModelPath(name)) != null;
 
         /// <summary>Whether a spot near the path is in one of the streams (they run from the front edge back to z 10).</summary>
-        static bool Wet(float x, float z, float margin = 0.5f) => z < CbLevel.WaterBack + 1f && CbLevel.InWater(x, margin);
+        // (stage 1-4: all of it is river, back to its painting)
+        static bool Wet(float x, float z, float margin = 0.5f) => CbStage.River || z < CbLevel.WaterBack + 1f && CbLevel.InWater(x, margin);
 
         /// <summary>
         /// Models with thin leaves, seen from both sides (the boulders have sprigs of moss and leaves). They get no

@@ -175,7 +175,7 @@ namespace Cloudborne
                     if (bargeT >= BargeWind)
                     {
                         SetBarge(Barge.Ram);
-                        bargeRamTo = Mathf.Min(hero.x + 1.2f, BasinX + 9f) - BargeFront;
+                        bargeRamTo = Mathf.Min(hero.x + 1.2f, BasinX + 6f) - BargeFront;
                     }
                     break;
                 case Barge.Ram:

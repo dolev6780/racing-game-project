@@ -190,28 +190,25 @@ namespace Cloudborne
             logRoll += speed * dt / 0.35f * Mathf.Rad2Deg;
             riverLog.localPosition = new Vector3(hero.x, floor - 0.32f + Mathf.Sin(time * 3.1f) * 0.04f, 0.05f);
             riverLog.localRotation = Quaternion.Euler(logRoll, 0, Mathf.Sin(time * 2.3f) * 2f);
-            // the rocks, the branches, the barrels: run into them and they hurt him (checked along the whole stretch he
-            // went since the last frame: at a slow frame rate he is carried metres a frame, right over a rock between two)
+            // the rocks, the branches, the barrels: run into them and they hurt him
             foreach (var r in rocks)
-                if (Crossed(r.x, 0.65f, hero, out float ry) && ry < RiverFloor(r.x) + r.h - 0.15f) hero.TakeHit(10, -1, knock: 4f);
+                if (Mathf.Abs(hero.x - r.x) < 0.65f && hero.y < RiverFloor(r.x) + r.h - 0.15f) hero.TakeHit(10, -1, knock: 4f);
             foreach (var b in branches)
             {
                 float bf = RiverFloor(b);
-                if (Crossed(b, 0.45f, hero, out float by) && by + hero.Height > bf + BranchLow && by < bf + BranchHigh) hero.TakeHit(8, -1);
+                if (Mathf.Abs(hero.x - b) < 0.45f && hero.y + hero.Height > bf + BranchLow && hero.y < bf + BranchHigh) hero.TakeHit(8, -1);
             }
             foreach (var f in floaters)
             {
                 if (f.broken) continue;
                 f.t.localPosition = new Vector3(f.x, RiverFloor(f.x) - 0.15f + Mathf.Sin(time * 2.4f + f.bob) * 0.08f, 0);
                 f.t.localRotation = Quaternion.Euler(Mathf.Sin(time * 1.7f + f.bob) * 8f, f.bob * 40f, Mathf.Sin(time * 2.1f + f.bob) * 6f);
-                if (Crossed(f.x, BarrelR + 0.3f, hero, out float fy) && fy < RiverFloor(f.x) + 0.9f)
+                if (Mathf.Abs(hero.x - f.x) < BarrelR + 0.3f && hero.y < RiverFloor(f.x) + 0.9f)
                 {
                     hero.TakeHit(8, -1);
                     BreakBarrel(f, 1);
                 }
             }
-            riverPrevX = hero.x;
-            riverPrevY = hero.y;
             // checkpoints along the way
             while (checkIdx < RiverCheckpoints.Length && hero.x >= RiverCheckpoints[checkIdx]) g.Checkpoint(RiverCheckpoints[checkIdx++]);
             // Koda's barge, ahead: now in sight at the edge of the view, now gone on round the bend
@@ -236,24 +233,8 @@ namespace Cloudborne
             UpdateSawBarge(dt, hero);
         }
 
-        float riverPrevX = float.NaN, riverPrevY;
-
-        /// <summary>He passed within w of px between the last frame and this one; and how high he was as he did.</summary>
-        bool Crossed(float px, float w, CbHero hero, out float atY)
-        {
-            float from = riverPrevX, to = hero.x;
-            atY = hero.y;
-            // no last frame, or a jump too far to have been ridden (a respawn, a teleport): only where he is now
-            if (float.IsNaN(from) || Mathf.Abs(to - from) > 6f) return Mathf.Abs(to - px) < w;
-            if (px < Mathf.Min(from, to) - w || px > Mathf.Max(from, to) + w) return false;
-            float k = Mathf.Abs(to - from) < 0.001f ? 1f : Mathf.Clamp01((px - from) / (to - from));
-            atY = Mathf.Lerp(riverPrevY, hero.y, k);
-            return true;
-        }
-
         void ResetRiver()
         {
-            riverPrevX = float.NaN;
             foreach (var f in floaters) { f.broken = false; f.t.gameObject.SetActive(true); }
             checkIdx = 0;
             kodaY = 0;
