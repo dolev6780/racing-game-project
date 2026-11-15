@@ -1448,7 +1448,7 @@ namespace Cloudborne
         {
             input.ClearEdges();
             input.x = input.y = 0;
-            input.atkDown = input.heavyDown = input.guard = input.jumpHeld = false;
+            input.atkDown = input.heavyDown = input.guard = input.jumpHeld = input.kiDown = false;
             hud.ReadTouch(input, dt);
             ReadKeys(input, dt);
             TestControls?.Invoke(input);
@@ -1483,9 +1483,9 @@ namespace Cloudborne
 
         // ATTACK held past HoldHeavy is the staff (HEAVY): the smash, and held on, the whirl. One button for both (the
         // user: too many buttons on a phone).
-        const float HoldHeavy = 0.28f;
-        float attackHold;
-        bool holdFired;
+        const float HoldHeavy = 0.28f, HoldThrow = 0.28f;
+        float attackHold, kiHold;
+        bool holdFired, kiPending;
 
         /// <summary>
         /// The moves that share a control: ATTACK held is the staff.
@@ -1493,6 +1493,17 @@ namespace Cloudborne
         /// </summary>
         void OneButtonMoves(CbInput inp, float dt)
         {
+            // KI, once the staff throw is learned: held past HoldThrow it is the throw, let go before that the usual
+            // KI move (so its press waits for the release)
+            if (CbHero.StaffThrowLearned)
+            {
+                if (inp.kiTap) { kiHold = 0; kiPending = true; inp.kiTap = false; }
+                if (kiPending)
+                {
+                    if (!inp.kiDown) { inp.kiTap = true; kiPending = false; }
+                    else if ((kiHold += dt) >= HoldThrow) { inp.staffThrow = true; kiPending = false; }
+                }
+            }
             if (inp.atk) { attackHold = 0; holdFired = false; }
             else if (inp.atkDown) attackHold += dt;
             else { attackHold = 0; holdFired = false; }
@@ -1554,6 +1565,7 @@ namespace Cloudborne
                 if (kb.jKey.wasPressedThisFrame || kb.zKey.wasPressedThisFrame) inp.atk = true;
                 if (kb.jKey.isPressed || kb.zKey.isPressed) inp.atkDown = true;
                 if (kb.kKey.wasPressedThisFrame || kb.xKey.wasPressedThisFrame) inp.kiTap = true;
+                if (kb.kKey.isPressed || kb.xKey.isPressed) inp.kiDown = true;
                 if (kb.iKey.wasPressedThisFrame || kb.vKey.wasPressedThisFrame) inp.skill = true;
                 if (kb.lKey.wasPressedThisFrame || kb.leftShiftKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) inp.dash = true;
                 if (kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame) inp.pause = true;
@@ -1575,6 +1587,7 @@ namespace Cloudborne
                 if (pad.buttonWest.wasPressedThisFrame) inp.atk = true;
                 if (pad.buttonWest.isPressed) inp.atkDown = true;
                 if (pad.buttonNorth.wasPressedThisFrame) inp.kiTap = true;
+                if (pad.buttonNorth.isPressed) inp.kiDown = true;
                 if (pad.buttonEast.wasPressedThisFrame) inp.dash = true;
                 if (pad.rightShoulder.wasPressedThisFrame || pad.rightTrigger.wasPressedThisFrame) inp.skill = true;
                 if (pad.startButton.wasPressedThisFrame) inp.pause = true;
@@ -1589,6 +1602,7 @@ namespace Cloudborne
             if (Input.GetKeyDown(KeyCode.J) || Input.GetKeyDown(KeyCode.Z)) inp.atk = true;
             if (Input.GetKey(KeyCode.J) || Input.GetKey(KeyCode.Z)) inp.atkDown = true;
             if (Input.GetKeyDown(KeyCode.K) || Input.GetKeyDown(KeyCode.X)) inp.kiTap = true;
+            if (Input.GetKey(KeyCode.K) || Input.GetKey(KeyCode.X)) inp.kiDown = true;
             if (Input.GetKeyDown(KeyCode.I) || Input.GetKeyDown(KeyCode.V)) inp.skill = true;
             if (Input.GetKeyDown(KeyCode.L) || Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.C)) inp.dash = true;
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P)) inp.pause = true;

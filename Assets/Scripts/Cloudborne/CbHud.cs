@@ -825,6 +825,7 @@ namespace Cloudborne
                 if (now.Contains(b.pointer))
                 {
                     if (b.id == "atk") input.atkDown = true;
+                    if (b.id == "ki") input.kiDown = true;
                     if (b.id == "jump") input.jumpHeld = true;
                     if (b.id == "heavy") input.heavyDown = true;
                     if (b.id == "guard") input.guard = true;

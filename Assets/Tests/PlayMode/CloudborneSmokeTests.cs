@@ -1715,6 +1715,55 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheNestScrollTeachesTheStaffThrow()
+        {
+            // the story doc: stage 1-2's hidden scroll teaches the staff throw - KI held, the staff flies out like a
+            // boomerang and comes back, hitting what it passes and taking what it touches
+            CbSave.StaffThrow = false;
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-2");
+            game.BuildStage();
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            Assert.IsFalse(CbHero.StaffThrowLearned, "The staff throw is known from the start");
+            // the scroll on the hidden nest high over the bars
+            game.Teleport(CbLevel.NestX - 0.3f);
+            game.hero.y = CbLevel.NestTop;
+            for (float w = 0; w < 2f && !CbHero.StaffThrowLearned; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(CbHero.StaffThrowLearned, "The nest's scroll did not teach the staff throw");
+            // on the first bough, a soldier and a coin up high ahead: KI held throws the staff
+            game.Teleport(12f);
+            game.hero.y = 0;
+            game.hero.vy = 0;
+            game.hero.state = CbHero.State.Idle;
+            game.hero.facing = 1;
+            var e = new CbEnemy(game, CbEnemy.Kind.Hyena, 17f, game.transform) { minX = 16.5f, maxX = 17.5f };
+            game.enemies.Add(e);
+            game.items.Spawn(CbItems.Kind.Coin, new Vector3(18.6f, 1.4f, 0), resting: true);
+            yield return new WaitForSeconds(0.5f);
+            game.hero.ki = 100;
+            int coins = game.items.Coins;
+            float held = 0;
+            game.TestControls = inp => { inp.kiTap = held == 0; inp.kiDown = held < 0.45f; held += Time.deltaTime; };
+            bool flew = false;
+            float furthest = 0;
+            for (float w = 0; w < 3f && !(flew && !game.hero.StaffFlying); w += Time.deltaTime)
+            {
+                yield return null;
+                if (game.hero.StaffFlying) { flew = true; furthest = Mathf.Max(furthest, game.hero.StaffAt.x - game.hero.x); }
+            }
+            game.TestControls = null;
+            Assert.IsTrue(flew, "Holding KI did not throw the staff");
+            Assert.Greater(furthest, 5f, "The thrown staff did not fly out far");
+            Assert.IsFalse(game.hero.StaffFlying, "The thrown staff never came back to his hand");
+            Assert.Less(e.hp, e.max, "The thrown staff did not hit the soldier in its way");
+            Assert.Greater(game.items.Coins, coins, "The thrown staff did not take the coin it touched");
+            CbSave.StaffThrow = false;
+        }
+
+        [UnityTest]
         public IEnumerator TuskChargesIntoATreeAndIsBeatenFromBehind()
         {
             // Tusk (the story doc: he charges from side to side, armoured in front; dodge, he sticks in a tree, and you

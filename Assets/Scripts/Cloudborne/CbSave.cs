@@ -79,6 +79,24 @@ namespace Cloudborne
         }
         static int fireAwake = -1;
 
+        /// <summary>He has learned the staff throw: the scroll in stage 1-2's hidden nest. Kept for every stage after.</summary>
+        public static bool StaffThrow
+        {
+            get
+            {
+                if (staffThrow < 0) staffThrow = PlayerPrefs.GetInt(StaffThrowKey, 0);
+                return staffThrow == 1;
+            }
+            set
+            {
+                staffThrow = value ? 1 : 0;
+                PlayerPrefs.SetInt(StaffThrowKey, staffThrow);
+                PlayerPrefs.Save();
+            }
+        }
+        static int staffThrow = -1;
+        const string StaffThrowKey = "cb_staffthrow";
+
         // ---------- stages ----------
 
         static string Key(string stage, string what) => $"cb_{what}_{stage}";
@@ -133,7 +151,9 @@ namespace Cloudborne
             PlayerPrefs.DeleteKey(IntroKey);
             PlayerPrefs.DeleteKey(FireKey);
             PlayerPrefs.DeleteKey(LearnedKey);
+            PlayerPrefs.DeleteKey(StaffThrowKey);
             fireAwake = 0;
+            staffThrow = 0;
             foreach (var u in Upgrades) PlayerPrefs.DeleteKey(UpgradePrefix + u.id);
             foreach (var s in CbMenu.Stages)
                 foreach (var what in new[] { "clear", "best", "time" }) PlayerPrefs.DeleteKey(Key(s.id, what));

@@ -403,6 +403,22 @@ namespace Cloudborne
             }
         }
 
+        /// <summary>
+        /// The thrown staff passing (CbHeroThrow): whatever it touches within r of at is his, as if he had reached it -
+        /// coins and fruit up high.
+        /// </summary>
+        public void Fetch(Vector3 at, float r, CbHero hero)
+        {
+            for (int i = items.Count - 1; i >= 0; i--)
+            {
+                var it = items[i];
+                if (it.age < 0.25f || Mathf.Abs(it.pos.x - at.x) > r || Mathf.Abs(it.pos.y - at.y) > r + 0.2f) continue;
+                Collect(it, hero);
+                Object.Destroy(it.t.gameObject);
+                items.RemoveAt(i);
+            }
+        }
+
         void Collect(Item it, CbHero hero)
         {
             var at = it.pos + new Vector3(0, 0, -0.4f);
@@ -441,6 +457,14 @@ namespace Cloudborne
                     g.HasKey = true;
                     g.hud.Banner("A KEY! (A CHEST WAITS BY THE WATERFALL)", true);
                     CbFx.Spark(at, CbFx.Flame, 16, 4, 0.35f, 0.5f, -3);
+                    break;
+                case Kind.Scroll when CbStage.Treetops:
+                    // stage 1-2's secret: the staff throw (the story doc), kept for good
+                    CbSave.StaffThrow = true;
+                    g.hud.Banner("SECRET SCROLL! STAFF THROW", true);
+                    g.hud.SetTip("Hold <color=#ffb03a>KI</color> to throw the staff: it flies out and comes back, taking what it touches");
+                    CbVfx.Ring(at, CbFx.Hit * 0.5f, 2.2f, 0.45f);
+                    CbFx.Spark(at, CbFx.Flame, 24, 5, 0.4f, 0.6f, -3);
                     break;
                 case Kind.Scroll:
                     // the secret: the scroll teaches the special - the staff storm, or once his fire is awake the flame cannon

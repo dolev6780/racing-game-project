@@ -14,14 +14,16 @@ namespace Cloudborne
     {
         public float x, y;                 // stick, y > 0 is up
         public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm, menu, slide;
-        public bool atkDown, heavyDown, guard, jumpHeld;   // held
+        // KI held (CbGame: once the staff throw is learned, a held KI is the throw, a tap the usual KI move)
+        public bool staffThrow;
+        public bool atkDown, heavyDown, guard, jumpHeld, kiDown;   // held
         // a dodge swiped one way: the way it goes (0: the way he is going or facing)
         public int dashDir;
         // the way he runs pressed twice (CbGame): he sprints until it is let go
         public bool sprint;
         public float atkHeldT, heavyHeldT;
 
-        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = menu = slide = false; dashDir = 0; }
+        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = menu = slide = staffThrow = false; dashDir = 0; }
     }
 
     /// <summary>
@@ -37,7 +39,7 @@ namespace Cloudborne
     public partial class CbHero
     {
         public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo, Hang, Climb, Swim, Down, Victory, Swing, Vine, Bars, Zip, Kick, Slide }
-        public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash, FireWhirl, BlazePalm, Lunge, Cyclone }
+        public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash, FireWhirl, BlazePalm, Lunge, Cyclone, Throw }
 
         struct Attack { public float dur, a, b, range, dmg, kb, up; public bool fin; }
         static readonly Attack[] Paw =
@@ -213,6 +215,7 @@ namespace Cloudborne
         {
             x = y = vx = vy = 0; safeX = safeY = 0; squash = squashV = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
             flipT = 0; inv = 0; move = Move.None; staffHold = 0; sinceDash = 9; airDashed = false; dashCd = 0; empower = false; holdUsed = false;
+            CatchStaff(silent: true);
             glow = 0; airHits = 0; grabCd = 0; downT = 0; downLanded = false; wallT = wallLockT = 0; sliding = false; gripFix = Vector3.zero; standY = 0;
             f.flip.localRotation = Quaternion.identity;
             SetStaff(false, silent: true);
@@ -380,7 +383,9 @@ namespace Cloudborne
 
         void StartStaff(Move m)
         {
-            if (m == Move.Smash || m == Move.Lunge) FaceTheFoe();
+            // the staff is away (thrown): a paw instead
+            if (staffFlying) { StartPaw(0); return; }
+            if (m == Move.Smash || m == Move.Lunge || m == Move.Throw) FaceTheFoe();
             state = State.Staff; move = m; t = 0; hitSet.Clear(); buffer = 0; tick = 0; hits = 0; kiCrash = false;
             SetStaff(true);
             if (m == Move.Thrust) vx = facing * 9;
@@ -784,7 +789,12 @@ namespace Cloudborne
                     CbFx.Sfx("dash", 0.6f);
                 }
                 else if (input.guard && !air) { state = State.Guard; t = 0; }
-                else if (input.heavy || (heavyBuffer > 0 && sinceDash < 0.35f))
+                else if (input.staffThrow && StaffThrowLearned && !staffFlying && ki >= ThrowCost)
+                {
+                    ki -= ThrowCost;
+                    StartStaff(Move.Throw);
+                }
+                else if ((input.heavy || (heavyBuffer > 0 && sinceDash < 0.35f)) && !staffFlying)
                 {
                     heavyBuffer = 0;
                     if (air) StartStaff(Move.Slam);
@@ -798,14 +808,14 @@ namespace Cloudborne
                     else if (air) StartDiveKick();
                     else StartPaw(0);
                 }
-                else if (input.kiTap && ki >= FireCost)
+                else if (input.kiTap && ki >= FireCost && (FireAwake || !staffFlying))
                 {
                     ki -= FireCost;
                     // FIRE: the fireball; before the fire crystal, KI: the tiger lunge
                     if (FireAwake) { state = State.Blast; t = 0; fired = false; if (!air) vx *= 0.3f; else vy = Mathf.Max(vy, 1); }
                     else StartStaff(Move.Lunge);
                 }
-                else if (input.skill && SpecialUnlocked && ki >= SpecialCost && !air)
+                else if (input.skill && SpecialUnlocked && ki >= SpecialCost && !air && (FireAwake || !staffFlying))
                 {
                     ki -= SpecialCost; state = State.Special; t = 0; vx = 0; fired = false; tick = 0; hits = 0; hitSet.Clear();
                     // the staff storm starts with the staff drawn and twirled
@@ -866,6 +876,7 @@ namespace Cloudborne
             UpdateCloth(dt);
             UpdateFire(dt);
             Animate();
+            UpdateThrownStaff(dt);
         }
 
         /// <summary>Holding on to a vine, a vine wall, a bar or a zipline: the game places him itself.</summary>
@@ -1038,6 +1049,8 @@ namespace Cloudborne
                     else if (move == Move.Lunge) model.Window("Thrust_Slash", 0f, 0.25f, Mathf.Min(1, t / 0.2f));
                     // the cyclone: the whole-body spin, the staff swept round with it
                     else if (move == Move.Cyclone) model.Window(WhirlClip, 0.05f, 0.85f, t / CycloneTime);
+                    // the throw: the thrust's arm flung out ahead
+                    else if (move == Move.Throw) model.Window("Thrust_Slash", 0f, 0.3f, t / ThrowTime);
                     break;
                 // the staff storm: a twirl, a storm of stabs (the thrust's stab over and over), the rising blow
                 case State.Special when !FireAwake:
@@ -1234,6 +1247,17 @@ namespace Cloudborne
                     pose.hLx = -1f; pose.kL = 0.5f; pose.hRx = 0.75f; pose.kR = 0.2f; pose.bob = -0.2f; pose.staffX = Mathf.PI / 2;
                     vx *= 1 - Damp(6, dt);
                     if (u > 0.22f && u < 0.6f) MeleeHits(3.6f, 12, 7, 1, false, true);
+                    if (u >= 1) EndStaff();
+                    break;
+                }
+                case Move.Throw:
+                {
+                    // the staff drawn back and flung out ahead (CbHeroThrow)
+                    float u = t / ThrowTime;
+                    pose.sRx = -1.57f; pose.sRz = 0; pose.eR = 0; pose.sLx = -0.6f; pose.eL = -1f; pose.twist = 0.6f; pose.lean = 0.3f;
+                    pose.hLx = -0.8f; pose.kL = 0.4f; pose.hRx = 0.6f; pose.kR = 0.2f; pose.bob = -0.12f;
+                    vx *= 1 - Damp(10, dt);
+                    if (!staffFlying && t >= ThrowRelease) LetStaffFly();
                     if (u >= 1) EndStaff();
                     break;
                 }
@@ -1435,6 +1459,7 @@ namespace Cloudborne
                 PlaceModelStaff(pose, dt);
                 return;
             }
+            if (staffFlying) return;
             Vector3 tp = staffInHand ? StaffHandPos : StaffBackPos;
             Quaternion tq = staffInHand ? CbArt.Rot(Mathf.PI / 2 + pose.staffX, pose.spin, 0) : StaffBackRot;
             float k = 1 - Mathf.Exp(-(pose.spin != 0 ? 60f : 22f) * dt);
@@ -1448,6 +1473,8 @@ namespace Cloudborne
         /// </summary>
         void PlaceModelStaff(Pose pose, float dt)
         {
+            // thrown, it flies by itself (CbHeroThrow)
+            if (staffFlying) return;
             Vector3 wp;
             Quaternion wq;
             if (staffInHand)
