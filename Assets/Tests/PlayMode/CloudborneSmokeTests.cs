@@ -332,7 +332,7 @@ namespace RacingGame.Tests
         {
             yield return null;
             foreach (var name in new[] { "prologue_temple", "prologue_crown", "prologue_shatter", "prologue_leap", "prologue_jungle",
-                         "koda_boast", "koda_taken", "raja_angry", "raja_journey", "baba_lesson1", "baba_lesson2" })
+                         "koda_boast", "koda_taken", "raja_angry", "raja_journey", "baba_lesson1", "baba_lesson2", "cub_clouds" })
             {
                 var tex = Resources.Load<Texture2D>("Cloudborne/Story/" + name);
                 Assert.IsNotNull(tex, $"The painting {name} is missing (Resources/Cloudborne/Story)");
@@ -343,6 +343,7 @@ namespace RacingGame.Tests
             Assert.IsTrue(CbComic.Available(CbStory.Journey), "Raja getting ready for the road can't be shown");
             Assert.IsTrue(CbComic.Available(CbStory.Prologue), "The prologue can't be shown");
             Assert.IsTrue(CbComic.Available(CbStory.BabaLesson), "Baba's lesson can't be shown");
+            Assert.IsTrue(CbComic.Available(CbStory.CubInTheClouds), "The drawing behind Baba's scroll can't be shown");
         }
 
         [UnityTest]
