@@ -106,6 +106,12 @@ namespace Cloudborne
         public static readonly Color SceneryTone = new Color(0.66f, 0.64f, 0.7f);
         // the meadow between the path and the trees glowed neon in the sun in the same way
         static readonly Color GroundTone = new Color(0.72f, 0.7f, 0.74f);
+        /// <summary>
+        /// Stage 1-5's burnt look: the jungle's ground, its painted hedge and lip, scorched to dark reddish browns under
+        /// the burning sky (green grass and flowers there clashed with the fire: the CI's pictures).
+        /// </summary>
+        static Color Scorch(Color c) => CbStage.Ember ? new Color(c.r * 0.66f, c.g * 0.4f, c.b * 0.32f, c.a) : c;
+        static Color StageTint => Scorch(PaintTint);
         readonly Dictionary<(string, float, Color), (GameObject prefab, Material mat)> models =
             new Dictionary<(string, float, Color), (GameObject, Material)>();
 
@@ -169,9 +175,9 @@ namespace Cloudborne
             {
                 painted.wrapModeU = TextureWrapMode.Repeat;
                 painted.wrapModeV = TextureWrapMode.Clamp;
-                face = CbArt.NewToon(SceneryTone, 0f, painted);
+                face = CbArt.NewToon(Scorch(SceneryTone), 0f, painted);
             }
-            else face = CbArt.NewToon(GroundTone, 0f, CbArt.Soil);
+            else face = CbArt.NewToon(Scorch(GroundTone), 0f, CbArt.Soil);
             face.SetFloat("_SpecStrength", 0f);
             face.SetFloat("_RimStrength", 0f);
             return face;
@@ -181,7 +187,7 @@ namespace Cloudborne
         public static Material GrassMaterial()
         {
             var painted = Resources.Load<Texture2D>(GroundPath("Grass"));
-            var grass = CbArt.NewToon(GroundTone, 0f, painted != null ? painted : CbArt.Grass);
+            var grass = CbArt.NewToon(Scorch(GroundTone), 0f, painted != null ? painted : CbArt.Grass);
             grass.SetFloat("_SpecStrength", 0f);
             return grass;
         }
@@ -335,15 +341,15 @@ namespace Cloudborne
             var grass = GrassMaterial();
             var paintedPath = Resources.Load<Texture2D>(GroundPath("Path"));
             // (the boughs' bark and moss in stage 1-2 toned down a little more: it read pink)
-            var path = CbArt.NewToon(paintedPath != null ? (CbStage.Treetops ? BoughTone : PathTone) : Color.white, 0f, paintedPath != null ? paintedPath : CbArt.Path);
+            var path = CbArt.NewToon(Scorch(paintedPath != null ? (CbStage.Treetops ? BoughTone : PathTone) : Color.white), 0f, paintedPath != null ? paintedPath : CbArt.Path);
             path.SetFloat("_SpecStrength", 0f);
             var face = FaceMaterial();
             // the new look: the front face drawn as painted, and its grass lip of leaves and flowers over the edge
             var lipTex = NewLook ? Resources.Load<Texture2D>(LipPath) : null;
-            var lip = lipTex != null ? Cutout(lipTex, 0f, PaintTint) : null;
+            var lip = lipTex != null ? Cutout(lipTex, 0f, StageTint) : null;
             if (lip != null)
             {
-                var flat = Cutout(face.mainTexture as Texture2D, 0f, PaintTint);
+                var flat = Cutout(face.mainTexture as Texture2D, 0f, StageTint);
                 if (flat != null) { flat.SetFloat("_Cutoff", 0f); face = flat; }
                 lipTex.wrapModeU = TextureWrapMode.Repeat;
                 lipTex.wrapModeV = TextureWrapMode.Clamp;
@@ -373,7 +379,7 @@ namespace Cloudborne
             else BuildStreams(grass, face, far);
             // the lawn running back to the trees (not on the river: it lay over the water, a flat green band)
             if (!CbStage.River)
-                CbArt.Part(CbMesh.Quad, CbArt.Toon("#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
+                CbArt.Part(CbMesh.Quad, CbArt.Toon(CbStage.Ember ? "#3a2620" : "#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
 
             // grass blades and fern fronds, merged straight into a few meshes
             var blade = CbMesh.Cone(3);
@@ -776,8 +782,8 @@ namespace Cloudborne
         static bool Has(string name) => Resources.Load<GameObject>(ModelPath(name)) != null;
 
         /// <summary>Whether a spot near the path is in one of the streams (they run from the front edge back to z 10).</summary>
-        // (stage 1-4: all of it is river, back to its painting)
-        static bool Wet(float x, float z, float margin = 0.5f) => CbStage.River || z < CbLevel.WaterBack + 1f && CbLevel.InWater(x, margin);
+        // (stage 1-5: no green grass, flowers, palms or leaves - the jungle round the temple is burnt)
+        static bool Wet(float x, float z, float margin = 0.5f) => CbStage.River || CbStage.Ember || z < CbLevel.WaterBack + 1f && CbLevel.InWater(x, margin);
 
         /// <summary>
         /// Models with thin leaves, seen from both sides (the boulders have sprigs of moss and leaves). They get no
@@ -926,7 +932,7 @@ namespace Cloudborne
                 // (not in Baba's grove: its painted clearing - the hut, the bells, the mountains - showed only in gaps)
                 mid = !CbStage.Grove && !CbStage.River && !CbStage.Ember && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
                 var hedge = BushGround();
-                near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, PaintTint);
+                near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, StageTint);
                 // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and
                 // the old leaf models showed there)
                 var behind = new List<(float a, float b)>();
@@ -934,7 +940,7 @@ namespace Cloudborne
                 if (!CbStage.River) BuildLayer("JungleNear", CbLevel.WaterBack + 0.7f, -0.15f, 1.9f, 0f, behind, PaintTint);
                 // where it meets a river, a rounded clump closes it (it ended in a straight cut)
                 var clumpTex = Resources.Load<Texture2D>(ClumpPath);
-                var clump = clumpTex != null ? Cutout(clumpTex, 0f, PaintTint) : null;
+                var clump = clumpTex != null ? Cutout(clumpTex, 0f, StageTint) : null;
                 if (near && clump != null)
                 {
                     clumpTex.wrapMode = TextureWrapMode.Clamp;

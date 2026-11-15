@@ -29,7 +29,8 @@ namespace Cloudborne
 
         public const string GrakPath = "Cloudborne/Ember/Grak/Grak";
         /// <summary>His health, half his width, and his height (feet to crown).</summary>
-        public const float GrakHp = 360f, GrakHalf = 0.95f, GrakHeight = 3.1f;
+        // (bigger: at 3.1 he stood little taller than Raja in the CI's pictures)
+        public const float GrakHp = 360f, GrakHalf = 1.15f, GrakHeight = 3.8f;
         /// <summary>How far down his health goes before Raja's fire must wake (his last slam, the crystal knocked loose).</summary>
         public const float GrakAwakeAt = 0.14f;
         /// <summary>How long each of his moves lasts, and when its blow lands (seconds in).</summary>
@@ -38,7 +39,7 @@ namespace Cloudborne
         const float GrakWalk = 1.7f, GrakChargeSpeed = 10.5f, GrakRoar = 1.7f, GrakScrape = 0.8f, GrakIgniteTime = 1.8f, GrakCrystalTime = 1.6f,
             GrakSwingReach = 3.3f, GrakSwingHigh = 1.25f, GrakSwingDamage = 14f, GrakChopReach = 3.5f, GrakChopDamage = 18f, GrakBump = 16f, GrakThrow = 9f,
             GrakFireballSpeed = 9f, GrakFireballDamage = 10f, GrakWaveSpeed = 9f, GrakWaveLife = 1.3f, GrakWaveDamage = 12f, GrakOpenAfter = 0.85f,
-            GrakDying = 2.6f, GrakBack = 2.2f, GrakChargeFrom = 5.5f, GrakCloseIn = 3.4f;
+            GrakDying = 2.6f, GrakBack = 2.6f, GrakChargeFrom = 5.5f, GrakCloseIn = 3.4f;
         static readonly float[] GrakFireballsAt = { 0.42f, 0.6f, 0.78f };
 
         public GrakMove grakMove;
@@ -90,6 +91,7 @@ namespace Cloudborne
             }
             // his great saw: a long iron haft, a hammer head at its foot, a toothed blade at its head (along +Z)
             saw = CbArt.Joint(f.root, 0, 0, 0, "grakSaw");
+            saw.localScale = Vector3.one * 1.25f;
             var iron = f.M("#4a4f57");
             CbArt.Cylinder(f.M("#3a2a1e"), saw, new Vector3(0, 0, 0.3f), 0.05f, 1.9f, Quaternion.Euler(90, 0, 0));
             CbArt.Box(iron, saw, new Vector3(0, 0, -0.62f), new Vector3(0.28f, 0.28f, 0.36f));
@@ -465,7 +467,7 @@ namespace Cloudborne
                 if (crystalOn)
                 {
                     var chest = model != null ? model.chest.position : f.root.position + Vector3.up * 2f;
-                    chestCrystal.position = chest + f.body.rotation * new Vector3(0, 0, 0.45f);
+                    chestCrystal.position = chest + f.body.rotation * new Vector3(0, 0, 0.55f);
                     chestCrystal.rotation = f.body.rotation;
                     if (Random.value < 0.3f) CbFx.Spark(chestCrystal.position + new Vector3(0, 0, -0.2f), CbFx.Fire, 1, 1.2f, 0.25f, 0.4f, -2);
                 }

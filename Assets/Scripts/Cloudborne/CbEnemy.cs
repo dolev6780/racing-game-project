@@ -96,7 +96,7 @@ namespace Cloudborne
             if (shield) w = 0.6f;
             if (sergeant) { w = 0.7f; hy = 1.5f; }
             if (tusk) { w = TuskHalf; hy = 1f; }
-            if (grak) { w = GrakHalf; hy = 1.7f; }
+            if (grak) { w = GrakHalf; hy = 2.1f; }
             guard = shield;
             cd = Random.Range(0.5f, 1.4f);
             runPh = Random.Range(0f, 6f);

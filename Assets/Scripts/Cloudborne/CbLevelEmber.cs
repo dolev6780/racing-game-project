@@ -59,7 +59,7 @@ namespace Cloudborne
             // a pillar at either end of the arena: where Grak's charges end (just outside where Raja can go)
             foreach (int side in new[] { -1, 1 })
             {
-                var t = CbArt.Joint(root, GrakX + side * (GrakCrash + 1.35f), 0, 0.75f, "emberPillar");
+                var t = CbArt.Joint(root, GrakX + side * (GrakCrash + CbEnemy.GrakHalf + 0.6f), 0, 0.75f, "emberPillar");
                 var holder = CbArt.Joint(t, 0, 0, 0, "shape");
                 holder.localScale = new Vector3(1.1f / 1.48f, 4.6f / 3.6f, 0.8f);
                 if (CbArt.Prop("Cloudborne/Jungle/Pillar/Pillar", holder, CbArt.PropOutline) == null)
@@ -83,22 +83,56 @@ namespace Cloudborne
             ResetEmber();
         }
 
-        /// <summary>A wall of fire across the path: tall flickering tongues from the back to the front, glowing.</summary>
+        /// <summary>A wall of fire across the path: tongues of flame from the back to the front, of different heights, each
+        /// flickering and swaying on its own (plain glowing quads read as yellow pillars: the CI's pictures).</summary>
         Transform FireWall(string name)
         {
             var t = CbArt.Joint(root, GrakX, 0, 0, name);
-            var flame = CbArt.Glow(new Color(1f, 0.55f, 0.15f, 0.85f), CbArt.Shaft);
-            var core = CbArt.Glow(new Color(1f, 0.85f, 0.4f, 0.9f), CbArt.Shaft);
-            for (int k = 0; k < 7; k++)
+            var tex = FlameTexture();
+            var outer = CbArt.Glow(new Color(1f, 0.42f, 0.1f, 1f), tex);
+            var inner = CbArt.Glow(new Color(1f, 0.8f, 0.35f, 1f), tex);
+            for (int k = 0; k < 12; k++)
             {
-                float z = -1.4f + k * 0.55f;
-                var tongue = CbArt.Part(CbMesh.Quad, k % 2 == 0 ? flame : core, t, new Vector3(Random.Range(-0.2f, 0.2f), FireTall / 2, z),
-                    new Vector3(0.9f, FireTall, 1), shadows: false);
+                bool core = k % 3 == 2;
+                float z = -1.5f + k * 0.32f + Random.Range(-0.1f, 0.1f);
+                float h = FireTall * (core ? Random.Range(0.55f, 0.75f) : Random.Range(0.75f, 1.15f));
+                var tongue = CbArt.Part(CbMesh.Quad, core ? inner : outer, t, new Vector3(Random.Range(-0.35f, 0.35f), h / 2, z - (core ? 0.05f : 0f)),
+                    new Vector3(h * 0.6f, h, 1), shadows: false);
                 tongue.name = "flame";
                 fireTongues.Add(tongue);
+                tongueHeights.Add(h);
             }
             t.gameObject.SetActive(false);
             return t;
+        }
+
+        readonly List<float> tongueHeights = new List<float>();
+        static Texture2D flameTex;
+
+        /// <summary>A tongue of flame drawn in code: wide and bright at its foot, licking up to a point, its edges soft.</summary>
+        static Texture2D FlameTexture()
+        {
+            if (flameTex != null) return flameTex;
+            const int W = 64, H = 128;
+            flameTex = new Texture2D(W, H, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "flame" };
+            var px = new Color[W * H];
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    float u = (x + 0.5f) / W * 2f - 1f, v = (y + 0.5f) / H;
+                    // the flame's half width at this height: round at the foot, narrowing to a tip, a little wavy
+                    float half = 0.95f * Mathf.Pow(1f - v, 0.75f) * Mathf.Clamp01(v * 6f + 0.35f) + Mathf.Sin(v * 9f) * 0.04f * (1 - v);
+                    float d = Mathf.Abs(u) / Mathf.Max(half, 0.001f);
+                    float a = Mathf.Clamp01((1f - d) * 2.2f) * Mathf.Clamp01((1f - v) * 1.6f);
+                    // white-gold in its heart, orange, then red at the edges
+                    var c = Color.Lerp(new Color(1f, 0.95f, 0.7f), new Color(1f, 0.55f, 0.15f), Mathf.Clamp01(d * 1.4f + v * 0.5f));
+                    c = Color.Lerp(c, new Color(0.85f, 0.18f, 0.05f), Mathf.Clamp01(d * 1.6f - 0.7f));
+                    c.a = a;
+                    px[y * W + x] = c;
+                }
+            flameTex.SetPixels(px);
+            flameTex.Apply();
+            return flameTex;
         }
 
         /// <summary>A sandstone slab texture drawn in code: big worn slabs, dark joints, a few cracks and scorch marks.</summary>
@@ -243,11 +277,13 @@ namespace Cloudborne
                 for (int i = 0; i < fireTongues.Count; i++)
                 {
                     var t = fireTongues[i];
-                    float s = 1f + Mathf.Sin(time * (9f + i) + i * 1.7f) * 0.18f;
-                    t.localScale = new Vector3(0.9f * (2f - s), FireTall * s, 1);
+                    float h0 = tongueHeights[i];
+                    float s = 1f + Mathf.Sin(time * (8f + i % 5) + i * 1.7f) * 0.16f + Mathf.Sin(time * 13f + i) * 0.06f;
+                    t.localScale = new Vector3(h0 * 0.6f * (1.6f - s * 0.6f), h0 * s, 1);
                     var p = t.localPosition;
-                    p.y = FireTall * s / 2;
+                    p.y = h0 * s / 2;
                     t.localPosition = p;
+                    t.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(time * 3.1f + i * 0.9f) * 6f);
                 }
                 if (Random.value < 0.8f)
                     foreach (var fx in new[] { FireLeftX, FireRightX })
