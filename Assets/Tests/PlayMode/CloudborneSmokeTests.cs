@@ -1822,6 +1822,121 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheRiverIsRiddenToTheSawBarge()
+        {
+            // stage 1-4 (the story doc): riding a log down the river - rocks to jump, branches to duck, barrels to smash,
+            // two waterfalls, golden lotuses up high; the saw barge in the basin at the end; then Koda's cage is taken away
+            CbSave.PerfectGuard = true;
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-4");
+            game.BuildStage();
+            game.StartGame();
+            yield return Frames(3);
+            var hero = game.hero;
+            var level = game.level;
+            Assert.IsTrue(game.Riding, "Raja is not riding the river");
+            hero.hp = 9999;
+            float x0 = hero.x;
+            yield return new WaitForSeconds(1f);
+            Assert.Greater(hero.x - x0, 6f, "The river did not carry him along");
+            Assert.AreEqual(0f, hero.y, 0.3f, "Raja is not on his log on the water");
+            // a rock in the way hurts him
+            game.Teleport(level.RockX(0) - 3f);
+            hero.y = 0;
+            float hp = hero.hp;
+            for (float w = 0; w < 1f && hero.hp >= hp; w += Time.deltaTime) yield return null;
+            Assert.Less(hero.hp, hp, "Running into a rock did not hurt");
+            yield return new WaitForSeconds(1.2f);
+            // ducking (the stick held down) he passes under a low branch
+            game.Teleport(level.BranchX(0) - 4f);
+            hero.y = 0;
+            hero.inv = 0;
+            hero.state = CbHero.State.Idle;
+            yield return Frames(2);
+            hp = hero.hp;
+            bool first = true;
+            game.TestControls = i => { i.y = -1; i.slide = first; first = false; };
+            for (float w = 0; w < 1f && hero.x < level.BranchX(0) + 1f; w += Time.deltaTime) yield return null;
+            game.TestControls = null;
+            Assert.AreEqual(hp, hero.hp, 0.01f, "Ducking under a low branch still hurt him");
+            // the staff smashes an oil barrel
+            game.Teleport(level.BarrelX(1) - 2.2f);
+            hero.y = 0;
+            level.Strike(level.BarrelX(1) - 1.4f, 0f, 1, 2f, staff: true);
+            Assert.IsTrue(level.BarrelBroken(1), "A blow did not smash the oil barrel");
+            // over the first waterfall: down a level, still on his log (not swimming)
+            game.Teleport(CbLevel.Falls[0] - 4f);
+            hero.y = 0;
+            for (float w = 0; w < 2.5f && hero.y > CbLevel.RiverFloor(CbLevel.Falls[0] + 1f) + 0.1f; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(CbLevel.RiverFloor(CbLevel.Falls[0] + 1f), hero.y, 0.3f, "He did not go down with the waterfall onto the lower river");
+            Assert.AreNotEqual(CbHero.State.Swim, hero.state, "After the waterfall he swims instead of riding");
+            // a golden lotus up on the first route
+            var lotus = CbLevel.LotusAt(0);
+            game.Teleport(lotus.x - 0.2f);
+            hero.y = lotus.y - 1.05f;
+            hero.vy = 0;
+            for (float w = 0; w < 1f && game.Tokens < 1; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(1, game.Tokens, "The golden lotus up on the route was not taken");
+            // the basin: the saw barge
+            game.Teleport(CbLevel.BasinFrom + 6f);
+            hero.y = CbLevel.RiverFloor(CbLevel.BasinX);
+            for (float w = 0; w < 3f && !level.SawBargeFighting; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(level.SawBargeFighting, "The saw barge did not come");
+            Assert.IsNotNull(game.lockZone, "The basin did not shut for the saw barge");
+            Assert.IsFalse(game.Riding, "Still riding in the basin");
+            // one of its logs sent back with the perfect guard bursts a fuel barrel
+            for (float w = 0; w < 12f && level.FuelLeft == 3; w += Time.deltaTime)
+            {
+                yield return null;
+                if (!level.ThrownComing(hero.x, hero.y, -1, 2.2f) || hero.state != CbHero.State.Idle) continue;
+                bool swiped = false;
+                game.TestControls = i => { if (!swiped) { i.dash = true; i.dashDir = -1; } swiped = true; };
+                yield return Frames(2);
+                game.TestControls = null;
+            }
+            Assert.AreEqual(2, level.FuelLeft, "A log sent back did not burst a fuel barrel");
+            // the other two with the staff: it sinks, Koda's barge breaks up, his cage goes up
+            for (int i = 0; i < 3; i++)
+                level.Strike(level.FuelX(i) + 1f, CbLevel.RiverFloor(CbLevel.BasinX) + 0.5f, -1, 1.6f, staff: true);
+            Assert.AreEqual(0, level.FuelLeft, "The staff did not knock down the fuel barrels");
+            Assert.IsTrue(level.SawBargeBeaten, "With its barrels gone the saw barge did not sink");
+            for (float w = 0; w < 2f && game.mode != CbGame.Mode.Scene; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "The end of the river did not play");
+            Assert.IsTrue(game.Cleared, "Stage 1-4 was not cleared");
+            game.scene.Skip();
+            yield return WaitForMode(CbGame.Mode.Over, 4f);
+            Assert.AreEqual(CbGame.Mode.Over, game.mode, "Stage 1-4 did not end");
+            CbSave.PerfectGuard = false;
+            CbStage.Set("1-1");
+            game.BuildStage();
+        }
+
+        [UnityTest]
+        public IEnumerator ZzRiverPictures()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-4");
+            game.BuildStage();
+            game.StartGame();
+            yield return Frames(2);
+            game.hero.hp = 9999;
+            game.hero.inv = 999f;
+            // (he is carried along while the camera settles: put him that far before each spot)
+            float lead = CbLevel.RideSpeed * 2f;
+            game.Teleport(game.level.RockX(1) - 3f - lead);
+            yield return TakePictures(new[] { ("river_rocks", float.NaN, 0f) }, 2f);
+            game.Teleport(CbLevel.Falls[0] - 1f - lead);
+            yield return TakePictures(new[] { ("river_falls", float.NaN, 0f) }, 2f);
+            game.Teleport(176f - lead);
+            yield return TakePictures(new[] { ("river_route", float.NaN, 0f) }, 2f);
+            game.Teleport(CbLevel.BasinFrom + 6f);
+            game.hero.y = CbLevel.RiverFloor(CbLevel.BasinX);
+            yield return TakePictures(new[] { ("river_barge", float.NaN, 0f) }, 4.5f);
+        }
+
+        [UnityTest]
         public IEnumerator BabasScrollHidesTheCubInTheClouds()
         {
             // stage 1-3's secret (the story doc): behind a scroll by Baba's hut, a drawing of a cub in the clouds

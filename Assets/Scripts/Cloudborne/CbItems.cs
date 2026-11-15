@@ -87,6 +87,7 @@ namespace Cloudborne
             Coins = 0;
             if (CbStage.Treetops) { LayOutTreetops(); return; }
             if (CbStage.Grove) { LayOutGrove(); return; }
+            if (CbStage.River) { LayOutRiver(); return; }
 
             // crates along the path, each with something in it
             AddCrate(9f, Kind.Coin, Kind.Coin, Kind.Coin);
@@ -159,6 +160,22 @@ namespace Cloudborne
             // out of reach off that ledge: the golden fruit only the staff throw brings down
             Spawn(Kind.GoldenFruit, new Vector3(CbLevel.HighFruitX, CbLevel.HighFruitY, 0), resting: true);
             foreach (var x in new[] { 326f, 329f, 332f, 335f }) C(x, 1.2f);
+        }
+
+        /// <summary>
+        /// Stage 1-4's coins over the river (in arcs, to be jumped for) and its three golden lotuses (the tiger tokens of
+        /// this stage), one at the top of each upper route.
+        /// </summary>
+        void LayOutRiver()
+        {
+            for (float x = 20f; x < 860f; x += 26f)
+            {
+                if (System.Array.Exists(CbLevel.Falls, f => Mathf.Abs(f - x) < 8f)) continue;
+                for (int i = 0; i < 4; i++)
+                    Spawn(Kind.Coin, new Vector3(x + i * 1.1f, CbLevel.RiverFloor(x) + 1.2f + Mathf.Sin(i / 3f * Mathf.PI) * 1.4f, 0), resting: true);
+            }
+            for (int i = 0; i < 3; i++) Spawn(Kind.Token, CbLevel.LotusAt(i), resting: true);
+            Spawn(Kind.Mango, new Vector3(CbLevel.BasinFrom - 6f, CbLevel.RiverFloor(CbLevel.BasinFrom) + 1.4f, 0), resting: true);
         }
 
         /// <summary>Stage 1-3's few coins and crates, and ki crystals by the dummies (the storm takes half his ki).</summary>
@@ -250,8 +267,10 @@ namespace Cloudborne
         {
             string name = ModelNames[(int)kind];
             var t = CbArt.Joint(root, pos.x, pos.y, pos.z, name.ToLowerInvariant());
-            var model = CbArt.Prop($"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
-            if (kind == Kind.Token && model != null) model.localScale *= 1.8f;
+            // (stage 1-4's tokens are golden lotuses)
+            bool lotus = kind == Kind.Token && CbStage.River;
+            var model = CbArt.Prop(lotus ? "Cloudborne/River/Lotus/Lotus" : $"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
+            if (kind == Kind.Token && model != null && !lotus) model.localScale *= 1.8f;
             // the key model lies flat: stood up, its face to the camera
             if (kind == Kind.Key && model != null) model.localRotation = Quaternion.Euler(90, 0, 0) * model.localRotation;
             if (kind == Kind.Key && model == null)

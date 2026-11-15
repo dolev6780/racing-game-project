@@ -16,8 +16,8 @@ namespace Cloudborne
     {
         // the stage runs from LevelMin to LevelMax; it is cleared at the shrine gate at GoalX, once every fight is won
         public const float LevelMin = -8f;
-        public static float LevelMax => CbStage.Treetops ? CbLevel.TreetopsMax : CbStage.Grove ? CbLevel.GroveMax : 494f;
-        public static float GoalX => CbStage.Treetops ? CbLevel.TreetopsGoal : CbStage.Grove ? CbLevel.GroveGoal : 488f;
+        public static float LevelMax => CbStage.Treetops ? CbLevel.TreetopsMax : CbStage.Grove ? CbLevel.GroveMax : CbStage.River ? CbLevel.RiverMax : 494f;
+        public static float GoalX => CbStage.Treetops ? CbLevel.TreetopsGoal : CbStage.Grove ? CbLevel.GroveGoal : CbStage.River ? CbLevel.RiverGoal : 488f;
         // the scenery runs on a little past the end of the stage
         static float End => LevelMax + 20f;
         // the blue-teal haze of the painted backdrop: distant scenery fades into it, not into white
@@ -74,7 +74,13 @@ namespace Cloudborne
             ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
             ("Cloudborne/Grove/Backdrop/GroveBackdrop", float.MinValue),
         };
-        static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : JungleBackdrops;
+        // stage 1-4: the river in the storm, its falls ahead
+        static readonly (string path, float from)[] RiverBackdrops =
+        {
+            ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
+            ("Cloudborne/River/Backdrop/RiverBackdrop", float.MinValue),
+        };
+        static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : CbStage.River ? RiverBackdrops : JungleBackdrops;
         const float BackdropFade = 12f;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         int shownPart = -1;
@@ -556,12 +562,18 @@ namespace Cloudborne
                 sideTex.wrapModeU = TextureWrapMode.Repeat;
                 sideTex.wrapModeV = TextureWrapMode.Clamp;
             }
+            var baseFront = front;
             foreach (var (x0, x1) in CbLevel.Waters)
             {
                 float w = x1 - x0, c = (x0 + x1) / 2;
+                // (stage 1-4's river is lower after each waterfall: each stretch at its own level, its far bank just over it)
+                level = CbLevel.SurfaceAt(c);
+                bed = level - 0.55f;
+                float bankTop = CbStage.River ? level + 1.3f : 0f;
+                if (baseFront != null && CbStage.River) { front = new Material(baseFront); front.SetFloat("_Level", level); }
                 // the ground behind the channel's end, and under it
                 var behind = new Material(grass) { mainTextureScale = new Vector2(w / GrassTile, (GroundBack - back) / GrassTile), mainTextureOffset = new Vector2(x0 / GrassTile, 0) };
-                CbArt.Box(behind, root, new Vector3(c, -GroundDepth / 2, (back + GroundBack) / 2), new Vector3(w, GroundDepth, GroundBack - back));
+                CbArt.Box(behind, root, new Vector3(c, bankTop - GroundDepth / 2, (back + GroundBack) / 2), new Vector3(w, GroundDepth, GroundBack - back));
                 CbArt.Box(CbArt.Toon("#2d4a3a"), root, new Vector3(c, bed - 1f, (GroundFront + back) / 2), new Vector3(w, 2f, back - GroundFront));
                 // the banks: earth walls from the grass down into the water
                 var bank = new Material(face);
@@ -569,8 +581,11 @@ namespace Cloudborne
                 bank.mainTextureScale = new Vector2((back - GroundFront) / tileW, rows);
                 bank.mainTextureOffset = new Vector2(0, 1 - rows);
                 // (a hair inside the channel, so they don't flicker against the ground's own sides)
-                CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x0 + 0.01f, -0.6f, (GroundFront + back) / 2), new Vector3(back - GroundFront, 1.2f, 1), Quaternion.Euler(0, -90, 0), shadows: false);
-                CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x1 - 0.01f, -0.6f, (GroundFront + back) / 2), new Vector3(back - GroundFront, 1.2f, 1), Quaternion.Euler(0, 90, 0), shadows: false);
+                if (!CbStage.River)
+                {
+                    CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x0 + 0.01f, -0.6f, (GroundFront + back) / 2), new Vector3(back - GroundFront, 1.2f, 1), Quaternion.Euler(0, -90, 0), shadows: false);
+                    CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x1 - 0.01f, -0.6f, (GroundFront + back) / 2), new Vector3(back - GroundFront, 1.2f, 1), Quaternion.Euler(0, 90, 0), shadows: false);
+                }
                 // the water: its surface, flowing towards the camera
                 Material surface;
                 if (paintedSurface != null)
@@ -886,7 +901,7 @@ namespace Cloudborne
                 // the new look: a row of big painted trees in a light haze, and right behind the path a hedge of
                 // bushes and flowers (it hides the flat lawn that ran back to the trees), broken by the rivers
                 // (not in Baba's grove: its painted clearing - the hut, the bells, the mountains - showed only in gaps)
-                mid = !CbStage.Grove && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
+                mid = !CbStage.Grove && !CbStage.River && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
                 var hedge = BushGround();
                 near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, PaintTint);
                 // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and

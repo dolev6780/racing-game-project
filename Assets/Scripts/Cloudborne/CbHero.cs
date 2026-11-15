@@ -300,6 +300,8 @@ namespace Cloudborne
             if (air) { state = State.Air; t = 0; crouching = false; return; }
             float k = Mathf.Clamp01(t / SlideTime);
             vx = facing * Mathf.Lerp(SlideSpeed, CrawlSpeed, k * k);
+            // (on the river he ducks low on his log, carried on)
+            if (g.Riding) vx = g.RideVx(0);
             if (Random.value < 0.7f) CbFx.Spark(new Vector3(x - facing * 0.3f, y + 0.08f, -0.3f), CbFx.Dust, 1, 2f, 0.45f, 0.35f, 1);
             // a soldier in his way is knocked off his feet
             foreach (var e in g.enemies)
@@ -769,6 +771,8 @@ namespace Cloudborne
                         CbFx.Spark(new Vector3(x + Mathf.Sign(vx) * 0.25f, y + 0.08f, -0.3f), CbFx.Dust, 2, 2.2f, 0.4f, 0.35f, 1);
                     vx += (input.x * top - vx) * Damp(air ? 6 : 14, dt);
                     if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
+                    // riding the river (stage 1-4): carried along on his log, the stick only speeding him or holding him back
+                    if (g.Riding) { vx = g.RideVx(input.x); facing = 1; }
                 }
                 // JUMP pressed with no jump left: kept a moment, for when he lands
                 if (input.jump && air && jumps >= 2 && wallT <= 0) jumpBufT = JumpBuffer;
@@ -981,7 +985,7 @@ namespace Cloudborne
             // into the water: a splash, a moment treading water, and back where he last stood safely
             // in the treetops the gaps drop away: he falls through the leaves and is back on the last bough he stood on
             if (CbStage.Treetops) { if (y < -2.6f && CbLevel.InWater(x)) FellFromTheTrees(); }
-            else if (y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater(CbLevel.WaterLevel, "Into the water! Pale stones sink, logs drift - jump on quickly");
+            else if (!CbStage.River && y < CbLevel.WaterLevel - 0.35f && CbLevel.InWater(x)) FellInWater(CbLevel.WaterLevel, "Into the water! Pale stones sink, logs drift - jump on quickly");
         }
 
         /// <summary>

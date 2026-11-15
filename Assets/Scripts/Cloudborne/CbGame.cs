@@ -31,9 +31,31 @@ namespace Cloudborne
         /// one waits until Raja is right by him. No arena: only Sergeant Snap shuts one.
         /// </summary>
         class Post { public float x, range; public CbEnemy.Kind kind; public bool asleep, spawned; public CbEnemy enemy; public Transform seat; }
-        static (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan => CbStage.Treetops ? TreetopsPosts : CbStage.Grove ? GrovePosts : JunglePosts;
-        static (float x, string name)[] Sections => CbStage.Treetops ? TreetopsSections : CbStage.Grove ? GroveSections : JungleSections;
-        static (float x, int tip, string text)[] Tips => CbStage.Treetops ? TreetopsTips : CbStage.Grove ? GroveTips : JungleTips;
+        static (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan => CbStage.Treetops ? TreetopsPosts : CbStage.Grove || CbStage.River ? GrovePosts : JunglePosts;
+        static (float x, string name)[] Sections => CbStage.Treetops ? TreetopsSections : CbStage.Grove ? GroveSections : CbStage.River ? RiverSections : JungleSections;
+        static (float x, int tip, string text)[] Tips => CbStage.Treetops ? TreetopsTips : CbStage.Grove ? GroveTips : CbStage.River ? RiverTips : JungleTips;
+
+        // stage 1-4, The Stormy River: riding, no soldiers; Koda shouting from his barge ahead; the saw barge at the end
+        static readonly (float x, string name)[] RiverSections =
+        {
+            (0f, "The rapids"), (CbLevel.Falls[0] - 6f, "The first falls"), (CbLevel.Falls[1] - 6f, "The second falls"),
+            (CbLevel.BasinFrom - 4f, "The basin"),
+        };
+        static readonly (float x, int tip, string text)[] RiverTips =
+        {
+            (2f, -1, "On the log! <color=#ffb03a>Stick ↑</color> jumps the rocks, <color=#ffb03a>stick ↓</color> ducks the branches, <color=#ffb03a>ATTACK</color> smashes the barrels"),
+            (36f, -1, "Koda: \"Raja! Tell them I'm not the child of the prophecy!\""),
+            (118f, -1, "Koda: \"...OK, maybe a little!\""),
+            (172f, -1, "Ledges over the river - something golden glints up there"),
+            (CbLevel.Falls[0] - 12f, -1, "The falls! Hold on to the log..."),
+            (CbLevel.Falls[1] - 12f, -1, "Another waterfall - and something mechanical roaring behind you..."),
+        };
+
+        /// <summary>Stage 1-4: Raja is carried down the river on his log (until the basin at its end).</summary>
+        public bool Riding => CbStage.River && mode == Mode.Play && lockZone == null && hero.x < CbLevel.BasinFrom;
+
+        /// <summary>How fast the river carries him, the stick at ix.</summary>
+        public float RideVx(float ix) => CbLevel.RideSpeed + Mathf.Clamp(ix, -1f, 1f) * CbLevel.RideLean;
 
         // stage 1-3, Baba's Grove: no soldiers; Baba's three trials (CbLevelGrove), each shutting the way until it is done
         static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] GrovePosts = new (float, CbEnemy.Kind, float, bool)[0];
@@ -189,10 +211,11 @@ namespace Cloudborne
         // The mini-boss: Sergeant Snap in stage 1-1, his arena in front of the shrine gate; Tusk in stage 1-2, in his
         // clearing at the end of the loggers' camp
         const float SnapX = 474f;
-        static float BossX => CbStage.Treetops ? CbLevel.TuskX : SnapX;
+        static float BossX => CbStage.Treetops ? CbLevel.TuskX : CbStage.River ? CbLevel.BasinX - 2f : SnapX;
         static readonly Zone SnapZone = new Zone { x = SnapX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
         static readonly Zone TuskZone = new Zone { x = CbLevel.TuskX, label = "Tusk", spawn = new (CbEnemy.Kind, float)[0] };
-        static Zone BossZone => CbStage.Treetops ? TuskZone : SnapZone;
+        static readonly Zone BargeZone = new Zone { x = CbLevel.BasinX, label = "The saw barge", spawn = new (CbEnemy.Kind, float)[0] };
+        static Zone BossZone => CbStage.Treetops ? TuskZone : CbStage.River ? BargeZone : SnapZone;
         /// <summary>
         /// An ambush on a bridge: once he is from metres along it, the way shuts either side and raiders come at him
         /// from both ends, wave after wave (offsets from the zone's middle); when they are beaten, it opens.
@@ -307,7 +330,7 @@ namespace Cloudborne
         // the camera looks a little above his head: the ground sits low in the view, the painted jungle fills it
         const float BaseFov = 26f, CamBase = 2.1f, CamRise = 0.6f, ViewHalfWidth = 8f, LookAhead = 2.4f;
         // drawn back over high ground: down to CamLow (just under the water) in view, at most CamBackMax times as far
-        const float CamLow = -0.9f, CamBackMax = 1.45f, TuskFightBack = 1.35f;
+        const float CamLow = -0.9f, CamBackMax = 1.45f, TuskFightBack = 1.35f, RideLook = 4.5f;
         // in the gorge the camera draws back further and looks at its middle, showing its walls and the water below
         // (the user wanted it further out there)
         const float CamGorge = 1.95f;
@@ -636,6 +659,15 @@ namespace Cloudborne
             lockZone = BossZone;
             hud.ShowGo(false);
             if (CbStage.Treetops) { SpawnTusk(); return; }
+            if (CbStage.River)
+            {
+                level.StartSawBarge();
+                hud.ShowBoss("THE SAW BARGE");
+                hud.SetWave("Sink the saw barge");
+                hud.SetTip("<color=#ffb03a>Swipe ↔</color> INTO its logs to send them back at its fuel barrels. Jump its saws - stuck, its barrels are in reach!");
+                hud.Banner("THE SAW BARGE!");
+                return;
+            }
             mode = Mode.Scene;
             hud.SetScreen(CbHud.Screen.Scene);
             scene = CbStory.SnapIntro(this, BossX);
@@ -704,6 +736,17 @@ namespace Cloudborne
             hud.HideBoss();
             level?.OpenGoalGate(true);
             hud.ShowGo(true);
+            if (CbStage.River)
+            {
+                // the end of 1-4: Koda's barge breaks up on the rocks - and his cage is taken up into the sky (a scene)
+                hud.Banner("THE SAW BARGE SINKS!");
+                cleared = true;
+                hud.ShowGo(false);
+                mode = Mode.Scene;
+                hud.SetScreen(CbHud.Screen.Scene);
+                scene = CbStory.RiverEnd(this);
+                return;
+            }
             if (CbStage.Treetops)
             {
                 hud.Banner("TUSK DEFEATED!");
@@ -758,6 +801,7 @@ namespace Cloudborne
             foreach (var a in Ambushes)
                 if (a.started && !a.done) { a.started = false; a.wave = 0; lockZone = null; hud.ShowGo(true); }
             if (CbStage.Grove && lockZone != null) { lockZone = null; level?.LeaveTrial(); hud.ShowGo(true); }
+            if (CbStage.River) level?.LeaveSawBarge();
             hero.RespawnAt(checkpointX);
             level?.Respawned(checkpointX);
             lastHp = hero.hp;
@@ -793,7 +837,7 @@ namespace Cloudborne
         public void TokenFound()
         {
             Tokens++;
-            hud.Banner($"TIGER TOKEN {Tokens}/3", true);
+            hud.Banner(CbStage.River ? $"GOLDEN LOTUS {Tokens}/3" : $"TIGER TOKEN {Tokens}/3", true);
         }
 
         void EndGame(bool won)
@@ -882,6 +926,12 @@ namespace Cloudborne
             if (lockZone == null && !bossStarted && hero.x > BossX - 7f)
             {
                 StartBoss();
+                return;
+            }
+            if (lockZone == BossZone && CbStage.River)
+            {
+                hud.SetBoss(level.FuelLeft / 3f);
+                if (level.SawBargeBeaten) BossBeaten();
                 return;
             }
             if (lockZone == BossZone)
@@ -1506,9 +1556,17 @@ namespace Cloudborne
             if (mode == Mode.Title) { tx = hero.x - 3.4f + Mathf.Sin(clock * 0.2f) * 0.3f; dist *= 0.72f; }
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
             if (tuskFight) tx = Mathf.Lerp(lockZone.x, hero.x, 0.15f);
+            // riding the river: the view well ahead, to see what is coming
+            if (CbStage.River && Riding) tx = hero.x + RideLook;
             tx = Mathf.Lerp(tx, CbLevel.GorgeMiddle, gorge * 0.6f);
             // half his height on the path and in jumps; high up the mountain the camera climbs with him
             float ty = CamBase + Mathf.Max(hero.y * 0.5f, hero.y - 2.5f);
+            // on the river the view follows it down the falls (and his jumps from his log, half)
+            if (CbStage.River)
+            {
+                float floor = CbLevel.RiverFloor(hero.x);
+                ty = CamBase + floor + Mathf.Max((hero.y - floor) * 0.5f, hero.y - floor - 2.5f);
+            }
             // up high, the view's foot rests just below the ground (as far as it can, him still in view)
             float high = mode == Mode.Play ? Mathf.Clamp01((stand - 0.4f) / 0.8f) : 0f;
             if (high > 0)

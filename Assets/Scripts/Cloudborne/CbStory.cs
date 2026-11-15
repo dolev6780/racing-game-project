@@ -117,6 +117,38 @@ namespace Cloudborne
         };
 
         /// <summary>
+        /// The end of stage 1-4 (the story doc): the saw barge sunk, Koda's barge strikes the rocks and breaks up - but a
+        /// rope comes down from an airship in the storm and takes his cage up into the sky.
+        /// </summary>
+        public static CbScene RiverEnd(CbGame g)
+        {
+            var s = new CbScene(g, "RiverEnd");
+            var hero = g.hero;
+            float bx = 0;
+            s.Do(() =>
+            {
+                hero.facing = 1;
+                s.Raja("Combat_Stance");
+                bx = g.level.KodaBargeX;
+                s.Camera((hero.x + bx) * 0.5f, CbLevel.RiverFloor(hero.x) + 2.2f, 1.1f, 1.6f);
+            });
+            s.Wait(1.2f);
+            s.Do(() => g.level.KodaBargeBreaks());
+            s.Wait(1.0f);
+            s.Say("RAJA", RajaCol, "Koda! Hold on - I'm coming!", () => s.Raja("Combat_Stance"));
+            s.Wait(2.6f, k => g.level.LiftKodaCage(k), () =>
+            {
+                CbFx.Sfx("whistle", 0.6f);
+                s.Camera(bx, CbLevel.RiverFloor(bx) + 6f, 1.25f, 1.2f);
+            });
+            s.Say("KODA", KodaCol, "RAJAAA! ...Since when do hyenas have AIRSHIPS?!");
+            s.Say("RAJA", RajaCol, "The Ember Temple... that's where it's headed. I'm not letting you go, Koda.");
+            s.Finally(() => { hero.facing = 1; g.level.LiftKodaCage(1f); });
+            s.Then(g.StageCleared);
+            return s;
+        }
+
+        /// <summary>
         /// Stage 1-3's secret (the story doc): behind a scroll by Baba's hut, an old painting of a cub asleep on a cloud,
         /// a spark on its chest, the cloud temple behind. Raja doesn't know what it means. (Only Baba does.)
         /// </summary>
