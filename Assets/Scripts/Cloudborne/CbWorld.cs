@@ -496,7 +496,7 @@ namespace Cloudborne
         }
 
         // the lip: drawn a little smaller than the face, so the leaves rise only a hand's breadth over the path's edge
-        const float LipScale = 0.7f;
+        const float LipScale = 0.7f, TreetopsLipAbove = 0.3f;
 
         /// <summary>The leaves and flowers of the grass lip along the front edge from a to b, over the face's top.</summary>
         void LipQuad(Material lip, float a, float b)
@@ -506,8 +506,10 @@ namespace Cloudborne
             // metres per pixel of the face, as FaceQuad draws it
             float mpp = faceTex != null ? FaceHeight / faceTex.height : 0.0055f;
             float h = tex.height * mpp * LipScale, tileW = tex.width * mpp * LipScale;
-            // the painting's last 40 rows are the face's solid grass: they overlap the face's top
-            float below = 40 * mpp * LipScale;
+            // the painting's last 40 rows are the face's solid grass: they overlap the face's top. Stage 1-2's moss hangs
+            // down the bark with its vines: all of it but the ferns and the cushion's top (TreetopsLipAbove) is below the edge
+            bool moss = LipPath.StartsWith(TreetopsGroundDir);
+            float below = (moss ? tex.height * (1 - TreetopsLipAbove) : 40) * mpp * LipScale;
             var m = new Material(lip) { mainTextureScale = new Vector2((b - a) / tileW, 1), mainTextureOffset = new Vector2(a / tileW, 0) };
             var t = CbArt.Part(CbMesh.Quad, m, root, new Vector3((a + b) / 2, h / 2 - below, GroundFront - 0.03f), new Vector3(b - a, h, 1), shadows: false);
             t.name = "groundLip";
