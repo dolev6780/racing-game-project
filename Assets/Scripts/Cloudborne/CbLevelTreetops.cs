@@ -247,7 +247,6 @@ namespace Cloudborne
             var bark = SoftBark("#6b4e38");
             var dark = SoftBark("#4a3527");
             var light = SoftBark("#8a6a4c");
-            var moss = SoftBark("#5f8a3a");
             var vine = SoftBark("#3f7a3a");
             foreach (var side in new[] { -1, 1 })
             {
@@ -263,15 +262,14 @@ namespace Cloudborne
                     CbArt.Box(m, t, new Vector3(Mathf.Sin(a) * TuskTreeR * 0.98f, 2f, -Mathf.Cos(a) * TuskTreeR * 0.98f),
                         new Vector3(w, 28f, 0.06f), Quaternion.Euler(0, -a * Mathf.Rad2Deg, (i % 2 == 0 ? 1 : -1) * 0.6f));
                 }
-                // buttress roots spreading behind and to the sides, moss over the near side, vines hanging down
+                // buttress roots spreading behind and to the sides, vines hanging down (moss drawn as patches on it
+                // read as green stickers)
                 foreach (var ra in new[] { -70f, -20f, 30f, 80f })
                 {
                     var root1 = CbArt.Joint(t, 0, 0, 0, "root");
                     root1.localRotation = Quaternion.Euler(0, side < 0 ? ra : -ra, 0);
                     CbArt.Box(bark, root1, new Vector3(0, 0.55f, TuskTreeR + 0.35f), new Vector3(0.22f, 1.1f, 0.9f), Quaternion.Euler(-28f, 0, 0));
                 }
-                CbArt.Part(CbMesh.Sphere, moss, t, new Vector3(-side * 0.3f, 1.6f, -TuskTreeR * 0.85f), new Vector3(0.75f, 1.1f, 0.25f));
-                CbArt.Part(CbMesh.Sphere, moss, t, new Vector3(side * 0.35f, 3.9f, -TuskTreeR * 0.85f), new Vector3(0.55f, 0.8f, 0.22f));
                 for (int i = 0; i < 3; i++)
                     CbArt.Cylinder(vine, t, new Vector3((i - 1) * 0.35f - side * 0.2f, 5.6f - i * 0.5f, -TuskTreeR - 0.06f), 0.03f, 3.2f + i * 0.6f);
                 // a bough going up out of sight
