@@ -64,6 +64,51 @@ namespace Cloudborne
         public float DummyX(int i) => DummyXs[i];
         public bool DummyBroken(int i) => dummies[i].broken;
 
+        // ---- the secret (the story doc): behind a scroll by Baba's hut, a drawing of a cub in the clouds. A scroll hangs
+        // from a bamboo stand by where Baba dozes; a blow swings it up, the painting behind it shows (and, drawn, the
+        // whole of it: CbStory.CubInTheClouds).
+        public const float SecretScrollX = 9.4f;
+        const float SecretZ = 1.1f;
+        Transform secretScroll;
+        bool secretFound;
+        float secretFlip;
+        /// <summary>The secret behind Baba's scroll was found (test hook).</summary>
+        public bool SecretFound => secretFound;
+
+        void AddSecretScroll()
+        {
+            var stand = CbArt.Joint(root, SecretScrollX, 0, SecretZ, "secretScroll");
+            var bamboo = M("#c9a45a");
+            foreach (var sx in new[] { -0.6f, 0.6f }) CbArt.Cylinder(bamboo, stand, new Vector3(sx, 1.2f, 0), 0.05f, 2.4f);
+            CbArt.Cylinder(bamboo, stand, new Vector3(0, 2.32f, 0), 0.045f, 1.45f, Quaternion.Euler(0, 0, 90));
+            // the painting hidden behind it
+            var tex = Resources.Load<Texture2D>("Cloudborne/Story/cub_clouds");
+            var paper = tex != null ? CbArt.NewToon(Color.white, 0f, tex) : CbArt.NewToon(CbArt.Hex("#d9c7a0"), 0f);
+            paper.SetFloat("_SpecStrength", 0f);
+            CbArt.Part(CbMesh.Quad, paper, stand, new Vector3(0, 1.5f, 0.06f), new Vector3(0.96f, 0.54f, 1), shadows: false);
+            // the scroll over it, hanging from its top rod: parchment with columns of brush strokes
+            secretScroll = CbArt.Joint(stand, 0, 2.24f, -0.02f, "scroll");
+            CbArt.Box(M("#e6d6b0"), secretScroll, new Vector3(0, -0.66f, 0), new Vector3(0.82f, 1.22f, 0.012f));
+            var ink = CbArt.Toon("#3a2a20", 0f);
+            for (int c = 0; c < 4; c++)
+                for (int r = 0; r < 5; r++)
+                    if ((c * 5 + r) % 4 != 3)
+                        CbArt.Box(ink, secretScroll, new Vector3(0.24f - c * 0.16f, -0.24f - r * 0.19f, -0.012f), new Vector3(0.07f, 0.12f, 0.004f));
+            var rod = M("#6b4a2a");
+            CbArt.Cylinder(rod, secretScroll, Vector3.zero, 0.03f, 0.95f, Quaternion.Euler(0, 0, 90));
+            CbArt.Cylinder(rod, secretScroll, new Vector3(0, -1.3f, 0), 0.035f, 0.95f, Quaternion.Euler(0, 0, 90));
+        }
+
+        void FindSecret(int dir)
+        {
+            secretFound = true;
+            CbFx.Sfx("pickup");
+            CbFx.Spark(new Vector3(SecretScrollX, 1.5f, SecretZ - 0.4f), new Color(1f, 0.9f, 0.5f) * 2f, 16, 3f, 0.3f, 0.6f, -2);
+            g.score += 1000;
+            g.hud.Popup(new Vector3(SecretScrollX, 2.8f, 0), "SECRET! +1000", CbHud.PopStyle.Big);
+            g.ShowSecretSoon();
+        }
+
         void BuildGrove()
         {
             AddLantern(4f);
@@ -121,6 +166,7 @@ namespace Cloudborne
                 CbArt.Part(CbMesh.Sphere, M("#f0eee8"), baba, new Vector3(0, 1.38f, -0.18f), new Vector3(0.3f, 0.4f, 0.2f));
             }
             SetBaba(13f, 1, "Dozing_Elderly");
+            AddSecretScroll();
         }
 
         /// <summary>Baba stands at x, facing the way facing says (turned a little to the camera), playing clip.</summary>
@@ -209,6 +255,7 @@ namespace Cloudborne
         bool StrikeGrove(float x, float y, int dir, float range, bool staff)
         {
             bool any = false;
+            if (!secretFound && secretScroll != null && InReach(SecretScrollX, x, dir, range) && y < 2.2f) { FindSecret(dir); any = true; }
             foreach (var b in bells)
             {
                 float bx = b.x + BellOffX;
@@ -272,6 +319,9 @@ namespace Cloudborne
 
         void UpdateGrove(float dt, CbHero hero)
         {
+            // the secret's scroll swings up out of the way, and stays up
+            secretFlip = Mathf.MoveTowards(secretFlip, secretFound ? 1f : 0f, dt * 2.5f);
+            if (secretScroll != null) secretScroll.localRotation = Quaternion.Euler(-105f * Mathf.SmoothStep(0, 1, secretFlip), 0, 0);
             // the bells swing and settle, their glow fading (a bell rung right keeps a soft one)
             foreach (var b in bells)
             {
@@ -327,6 +377,8 @@ namespace Cloudborne
             bellNext = 0;
             demoing = false;
             returned = 0;
+            secretFound = false;
+            secretFlip = 0;
             foreach (var b in bells) { b.lit = false; b.glow = b.sway = b.swayV = 0; }
             foreach (var d in dummies) { d.broken = false; d.wob = d.wobV = 0; d.t.gameObject.SetActive(true); }
             if (baba != null) SetBaba(13f, 1, "Dozing_Elderly");

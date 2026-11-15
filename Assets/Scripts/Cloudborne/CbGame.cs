@@ -567,6 +567,22 @@ namespace Cloudborne
             comic.Play(CbStory.Prologue, () => fade.FadeThrough(() => { comic.Hide(); PlayOpening(); }));
         }
 
+        /// <summary>Stage 1-3's secret found: a moment later its drawing, whole (the cub in the clouds).</summary>
+        public void ShowSecretSoon() => Invoke(nameof(ShowSecret), 0.7f);
+
+        void ShowSecret()
+        {
+            if (mode != Mode.Play || !CbComic.Available(CbStory.CubInTheClouds)) return;
+            mode = Mode.Comic;
+            hud.SetScreen(CbHud.Screen.Scene);
+            comic.Play(CbStory.CubInTheClouds, () => fade.FadeThrough(() =>
+            {
+                comic.Hide();
+                mode = Mode.Play;
+                hud.SetScreen(CbHud.Screen.None);
+            }));
+        }
+
         /// <summary>Stage 1-3 opens with Baba's lesson, drawn (the story doc), then the trials begin.</summary>
         void PlayLesson()
         {

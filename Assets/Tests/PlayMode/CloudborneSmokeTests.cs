@@ -1821,6 +1821,28 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator BabasScrollHidesTheCubInTheClouds()
+        {
+            // stage 1-3's secret (the story doc): behind a scroll by Baba's hut, a drawing of a cub in the clouds
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-3");
+            game.BuildStage();
+            game.StartGame();
+            yield return Frames(2);
+            Assert.IsFalse(game.level.SecretFound, "Baba's secret is found from the start");
+            int score = game.score;
+            game.level.Strike(CbLevel.SecretScrollX - 1f, 0f, 1, 1.5f, staff: false);
+            Assert.IsTrue(game.level.SecretFound, "A blow on Baba's scroll did not show what is behind it");
+            Assert.Greater(game.score, score, "Finding Baba's secret scored nothing");
+            yield return new WaitForSeconds(1.2f);
+            if (CbComic.Available(CbStory.CubInTheClouds))
+                Assert.AreEqual(CbGame.Mode.Comic, game.mode, "The drawing behind Baba's scroll was not shown");
+            CbStage.Set("1-1");
+            game.BuildStage();
+        }
+
+        [UnityTest]
         public IEnumerator ZzGrovePictures()
         {
             game = CbGame.Boot();
@@ -1829,7 +1851,7 @@ namespace RacingGame.Tests
             game.BuildStage();
             game.StartGame();
             yield return Frames(2);
-            yield return TakePictures(new[] { ("grove_start", 10f, 0f) });
+            yield return TakePictures(new[] { ("grove_start", 7f, 0f) });
             game.Teleport(CbLevel.TrialX[0] - 8f);
             yield return TakePictures(new[] { ("grove_bells", float.NaN, 0f) }, 1.6f);
             game.SkipTrialsTo(1);

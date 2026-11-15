@@ -117,6 +117,16 @@ namespace Cloudborne
         };
 
         /// <summary>
+        /// Stage 1-3's secret (the story doc): behind a scroll by Baba's hut, an old painting of a cub asleep on a cloud,
+        /// a spark on its chest, the cloud temple behind. Raja doesn't know what it means. (Only Baba does.)
+        /// </summary>
+        public static readonly CbComic.Shot[] CubInTheClouds =
+        {
+            new CbComic.Shot { image = "cub_clouds", dur = 4.6f, from = new Vector3(0.5f, 0.5f, 1f), to = new Vector3(0.5f, 0.47f, 1.18f), fx = "embers",
+                who = "RAJA", caption = "Hidden behind Baba's scroll... a cub, asleep on a cloud?" },
+        };
+
+        /// <summary>
         /// Drawn, kept for stage 1-5: Raja touches the fire crystal and the fire bursts out of him for the first time,
         /// his stripes lit gold. Until then he has no powers.
         /// </summary>
