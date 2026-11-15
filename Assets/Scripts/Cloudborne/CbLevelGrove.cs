@@ -35,10 +35,12 @@ namespace Cloudborne
         static readonly float[] DummyXs = { 66f, 67.6f, 69.2f, 73.4f, 74.9f, 76.4f, 77.9f, 81.6f, 83.1f, 84.6f };
         const float DummyZ = 0.4f, DummyKi = 6f;
         /// <summary>Where Baba stands to throw his stones.</summary>
-        public const float BabaStonesX = 118.5f;
+        public const float BabaStonesX = 115f;
+        // where Baba stands to watch the bells and the dummies: back behind them, in the middle, where he is seen
+        const float BabaBack = 1.9f, BabaFront = 0.6f;
         const float StoneEvery = 2.4f, StoneSpeed = 9f, StoneDamage = 5f;
 
-        class Bell { public float x, top, sway, swayV, glow; public bool lit; public Transform t, swing; public Material mat; }
+        class Bell { public float x, top, sway, swayV, glow; public bool lit; public Transform t, swing; public Material mat; public Quaternion rest; }
         class Dummy { public float x, wob, wobV, cool; public bool broken; public Transform t; }
 
         readonly List<Bell> bells = new List<Bell>();
@@ -79,6 +81,8 @@ namespace Cloudborne
                 {
                     foreach (var c in model.GetComponentsInChildren<Transform>()) if (c.name == "Swing") b.swing = c;
                     b.mat = model.GetComponentInChildren<Renderer>().sharedMaterial;
+                    // (it swings from the way it was imported: turning it from nothing laid the bell on its side)
+                    if (b.swing != null) b.rest = b.swing.rotation;
                 }
                 else
                 {
@@ -87,6 +91,7 @@ namespace Cloudborne
                     CbArt.Cylinder(bamboo, t, new Vector3(0.6f, 1.1f, 0), 0.06f, 2.2f);
                     CbArt.Cylinder(bamboo, t, new Vector3(0, 2.15f, 0), 0.06f, 1.5f, Quaternion.Euler(0, 0, 90));
                     b.swing = CbArt.Joint(t, BellOffX, 2.1f, 0, "Swing");
+                    b.rest = b.swing.rotation;
                     b.mat = CbArt.NewToon(CbArt.Hex("#9a7a3a"), CbArt.PropOutline);
                     CbArt.Cone(b.mat, b.swing, new Vector3(0, -0.85f, 0), 0.38f, 0.75f, null, 12);
                 }
@@ -119,9 +124,9 @@ namespace Cloudborne
         }
 
         /// <summary>Baba stands at x, facing the way facing says (turned a little to the camera), playing clip.</summary>
-        void SetBaba(float x, int facing, string clip)
+        void SetBaba(float x, int facing, string clip, float z = BabaFront)
         {
-            baba.localPosition = new Vector3(x, 0, baba.localPosition.z);
+            baba.localPosition = new Vector3(x, 0, z);
             baba.localRotation = Quaternion.Euler(0, facing * 115f, 0);
             BabaDoes(clip, 0);
         }
@@ -143,12 +148,12 @@ namespace Cloudborne
                 case 0:
                     foreach (var b in bells) { b.lit = false; b.glow = 0; }
                     bellNext = 0;
-                    SetBaba(TrialX[0] + 12f, -1, "Call_Gesture");
+                    SetBaba(TrialX[0] + 2.2f, -1, "Call_Gesture", BabaBack);
                     StartDemo(0.8f);
                     g.hud.SetTip("Watch Baba ring the bells - then ring them back in the same order");
                     break;
                 case 1:
-                    SetBaba(TrialX[1] + 13f, -1, "Idle_02");
+                    SetBaba(TrialX[1] + 1.2f, -1, "Idle_02", BabaBack);
                     g.hud.SetTip("Blows only rock the dummies, but fill your ki. Then the staff storm (<color=#ffb03a>SPECIAL</color>) breaks them!");
                     break;
                 case 2:
@@ -272,7 +277,7 @@ namespace Cloudborne
             {
                 b.swayV += (-b.sway * 60f - b.swayV * 3f) * dt;
                 b.sway += b.swayV * dt;
-                if (b.swing != null) b.swing.localRotation = Quaternion.Euler(0, 0, Mathf.Clamp(b.sway, -35f, 35f));
+                if (b.swing != null) b.swing.rotation = Quaternion.AngleAxis(Mathf.Clamp(b.sway, -35f, 35f), Vector3.forward) * b.rest;
                 b.glow = Mathf.Max(b.lit ? 0.35f : 0f, b.glow - dt * 1.5f);
                 if (b.mat != null) CbArt.SetGlow(b.mat, new Color(1f, 0.75f, 0.3f) * b.glow * 0.8f);
             }

@@ -885,7 +885,8 @@ namespace Cloudborne
             {
                 // the new look: a row of big painted trees in a light haze, and right behind the path a hedge of
                 // bushes and flowers (it hides the flat lawn that ran back to the trees), broken by the rivers
-                mid = BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
+                // (not in Baba's grove: its painted clearing - the hut, the bells, the mountains - showed only in gaps)
+                mid = !CbStage.Grove && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
                 var hedge = BushGround();
                 near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, PaintTint);
                 // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and

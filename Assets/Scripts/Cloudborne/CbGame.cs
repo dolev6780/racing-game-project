@@ -59,7 +59,7 @@ namespace Cloudborne
         {
             if (trial >= CbLevel.Trials || level == null) return;
             var z = TrialZones[trial];
-            if (lockZone == null && hero.x > z.x - 9f)
+            if (lockZone == null && hero.x > z.x - 10f)
             {
                 lockZone = z;
                 hud.ShowGo(false);
