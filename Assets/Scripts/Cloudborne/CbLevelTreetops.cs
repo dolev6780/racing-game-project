@@ -90,6 +90,10 @@ namespace Cloudborne
             AddLeaf(304f, 0.45f);
             AddLedge(306.6f, 1.6f, 6.2f, false);
 
+            // ---- the big bough's firefly hollow; the golden fruit out of reach over the thorny boughs
+            AddFireflyHollow();
+            AddHighFruitVine();
+
             // ---- Tusk's clearing: a great trunk at either end of his arena
             AddTuskTrees();
 
@@ -242,40 +246,111 @@ namespace Cloudborne
             return m;
         }
 
-        void AddTuskTrees()
+        /// <summary>
+        /// A great bark column rising through the canopy at x, z back from the path, r across: furrows and ridges,
+        /// buttress roots behind, vines hanging, a bough going up out of sight (to the side the side says).
+        /// </summary>
+        Transform BarkTrunk(float x, float z, float r, int side, string name)
         {
             var bark = SoftBark("#6b4e38");
             var dark = SoftBark("#4a3527");
             var light = SoftBark("#8a6a4c");
             var vine = SoftBark("#3f7a3a");
+            var t = CbArt.Joint(root, x, 0f, z, name);
+            CbArt.Cylinder(bark, t, new Vector3(0, 2f, 0), r, 28f);
+            // deep furrows and lighter ridges of bark, wandering a little as they go up
+            for (int i = 0; i < 12; i++)
+            {
+                float a = (i / 12f + 0.03f * side) * Mathf.PI * 2f;
+                var m = i % 3 == 0 ? light : dark;
+                float w = i % 3 == 0 ? 0.16f : 0.07f;
+                CbArt.Box(m, t, new Vector3(Mathf.Sin(a) * r * 0.98f, 2f, -Mathf.Cos(a) * r * 0.98f),
+                    new Vector3(w, 28f, 0.06f), Quaternion.Euler(0, -a * Mathf.Rad2Deg, (i % 2 == 0 ? 1 : -1) * 0.6f));
+            }
+            // buttress roots spreading behind and to the sides, vines hanging down (moss drawn as patches on it read
+            // as green stickers)
+            foreach (var ra in new[] { -70f, -20f, 30f, 80f })
+            {
+                var root1 = CbArt.Joint(t, 0, 0, 0, "root");
+                root1.localRotation = Quaternion.Euler(0, side < 0 ? ra : -ra, 0);
+                CbArt.Box(bark, root1, new Vector3(0, 0.55f, r + 0.35f), new Vector3(0.22f, 1.1f, 0.9f), Quaternion.Euler(-28f, 0, 0));
+            }
+            for (int i = 0; i < 3; i++)
+                CbArt.Cylinder(vine, t, new Vector3((i - 1) * 0.35f - side * 0.2f, 5.6f - i * 0.5f, -r - 0.06f), 0.03f, 3.2f + i * 0.6f);
+            CbArt.Cylinder(bark, t, new Vector3(side * (r + 0.75f), 9.5f, 0.2f), r * 0.4f, 6f, Quaternion.Euler(0, 0, -side * 40f));
+            return t;
+        }
+
+        void AddTuskTrees()
+        {
             foreach (var side in new[] { -1, 1 })
             {
                 float x = TuskX + side * TuskTreeOff;
-                var t = CbArt.Joint(root, x, 0f, TuskTreeZ, "tuskTree");
-                CbArt.Cylinder(bark, t, new Vector3(0, 2f, 0), TuskTreeR, 28f);
-                // deep furrows and lighter ridges of bark, wandering a little as they go up
-                for (int i = 0; i < 12; i++)
-                {
-                    float a = (i / 12f + 0.03f * side) * Mathf.PI * 2f;
-                    var m = i % 3 == 0 ? light : dark;
-                    float w = i % 3 == 0 ? 0.16f : 0.07f;
-                    CbArt.Box(m, t, new Vector3(Mathf.Sin(a) * TuskTreeR * 0.98f, 2f, -Mathf.Cos(a) * TuskTreeR * 0.98f),
-                        new Vector3(w, 28f, 0.06f), Quaternion.Euler(0, -a * Mathf.Rad2Deg, (i % 2 == 0 ? 1 : -1) * 0.6f));
-                }
-                // buttress roots spreading behind and to the sides, vines hanging down (moss drawn as patches on it
-                // read as green stickers)
-                foreach (var ra in new[] { -70f, -20f, 30f, 80f })
-                {
-                    var root1 = CbArt.Joint(t, 0, 0, 0, "root");
-                    root1.localRotation = Quaternion.Euler(0, side < 0 ? ra : -ra, 0);
-                    CbArt.Box(bark, root1, new Vector3(0, 0.55f, TuskTreeR + 0.35f), new Vector3(0.22f, 1.1f, 0.9f), Quaternion.Euler(-28f, 0, 0));
-                }
-                for (int i = 0; i < 3; i++)
-                    CbArt.Cylinder(vine, t, new Vector3((i - 1) * 0.35f - side * 0.2f, 5.6f - i * 0.5f, -TuskTreeR - 0.06f), 0.03f, 3.2f + i * 0.6f);
-                // a bough going up out of sight
-                CbArt.Cylinder(bark, t, new Vector3(side * 1.7f, 9.5f, 0.2f), 0.38f, 6f, Quaternion.Euler(0, 0, -side * 40f));
-                tuskTrees.Add((t, x));
+                tuskTrees.Add((BarkTrunk(x, TuskTreeZ, TuskTreeR, side, "tuskTree"), x));
                 treeShake.Add(0f);
+            }
+        }
+
+        // ---------- the firefly hollow and the golden fruit up high ----------
+
+        // The story doc's other secrets of 1-2: a cave of fireflies that only opens with the water whip of chapter 2
+        // (a hollow in a great trunk on the big bough, fireflies glowing in it, a fire of the loggers' across its mouth
+        // - for now only seen, a tip saying water could put it out), and fruit up high that the staff throw brings
+        // down (a golden fruit hanging out of reach off the ledge the springy leaf throws him up to).
+        /// <summary>The firefly hollow's trunk; the golden fruit hanging out of reach, and the ledge it is thrown for from.</summary>
+        public const float HollowX = 221f, HighFruitX = 313.6f, HighFruitY = 7.45f, FruitLedgeX = 306.6f, FruitLedgeTop = 6.2f;
+        const float HollowZ = 2.4f, HollowR = 1.5f;
+        bool hollowTold, fruitTold;
+
+        void AddFireflyHollow()
+        {
+            var t = BarkTrunk(HollowX, HollowZ, HollowR, 1, "hollowTree");
+            // the hollow: a dark mouth in the bark, a lip of lighter wood round it
+            CbArt.Part(CbMesh.Sphere, SoftBark("#8a6a4c"), t, new Vector3(0, 1.25f, -HollowR + 0.05f), new Vector3(1.75f, 2.55f, 0.3f));
+            CbArt.Part(CbMesh.Sphere, SoftBark("#120c08"), t, new Vector3(0, 1.2f, -HollowR - 0.02f), new Vector3(1.45f, 2.3f, 0.3f));
+            // the loggers' fire across it: logs crossed, stones round them (the flames and the fireflies: UpdateHollow)
+            var log = SoftBark("#3a2a1e");
+            CbArt.Cylinder(log, t, new Vector3(-0.15f, 0.2f, -HollowR - 0.3f), 0.15f, 1.5f, Quaternion.Euler(0, 20f, 90f));
+            CbArt.Cylinder(log, t, new Vector3(0.2f, 0.26f, -HollowR - 0.35f), 0.14f, 1.4f, Quaternion.Euler(0, -25f, 90f));
+            var stone = SoftBark("#6d6a64");
+            for (int i = 0; i < 6; i++)
+            {
+                float a = i / 6f * Mathf.PI * 2f;
+                CbArt.Part(CbMesh.Sphere, stone, t, new Vector3(Mathf.Cos(a) * 0.75f, 0.08f, -HollowR - 0.3f + Mathf.Sin(a) * 0.3f), new Vector3(0.28f, 0.2f, 0.24f));
+            }
+        }
+
+        void AddHighFruitVine()
+        {
+            // the vine the golden fruit hangs from, down out of the canopy
+            var vine = SoftBark("#3f7a3a");
+            CbArt.Cylinder(vine, root, new Vector3(HighFruitX, HighFruitY + 3.2f, 0.05f), 0.035f, 5.6f);
+            CbArt.Part(CbMesh.Sphere, SoftBark("#4f8a2e"), root, new Vector3(HighFruitX + 0.12f, HighFruitY + 0.75f, 0.05f), new Vector3(0.35f, 0.12f, 0.22f), Quaternion.Euler(0, 0, -20f));
+        }
+
+        /// <summary>The fire at the hollow's mouth and the fireflies inside; the tips at the hollow and the fruit's ledge.</summary>
+        void UpdateHollow(float dt, CbHero hero)
+        {
+            if (Mathf.Abs(hero.x - HollowX) < 22f)
+            {
+                var fire = new Vector3(HollowX + Random.Range(-0.45f, 0.45f), 0.35f, HollowZ - HollowR - 0.32f);
+                if (Random.value < 0.75f)
+                    CbFx.Spark(fire, Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 1.2f, Random.Range(0.25f, 0.45f), 0.5f, -5f);
+                if (Random.value < 0.08f)
+                    CbFx.Spark(new Vector3(HollowX + Random.Range(-0.5f, 0.5f), Random.Range(0.6f, 2f), HollowZ - HollowR + 0.05f),
+                        new Color(0.85f, 1f, 0.45f) * 2.4f, 1, 0.25f, 0.12f, 1.4f, -0.3f);
+            }
+            if (!hollowTold && Mathf.Abs(hero.x - HollowX) < 3f)
+            {
+                hollowTold = true;
+                g.hud.SetTip("Fireflies glow in a hollow behind the flames... water could put them out");
+            }
+            if (!fruitTold && hero.y > FruitLedgeTop - 0.5f && Mathf.Abs(hero.x - FruitLedgeX) < 1.5f)
+            {
+                fruitTold = true;
+                g.hud.SetTip(CbHero.StaffThrowLearned
+                    ? "A golden fruit hangs out of reach: hold <color=#ffb03a>KI</color> to throw the staff for it"
+                    : "A golden fruit hangs out of reach... if only something could fly out and fetch it");
             }
         }
 
@@ -359,6 +434,7 @@ namespace Cloudborne
         void UpdateTreetops(float dt, CbHero hero)
         {
             float time = g.clock;
+            UpdateHollow(dt, hero);
             for (int i = 0; i < tuskTrees.Count; i++)
             {
                 treeShake[i] = Mathf.MoveTowards(treeShake[i], 0, dt * 1.3f);
@@ -423,6 +499,7 @@ namespace Cloudborne
         {
             foreach (var s in saws) { s.smashed = false; s.hp = 2; s.flash = 0; s.t.gameObject.SetActive(true); }
             for (int i = 0; i < treeShake.Count; i++) treeShake[i] = 0;
+            hollowTold = fruitTold = false;
             ResetKodaCage();
         }
     }

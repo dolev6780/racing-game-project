@@ -155,6 +155,8 @@ namespace Cloudborne
             for (float x = 255f; x < 285f; x += 3.5f) C(x, 1.1f);
             for (int i = 0; i < 4; i++) C(304.4f + i * 0.6f, 2.4f + i * 1.2f);
             Spawn(Kind.Token, new Vector3(306.6f, 7.3f, 0), resting: true);
+            // out of reach off that ledge: the golden fruit only the staff throw brings down
+            Spawn(Kind.GoldenFruit, new Vector3(CbLevel.HighFruitX, CbLevel.HighFruitY, 0), resting: true);
             foreach (var x in new[] { 326f, 329f, 332f, 335f }) C(x, 1.2f);
         }
 

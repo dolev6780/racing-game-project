@@ -1760,6 +1760,27 @@ namespace RacingGame.Tests
             Assert.IsFalse(game.hero.StaffFlying, "The thrown staff never came back to his hand");
             Assert.Less(e.hp, e.max, "The thrown staff did not hit the soldier in its way");
             Assert.Greater(game.items.Coins, coins, "The thrown staff did not take the coin it touched");
+            // up on the ledge the springy leaf throws him to: the golden fruit hanging out of reach, brought down by it
+            game.Teleport(CbLevel.FruitLedgeX + 0.5f);
+            game.hero.y = CbLevel.FruitLedgeTop;
+            game.hero.vy = 0;
+            game.hero.state = CbHero.State.Idle;
+            game.hero.facing = 1;
+            yield return new WaitForSeconds(0.4f);
+            Assert.Greater(game.items.ItemsNear(CbLevel.HighFruitX, 0.5f).Count, 0, "No golden fruit hangs out of reach off the ledge");
+            game.hero.hp = 40;
+            game.hero.ki = 100;
+            held = 0;
+            flew = false;
+            game.TestControls = inp => { inp.kiTap = held == 0; inp.kiDown = held < 0.45f; held += Time.deltaTime; };
+            for (float w = 0; w < 3f && !(flew && !game.hero.StaffFlying); w += Time.deltaTime)
+            {
+                yield return null;
+                flew |= game.hero.StaffFlying;
+            }
+            game.TestControls = null;
+            Assert.AreEqual(0, game.items.ItemsNear(CbLevel.HighFruitX, 0.5f).Count, "The thrown staff did not bring down the golden fruit");
+            Assert.AreEqual(game.hero.MaxHp, game.hero.hp, 0.01f, "The golden fruit the staff brought down did not heal him");
             CbSave.StaffThrow = false;
         }
 
@@ -1916,7 +1937,8 @@ namespace RacingGame.Tests
             game.SkipFights();
             yield return Frames(2);
             yield return TakePictures(new[] { ("treetops_start", 8f, 0f), ("treetops_vines", 60.5f, 0f), ("treetops_saw", 98f, 0f),
-                ("treetops_ledges", 132.6f, 2.8f), ("treetops_logs", 160f, 0f), ("treetops_bridge", 262f, 0f), ("treetops_camp", 330f, 0f) });
+                ("treetops_ledges", 132.6f, 2.8f), ("treetops_logs", 160f, 0f), ("treetops_bridge", 262f, 0f), ("treetops_camp", 330f, 0f),
+                ("treetops_hollow", 219f, 0f), ("treetops_fruit", CbLevel.FruitLedgeX + 0.5f, CbLevel.FruitLedgeTop) });
         }
 
         /// <summary>
