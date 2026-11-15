@@ -474,7 +474,7 @@ namespace Cloudborne
                     // a paw clangs off the steel
                     CbFx.Spark(at, CbFx.Grey, 8, 5, 0.3f, 0.25f, 4);
                     CbFx.Sfx("block", 0.7f);
-                    g.hud.SetTip("A saw drone! Smash it with the staff (hold <color=#ffb03a>ATTACK</color>), or slide under it (<color=#ffb03a>swipe ↓</color>)");
+                    g.hud.SetTip("A saw drone! Smash it with the staff (hold <color=#ffb03a>ATTACK</color>), or slide under it (<color=#ffb03a>stick ↓</color>)");
                     return true;
                 }
                 s.hp--;

@@ -1210,7 +1210,7 @@ namespace Cloudborne
             if (!CbStage.Treetops && !climbTold && hero.x > MountainFrom - 5f && hero.x < MountainFrom)
             {
                 climbTold = true;
-                g.hud.SetTip("A low gap under the cliff: <color=#ffb03a>swipe ↓</color> to slide through");
+                g.hud.SetTip("A low gap under the cliff: <color=#ffb03a>stick ↓</color> to slide through");
             }
             UpdateCrossings(dt, hero);
             if (!CbStage.Treetops) UpdateGorge(dt, hero);

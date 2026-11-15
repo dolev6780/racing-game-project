@@ -53,8 +53,8 @@ namespace Cloudborne
         {
             (2f, -1, "The raiders fled into the treetops with Koda - after them!"),
             (20f, -1, "Mind the gaps between the boughs - it's a long way down"),
-            (58f, -1, "Swing across on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go"),
-            (90f, -1, "A saw drone! Slide under it (<color=#ffb03a>swipe ↓</color>), jump over it, or smash it with the staff (hold <color=#ffb03a>ATTACK</color>)"),
+            (58f, -1, "Swing across on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>stick ↑</color> to let go"),
+            (90f, -1, "A saw drone! Slide under it (<color=#ffb03a>stick ↓</color>), jump over it, or smash it with the staff (hold <color=#ffb03a>ATTACK</color>)"),
             (118f, -1, "Cracked branches give way under you - don't wait on them"),
             (148f, -1, "Swinging logs! Time your run"),
             (178f, -1, "Hang from the bar and go hand over hand. The wind blows up from below..."),
@@ -89,14 +89,15 @@ namespace Cloudborne
         static readonly (float x, int tip, string text)[] JungleTips =
         {
             (17f, 1, null),
-            (21f, -1, "A fallen trunk! <color=#ffb03a>Swipe ↓</color> to slide under it"),
+            (6f, -1, "Push the <color=#ffb03a>stick ↑</color> to jump - again in the air for a double jump"),
+            (21f, -1, "A fallen trunk! Push the <color=#ffb03a>stick ↓</color> to slide under it"),
             (29f, -1, "The rope bridge - careful, it's a fine place for an ambush"),
             (57f, 3, null), (66f, 2, null),
             (97f, -1, "They wait on the bank - knock them back into the river!"),
             (115f, -1, "A springy leaf: jump on it to bounce up to the ledge"),
             (179f, -1, "Another fallen trunk, thorns on top: slide under it"),
-            (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
-            (241f, -1, "The old temple: thorns need the staff (hold <color=#ffb03a>ATTACK</color>), slide under the darts (<color=#ffb03a>swipe ↓</color>)"),
+            (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>stick ↑</color> to let go. Hang from the bars"),
+            (241f, -1, "The old temple: thorns need the staff (hold <color=#ffb03a>ATTACK</color>), slide under the darts (<color=#ffb03a>stick ↓</color>)"),
             (285f, 4, null),
             (291f, -1, "A monkey in a cage! Break it open and set it free"),
             (307f, -1, "Ride the rafts down the river - jump off before they sink"),
@@ -1454,7 +1455,8 @@ namespace Cloudborne
             TestControls?.Invoke(input);
             OneButtonMoves(input, dt);
             // a move of the controls done: its hint goes for good
-            if (input.slide) hud.Did(CbHud.Hint.SwipeDown);
+            if (input.slide) hud.Did(CbHud.Hint.StickDown);
+            if (input.jump) hud.Did(CbHud.Hint.StickUp);
             if (input.dash) hud.Did(CbHud.Hint.SwipeAcross);
             if (input.heavy) hud.Did(CbHud.Hint.Hold);
             // a test's jumps are full jumps unless it says otherwise
@@ -1562,6 +1564,10 @@ namespace Cloudborne
                 if (kb.sKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame) inp.slide = true;
                 if (kb.spaceKey.wasPressedThisFrame) inp.jump = true;
                 if (kb.spaceKey.isPressed) inp.jumpHeld = true;
+                // W and up as the stick's up (jump; on vines, climb), S and down held as its down (low, a crawl)
+                if (kb.wKey.wasPressedThisFrame || kb.upArrowKey.wasPressedThisFrame) { inp.jump = true; inp.stickJump = true; }
+                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) { inp.jumpHeld = true; inp.y += 1; }
+                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) inp.y -= 1;
                 if (kb.jKey.wasPressedThisFrame || kb.zKey.wasPressedThisFrame) inp.atk = true;
                 if (kb.jKey.isPressed || kb.zKey.isPressed) inp.atkDown = true;
                 if (kb.kKey.wasPressedThisFrame || kb.xKey.wasPressedThisFrame) inp.kiTap = true;
@@ -1599,6 +1605,9 @@ namespace Cloudborne
             if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) inp.slide = true;
             if (Input.GetKeyDown(KeyCode.Space)) inp.jump = true;
             if (Input.GetKey(KeyCode.Space)) inp.jumpHeld = true;
+            if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) { inp.jump = true; inp.stickJump = true; }
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) { inp.jumpHeld = true; inp.y += 1; }
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) inp.y -= 1;
             if (Input.GetKeyDown(KeyCode.J) || Input.GetKeyDown(KeyCode.Z)) inp.atk = true;
             if (Input.GetKey(KeyCode.J) || Input.GetKey(KeyCode.Z)) inp.atkDown = true;
             if (Input.GetKeyDown(KeyCode.K) || Input.GetKeyDown(KeyCode.X)) inp.kiTap = true;

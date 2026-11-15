@@ -247,14 +247,15 @@ namespace Cloudborne
             var panel = Panel(p, "HOW TO PLAY", out _);
             var t = UIKit.Label(panel,
                 "the stick: left and right - a little  walk   ·   all the way  run   ·   twice  <color=#ffc94a>sprint</color>\n" +
+                "<color=#ffc94a>stick ↑</color>  jump, again in the air  double somersault   ·   against a wall  wall jump   ·   push into vines  climb\n" +
+                "<color=#ffc94a>stick ↓</color>  slide (under low trunks), keep it down  crawl\n" +
                 "<color=#ffc94a>ATTACK</color>  paw and kick combo   ·   hold  staff smash, keep holding  staff whirl   ·   in the air  dive kick\n" +
-                "<color=#ffc94a>JUMP</color>  twice  double somersault   ·   against a wall  wall jump   ·   push into vines  climb\n" +
-                "<color=#ffc94a>KI</color>  staff lunge (FIRE with the fire crystal)   ·   <color=#ffc94a>SPECIAL</color>  when it lights up\n" +
-                "<color=#ffc94a>swipe ↓</color>  slide (under low trunks)   ·   <color=#ffc94a>swipe ↔</color>  dodge - just before a blow: slow motion\n\n" +
+                "<color=#ffc94a>KI</color>  staff lunge (FIRE with the fire crystal), hold  staff throw (once learned)   ·   <color=#ffc94a>SPECIAL</color>  when it lights up\n" +
+                "<color=#ffc94a>swipe ↔</color>  dodge - just before a blow: slow motion\n\n" +
                 "Break crates for mangoes and coins. Cracked stone gives way only to the staff.\n" +
                 "Spend coins in Baba's workshop.\n\n" +
-                "<color=#ffffff99>Keyboard: A/D move · Space jump · J attack (hold: staff) · K ki · I special · S slide · Shift or L dodge · Esc pause</color>",
-                13, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 6), new Vector2(740, 230), TextAnchor.MiddleCenter);
+                "<color=#ffffff99>Keyboard: A/D move · W or Space jump · S slide · J attack (hold: staff) · K ki (hold: throw) · I special · Shift or L dodge · Esc pause</color>",
+                13, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 6), new Vector2(740, 250), TextAnchor.MiddleCenter);
             t.supportRichText = true;
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             Back(Page.Help, panel);

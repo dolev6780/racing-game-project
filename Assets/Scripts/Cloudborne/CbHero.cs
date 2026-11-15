@@ -5,10 +5,11 @@ namespace Cloudborne
 {
     /// <summary>
     /// One frame of player input: stick, edges (pressed this frame) and holds. What he does, not which button: the
-    /// controls (CbHud, CbGame.ReadKeys) are four buttons and two swipes - JUMP; ATTACK (tapped: atk, the combo; held:
-    /// heavy, the staff); KI (kiTap; FIRE once his fire is awake); SPECIAL (skill); a swipe down: slide; a swipe
-    /// across: dash (a dodge) that way. (Seven buttons and their combinations were too much on a phone:
-    /// the user.) guard and y (duck, sweep, launcher) are on no control now; the hero still knows them.
+    /// controls (CbHud, CbGame.ReadKeys) are a stick, three buttons and a swipe - the stick: left and right, up a jump
+    /// (held: its full height), down a slide (held: a crawl); ATTACK (tapped: atk, the combo; held: heavy, the staff);
+    /// KI (kiTap; FIRE once his fire is awake; held, once learned, the staff throw); SPECIAL (skill); a swipe across:
+    /// dash (a dodge) that way. (Seven buttons and their combinations were too much on a phone, then the JUMP button
+    /// went too: the user.) guard is on no control now; the hero still knows it.
     /// </summary>
     public class CbInput
     {
@@ -16,6 +17,8 @@ namespace Cloudborne
         public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm, menu, slide;
         // KI held (CbGame: once the staff throw is learned, a held KI is the throw, a tap the usual KI move)
         public bool staffThrow;
+        // the jump came from the stick pushed up (on a vine wall that climbs rather than jumping off)
+        public bool stickJump;
         public bool atkDown, heavyDown, guard, jumpHeld, kiDown;   // held
         // a dodge swiped one way: the way it goes (0: the way he is going or facing)
         public int dashDir;
@@ -23,7 +26,7 @@ namespace Cloudborne
         public bool sprint;
         public float atkHeldT, heavyHeldT;
 
-        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = menu = slide = staffThrow = false; dashDir = 0; }
+        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = menu = slide = staffThrow = stickJump = false; dashDir = 0; }
     }
 
     /// <summary>

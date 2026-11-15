@@ -43,7 +43,7 @@ namespace Cloudborne
         readonly Pad kiPad, sp, atkPad;
         // The controls' hints (text alone didn't show a phone player what a swipe was): a finger sliding down or
         // across in the swipe area, or HOLD pulsing over ATTACK, while a tip names that move, until it is done once.
-        public enum Hint { None = 0, SwipeDown = 1, SwipeAcross = 2, Hold = 4 }
+        public enum Hint { None = 0, SwipeAcross = 2, Hold = 4, StickUp = 8, StickDown = 16 }
         readonly RectTransform gesture, finger;
         readonly Text gestureTxt, holdTxt;
         readonly Image[] fingerImgs;
@@ -156,17 +156,18 @@ namespace Cloudborne
             UIKit.Image(UIKit.Rect(stickBase, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(120, 120)), UIKit.Ring, new Color(1, 1, 1, 0.5f));
             stickKnob = UIKit.Rect(stickBase, "knob", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(54, 54));
             UIKit.Image(stickKnob, UIKit.Circle, new Color(0.95f, 0.93f, 0.88f, 0.95f));
-            // four buttons under the right thumb (seven, and their combinations, were too much on a phone: the user),
-            // centres measured from the bottom-right corner: ATTACK in the corner (held: the staff), JUMP beside it,
-            // SKILL above ATTACK - KI, FIRE once Raja's fire is awake (SetBars keeps it right) - and SPECIAL above JUMP,
-            // a button of its own (the user), lit when ki is high enough. The rest of the right side takes swipes:
-            // down a slide, across a dodge.
+            // three buttons under the right thumb (seven, and their combinations, were too much on a phone; then the
+            // JUMP button went too, the stick jumps and slides: the user), centres measured from the bottom-right
+            // corner: ATTACK in the corner (held: the staff), SKILL beside it - KI, FIRE once Raja's fire is awake
+            // (SetBars keeps it right) - and SPECIAL above ATTACK, a button of its own (the user), lit when ki is high
+            // enough. The rest of the right side takes swipes: across, a dodge (down, a slide, as the stick's down).
             atkPad = AddPad("atk", "ATTACK", new Vector2(-14 - 52, 12 + 52), 104, CbArt.Hex("#d8453f"), 17);
-            AddPad("jump", "JUMP", new Vector2(-14 - 124 - 44, 12 + 44), 88, CbArt.Hex("#3aa862"), 17);
-            kiPad = AddPad("ki", "KI", new Vector2(-14 - 40 - 38, 12 + 124 + 38), 76, KiPadCol, 15);
-            sp = AddPad("sp", "SPECIAL", new Vector2(-14 - 150 - 34, 12 + 112 + 34), 68, CbArt.Hex("#b8401f"), 12);
-            UIKit.Label(pads, "SWIPE  ↓ slide   ↔ dodge", 13, new Color(1, 1, 1, 0.55f), new Vector2(1, 0), new Vector2(1, 0),
+            kiPad = AddPad("ki", "KI", new Vector2(-14 - 124 - 42, 12 + 42), 84, KiPadCol, 16);
+            sp = AddPad("sp", "SPECIAL", new Vector2(-14 - 44 - 36, 12 + 124 + 36), 72, CbArt.Hex("#b8401f"), 12);
+            UIKit.Label(pads, "SWIPE  ↔ dodge", 13, new Color(1, 1, 1, 0.55f), new Vector2(1, 0), new Vector2(1, 0),
                 new Vector2(-14, 12 + 214), new Vector2(260, 20), TextAnchor.MiddleRight, true);
+            UIKit.Label(pads, "STICK  ↑ jump   ↓ slide", 13, new Color(1, 1, 1, 0.55f), new Vector2(0, 0), new Vector2(0, 0),
+                new Vector2(24, 12 + 176), new Vector2(260, 20), TextAnchor.MiddleLeft, true);
             // the hints: a finger in the swipe area over the buttons, HOLD over ATTACK
             gesture = UIKit.Rect(pads, "gesture", new Vector2(1, 0), new Vector2(0.5f, 0.5f), new Vector2(-170, 330), new Vector2(160, 160));
             gestureTxt = UIKit.Label(gesture, "", 15, Gold, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, -24), new Vector2(200, 22), TextAnchor.MiddleCenter, true);
@@ -412,7 +413,8 @@ namespace Cloudborne
             if (!string.IsNullOrEmpty(s))
             {
                 string low = s.ToLowerInvariant();
-                if (low.Contains("swipe ↓")) want = Hint.SwipeDown;
+                if (low.Contains("stick ↓")) want = Hint.StickDown;
+                else if (low.Contains("stick ↑")) want = Hint.StickUp;
                 else if (low.Contains("swipe ↔")) want = Hint.SwipeAcross;
                 else if (low.Contains("hold <color=#ffb03a>attack") || low.Contains("hold it for the staff") || low.Contains("holding <color=#ffb03a>attack")) want = Hint.Hold;
             }
@@ -427,9 +429,13 @@ namespace Cloudborne
         {
             hint = ShowPads ? h : Hint.None;
             hintT = 0;
-            gesture.gameObject.SetActive(hint == Hint.SwipeDown || hint == Hint.SwipeAcross);
+            bool stick = hint == Hint.StickUp || hint == Hint.StickDown;
+            gesture.gameObject.SetActive(stick || hint == Hint.SwipeAcross);
             holdTxt.gameObject.SetActive(hint == Hint.Hold);
-            gestureTxt.text = hint == Hint.SwipeDown ? "SWIPE ↓" : hint == Hint.SwipeAcross ? "SWIPE ↔" : "";
+            gestureTxt.text = hint == Hint.StickUp ? "STICK ↑" : hint == Hint.StickDown ? "STICK ↓" : hint == Hint.SwipeAcross ? "SWIPE ↔" : "";
+            // the stick's hints over the stick (bottom left), the swipe's in the swipe area (right)
+            gesture.anchorMin = gesture.anchorMax = stick ? Vector2.zero : new Vector2(1, 0);
+            gesture.anchoredPosition = stick ? new Vector2(110, 130) : new Vector2(-170, 330);
         }
 
         /// <summary>The player did a move of the controls: its hint goes, for good.</summary>
@@ -662,7 +668,8 @@ namespace Cloudborne
                 hintT += dt;
                 float u = Mathf.Repeat(hintT, 1.3f) / 1.3f, k = Mathf.Clamp01(u / 0.75f);
                 float fade = Mathf.Sin(Mathf.Clamp01(u / 0.85f) * Mathf.PI);
-                if (hint == Hint.SwipeDown) finger.anchoredPosition = new Vector2(0, Mathf.Lerp(55, -55, k * k * (3 - 2 * k)));
+                if (hint == Hint.StickDown) finger.anchoredPosition = new Vector2(0, Mathf.Lerp(0, -50, k * k * (3 - 2 * k)));
+                else if (hint == Hint.StickUp) finger.anchoredPosition = new Vector2(0, Mathf.Lerp(0, 50, k * k * (3 - 2 * k)));
                 else if (hint == Hint.SwipeAcross) finger.anchoredPosition = new Vector2(Mathf.Lerp(-60, 60, k * k * (3 - 2 * k)) * (Mathf.Repeat(hintT, 2.6f) < 1.3f ? 1 : -1), 0);
                 foreach (var img in fingerImgs) { var c = img.color; c.a = 0.85f * fade; img.color = c; }
                 holdTxt.transform.localScale = Vector3.one * (1f + 0.15f * Mathf.Sin(hintT * 6f));
@@ -744,6 +751,31 @@ namespace Cloudborne
         readonly List<int> gone = new List<int>();
         int stickId = int.MinValue;
         Vector2 stickStart;
+        bool stickUp, stickDown;
+
+        // The stick (the user: no JUMP button - up on the stick jumps, down slides): left and right move him; pushed
+        // up past StickFlick (straight up, or on a slant no flatter than StickSlant) he jumps, held up the jump goes
+        // its full height, let back past StickBack and pushed up again in the air, the double jump; pushed down the
+        // same way, a slide (held down, he stays low: a crawl). Up and down also go to the hero as the stick's y
+        // (climbing vines, pulling up onto a ledge).
+        const float StickFlick = 24f, StickBack = 12f, StickSlant = 0.6f, StickFull = 50f;
+
+        /// <summary>
+        /// One frame of the stick pushed d (canvas units from where the finger went down): left and right, and the jump
+        /// and the slide as it crosses into up or down (up and down: whether it was pushed up or down a frame ago).
+        /// </summary>
+        public static void StickMoves(Vector2 d, ref bool up, ref bool down, CbInput input)
+        {
+            input.x = Mathf.Abs(d.x) < 8 ? 0 : Mathf.Clamp(d.x / StickFull, -1f, 1f);
+            input.y = Mathf.Abs(d.y) < 8 ? 0 : Mathf.Clamp(d.y / StickFull, -1f, 1f);
+            bool upNow = up ? d.y > StickBack : d.y > StickFlick && d.y >= Mathf.Abs(d.x) * StickSlant;
+            if (upNow && !up) { input.jump = true; input.stickJump = true; }
+            if (upNow) input.jumpHeld = true;
+            up = upNow;
+            bool downNow = down ? -d.y > StickBack : -d.y > StickFlick && -d.y >= Mathf.Abs(d.x) * StickSlant;
+            if (downNow && !down) input.slide = true;
+            down = downNow;
+        }
         // fingers put down on the right of the screen off the buttons: a swipe - down SwipeMin (canvas units) within
         // SwipeTime a slide, across a dodge that way; each finger swipes once
         const float SwipeMin = 42f, SwipeTime = 0.4f;
@@ -772,10 +804,9 @@ namespace Cloudborne
                 }
                 if (p.Id == stickId)
                 {
-                    // left and right only (nothing waits on up or down now)
-                    float dx = Mathf.Clamp((p.Position.x - stickStart.x) / scale, -50f, 50f);
-                    stickKnob.anchoredPosition = new Vector2(dx, 0);
-                    input.x = Mathf.Abs(dx) < 8 ? 0 : dx / 50f;
+                    var d = (p.Position - stickStart) / scale;
+                    stickKnob.anchoredPosition = Vector2.ClampMagnitude(d, 50f);
+                    StickMoves(d, ref stickUp, ref stickDown, input);
                     continue;
                 }
                 if (swipes.TryGetValue(p.Id, out var sw))
@@ -801,8 +832,7 @@ namespace Cloudborne
                     switch (hit.id)
                     {
                         case "atk": input.atk = true; break;
-                        case "jump": input.jump = true; input.jumpHeld = true; break;
-                        case "ki": input.kiTap = true; break;
+                                case "ki": input.kiTap = true; break;
                         case "sp": input.skill = true; break;
                     }
                 }
@@ -826,7 +856,6 @@ namespace Cloudborne
                 {
                     if (b.id == "atk") input.atkDown = true;
                     if (b.id == "ki") input.kiDown = true;
-                    if (b.id == "jump") input.jumpHeld = true;
                     if (b.id == "heavy") input.heavyDown = true;
                     if (b.id == "guard") input.guard = true;
                     continue;
@@ -843,6 +872,7 @@ namespace Cloudborne
             if (stickId != int.MinValue && !now.Contains(stickId))
             {
                 stickId = int.MinValue;
+                stickUp = stickDown = false;
                 stickKnob.anchoredPosition = Vector2.zero;
                 stickBase.anchorMin = stickBase.anchorMax = Vector2.zero;
                 stickBase.anchoredPosition = new Vector2(100, 100);

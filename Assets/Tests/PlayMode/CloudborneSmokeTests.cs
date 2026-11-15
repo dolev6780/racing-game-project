@@ -975,11 +975,11 @@ namespace RacingGame.Tests
             for (float w = 0; w < 0.2f; w += Time.deltaTime) { dodged |= hero.state == CbHero.State.Dash && hero.facing == -1; yield return null; }
             Assert.IsTrue(dodged, "A swipe to the left did not dodge to the left");
             yield return Settle();
-            // a tip naming a swipe shows its hint (a finger sliding) until it is done once
+            // a tip naming a move of the stick shows its hint (a finger pushing it) until it is done once
             CbSave.Learned = 0;
-            game.hud.SetTip("A fallen trunk! <color=#ffb03a>Swipe ↓</color> to slide under it");
-            if (CbHud.ShowPads) Assert.AreEqual(CbHud.Hint.SwipeDown, game.hud.ShownHint, "No hint for the swipe down");
-            // a swipe down at the fallen trunk: he slides under it and crawls out the far side by himself
+            game.hud.SetTip("A fallen trunk! Push the <color=#ffb03a>stick ↓</color> to slide under it");
+            if (CbHud.ShowPads) Assert.AreEqual(CbHud.Hint.StickDown, game.hud.ShownHint, "No hint for the stick down");
+            // down on the stick at the fallen trunk: he slides under it and crawls out the far side by himself
             float trunk = CbLevel.TrunkX;
             game.Teleport(trunk - 3f);
             hero.y = 0;
@@ -989,11 +989,11 @@ namespace RacingGame.Tests
             bool slid = false;
             game.TestControls = i => { i.x = 1; i.slide = first; first = false; };
             for (float w = 0; w < 5f && hero.x < trunk + 1.2f; w += Time.deltaTime) { slid |= hero.state == CbHero.State.Slide; yield return null; }
-            Assert.IsTrue(slid, "A swipe down did not slide");
-            Assert.AreEqual(CbHud.Hint.None, game.hud.ShownHint, "The swipe's hint stays after the swipe");
-            game.hud.SetTip("<color=#ffb03a>Swipe ↓</color> again");
-            Assert.AreEqual(CbHud.Hint.None, game.hud.ShownHint, "The swipe's hint comes back once it was learned");
-            Assert.Greater(hero.x, trunk + 1.2f, "Raja did not get under the fallen trunk with a swipe down");
+            Assert.IsTrue(slid, "Down on the stick did not slide");
+            Assert.AreEqual(CbHud.Hint.None, game.hud.ShownHint, "The stick's hint stays after the slide");
+            game.hud.SetTip("<color=#ffb03a>Stick ↓</color> again");
+            Assert.AreEqual(CbHud.Hint.None, game.hud.ShownHint, "The stick's hint comes back once it was learned");
+            Assert.Greater(hero.x, trunk + 1.2f, "Raja did not get under the fallen trunk with a slide");
             yield return Settle();
             // pushing into the vine-grown pillar: he takes hold and climbs
             game.Teleport(371.6f);
@@ -1712,6 +1712,44 @@ namespace RacingGame.Tests
             game.BuildStage();
             Assert.IsTrue(CbLevel.InWater(90f), "Stage 1-1's long river is gone after playing stage 1-2");
             Assert.AreEqual(488f, CbWorld.GoalX, 0.01f, "Stage 1-1's goal did not come back");
+        }
+
+        [UnityTest]
+        public IEnumerator TheStickJumpsAndSlides()
+        {
+            // no JUMP button (the user): up on the stick jumps, held up its full height, let back and up again the double
+            // jump; down slides; running with the stick a little up does not jump, up on a slant does
+            bool up = false, down = false;
+            var inp = new CbInput();
+            CbHud.StickMoves(new Vector2(0, 30), ref up, ref down, inp);
+            Assert.IsTrue(inp.jump && inp.jumpHeld && inp.stickJump, "Up on the stick did not jump");
+            inp = new CbInput();
+            CbHud.StickMoves(new Vector2(3, 45), ref up, ref down, inp);
+            Assert.IsFalse(inp.jump, "Holding the stick up jumped again");
+            Assert.IsTrue(inp.jumpHeld, "Holding the stick up let go of the jump");
+            inp = new CbInput();
+            CbHud.StickMoves(new Vector2(0, 5), ref up, ref down, inp);
+            Assert.IsFalse(inp.jumpHeld, "The stick let back still held the jump");
+            inp = new CbInput();
+            CbHud.StickMoves(new Vector2(0, 30), ref up, ref down, inp);
+            Assert.IsTrue(inp.jump, "Up on the stick again did not jump again (the double jump)");
+            up = down = false;
+            inp = new CbInput();
+            CbHud.StickMoves(new Vector2(60, 18), ref up, ref down, inp);
+            Assert.IsFalse(inp.jump, "Running with the stick a little up jumped");
+            Assert.AreEqual(1f, inp.x, 0.01f, "Running with the stick a little up was not a full run");
+            inp = new CbInput();
+            CbHud.StickMoves(new Vector2(45, 40), ref up, ref down, inp);
+            Assert.IsTrue(inp.jump, "Up on a slant while running did not jump");
+            up = down = false;
+            inp = new CbInput();
+            CbHud.StickMoves(new Vector2(0, -30), ref up, ref down, inp);
+            Assert.IsTrue(inp.slide && !inp.jump, "Down on the stick did not slide");
+            inp = new CbInput();
+            CbHud.StickMoves(new Vector2(0, -45), ref up, ref down, inp);
+            Assert.IsFalse(inp.slide, "Holding the stick down slid again");
+            Assert.Less(inp.y, -0.5f, "Holding the stick down did not keep him low");
+            yield break;
         }
 
         [UnityTest]

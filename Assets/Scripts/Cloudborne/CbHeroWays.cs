@@ -165,7 +165,8 @@ namespace Cloudborne
                 state = State.Climb; t = 0;
                 return;
             }
-            if (input.jump)
+            // (up on the stick climbs here: only a jump of another kind kicks off)
+            if (input.jump && !input.stickJump)
             {
                 vy = 9f; vx = -vineDir * 5f; facing = -vineDir;
                 state = State.Air; t = 0; air = true; jumps = 1; grabCd = 0.3f; wallLockT = WallLock;
