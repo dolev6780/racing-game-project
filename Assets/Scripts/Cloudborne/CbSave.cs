@@ -97,6 +97,24 @@ namespace Cloudborne
         static int staffThrow = -1;
         const string StaffThrowKey = "cb_staffthrow";
 
+        /// <summary>He has learned the perfect guard: Baba's lesson in stage 1-3. Kept for every stage after.</summary>
+        public static bool PerfectGuard
+        {
+            get
+            {
+                if (perfectGuard < 0) perfectGuard = PlayerPrefs.GetInt(PerfectGuardKey, 0);
+                return perfectGuard == 1;
+            }
+            set
+            {
+                perfectGuard = value ? 1 : 0;
+                PlayerPrefs.SetInt(PerfectGuardKey, perfectGuard);
+                PlayerPrefs.Save();
+            }
+        }
+        static int perfectGuard = -1;
+        const string PerfectGuardKey = "cb_perfectguard";
+
         // ---------- stages ----------
 
         static string Key(string stage, string what) => $"cb_{what}_{stage}";
@@ -152,8 +170,10 @@ namespace Cloudborne
             PlayerPrefs.DeleteKey(FireKey);
             PlayerPrefs.DeleteKey(LearnedKey);
             PlayerPrefs.DeleteKey(StaffThrowKey);
+            PlayerPrefs.DeleteKey(PerfectGuardKey);
             fireAwake = 0;
             staffThrow = 0;
+            perfectGuard = 0;
             foreach (var u in Upgrades) PlayerPrefs.DeleteKey(UpgradePrefix + u.id);
             foreach (var s in CbMenu.Stages)
                 foreach (var what in new[] { "clear", "best", "time" }) PlayerPrefs.DeleteKey(Key(s.id, what));

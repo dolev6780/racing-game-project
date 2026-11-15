@@ -60,7 +60,23 @@ namespace Cloudborne
         class Thorns { public Block b; public int hp = 2; public float cool, clang; }
         class Pendulum { public float x, y, len, period, phase; public Transform ram, ropeA, ropeB; }
         class Pit { public float x0, x1, stood; public bool open; public Transform cover; }
-        class Dart { public float x, y, vx, gone, dmg = 6f; public Transform t; }
+        // a dart, or a thrown spear (or stone): back once the perfect guard returned it, then it hurts soldiers instead
+        class Dart { public float x, y, vx, gone, dmg = 6f; public bool back; public Transform t; }
+
+        /// <summary>A spear, dart or stone flying at Raja from dir (at x, height y), within look metres (CbHero's perfect guard).</summary>
+        public bool ThrownComing(float x, float y, int dir, float look)
+        {
+            foreach (var d in darts)
+            {
+                if (d.back || d.vx * dir >= 0) continue;
+                float ahead = (d.x - x) * dir;
+                if (ahead > -0.4f && ahead < look && d.y > y && d.y < y + 2f) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Something thrown was returned by the perfect guard and is flying back (test hook).</summary>
+        public bool AnyThrownBack => darts.Exists(d => d.back);
         // the caged monkey turned to the camera and a little toward the way Raja comes; how long it hops for joy when freed
         const float MonkeyFacing = 205f, MonkeyCheer = 1.2f;
         class Cage { public float x; public int hp = 3; public bool freed; public Transform t, animal, model; public float hop, cool; public CbModel monkey; }
@@ -1323,8 +1339,24 @@ namespace Cloudborne
                 d.x += d.vx * dt; d.gone += Mathf.Abs(d.vx) * dt;
                 d.t.localPosition = new Vector3(d.x, d.y, 0);
                 float topOfHim = hero.Ducking ? 0.95f : 1.75f;
-                bool hit = Mathf.Abs(hero.x - d.x) < 0.35f && d.y > hero.y + 0.15f && d.y < hero.y + topOfHim;
-                if (hit) hero.TakeHit(d.dmg, d.vx > 0 ? 1 : -1);
+                bool hit = !d.back && Mathf.Abs(hero.x - d.x) < 0.35f && d.y > hero.y + 0.15f && d.y < hero.y + topOfHim;
+                // met by the perfect guard: it turns and flies back the way it came, faster
+                if (hit && hero.Parrying && hero.facing == (d.vx > 0 ? -1 : 1))
+                {
+                    hero.TakeHit(d.dmg, d.vx > 0 ? 1 : -1);
+                    d.vx = -d.vx * 1.25f; d.back = true; d.gone = 0; hit = false;
+                    d.t.localRotation = Quaternion.Euler(0, 180, 0) * d.t.localRotation;
+                }
+                else if (hit) hero.TakeHit(d.dmg, d.vx > 0 ? 1 : -1);
+                // flying back, it strikes the first soldier in its way
+                if (d.back)
+                    foreach (var e in g.enemies)
+                    {
+                        if (e.dead || Mathf.Abs(e.x - d.x) > 0.4f + e.w * 0.5f || d.y < e.y || d.y > e.HitHeight + 0.8f) continue;
+                        g.HurtEnemy(e, d.dmg * 2f, d.vx > 0 ? 1 : -1, 6f, 3f, true, false, fire: false, fromPlayer: true);
+                        hit = true;
+                        break;
+                    }
                 // the thorns (until cut) and anything else solid stop it
                 bool stopped = false;
                 foreach (var b in blocks)

@@ -237,6 +237,43 @@ namespace Cloudborne
         readonly List<(Transform t, float x)> tuskTrees = new List<(Transform, float)>();
         readonly List<float> treeShake = new List<float>();
 
+        const float BarkTile = 1.6f;
+        static Texture2D barkTex;
+
+        /// <summary>
+        /// Bark made here: long furrows running up, wandering a little, dark in the grooves and lighter on the ridges,
+        /// with a few knots; it wraps round and repeats up the trunk without a seam.
+        /// </summary>
+        static Texture2D BarkTexture()
+        {
+            if (barkTex != null) return barkTex;
+            const int W = 128, H = 256;
+            barkTex = new Texture2D(W, H, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Repeat, name = "bark" };
+            Color deep = CbArt.Hex("#3b2a1f"), mid = CbArt.Hex("#6b4e38"), ridge = CbArt.Hex("#9a7a58");
+            var px = new Color[W * H];
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    float v = y / (float)H, u = x / (float)W;
+                    // furrows: ridges round the trunk (a whole number of them, so it wraps), each wandering with height
+                    float wander = Mathf.Sin(v * Mathf.PI * 2f * 2f + u * 9f) * 0.035f + Mathf.Sin(v * Mathf.PI * 2f * 5f + u * 23f) * 0.012f;
+                    float f = Mathf.Sin((u + wander) * Mathf.PI * 2f * 7f);
+                    f = Mathf.Sign(f) * Mathf.Pow(Mathf.Abs(f), 0.6f);
+                    // plates: a little grain along them
+                    float grain = Mathf.PerlinNoise(u * 40f, v * 6f) * 0.35f;
+                    float k = Mathf.Clamp01(0.5f + 0.5f * f - 0.15f + grain * 0.6f);
+                    var c = k < 0.5f ? Color.Lerp(deep, mid, k * 2f) : Color.Lerp(mid, ridge, (k - 0.5f) * 2f);
+                    // a knot or two
+                    float kx = Mathf.Min(Mathf.Abs(u - 0.3f), 1 - Mathf.Abs(u - 0.3f)), ky = Mathf.Min(Mathf.Abs(v - 0.62f), 1 - Mathf.Abs(v - 0.62f));
+                    float knot = Mathf.Sqrt(kx * kx * 9f + ky * ky * 25f);
+                    if (knot < 0.12f) c = Color.Lerp(deep, mid, knot / 0.12f);
+                    px[y * W + x] = c;
+                }
+            barkTex.SetPixels(px);
+            barkTex.Apply(true);
+            return barkTex;
+        }
+
         static Material SoftBark(string hex)
         {
             var m = CbArt.NewToon(CbArt.Hex(hex), 0f);
@@ -252,12 +289,16 @@ namespace Cloudborne
         /// </summary>
         Transform BarkTrunk(float x, float z, float r, int side, string name)
         {
+            // the column itself in grooved bark (one flat colour read as a plank), about BarkTile metres a repeat
+            var column = SoftBark("#ffffff");
+            column.mainTexture = BarkTexture();
+            column.mainTextureScale = new Vector2(Mathf.Max(1, Mathf.Round(2 * Mathf.PI * r / BarkTile)), 28f / (BarkTile * 2f));
             var bark = SoftBark("#6b4e38");
             var dark = SoftBark("#4a3527");
             var light = SoftBark("#8a6a4c");
             var vine = SoftBark("#3f7a3a");
             var t = CbArt.Joint(root, x, 0f, z, name);
-            CbArt.Cylinder(bark, t, new Vector3(0, 2f, 0), r, 28f);
+            CbArt.Cylinder(column, t, new Vector3(0, 2f, 0), r, 28f);
             // deep furrows and lighter ridges of bark, wandering a little as they go up
             for (int i = 0; i < 12; i++)
             {

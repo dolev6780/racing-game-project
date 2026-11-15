@@ -1715,6 +1715,67 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ASwipeIntoTheBlowIsAPerfectGuard()
+        {
+            // Baba's lesson (the user: a swipe into the blow is the guard): swiped toward a soldier as his blow lands,
+            // the blow is returned; a thrown spear met the same way flies back; with nothing coming, it is the dodge
+            CbSave.PerfectGuard = true;
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            IEnumerator Settle()
+            {
+                game.TestControls = null;
+                for (float w = 0; w < 2f && hero.state != CbHero.State.Idle; w += Time.deltaTime) yield return null;
+                yield return Frames(2);
+            }
+            game.Teleport(6f);
+            hero.y = 0;
+            hero.facing = 1;
+            yield return Settle();
+            bool first = true, dodged = false;
+            game.TestControls = i => { if (first) { i.dash = true; i.dashDir = 1; } first = false; };
+            for (float w = 0; w < 0.2f; w += Time.deltaTime) { dodged |= hero.state == CbHero.State.Dash; yield return null; }
+            game.TestControls = null;
+            Assert.IsTrue(dodged, "With nothing coming a swipe did not dodge");
+            yield return Settle();
+            // a soldier's blow, a swipe into it as it lands: returned
+            hero.facing = 1;
+            var e = new CbEnemy(game, CbEnemy.Kind.Hyena, hero.x + 1.4f, game.transform) { minX = hero.x + 1.2f, maxX = hero.x + 1.6f };
+            game.enemies.Add(e);
+            float hp = hero.hp;
+            for (float w = 0; w < 5f && e.state != CbEnemy.State.Atk; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(CbEnemy.State.Atk, e.state, "The soldier never struck");
+            yield return new WaitForSeconds(0.22f);
+            first = true;
+            bool guarded = false;
+            game.TestControls = i => { if (first) { i.dash = true; i.dashDir = 1; } first = false; };
+            for (float w = 0; w < 0.6f; w += Time.deltaTime) { guarded |= hero.Parrying; yield return null; }
+            game.TestControls = null;
+            Assert.IsTrue(guarded, "A swipe into the blow did not raise the guard");
+            Assert.AreEqual(hp, hero.hp, 0.01f, "The perfect guard let the blow hurt him");
+            Assert.Less(e.hp, e.max, "The perfect guard did not return the blow");
+            // a spear thrown at him, a swipe into it: it flies back
+            game.SkipFights();
+            yield return Settle();
+            hero.facing = 1;
+            hp = hero.hp;
+            game.level.ThrowSpear(hero.x + 6f, hero.y + 1.25f, -12f, 8f);
+            for (float w = 0; w < 1f && !game.level.ThrownComing(hero.x, hero.y, 1, 2.5f); w += Time.deltaTime) yield return null;
+            first = true;
+            bool back = false;
+            game.TestControls = i => { if (first) { i.dash = true; i.dashDir = 1; } first = false; };
+            for (float w = 0; w < 0.6f && !back; w += Time.deltaTime) { yield return null; back = game.level.AnyThrownBack; }
+            game.TestControls = null;
+            Assert.IsTrue(back, "A swipe into a thrown spear did not send it back");
+            Assert.AreEqual(hp, hero.hp, 0.01f, "The returned spear hurt him");
+            CbSave.PerfectGuard = false;
+        }
+
+        [UnityTest]
         public IEnumerator TheStickJumpsAndSlides()
         {
             // no JUMP button (the user): up on the stick jumps, held up its full height, let back and up again the double

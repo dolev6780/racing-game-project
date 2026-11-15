@@ -219,6 +219,7 @@ namespace Cloudborne
             x = y = vx = vy = 0; safeX = safeY = 0; squash = squashV = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
             flipT = 0; inv = 0; move = Move.None; staffHold = 0; sinceDash = 9; airDashed = false; dashCd = 0; empower = false; holdUsed = false;
             CatchStaff(silent: true);
+            parryT = 0;
             glow = 0; airHits = 0; grabCd = 0; downT = 0; downLanded = false; wallT = wallLockT = 0; sliding = false; gripFix = Vector3.zero; standY = 0;
             f.flip.localRotation = Quaternion.identity;
             SetStaff(false, silent: true);
@@ -605,6 +606,7 @@ namespace Cloudborne
             if (state == State.Dash && t < 0.2f) { g.PerfectDodge(); return; }
             if (inv > 0) return;
             // guarding: a blow from in front is stopped (dir is the way it pushes him, so the attacker faces -dir)
+            if (state == State.Guard && facing == -dir && !unblockable && parryT > 0) { ReturnBlow(dir); return; }
             if (state == State.Guard && facing == -dir && !unblockable)
             {
                 vx = dir * 3.5f;
@@ -637,6 +639,7 @@ namespace Cloudborne
         {
             t += dt;
             inv = Mathf.Max(0, inv - dt);
+            parryT = Mathf.Max(0, parryT - dt);
             dashCd = Mathf.Max(0, dashCd - dt);
             grabCd = Mathf.Max(0, grabCd - dt);
             wallT = Mathf.Max(0, wallT - dt);
@@ -722,7 +725,8 @@ namespace Cloudborne
                 case State.Guard:
                     pose.sLx = -1.2f; pose.sRx = -1.0f; pose.eL = -1.9f; pose.eR = -1.9f; pose.lean = 0.1f; pose.hLx = -0.4f; pose.kL = 0.5f; pose.hRx = 0.4f; pose.kR = 0.4f; pose.bob = -0.12f;
                     vx *= 1 - Damp(14, dt);
-                    if (!input.guard || air) state = State.Idle;
+                    // (raised by a swipe into a blow it holds for the perfect guard's moment, and its block after)
+                    if ((!input.guard && parryT <= 0 && blockT <= 0) || air) state = State.Idle;
                     break;
                 case State.Dash:
                     rate = 30;
@@ -782,7 +786,10 @@ namespace Cloudborne
                     Squash(jumps == 1 ? -0.17f : -0.1f);
                     if (jumps == 1) CbFx.Spark(new Vector3(x, y + 0.1f, -0.3f), CbFx.Dust, 8, 3, 0.5f, 0.4f, 2);
                 }
-                if (input.dash && dashCd <= 0 && !(air && airDashed))
+                // a swipe into a blow, once Baba has taught it: the perfect guard (CbHeroGuard)
+                int into = input.dashDir != 0 ? input.dashDir : Mathf.Abs(input.x) > 0.2f ? (input.x > 0 ? 1 : -1) : facing;
+                if (input.dash && IntoTheBlow(into)) StartParry(into);
+                else if (input.dash && dashCd <= 0 && !(air && airDashed))
                 {
                     if (input.dashDir != 0) facing = input.dashDir;
                     else if (Mathf.Abs(input.x) > 0.2f) facing = input.x > 0 ? 1 : -1;

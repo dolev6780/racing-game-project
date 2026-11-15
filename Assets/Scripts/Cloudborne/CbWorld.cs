@@ -122,7 +122,7 @@ namespace Cloudborne
         public const float GrassTile = 4f;
         const float PathWidth = 3.2f;
         // the painted path is a strong orange; toned like the rest of the ground
-        static readonly Color PathTone = new Color(0.86f, 0.8f, 0.78f);
+        static readonly Color PathTone = new Color(0.86f, 0.8f, 0.78f), BoughTone = new Color(0.78f, 0.76f, 0.7f);
         // the painted face shows its full height over FaceHeight metres, then repeats its bottom row (dark earth)
         public const float FaceHeight = 3.5f;
         // the ground runs from GroundFrom to GroundTo, cut where the streams cross it
@@ -309,7 +309,8 @@ namespace Cloudborne
             // the ground is laid in stretches between the streams, each painting lined up with the world
             var grass = GrassMaterial();
             var paintedPath = Resources.Load<Texture2D>(GroundPath("Path"));
-            var path = CbArt.NewToon(paintedPath != null ? PathTone : Color.white, 0f, paintedPath != null ? paintedPath : CbArt.Path);
+            // (the boughs' bark and moss in stage 1-2 toned down a little more: it read pink)
+            var path = CbArt.NewToon(paintedPath != null ? (CbStage.Treetops ? BoughTone : PathTone) : Color.white, 0f, paintedPath != null ? paintedPath : CbArt.Path);
             path.SetFloat("_SpecStrength", 0f);
             var face = FaceMaterial();
             // the new look: the front face drawn as painted, and its grass lip of leaves and flowers over the edge
