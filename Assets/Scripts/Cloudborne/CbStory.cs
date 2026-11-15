@@ -295,7 +295,7 @@ namespace Cloudborne
             float stand = cageX - 1.7f;
             Vector3 from = Vector3.zero;
             // the scroll lifted from the cage's floor up in front of him, opening as it comes
-            Vector3 Read() => new Vector3(stand + 0.62f, 1.3f, -0.32f);
+            Vector3 Read() => new Vector3(stand + 0.48f, 1.22f, -0.34f);
             s.Do(() =>
             {
                 hero.facing = 1;

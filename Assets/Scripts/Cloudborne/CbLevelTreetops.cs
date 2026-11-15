@@ -20,16 +20,16 @@ namespace Cloudborne
     /// <item>Thorny boughs (288-320): thorns, a springy leaf up to a ledge.</item>
     /// <item>The loggers' camp (320-345): the last soldiers.</item>
     /// <item>Tusk's clearing (345-372): the armoured boar, between two great trunks (CbEnemyTusk.cs).</item>
-    /// <item>Koda's cage (377): reached after Tusk, the scene of the empty cage (CbStory.EmptyCage).</item>
+    /// <item>Koda's cage (374.5): reached after Tusk, the scene of the empty cage (CbStory.EmptyCage).</item>
     /// </list>
     /// </summary>
     public partial class CbLevel
     {
-        public const float TreetopsMax = 380f, TreetopsGoal = 374f;
+        public const float TreetopsMax = 380f, TreetopsGoal = 372f;
         /// <summary>The middle of Tusk's arena; the trunks he rams stand this far either side of it.</summary>
         public const float TuskX = 358f, TuskTreeOff = CbEnemy.TuskCrash + 2.2f;
         /// <summary>Koda's cage at the end of the camp (empty: the end of stage 1-2).</summary>
-        public const float KodaCageX = 377f;
+        public const float KodaCageX = 374.5f;
         static readonly (float x0, float x1)[] TreetopsDrops = { (24f, 31f), (62f, 84f), (122f, 146f), (182f, 210f), (252f, 286f) };
         /// <summary>The hidden nest high over the gap with the bars: its ledge's middle and top (the staff-throw scroll).</summary>
         public const float NestX = 202.5f, NestTop = 9.5f;
@@ -100,8 +100,9 @@ namespace Cloudborne
         // ---------- Koda's cage ----------
 
         // Koda's cage (the story doc: after Tusk, Raja breaks the cage, but it is empty; on the floor lies a scroll with
-        // the prophecy and the seal of the Iron Crown): the friends' cage from stage 1-1, bigger, padlocked, the scroll
-        // on its floor. CbStory.EmptyCage breaks it and lifts the scroll up to him.
+        // the prophecy and the seal of the Iron Crown): the friends' cage from stage 1-1, bigger, under a tarp lashed
+        // down with rope (so it is only seen to be empty when it breaks), padlocked, the scroll on its floor.
+        // CbStory.EmptyCage breaks it and lifts the scroll up to him.
         Transform kodaCage, scroll, scrollPaper;
         readonly Transform[] scrollRods = new Transform[2];
         bool kodaCageBroken;
@@ -123,20 +124,39 @@ namespace Cloudborne
                 CbArt.Cylinder(Wood, kodaCage, new Vector3(0, 1.8f, 0), 0.82f, 0.14f);
                 CbArt.Cylinder(Wood, kodaCage, new Vector3(0, 0.05f, 0), 0.82f, 0.1f);
             }
-            // an iron padlock on the bars, the Iron Crown's
+            // the tarp over it, roped down, an iron padlock on the front (the Iron Crown's)
+            CbArt.Box(TarpCloth, kodaCage, new Vector3(0, 0.93f, 0), new Vector3(2.05f, 1.86f, 2f));
+            CbArt.Box(TarpCloth, kodaCage, new Vector3(0, 1.88f, 0), new Vector3(1.7f, 0.12f, 1.65f));
+            var rope = M("#8a6a3a");
+            foreach (var rx in new[] { -0.55f, 0.55f })
+                CbArt.Box(rope, kodaCage, new Vector3(rx, 0.95f, 0), new Vector3(0.07f, 1.98f, 2.06f));
+            CbArt.Box(rope, kodaCage, new Vector3(0, 1.2f, 0), new Vector3(2.1f, 0.07f, 2.06f));
             var iron = M("#5d646e");
-            CbArt.Box(iron, kodaCage, new Vector3(-0.2f, 0.85f, -0.95f), new Vector3(0.22f, 0.2f, 0.08f));
-            CbArt.Cylinder(iron, kodaCage, new Vector3(-0.2f, 1f, -0.95f), 0.07f, 0.04f, Quaternion.Euler(90, 0, 0));
+            CbArt.Box(iron, kodaCage, new Vector3(-0.2f, 0.85f, -1.04f), new Vector3(0.24f, 0.22f, 0.08f));
+            CbArt.Cylinder(iron, kodaCage, new Vector3(-0.2f, 1.01f, -1.04f), 0.075f, 0.04f, Quaternion.Euler(90, 0, 0));
 
             // the scroll: rolled parchment tied with a red ribbon, the Iron Crown's seal in red wax on it
             scroll = CbArt.Joint(root, ScrollRest.x, ScrollRest.y, ScrollRest.z, "prophecyScroll");
             scroll.localRotation = Quaternion.Euler(0, 25f, 0);
-            var paper = CbArt.Toon("#efe2c0", CbArt.PropOutline);
+            var paper = CbArt.Toon("#c9ad78", CbArt.PropOutline);
+            var ink = CbArt.Toon("#4a3524", 0f);
+            var knob = CbArt.Toon("#5a3a22", 0f);
             var wax = CbArt.Toon("#b3261e", 0f);
             scrollPaper = CbArt.Joint(scroll, 0, 0, 0, "paper");
             CbArt.Box(paper, scrollPaper, new Vector3(0, 0, -0.01f), new Vector3(0.5f, 0.34f, 0.01f));
+            // lines of writing either side of the seal
+            for (int i = 0; i < 4; i++)
+            {
+                float ly = 0.11f - i * 0.07f;
+                CbArt.Box(ink, scrollPaper, new Vector3(-0.13f, ly, -0.017f), new Vector3(0.14f, 0.012f, 0.004f));
+                CbArt.Box(ink, scrollPaper, new Vector3(0.13f, ly, -0.017f), new Vector3(i == 3 ? 0.08f : 0.14f, 0.012f, 0.004f));
+            }
             for (int i = 0; i < 2; i++)
+            {
                 scrollRods[i] = CbArt.Cylinder(paper, scroll, new Vector3(0, i == 0 ? -0.18f : 0.18f, 0), 0.045f, 0.56f, Quaternion.Euler(0, 0, 90));
+                foreach (var e in new[] { -0.3f, 0.3f })
+                    CbArt.Cylinder(knob, scrollRods[i], new Vector3(0, e / 0.56f, 0), 1.25f, 0.07f / 0.56f);
+            }
             CbArt.Cylinder(wax, scroll, new Vector3(0, 0, -0.03f), 0.075f, 0.02f, Quaternion.Euler(90, 0, 0));
             for (int i = -1; i <= 1; i++)
                 CbArt.Cone(iron, scroll, new Vector3(i * 0.028f, 0.012f + (i == 0 ? 0.008f : 0), -0.045f), 0.014f, 0.04f, null, 4);
@@ -160,6 +180,13 @@ namespace Cloudborne
             kodaCageBroken = true;
             kodaCage.gameObject.SetActive(false);
             int side = g.hero.x <= KodaCageX ? 1 : -1;
+            // the tarp torn in pieces, the bars
+            for (int k = 0; k < 5; k++)
+            {
+                var rag = CbArt.Box(TarpCloth, g.transform, new Vector3(KodaCageX + Random.Range(-0.7f, 0.7f), Random.Range(0.8f, 1.8f), Random.Range(-0.5f, 0.5f)),
+                    new Vector3(Random.Range(0.5f, 0.9f), 0.03f, Random.Range(0.4f, 0.8f)), Random.rotation);
+                g.AddDebris(rag, new Vector3(side * Random.Range(1f, 4f), Random.Range(4f, 7f), Random.Range(-1f, 1f)), Random.Range(-300f, 300f));
+            }
             for (int k = 0; k < 14; k++)
             {
                 float len = Random.Range(0.6f, 1.5f);
@@ -172,6 +199,8 @@ namespace Cloudborne
             CbFx.Sfx("hit", 0.7f);
             g.shake = Mathf.Max(g.shake, 0.35f);
         }
+
+        static Material TarpCloth => M("#8a7650");
 
         void ResetKodaCage()
         {
@@ -195,8 +224,8 @@ namespace Cloudborne
 
         void AddTuskTrees()
         {
-            var bark = CbArt.Toon("#5b4232", CbArt.PropOutline);
-            var ridge = CbArt.Toon("#3f2c22", 0f);
+            var bark = CbArt.Toon("#7a5a40", CbArt.PropOutline);
+            var ridge = CbArt.Toon("#4e3828", 0f);
             var moss = CbArt.Toon("#5f7a3a", 0f);
             foreach (var side in new[] { -1, 1 })
             {

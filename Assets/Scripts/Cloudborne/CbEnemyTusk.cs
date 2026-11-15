@@ -95,7 +95,8 @@ namespace Cloudborne
             CbVfx.Burst(at, CbFx.Hit, 2.2f, 0.18f);
             CbVfx.Ring(new Vector3(at.x, y + 0.05f, 0), CbFx.Dust * 1.5f, 2.4f, 0.35f, ground: true);
             CbFx.Spark(at, new Color(0.62f, 0.45f, 0.3f), 16, 6f, 0.3f, 0.55f, 9, -facing);
-            g.hud.Popup(new Vector3(x + facing * 0.6f, y + 2.8f, 0), "THUD!", CbHud.PopStyle.Big);
+            // (over his back: over the trunk it was cut off at the edge of the screen)
+            g.hud.Popup(new Vector3(x - facing * 0.6f, y + 2.8f, 0), "THUD!", CbHud.PopStyle.Big);
             g.level?.ShakeTree(at.x, 1f);
         }
 
