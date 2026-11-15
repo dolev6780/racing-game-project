@@ -83,9 +83,10 @@ namespace Cloudborne
             foreach (var (x, h) in RiverRocks)
             {
                 float floor = RiverFloor(x);
+                // the jungle's river rock, from under the water up to its top (one grey egg was a stand-in)
                 var t = CbArt.Joint(root, x, floor, RockZ, "riverRock");
-                if (Model("RiverRock", t, new Vector3(1.4f, h + 0.6f, 1.3f), Random.Range(0f, 360f)) != null) t.localPosition += Vector3.down * 0.6f;
-                else CbArt.Part(CbMesh.Sphere, stone, t, new Vector3(0, h * 0.4f, 0), new Vector3(1.3f, h * 1.6f, 1.2f));
+                if (FitTop(RiverRockPath, t, new Vector3(-0.75f, WaterLevel - 0.6f, -0.7f), new Vector3(0.75f, h, 0.7f)) == null)
+                    CbArt.Part(CbMesh.Sphere, stone, t, new Vector3(0, h * 0.4f, 0), new Vector3(1.3f, h * 1.6f, 1.2f));
                 rocks.Add(new Rock { x = x, h = h });
             }
             var bark = M("#5b4232");

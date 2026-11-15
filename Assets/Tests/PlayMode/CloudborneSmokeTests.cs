@@ -1845,7 +1845,11 @@ namespace RacingGame.Tests
             game.Teleport(level.RockX(0) - 3f);
             hero.y = 0;
             float hp = hero.hp;
-            for (float w = 0; w < 1f && hero.hp >= hp; w += Time.deltaTime) yield return null;
+            for (float w = 0; w < 1f && hero.hp >= hp; w += Time.deltaTime)
+            {
+                yield return null;
+                if (Mathf.Abs(hero.x - level.RockX(0)) < 1f) Debug.Log($"ROCK x {hero.x:F2} y {hero.y:F2} state {hero.state} inv {hero.inv:F2} mode {game.mode} riding {game.Riding}");
+            }
             Assert.Less(hero.hp, hp, "Running into a rock did not hurt");
             yield return new WaitForSeconds(1.2f);
             // ducking (the stick held down) he passes under a low branch

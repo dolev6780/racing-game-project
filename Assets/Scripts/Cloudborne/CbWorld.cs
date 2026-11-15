@@ -88,6 +88,7 @@ namespace Cloudborne
             BackdropStretch = 1.5f, BackdropSlide = 0.15f;
         Transform backdrop;
         Material backdropMat;
+        float backdropY;
         static readonly Color ForegroundShade = new Color(0.16f, 0.24f, 0.2f);
         // The painted textures are bright, and the toon light doubles them in the sun: plain, they glow lime green.
         // Toned down a little towards blue they sit behind the characters, like the painting.
@@ -1011,7 +1012,8 @@ namespace Cloudborne
             float height = BackdropTop - (ImageTop - ImageHeight);
             // the quad's bottom is the painting's bottom; above the painting's top the clamped texture repeats its sky
             backdropMat.mainTextureScale = new Vector2(BackdropWidth / tile, height / ImageHeight);
-            backdrop = CbArt.Part(CbMesh.Quad, backdropMat, root, new Vector3(0, BackdropTop - height / 2, BackdropZ),
+            backdropY = BackdropTop - height / 2;
+            backdrop = CbArt.Part(CbMesh.Quad, backdropMat, root, new Vector3(0, backdropY, BackdropZ),
                 new Vector3(BackdropWidth, height, 1), shadows: false);
             backdrop.name = "backdrop";
             backdrop.GetComponent<MeshRenderer>().receiveShadows = false;
@@ -1147,6 +1149,8 @@ namespace Cloudborne
             {
                 var p = backdrop.localPosition;
                 p.x = camX;
+                // (stage 1-4: down with the river at each waterfall, or the view looked under the painting)
+                p.y = backdropY + (CbStage.River ? CbLevel.RiverFloor(camX) : 0f);
                 backdrop.localPosition = p;
                 backdropMat.mainTextureOffset = new Vector2(camX * BackdropSlide / (BackdropWidth / backdropMat.mainTextureScale.x), 0);
                 ShowPart(camX);
