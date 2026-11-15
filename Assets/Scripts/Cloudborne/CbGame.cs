@@ -271,7 +271,10 @@ namespace Cloudborne
         };
         Ambush[] jungleAmbushes, treetopsAmbushes;
         static readonly Ambush[] NoAmbushes = new Ambush[0];
-        Ambush[] Ambushes => CbStage.Treetops ? (treetopsAmbushes ??= new[] { boughAmbush }) : CbStage.Grove ? NoAmbushes : (jungleAmbushes ??= new[] { ropeAmbush, stoneAmbush });
+        // (each stage its own: the rope bridge's ambush, at 35 metres in, shut the river at the same place in stage 1-4 -
+        // the river stopped carrying Raja just short of its first rock, and raiders stood on the water)
+        Ambush[] Ambushes => CbStage.Treetops ? (treetopsAmbushes ??= new[] { boughAmbush })
+            : CbStage.Jungle ? (jungleAmbushes ??= new[] { ropeAmbush, stoneAmbush }) : NoAmbushes;
         bool exiting;
         // The soldiers of the fight going on (the ambush on the bridge, the sergeant and his raiders): the fight is won
         // when they are beaten. (It waited on every soldier on the stage: one left behind - asleep along the way - and
