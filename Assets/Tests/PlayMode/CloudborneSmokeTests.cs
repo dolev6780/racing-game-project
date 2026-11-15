@@ -1773,6 +1773,60 @@ namespace RacingGame.Tests
             game.hero.y = 0;
             for (float w = 0; w < 3f && !game.Cleared; w += Time.deltaTime) yield return null;
             Assert.IsTrue(game.Cleared, "Stage 1-2 did not clear after Tusk");
+            // Koda's cage: the scene of the empty cage (skipped, it ends the same)
+            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "The empty cage's scene did not play after Tusk");
+            game.scene.Skip();
+            Assert.IsTrue(game.level.KodaCageBroken, "Skipping the scene left Koda's cage whole");
+            yield return WaitForMode(CbGame.Mode.Over, 4f);
+            Assert.AreEqual(CbGame.Mode.Over, game.mode, "Stage 1-2 did not end after the empty cage");
+        }
+
+        [UnityTest]
+        public IEnumerator ZzTheCageAtTheEndOfTheTreetopsIsEmpty()
+        {
+            // the end of stage 1-2 (the story doc): Raja breaks Koda's cage, it is empty, he finds the prophecy scroll
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-2");
+            game.BuildStage();
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            Assert.IsFalse(game.level.KodaCageBroken, "Koda's cage is broken from the start");
+            game.Teleport(CbWorld.GoalX - 6f);
+            game.hero.y = 0;
+            yield return new WaitForSeconds(2f);
+            game.Teleport(CbWorld.GoalX + 0.5f);
+            yield return WaitForMode(CbGame.Mode.Scene, 3f);
+            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "The empty cage's scene did not play");
+            // each line waits for a tap: the pictures at "Hold on", "...Empty?" and the scroll
+            yield return TakePictures(new[] { ("cage_holdon", float.NaN, 0f) }, 1.6f);
+            yield return Tap();
+            yield return new WaitForSeconds(2.2f);
+            Assert.IsTrue(game.level.KodaCageBroken, "Raja did not break Koda's cage");
+            yield return TakePictures(new[] { ("cage_empty", float.NaN, 0f) }, 0.1f);
+            yield return Tap();
+            yield return new WaitForSeconds(2.4f);
+            yield return TakePictures(new[] { ("cage_scroll", float.NaN, 0f) }, 0.1f);
+            Assert.Less(Mathf.Abs(game.level.ProphecyScroll.position.x - game.hero.x), 1.5f, "The scroll did not come up to Raja");
+            Assert.Greater(game.level.ProphecyScroll.position.y, 0.8f, "The scroll did not come up to Raja");
+            for (int k = 0; k < 6 && game.mode == CbGame.Mode.Scene; k++) yield return Tap();
+            Assert.AreNotEqual(CbGame.Mode.Scene, game.mode, "The empty cage's scene never ended");
+            yield return WaitForMode(CbGame.Mode.Over, 4f);
+            Assert.AreEqual(CbGame.Mode.Over, game.mode, "Stage 1-2 did not end after the empty cage");
+        }
+
+        /// <summary>A tap on the screen in a scene: the line shown in full, then the next one.</summary>
+        IEnumerator Tap()
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                game.TestInput = inp => inp.confirm = true;
+                yield return null;
+                game.TestInput = null;
+                yield return Frames(2);
+            }
+            yield return new WaitForSeconds(0.3f);
         }
 
         [UnityTest]

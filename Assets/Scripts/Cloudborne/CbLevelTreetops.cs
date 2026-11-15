@@ -20,6 +20,7 @@ namespace Cloudborne
     /// <item>Thorny boughs (288-320): thorns, a springy leaf up to a ledge.</item>
     /// <item>The loggers' camp (320-345): the last soldiers.</item>
     /// <item>Tusk's clearing (345-372): the armoured boar, between two great trunks (CbEnemyTusk.cs).</item>
+    /// <item>Koda's cage (377): reached after Tusk, the scene of the empty cage (CbStory.EmptyCage).</item>
     /// </list>
     /// </summary>
     public partial class CbLevel
@@ -27,6 +28,8 @@ namespace Cloudborne
         public const float TreetopsMax = 380f, TreetopsGoal = 374f;
         /// <summary>The middle of Tusk's arena; the trunks he rams stand this far either side of it.</summary>
         public const float TuskX = 358f, TuskTreeOff = CbEnemy.TuskCrash + 2.2f;
+        /// <summary>Koda's cage at the end of the camp (empty: the end of stage 1-2).</summary>
+        public const float KodaCageX = 377f;
         static readonly (float x0, float x1)[] TreetopsDrops = { (24f, 31f), (62f, 84f), (122f, 146f), (182f, 210f), (252f, 286f) };
         /// <summary>The hidden nest high over the gap with the bars: its ledge's middle and top (the staff-throw scroll).</summary>
         public const float NestX = 202.5f, NestTop = 9.5f;
@@ -89,6 +92,96 @@ namespace Cloudborne
 
             // ---- Tusk's clearing: a great trunk at either end of his arena
             AddTuskTrees();
+
+            // ---- the end of the camp: Koda's cage
+            AddKodaCage();
+        }
+
+        // ---------- Koda's cage ----------
+
+        // Koda's cage (the story doc: after Tusk, Raja breaks the cage, but it is empty; on the floor lies a scroll with
+        // the prophecy and the seal of the Iron Crown): the friends' cage from stage 1-1, bigger, padlocked, the scroll
+        // on its floor. CbStory.EmptyCage breaks it and lifts the scroll up to him.
+        Transform kodaCage, scroll, scrollPaper;
+        readonly Transform[] scrollRods = new Transform[2];
+        bool kodaCageBroken;
+        static readonly Vector3 ScrollRest = new Vector3(KodaCageX + 0.15f, 0.07f, 0.25f);
+        /// <summary>Koda's cage is broken open (test hook), and the prophecy scroll found in it.</summary>
+        public bool KodaCageBroken => kodaCageBroken;
+        public Transform ProphecyScroll => scroll;
+
+        void AddKodaCage()
+        {
+            kodaCage = CbArt.Joint(root, KodaCageX, 0, 0.3f, "kodaCage");
+            if (Model("Cage", kodaCage, new Vector3(1.9f, 1.75f, 1.85f), 180f) == null)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    float a = i / 8f * Mathf.PI * 2;
+                    CbArt.Cylinder(Bamboo, kodaCage, new Vector3(Mathf.Cos(a) * 0.7f, 0.88f, Mathf.Sin(a) * 0.7f), 0.06f, 1.75f);
+                }
+                CbArt.Cylinder(Wood, kodaCage, new Vector3(0, 1.8f, 0), 0.82f, 0.14f);
+                CbArt.Cylinder(Wood, kodaCage, new Vector3(0, 0.05f, 0), 0.82f, 0.1f);
+            }
+            // an iron padlock on the bars, the Iron Crown's
+            var iron = M("#5d646e");
+            CbArt.Box(iron, kodaCage, new Vector3(-0.2f, 0.85f, -0.95f), new Vector3(0.22f, 0.2f, 0.08f));
+            CbArt.Cylinder(iron, kodaCage, new Vector3(-0.2f, 1f, -0.95f), 0.07f, 0.04f, Quaternion.Euler(90, 0, 0));
+
+            // the scroll: rolled parchment tied with a red ribbon, the Iron Crown's seal in red wax on it
+            scroll = CbArt.Joint(root, ScrollRest.x, ScrollRest.y, ScrollRest.z, "prophecyScroll");
+            scroll.localRotation = Quaternion.Euler(0, 25f, 0);
+            var paper = CbArt.Toon("#efe2c0", CbArt.PropOutline);
+            var wax = CbArt.Toon("#b3261e", 0f);
+            scrollPaper = CbArt.Joint(scroll, 0, 0, 0, "paper");
+            CbArt.Box(paper, scrollPaper, new Vector3(0, 0, -0.01f), new Vector3(0.5f, 0.34f, 0.01f));
+            for (int i = 0; i < 2; i++)
+                scrollRods[i] = CbArt.Cylinder(paper, scroll, new Vector3(0, i == 0 ? -0.18f : 0.18f, 0), 0.045f, 0.56f, Quaternion.Euler(0, 0, 90));
+            CbArt.Cylinder(wax, scroll, new Vector3(0, 0, -0.03f), 0.075f, 0.02f, Quaternion.Euler(90, 0, 0));
+            for (int i = -1; i <= 1; i++)
+                CbArt.Cone(iron, scroll, new Vector3(i * 0.028f, 0.012f + (i == 0 ? 0.008f : 0), -0.045f), 0.014f, 0.04f, null, 4);
+            // rolled up: the paper hidden, the two rods together
+            Unroll(0f);
+        }
+
+        /// <summary>The scroll from rolled (0) to open (1): the rods part, the paper between them.</summary>
+        public void Unroll(float k)
+        {
+            if (scroll == null) return;
+            scrollPaper.localScale = new Vector3(1, Mathf.Max(0.02f, k), 1);
+            for (int i = 0; i < 2; i++)
+                scrollRods[i].localPosition = new Vector3(0, (i == 0 ? -1 : 1) * Mathf.Lerp(0.05f, 0.18f, k), 0);
+        }
+
+        /// <summary>Raja's staff smashes the cage: its bars fly, and it is empty but for the scroll.</summary>
+        public void BreakKodaCage()
+        {
+            if (kodaCage == null || kodaCageBroken) return;
+            kodaCageBroken = true;
+            kodaCage.gameObject.SetActive(false);
+            int side = g.hero.x <= KodaCageX ? 1 : -1;
+            for (int k = 0; k < 14; k++)
+            {
+                float len = Random.Range(0.6f, 1.5f);
+                var bar = CbArt.Cylinder(k < 10 ? Bamboo : Wood, g.transform,
+                    new Vector3(KodaCageX + Random.Range(-0.8f, 0.8f), Random.Range(0.3f, 1.6f), Random.Range(-0.3f, 0.8f)), k < 10 ? 0.06f : 0.09f, len, Random.rotation);
+                g.AddDebris(bar, new Vector3(side * Random.Range(1.5f, 5.5f) + Random.Range(-1.5f, 1.5f), Random.Range(3f, 7f), Random.Range(-1f, 1f)), Random.Range(-500f, 500f));
+            }
+            CbFx.Puff(new Vector3(KodaCageX, 0.9f, -0.3f), new Color(0.85f, 0.76f, 0.6f), 12, 2.2f, 0.9f, 0.55f);
+            CbFx.Sfx("heavy", 0.8f);
+            CbFx.Sfx("hit", 0.7f);
+            g.shake = Mathf.Max(g.shake, 0.35f);
+        }
+
+        void ResetKodaCage()
+        {
+            if (kodaCage == null) return;
+            kodaCageBroken = false;
+            kodaCage.gameObject.SetActive(true);
+            scroll.gameObject.SetActive(true);
+            scroll.localPosition = ScrollRest;
+            scroll.localRotation = Quaternion.Euler(0, 25f, 0);
+            Unroll(0f);
         }
 
         // ---------- Tusk's trees ----------
@@ -269,6 +362,7 @@ namespace Cloudborne
         {
             foreach (var s in saws) { s.smashed = false; s.hp = 2; s.flash = 0; s.t.gameObject.SetActive(true); }
             for (int i = 0; i < treeShake.Count; i++) treeShake[i] = 0;
+            ResetKodaCage();
         }
     }
 }

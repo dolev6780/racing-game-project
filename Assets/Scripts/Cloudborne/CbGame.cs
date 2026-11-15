@@ -808,12 +808,28 @@ namespace Cloudborne
             {
                 cleared = true;
                 hud.ShowGo(false);
+                // stage 1-2: Koda's cage at the end of the camp - empty (a scene, then the stage is clear)
+                if (CbStage.Treetops)
+                {
+                    mode = Mode.Scene;
+                    hud.SetScreen(CbHud.Screen.Scene);
+                    scene = CbStory.EmptyCage(this, CbLevel.KodaCageX);
+                    return;
+                }
                 hud.Banner("STAGE CLEAR");
                 // through the open gate he walks on, before the results come up (he jumped and cheered, which was too
                 // much: the user - just open the gate and let him pass)
                 exiting = true;
                 Invoke(nameof(Won), 2.2f);
             }
+        }
+
+        /// <summary>After the scene at the end of a stage (stage 1-2's empty cage): the stage is clear, he walks on.</summary>
+        public void StageCleared()
+        {
+            hud.Banner("STAGE CLEAR");
+            exiting = true;
+            Invoke(nameof(Won), 1.6f);
         }
 
         void Won() => EndGame(true);

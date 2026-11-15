@@ -281,5 +281,60 @@ namespace Cloudborne
             s.Then(() => g.SpawnBoss(stand));
             return s;
         }
+
+        /// <summary>
+        /// The end of stage 1-2 (the story doc, "The empty cage": after Tusk, Raja breaks the cage, but it is empty; on
+        /// the ground lies a scroll with the prophecy and the seal of the Iron Crown. Raja, reading: "'A child born
+        /// outside the jungle, with fire in his stripes...' But Koda was born right here."). He runs to the cage, smashes
+        /// it with the staff, finds it empty, picks up the scroll and reads it; then the stage is clear.
+        /// </summary>
+        public static CbScene EmptyCage(CbGame g, float cageX)
+        {
+            var s = new CbScene(g, "EmptyCage");
+            var hero = g.hero;
+            float stand = cageX - 1.7f;
+            Vector3 from = Vector3.zero;
+            // the scroll lifted from the cage's floor up in front of him, opening as it comes
+            Vector3 Read() => new Vector3(stand + 0.62f, 1.3f, -0.32f);
+            s.Do(() =>
+            {
+                hero.facing = 1;
+                s.RajaRunTo(stand, 5f);
+                s.Camera(cageX - 0.9f, 1.5f, 0.82f, 2f);
+            });
+            s.Wait(1.1f);
+            s.Say("RAJA", RajaCol, "Koda! Hold on - I'll get you out!", () => s.Raja("Combat_Stance"));
+            s.Wait(0.42f, null, () => s.RajaOnce("Heavy_Hammer_Swing", 0.05f, 0.62f, 0.42f));
+            s.Do(() => g.level?.BreakKodaCage());
+            s.Wait(1.3f, null, () => { s.RajaOnce("Heavy_Hammer_Swing", 0.62f, 1f, 0.5f); s.Camera(cageX - 0.5f, 1.15f, 0.62f, 1.6f); });
+            s.Say("RAJA", RajaCol, "...Empty?", () => s.Raja("Idle"));
+            s.Wait(0.6f, null, () => s.RajaOnce("Motion_Crouch", 0f, 0.4f, 0.6f));
+            s.Wait(1.2f, k =>
+            {
+                var sc = g.level?.ProphecyScroll;
+                if (sc == null) return;
+                float e = Mathf.SmoothStep(0, 1, k);
+                sc.localPosition = Vector3.Lerp(from, Read(), e);
+                sc.localRotation = Quaternion.Slerp(Quaternion.Euler(0, 25f, 0), Quaternion.identity, e);
+                g.level.Unroll(Mathf.InverseLerp(0.4f, 1f, k));
+            }, () =>
+            {
+                s.RajaOnce("Motion_Crouch", 0.4f, 0f, 0.7f);
+                if (g.level?.ProphecyScroll != null) from = g.level.ProphecyScroll.localPosition;
+                CbFx.Sfx("pickup", 0.6f);
+            });
+            s.Say("RAJA", RajaCol, "The seal of the Iron Crown...", () => { s.Raja("Idle"); s.Camera(stand + 0.4f, 1.3f, 0.5f, 1.4f); });
+            s.Say("RAJA", RajaCol, "\"A child born outside the jungle, with fire in his stripes...\"");
+            s.Say("RAJA", RajaCol, "But Koda was born right here.", () => s.Raja("Combat_Stance"));
+            // (skipped, it ends the same: the cage broken, the scroll taken)
+            s.Finally(() =>
+            {
+                hero.facing = 1;
+                g.level?.BreakKodaCage();
+                if (g.level?.ProphecyScroll != null) g.level.ProphecyScroll.gameObject.SetActive(false);
+            });
+            s.Then(g.StageCleared);
+            return s;
+        }
     }
 }
