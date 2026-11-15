@@ -100,6 +100,23 @@ namespace Cloudborne
         };
 
         /// <summary>
+        /// Drawn, as stage 1-3 begins (the story doc, "Baba's lesson"): Baba asleep in his hammock wakes when a spark lands
+        /// on his beard. "Fire held by the heart doesn't burn. It protects." Raja asks who the child of the prophecy is;
+        /// Baba, yawning, won't say.
+        /// </summary>
+        public static readonly CbComic.Shot[] BabaLesson =
+        {
+            new CbComic.Shot { image = "baba_lesson1", dur = 3.8f, from = new Vector3(0.5f, 0.5f, 1f), to = new Vector3(0.42f, 0.55f, 1.2f), fx = "embers",
+                caption = "Baba's grove. Baba, as ever, was asleep..." },
+            new CbComic.Shot { image = "baba_lesson2", dur = 4.4f, from = new Vector3(0.42f, 0.5f, 1.1f), to = new Vector3(0.44f, 0.5f, 1.22f),
+                who = "BABA ORANG", caption = "Fire held by the heart doesn't burn. It protects." },
+            new CbComic.Shot { image = "baba_lesson2", dur = 3.4f, from = new Vector3(0.62f, 0.45f, 1.22f), to = new Vector3(0.6f, 0.45f, 1.28f),
+                who = "RAJA", caption = "Baba, who is the child of the prophecy?" },
+            new CbComic.Shot { image = "baba_lesson2", dur = 4.6f, from = new Vector3(0.38f, 0.58f, 1.28f), to = new Vector3(0.42f, 0.52f, 1.12f),
+                who = "BABA ORANG", caption = "(yawning) Whoever passes the lesson. Now show me - and don't burn my beard." },
+        };
+
+        /// <summary>
         /// Drawn, kept for stage 1-5: Raja touches the fire crystal and the fire bursts out of him for the first time,
         /// his stripes lit gold. Until then he has no powers.
         /// </summary>

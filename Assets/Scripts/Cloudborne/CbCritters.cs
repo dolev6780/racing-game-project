@@ -230,7 +230,7 @@ namespace Cloudborne
         void UpdateFish(float t, float dt, float camX)
         {
             // (no fish in the treetops: its gaps are drops, not rivers)
-            if (fishMat == null || CbStage.Treetops) return;
+            if (fishMat == null || !CbStage.Jungle) return;
             if (t > nextLeap)
             {
                 nextLeap = t + Random.Range(FishFrom, FishTo);

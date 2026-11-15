@@ -889,6 +889,9 @@ namespace Cloudborne
             UpdateThrownStaff(dt);
         }
 
+        /// <summary>In the staff storm (the special before his fire is awake): its blows break the bamboo dummies (1-3).</summary>
+        public bool Storming => state == State.Special && !FireAwake;
+
         /// <summary>Holding on to a vine, a vine wall, a bar or a zipline: the game places him itself.</summary>
         bool Holding => state == State.Swing || state == State.Vine || state == State.Bars || state == State.Zip;
 

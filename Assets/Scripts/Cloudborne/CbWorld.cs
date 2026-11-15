@@ -16,8 +16,8 @@ namespace Cloudborne
     {
         // the stage runs from LevelMin to LevelMax; it is cleared at the shrine gate at GoalX, once every fight is won
         public const float LevelMin = -8f;
-        public static float LevelMax => CbStage.Treetops ? CbLevel.TreetopsMax : 494f;
-        public static float GoalX => CbStage.Treetops ? CbLevel.TreetopsGoal : 488f;
+        public static float LevelMax => CbStage.Treetops ? CbLevel.TreetopsMax : CbStage.Grove ? CbLevel.GroveMax : 494f;
+        public static float GoalX => CbStage.Treetops ? CbLevel.TreetopsGoal : CbStage.Grove ? CbLevel.GroveGoal : 488f;
         // the scenery runs on a little past the end of the stage
         static float End => LevelMax + 20f;
         // the blue-teal haze of the painted backdrop: distant scenery fades into it, not into white
@@ -68,7 +68,13 @@ namespace Cloudborne
             ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
             ("Cloudborne/Treetops/Backdrop/TreetopsBackdrop", float.MinValue),
         };
-        static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : JungleBackdrops;
+        // stage 1-3: Baba's sunny grove, his hut, the bells, the hammock
+        static readonly (string path, float from)[] GroveBackdrops =
+        {
+            ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
+            ("Cloudborne/Grove/Backdrop/GroveBackdrop", float.MinValue),
+        };
+        static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : JungleBackdrops;
         const float BackdropFade = 12f;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         int shownPart = -1;

@@ -86,6 +86,7 @@ namespace Cloudborne
             crates.Clear();
             Coins = 0;
             if (CbStage.Treetops) { LayOutTreetops(); return; }
+            if (CbStage.Grove) { LayOutGrove(); return; }
 
             // crates along the path, each with something in it
             AddCrate(9f, Kind.Coin, Kind.Coin, Kind.Coin);
@@ -158,6 +159,21 @@ namespace Cloudborne
             // out of reach off that ledge: the golden fruit only the staff throw brings down
             Spawn(Kind.GoldenFruit, new Vector3(CbLevel.HighFruitX, CbLevel.HighFruitY, 0), resting: true);
             foreach (var x in new[] { 326f, 329f, 332f, 335f }) C(x, 1.2f);
+        }
+
+        /// <summary>Stage 1-3's few coins and crates, and ki crystals by the dummies (the storm takes half his ki).</summary>
+        void LayOutGrove()
+        {
+            void C(float x, float y) => Spawn(Kind.Coin, new Vector3(x, y, 0), resting: true);
+            AddCrate(8f, Kind.Coin, Kind.Coin);
+            for (float x = 15f; x < 21f; x += 1.5f) C(x, 1.1f);
+            C(CbLevel.TrialX[0] - 4.8f, 3.4f);
+            C(CbLevel.TrialX[0] + 4.2f, 4.2f);
+            for (float x = 50f; x < 58f; x += 1.6f) C(x, 1.1f);
+            Spawn(Kind.KiCrystal, new Vector3(CbLevel.TrialX[1] - 6.5f, 1.2f, 0), resting: true);
+            Spawn(Kind.KiCrystal, new Vector3(CbLevel.TrialX[1] + 3.2f, 1.2f, 0), resting: true);
+            AddCrate(91f, Kind.Mango, Kind.Coin);
+            for (float x = 120f; x < 126f; x += 1.5f) C(x, 1.1f);
         }
 
         void AddCrate(float x, params Kind[] contents)

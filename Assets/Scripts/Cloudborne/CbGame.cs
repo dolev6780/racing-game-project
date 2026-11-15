@@ -31,9 +31,62 @@ namespace Cloudborne
         /// one waits until Raja is right by him. No arena: only Sergeant Snap shuts one.
         /// </summary>
         class Post { public float x, range; public CbEnemy.Kind kind; public bool asleep, spawned; public CbEnemy enemy; public Transform seat; }
-        static (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan => CbStage.Treetops ? TreetopsPosts : JunglePosts;
-        static (float x, string name)[] Sections => CbStage.Treetops ? TreetopsSections : JungleSections;
-        static (float x, int tip, string text)[] Tips => CbStage.Treetops ? TreetopsTips : JungleTips;
+        static (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan => CbStage.Treetops ? TreetopsPosts : CbStage.Grove ? GrovePosts : JunglePosts;
+        static (float x, string name)[] Sections => CbStage.Treetops ? TreetopsSections : CbStage.Grove ? GroveSections : JungleSections;
+        static (float x, int tip, string text)[] Tips => CbStage.Treetops ? TreetopsTips : CbStage.Grove ? GroveTips : JungleTips;
+
+        // stage 1-3, Baba's Grove: no soldiers; Baba's three trials (CbLevelGrove), each shutting the way until it is done
+        static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] GrovePosts = new (float, CbEnemy.Kind, float, bool)[0];
+        static readonly (float x, string name)[] GroveSections =
+        {
+            (0f, "Baba's grove"), (CbLevel.TrialX[0] - 12f, "The bells"), (CbLevel.TrialX[1] - 12f, "The bamboo dummies"),
+            (CbLevel.TrialX[2] - 12f, "The stones"), (CbLevel.TrialX[2] + 11f, "Back to the chase"),
+        };
+        static readonly (float x, int tip, string text)[] GroveTips =
+        {
+            (2f, -1, "Baba's lesson: three trials - the bells, the bamboo dummies, the stones"),
+        };
+        static readonly Zone[] TrialZones =
+        {
+            new Zone { x = CbLevel.TrialX[0], label = "The bells", spawn = new (CbEnemy.Kind, float)[0] },
+            new Zone { x = CbLevel.TrialX[1], label = "The bamboo dummies", spawn = new (CbEnemy.Kind, float)[0] },
+            new Zone { x = CbLevel.TrialX[2], label = "The stones", spawn = new (CbEnemy.Kind, float)[0] },
+        };
+        int trial;
+
+        /// <summary>Stage 1-3: Baba's trials, one after the other - each shuts the way as he reaches it, until it is done.</summary>
+        void UpdateTrials()
+        {
+            if (trial >= CbLevel.Trials || level == null) return;
+            var z = TrialZones[trial];
+            if (lockZone == null && hero.x > z.x - 9f)
+            {
+                lockZone = z;
+                hud.ShowGo(false);
+                hud.Banner(z.label.ToUpperInvariant());
+                level.StartTrial(trial);
+            }
+            if (lockZone == z && level.TrialDone(trial))
+            {
+                lockZone = null;
+                trial++;
+                hud.ShowGo(true);
+                hud.Banner(trial >= CbLevel.Trials ? "LESSON LEARNED!" : "WELL DONE!", true);
+                if (trial >= CbLevel.Trials) hud.SetTip("Baba: \"Now go - Koda won't wait for you!\"");
+            }
+        }
+
+        /// <summary>Which of Baba's trials Raja is on (stage 1-3; 3: all done). Test hook.</summary>
+        public int TrialsDone => trial;
+
+        /// <summary>Test hook: Baba's trials before trial i count as done (the way to it open).</summary>
+        public void SkipTrialsTo(int i)
+        {
+            trial = i;
+            lockZone = null;
+            level?.LeaveTrial();
+            hud.ShowGo(true);
+        }
 
         // stage 1-2, The Treetops: soldiers along the boughs and on the long bridge, a group at the loggers' camp
         static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] TreetopsPosts =
@@ -194,7 +247,8 @@ namespace Cloudborne
             },
         };
         Ambush[] jungleAmbushes, treetopsAmbushes;
-        Ambush[] Ambushes => CbStage.Treetops ? (treetopsAmbushes ??= new[] { boughAmbush }) : (jungleAmbushes ??= new[] { ropeAmbush, stoneAmbush });
+        static readonly Ambush[] NoAmbushes = new Ambush[0];
+        Ambush[] Ambushes => CbStage.Treetops ? (treetopsAmbushes ??= new[] { boughAmbush }) : CbStage.Grove ? NoAmbushes : (jungleAmbushes ??= new[] { ropeAmbush, stoneAmbush });
         bool exiting;
         // The soldiers of the fight going on (the ambush on the bridge, the sergeant and his raiders): the fight is won
         // when they are beaten. (It waited on every soldier on the stage: one left behind - asleep along the way - and
@@ -430,6 +484,9 @@ namespace Cloudborne
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false;
+            // (stage 1-3 has no boss: Baba's trials, then the way on)
+            if (CbStage.Grove) bossStarted = bossDone = true;
+            trial = 0;
             foreach (var a in Ambushes) { a.started = a.done = false; a.wave = 0; }
             exiting = false;
             hud?.HideBoss();
@@ -468,8 +525,9 @@ namespace Cloudborne
             {
                 menu.Hide();
                 BuildStage();
-                // the opening is stage 1-1's; stage 1-2 starts straight away
-                if (introSeen || CbStage.Treetops) StartGame();
+                // the opening is stage 1-1's; stage 1-2 starts straight away, stage 1-3 with Baba's lesson (drawn)
+                if (CbStage.Grove && CbComic.Available(CbStory.BabaLesson)) PlayLesson();
+                else if (introSeen || !CbStage.Jungle) StartGame();
                 else if (CbComic.Available(CbStory.Prologue)) PlayPrologue();
                 else PlayOpening();
             });
@@ -507,6 +565,15 @@ namespace Cloudborne
             mode = Mode.Comic;
             hud.SetScreen(CbHud.Screen.Scene);
             comic.Play(CbStory.Prologue, () => fade.FadeThrough(() => { comic.Hide(); PlayOpening(); }));
+        }
+
+        /// <summary>Stage 1-3 opens with Baba's lesson, drawn (the story doc), then the trials begin.</summary>
+        void PlayLesson()
+        {
+            ResetGame();
+            mode = Mode.Comic;
+            hud.SetScreen(CbHud.Screen.Scene);
+            comic.Play(CbStory.BabaLesson, () => fade.FadeThrough(() => { comic.Hide(); StartGame(); }));
         }
 
         /// <summary>MENU on the pause or result screen: the run ends and the main menu comes back.</summary>
@@ -674,6 +741,7 @@ namespace Cloudborne
             if (bossStarted && !bossDone) { bossStarted = false; boss = null; lockZone = null; hud.HideBoss(); hud.ShowGo(true); }
             foreach (var a in Ambushes)
                 if (a.started && !a.done) { a.started = false; a.wave = 0; lockZone = null; hud.ShowGo(true); }
+            if (CbStage.Grove && lockZone != null) { lockZone = null; level?.LeaveTrial(); hud.ShowGo(true); }
             hero.RespawnAt(checkpointX);
             level?.Respawned(checkpointX);
             lastHp = hero.hp;
@@ -793,6 +861,7 @@ namespace Cloudborne
                 }
                 return;
             }
+            if (CbStage.Grove) UpdateTrials();
             // the sergeant waits in front of the gate
             if (lockZone == null && !bossStarted && hero.x > BossX - 7f)
             {
@@ -805,7 +874,7 @@ namespace Cloudborne
                 if (boss != null && boss.dead && ArenaClear) BossBeaten();
                 return;
             }
-            if (lockZone == null && bossDone && !cleared && hero.x >= CbWorld.GoalX)
+            if (lockZone == null && bossDone && !cleared && hero.x >= CbWorld.GoalX && (!CbStage.Grove || trial >= CbLevel.Trials))
             {
                 cleared = true;
                 hud.ShowGo(false);
@@ -927,7 +996,7 @@ namespace Cloudborne
         /// </summary>
         public void EnemyFellIn(CbEnemy e)
         {
-            bool water = CbLevel.InWater(e.x) && !CbStage.Treetops;
+            bool water = CbLevel.InWater(e.x) && CbStage.Jungle;
             var at = new Vector3(e.x, water ? CbLevel.WaterLevel + 0.1f : -0.3f, -0.3f);
             if (water)
             {
@@ -1634,6 +1703,7 @@ namespace Cloudborne
             foreach (var p in posts) p.spawned = true;
             bossStarted = bossDone = true;
             foreach (var a in Ambushes) a.started = a.done = true;
+            if (CbStage.Grove) trial = CbLevel.Trials;
             level?.OpenGoalGate(true);
             boss = null;
             hud.HideBoss();

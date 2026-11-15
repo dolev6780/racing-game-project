@@ -88,7 +88,7 @@ namespace Cloudborne
         /// <summary>The streams across stage 1-1 (x from, to): the rope bridge's, the long river, the brook.</summary>
         static readonly (float x0, float x1)[] JungleWaters = { (31.4f, 55.4f), (79f, 103f), (200f, 232f), (310f, 360f), (426f, 450f) };
         /// <summary>The streams across stage 1-1's ground; in stage 1-2 the gaps between the branches (falling in, he drops).</summary>
-        public static (float x0, float x1)[] Waters => CbStage.Treetops ? TreetopsDrops : JungleWaters;
+        public static (float x0, float x1)[] Waters => CbStage.Treetops ? TreetopsDrops : CbStage.Grove ? GroveWaters : JungleWaters;
         /// <summary>The water's surface, below the banks: its channel is cut into the ground.</summary>
         public const float WaterLevel = -0.45f;
         /// <summary>How far back from the path the streams run before they come out of the ground.</summary>
@@ -149,6 +149,7 @@ namespace Cloudborne
             root = new GameObject("Level").transform;
             root.SetParent(parent, false);
             if (CbStage.Treetops) BuildTreetops();
+            else if (CbStage.Grove) BuildGrove();
             else
             {
                 Build();
@@ -795,6 +796,7 @@ namespace Cloudborne
             climbTold = false;
             ResetWays();
             if (CbStage.Treetops) ResetTreetops();
+            else if (CbStage.Grove) ResetGrove();
             else ResetGorge();
             foreach (var b in blocks)
             {
@@ -1145,6 +1147,7 @@ namespace Cloudborne
         public bool Strike(float x, float y, int dir, float range, bool staff)
         {
             if (CbStage.Treetops && StrikeSaws(x, y, dir, range, staff)) return true;
+            if (CbStage.Grove && StrikeGrove(x, y, dir, range, staff)) return true;
             if (StrikeWays(x, y, dir, range, staff)) return true;
             foreach (var b in blocks)
             {
@@ -1206,14 +1209,15 @@ namespace Cloudborne
         {
             UpdateWays(dt, hero);
             if (CbStage.Treetops) UpdateTreetops(dt, hero);
+            if (CbStage.Grove) UpdateGrove(dt, hero);
             // at the foot of the mountain, how to climb it
-            if (!CbStage.Treetops && !climbTold && hero.x > MountainFrom - 5f && hero.x < MountainFrom)
+            if (CbStage.Jungle && !climbTold && hero.x > MountainFrom - 5f && hero.x < MountainFrom)
             {
                 climbTold = true;
                 g.hud.SetTip("A low gap under the cliff: <color=#ffb03a>stick ↓</color> to slide through");
             }
             UpdateCrossings(dt, hero);
-            if (!CbStage.Treetops) UpdateGorge(dt, hero);
+            if (CbStage.Jungle) UpdateGorge(dt, hero);
             foreach (var l in ledges)
             {
                 if (!l.crumbles) continue;

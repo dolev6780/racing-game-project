@@ -61,7 +61,7 @@ namespace Cloudborne
         class Pendulum { public float x, y, len, period, phase; public Transform ram, ropeA, ropeB; }
         class Pit { public float x0, x1, stood; public bool open; public Transform cover; }
         // a dart, or a thrown spear (or stone): back once the perfect guard returned it, then it hurts soldiers instead
-        class Dart { public float x, y, vx, gone, dmg = 6f; public bool back; public Transform t; }
+        class Dart { public float x, y, vx, gone, dmg = 6f; public bool back, stone; public Transform t; }
 
         /// <summary>A spear, dart or stone flying at Raja from dir (at x, height y), within look metres (CbHero's perfect guard).</summary>
         public bool ThrownComing(float x, float y, int dir, float look)
@@ -1348,8 +1348,10 @@ namespace Cloudborne
                     d.t.localRotation = Quaternion.Euler(0, 180, 0) * d.t.localRotation;
                 }
                 else if (hit) hero.TakeHit(d.dmg, d.vx > 0 ? 1 : -1);
+                // one of Baba's stones sent back reaches him (stage 1-3)
+                if (d.back && d.stone && CbStage.Grove && d.x >= BabaStonesX - 0.6f) { StoneBack(); hit = true; }
                 // flying back, it strikes the first soldier in its way
-                if (d.back)
+                else if (d.back)
                     foreach (var e in g.enemies)
                     {
                         if (e.dead || Mathf.Abs(e.x - d.x) > 0.4f + e.w * 0.5f || d.y < e.y || d.y > e.HitHeight + 0.8f) continue;
@@ -1361,7 +1363,8 @@ namespace Cloudborne
                 bool stopped = false;
                 foreach (var b in blocks)
                     if (!b.broken && d.y < b.top && d.x > b.x0 && d.x < b.x1) { stopped = true; break; }
-                if (hit || stopped || d.gone > 12f) { Object.Destroy(d.t.gameObject); darts.RemoveAt(i); }
+                // (Baba's stones carry across his whole trial, there and back)
+                if (hit || stopped || d.gone > (d.stone ? 26f : 12f)) { Object.Destroy(d.t.gameObject); darts.RemoveAt(i); }
             }
             // thorns on a low passage's trunk: landing on them hurts and throws him off
             foreach (var o in overhangs)

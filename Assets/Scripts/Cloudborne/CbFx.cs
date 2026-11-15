@@ -170,9 +170,20 @@ namespace Cloudborne
             if (clip != null) source.PlayOneShot(clip, volume);
         }
 
+        // the five bells of Baba's grove (stage 1-3): bell0..bell4, a bronze ring, each a note higher
+        static readonly float[] BellNotes = { 523f, 587f, 659f, 784f, 880f };
+
         static AudioClip Clip(string type)
         {
             if (clips.TryGetValue(type, out var c)) return c;
+            if (type.Length == 5 && type.StartsWith("bell") && char.IsDigit(type[4]))
+            {
+                float f = BellNotes[Mathf.Clamp(type[4] - '0', 0, BellNotes.Length - 1)];
+                c = Synth(type, 1.4f, (t, d) => (Mathf.Sin(2 * Mathf.PI * f * t) * 0.22f + Mathf.Sin(2 * Mathf.PI * f * 2.76f * t) * 0.08f
+                    + Mathf.Sin(2 * Mathf.PI * f * 5.4f * t) * 0.04f * Mathf.Exp(-t * 6)) * Mathf.Exp(-t * 2.6f) * Mathf.Clamp01(t / 0.004f));
+                clips[type] = c;
+                return c;
+            }
             switch (type)
             {
                 case "swing": c = Synth(type, 0.1f, (t, d) => Noise() * Band(t, 0.1f) * 0.3f); break;

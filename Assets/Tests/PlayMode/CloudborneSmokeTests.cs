@@ -332,7 +332,7 @@ namespace RacingGame.Tests
         {
             yield return null;
             foreach (var name in new[] { "prologue_temple", "prologue_crown", "prologue_shatter", "prologue_leap", "prologue_jungle",
-                         "koda_boast", "koda_taken", "raja_angry", "raja_journey" })
+                         "koda_boast", "koda_taken", "raja_angry", "raja_journey", "baba_lesson1", "baba_lesson2" })
             {
                 var tex = Resources.Load<Texture2D>("Cloudborne/Story/" + name);
                 Assert.IsNotNull(tex, $"The painting {name} is missing (Resources/Cloudborne/Story)");
@@ -342,6 +342,7 @@ namespace RacingGame.Tests
             Assert.IsTrue(CbComic.Available(CbStory.KodaTaken), "Koda being taken can't be shown");
             Assert.IsTrue(CbComic.Available(CbStory.Journey), "Raja getting ready for the road can't be shown");
             Assert.IsTrue(CbComic.Available(CbStory.Prologue), "The prologue can't be shown");
+            Assert.IsTrue(CbComic.Available(CbStory.BabaLesson), "Baba's lesson can't be shown");
         }
 
         [UnityTest]
@@ -1712,6 +1713,130 @@ namespace RacingGame.Tests
             game.BuildStage();
             Assert.IsTrue(CbLevel.InWater(90f), "Stage 1-1's long river is gone after playing stage 1-2");
             Assert.AreEqual(488f, CbWorld.GoalX, 0.01f, "Stage 1-1's goal did not come back");
+        }
+
+        [UnityTest]
+        public IEnumerator BabasGroveTrialsThenTheWayOn()
+        {
+            // stage 1-3 (the story doc): ring five bells in order, break ten bamboo dummies with the staff storm, send
+            // three stones back with the perfect guard - each trial shuts the way until it is done
+            CbSave.PerfectGuard = false;
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-3");
+            game.BuildStage();
+            game.StartGame();
+            yield return Frames(2);
+            var hero = game.hero;
+            var level = game.level;
+            Assert.IsFalse(CbLevel.InWater(40f), "Baba's grove has water in it");
+            Assert.AreEqual(CbLevel.GroveGoal, CbWorld.GoalX, 0.01f, "Stage 1-3 has another stage's goal");
+            // the goal stays shut before the trials
+            game.Teleport(CbWorld.GoalX + 0.5f);
+            hero.y = 0;
+            yield return Frames(3);
+            Assert.IsFalse(game.Cleared, "Stage 1-3 cleared without Baba's trials");
+            // the bells: Baba rings the order, a wrong bell starts it over, the right order passes
+            game.Teleport(CbLevel.TrialX[0] - 8f);
+            hero.y = 0;
+            for (float w = 0; w < 2f && level.Trial != 0; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(0, level.Trial, "The bells' trial did not start");
+            Assert.IsNotNull(game.lockZone, "The bells' trial did not shut the way");
+            for (float w = 0; w < 8f && level.BellsDemoing; w += Time.deltaTime) yield return null;
+            Assert.IsFalse(level.BellsDemoing, "Baba never finished ringing the order");
+            int wrong = level.BellInOrder(1);
+            level.Strike(level.BellX(wrong) - 1f, level.BellTop(wrong) + 0.5f, 1, 1.5f, staff: false);
+            Assert.AreEqual(0, level.BellsRung, "A wrong bell counted");
+            Assert.IsTrue(level.BellsDemoing, "After a wrong bell Baba did not ring the order again");
+            for (float w = 0; w < 10f && level.BellsDemoing; w += Time.deltaTime) yield return null;
+            for (int k = 0; k < CbLevel.BellCount; k++)
+            {
+                int i = level.BellInOrder(k);
+                level.Strike(level.BellX(i) - 1f, level.BellTop(i) + 0.5f, 1, 1.5f, staff: false);
+                yield return Frames(2);
+            }
+            Assert.AreEqual(CbLevel.BellCount, level.BellsRung, "Ringing the bells in Baba's order did not pass");
+            yield return Frames(3);
+            Assert.IsNull(game.lockZone, "The way did not open after the bells");
+            // the dummies: blows only rock them (and fill his ki); the staff storm breaks them
+            game.Teleport(CbLevel.TrialX[1] - 9.2f);
+            hero.y = 0;
+            for (float w = 0; w < 2f && level.Trial != 1; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(1, level.Trial, "The dummies' trial did not start");
+            hero.ki = 0;
+            level.Strike(level.DummyX(0) - 1f, 0, 1, 1.5f, staff: true);
+            Assert.AreEqual(0, level.DummiesBroken, "A plain blow broke a dummy");
+            Assert.Greater(hero.ki, 0f, "Hitting a dummy did not fill his ki");
+            for (int tries = 0; tries < 14 && level.DummiesBroken < CbLevel.DummyCount; tries++)
+            {
+                int next = 0;
+                while (level.DummiesBroken < CbLevel.DummyCount && next < CbLevel.DummyCount && IsBroken(next)) next++;
+                game.Teleport(level.DummyX(next) - 1.3f);
+                hero.y = 0;
+                hero.facing = 1;
+                hero.state = CbHero.State.Idle;
+                hero.ki = 100;
+                yield return Frames(2);
+                bool pressed = false;
+                game.TestControls = i => { i.skill = !pressed; pressed = true; };
+                for (float w = 0; w < 0.3f && hero.state != CbHero.State.Special; w += Time.deltaTime) yield return null;
+                game.TestControls = null;
+                for (float w = 0; w < 3f && hero.state == CbHero.State.Special; w += Time.deltaTime) yield return null;
+            }
+            Assert.AreEqual(CbLevel.DummyCount, level.DummiesBroken, "The staff storm did not break all ten dummies");
+            yield return Frames(3);
+            Assert.IsNull(game.lockZone, "The way did not open after the dummies");
+            // the stones: Baba teaches the perfect guard; three swipes into his stones send them back
+            game.Teleport(CbLevel.TrialX[2] - 8.5f);
+            hero.y = 0;
+            hero.facing = 1;
+            for (float w = 0; w < 2f && level.Trial != 2; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(2, level.Trial, "The stones' trial did not start");
+            Assert.IsTrue(CbHero.PerfectGuardLearned, "Baba did not teach the perfect guard");
+            hero.hp = 9999;
+            for (float w = 0; w < 25f && level.StonesReturned < CbLevel.StonesToReturn; w += Time.deltaTime)
+            {
+                yield return null;
+                hero.facing = 1;
+                if (!level.ThrownComing(hero.x, hero.y, 1, 2.2f) || hero.state != CbHero.State.Idle) continue;
+                bool swiped = false;
+                game.TestControls = i => { if (!swiped) { i.dash = true; i.dashDir = 1; } swiped = true; };
+                yield return Frames(2);
+                game.TestControls = null;
+            }
+            Assert.AreEqual(CbLevel.StonesToReturn, level.StonesReturned, "Three stones were not sent back to Baba");
+            yield return Frames(3);
+            Assert.IsNull(game.lockZone, "The way did not open after the stones");
+            Assert.AreEqual(CbLevel.Trials, game.TrialsDone, "Not every trial counted as done");
+            // the way on: the stage clears at its end
+            game.Teleport(CbWorld.GoalX + 0.5f);
+            hero.y = 0;
+            for (float w = 0; w < 3f && !game.Cleared; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(game.Cleared, "Stage 1-3 did not clear after Baba's trials");
+            CbSave.PerfectGuard = false;
+            CbStage.Set("1-1");
+            game.BuildStage();
+
+            bool IsBroken(int i) => level.DummyBroken(i);
+        }
+
+        [UnityTest]
+        public IEnumerator ZzGrovePictures()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-3");
+            game.BuildStage();
+            game.StartGame();
+            yield return Frames(2);
+            yield return TakePictures(new[] { ("grove_start", 10f, 0f) });
+            game.Teleport(CbLevel.TrialX[0] - 8f);
+            yield return TakePictures(new[] { ("grove_bells", float.NaN, 0f) }, 1.6f);
+            game.SkipTrialsTo(1);
+            yield return TakePictures(new[] { ("grove_dummies", CbLevel.TrialX[1] - 9.2f, 0f) });
+            game.SkipTrialsTo(2);
+            yield return TakePictures(new[] { ("grove_stones", CbLevel.TrialX[2] - 8.5f, 0f) }, 3.2f);
+            CbSave.PerfectGuard = false;
         }
 
         [UnityTest]

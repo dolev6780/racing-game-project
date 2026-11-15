@@ -1,19 +1,26 @@
 namespace Cloudborne
 {
     /// <summary>
-    /// Which stage is being played: 1-1 The Jungle Gate, or 1-2 The Treetops (the user: on to the next stage). The
-    /// level, the scenery, the soldiers, the tips and the boss follow it; CbGame rebuilds them when it changes.
+    /// Which stage is being played: 1-1 The Jungle Gate, 1-2 The Treetops (the user: on to the next stage), or 1-3
+    /// Baba's Grove. The level, the scenery, the soldiers, the tips and the boss follow it; CbGame rebuilds them when it
+    /// changes.
     /// </summary>
     public static class CbStage
     {
         public static string Id { get; private set; } = "1-1";
 
+        /// <summary>Stage 1-1, The Jungle Gate: the chase through the jungle to the shrine gate.</summary>
+        public static bool Jungle => Id == "1-1";
+
         /// <summary>Stage 1-2, The Treetops: the chase among the branches to the loggers' camp.</summary>
         public static bool Treetops => Id == "1-2";
 
-        /// <summary>The stage's name, as the loading screen shows it.</summary>
-        public static string Title => Treetops ? "STAGE 1-2 · THE TREETOPS" : "STAGE 1-1 · THE JUNGLE GATE";
+        /// <summary>Stage 1-3, Baba's Grove: training - the bells, the bamboo dummies, the stones.</summary>
+        public static bool Grove => Id == "1-3";
 
-        public static void Set(string id) => Id = id == "1-2" ? "1-2" : "1-1";
+        /// <summary>The stage's name, as the loading screen shows it.</summary>
+        public static string Title => Treetops ? "STAGE 1-2 · THE TREETOPS" : Grove ? "STAGE 1-3 · BABA'S GROVE" : "STAGE 1-1 · THE JUNGLE GATE";
+
+        public static void Set(string id) => Id = id == "1-2" || id == "1-3" ? id : "1-1";
     }
 }
