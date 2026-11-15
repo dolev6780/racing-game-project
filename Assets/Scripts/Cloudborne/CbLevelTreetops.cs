@@ -27,7 +27,7 @@ namespace Cloudborne
     {
         public const float TreetopsMax = 380f, TreetopsGoal = 372f;
         /// <summary>The middle of Tusk's arena; the trunks he rams stand this far either side of it.</summary>
-        public const float TuskX = 358f, TuskTreeOff = CbEnemy.TuskCrash + 2.2f;
+        public const float TuskX = 358f, TuskTreeOff = CbEnemy.TuskCrash + 2.6f;
         /// <summary>Koda's cage at the end of the camp (empty: the end of stage 1-2).</summary>
         public const float KodaCageX = 374.5f;
         static readonly (float x0, float x1)[] TreetopsDrops = { (24f, 31f), (62f, 84f), (122f, 146f), (182f, 210f), (252f, 286f) };
@@ -124,16 +124,32 @@ namespace Cloudborne
                 CbArt.Cylinder(Wood, kodaCage, new Vector3(0, 1.8f, 0), 0.82f, 0.14f);
                 CbArt.Cylinder(Wood, kodaCage, new Vector3(0, 0.05f, 0), 0.82f, 0.1f);
             }
-            // the tarp over it, roped down, an iron padlock on the front (the Iron Crown's)
-            CbArt.Box(TarpCloth, kodaCage, new Vector3(0, 0.93f, 0), new Vector3(2.05f, 1.86f, 2f));
-            CbArt.Box(TarpCloth, kodaCage, new Vector3(0, 1.88f, 0), new Vector3(1.7f, 0.12f, 1.65f));
+            // the tarp thrown over it: a rounded top, the cloth hanging down in folds and flaring at its hem a little
+            // above the ground (the bars' feet showing under it), roped down; the Iron Crown's red crown painted on
+            // it, an iron padlock on the bars below (it read as a cardboard box when it was one block)
+            var cloth = TarpCloth;
+            var fold = M("#5e5236");
+            CbArt.Box(cloth, kodaCage, new Vector3(0, 1.12f, 0), new Vector3(1.98f, 1.46f, 1.93f));
+            CbArt.Cylinder(cloth, kodaCage, new Vector3(0, 1.84f, 0), 0.96f, 0.2f);
+            CbArt.Part(CbMesh.Sphere, cloth, kodaCage, new Vector3(0, 1.9f, 0), new Vector3(1.96f, 0.42f, 1.9f));
+            CbArt.Box(cloth, kodaCage, new Vector3(0, 0.43f, 0), new Vector3(2.1f, 0.18f, 2.05f));
+            for (int i = 0; i < 6; i++)
+            {
+                float fx = -0.82f + i * 0.33f + (i % 2) * 0.05f;
+                CbArt.Box(fold, kodaCage, new Vector3(fx, 1.0f, -0.975f), new Vector3(0.06f, 1.2f - (i % 3) * 0.2f, 0.02f));
+                CbArt.Box(cloth, kodaCage, new Vector3(fx + 0.1f, 0.95f, -0.985f), new Vector3(0.1f, 1.0f, 0.02f));
+            }
             var rope = M("#8a6a3a");
-            foreach (var rx in new[] { -0.55f, 0.55f })
-                CbArt.Box(rope, kodaCage, new Vector3(rx, 0.95f, 0), new Vector3(0.07f, 1.98f, 2.06f));
-            CbArt.Box(rope, kodaCage, new Vector3(0, 1.2f, 0), new Vector3(2.1f, 0.07f, 2.06f));
+            foreach (var rx in new[] { -0.6f, 0.6f })
+                CbArt.Box(rope, kodaCage, new Vector3(rx, 1.15f, 0), new Vector3(0.07f, 1.75f, 2.02f));
+            CbArt.Box(rope, kodaCage, new Vector3(0, 0.62f, 0), new Vector3(2.04f, 0.07f, 2.0f));
+            var crown = M("#b3261e");
+            CbArt.Box(crown, kodaCage, new Vector3(0, 1.22f, -1.0f), new Vector3(0.42f, 0.1f, 0.02f));
+            for (int i = -1; i <= 1; i++)
+                CbArt.Cone(crown, kodaCage, new Vector3(i * 0.16f, 1.27f, -1.0f), 0.07f, i == 0 ? 0.26f : 0.19f, Quaternion.Euler(0, 0, 0), 4);
             var iron = M("#5d646e");
-            CbArt.Box(iron, kodaCage, new Vector3(-0.2f, 0.85f, -1.04f), new Vector3(0.24f, 0.22f, 0.08f));
-            CbArt.Cylinder(iron, kodaCage, new Vector3(-0.2f, 1.01f, -1.04f), 0.075f, 0.04f, Quaternion.Euler(90, 0, 0));
+            CbArt.Box(iron, kodaCage, new Vector3(-0.25f, 0.2f, -0.98f), new Vector3(0.22f, 0.2f, 0.08f));
+            CbArt.Cylinder(iron, kodaCage, new Vector3(-0.25f, 0.34f, -0.98f), 0.07f, 0.04f, Quaternion.Euler(90, 0, 0));
 
             // the scroll: rolled parchment tied with a red ribbon, the Iron Crown's seal in red wax on it
             scroll = CbArt.Joint(root, ScrollRest.x, ScrollRest.y, ScrollRest.z, "prophecyScroll");
@@ -200,7 +216,7 @@ namespace Cloudborne
             g.shake = Mathf.Max(g.shake, 0.35f);
         }
 
-        static Material TarpCloth => M("#8a7650");
+        static Material TarpCloth => M("#7a6a44");
 
         void ResetKodaCage()
         {
@@ -215,10 +231,12 @@ namespace Cloudborne
 
         // ---------- Tusk's trees ----------
 
-        // The trunks Tusk rams at the ends of his charges: they rise through the canopy from far below, a little back
-        // from the bough (Raja passes in front of them; the boar's tusks reach the bark), and shake when he hits them,
-        // a few leaves coming down.
-        const float TuskTreeZ = 1.1f, TuskTreeR = 0.8f;
+        // The trees Tusk rams at the ends of his charges: the jungle's kapok, its buttress roots and crown, a little
+        // back from the path (Raja passes in front; the camera's narrow view hides the depth, so the boar's tusks seem
+        // to sink into the bark), shaking when he hits them, a few leaves coming down. A bark column if the model is
+        // missing (it read as a plank up close).
+        const string KapokPath = "Cloudborne/Jungle/Kapok/Kapok";
+        const float TuskTreeZ = 3.1f, TuskTreeR = 0.8f, TuskTreeColumnZ = 1.1f;
         readonly List<(Transform t, float x)> tuskTrees = new List<(Transform, float)>();
         readonly List<float> treeShake = new List<float>();
 
@@ -231,6 +249,24 @@ namespace Cloudborne
             {
                 float x = TuskX + side * TuskTreeOff;
                 var t = CbArt.Joint(root, x, 0f, TuskTreeZ, "tuskTree");
+                var kapok = CbArt.Prop(KapokPath, t, 0f);
+                if (kapok != null)
+                {
+                    kapok.localRotation = Quaternion.Euler(0, 20f + side * 35f, 0);
+                    // shaded as the scenery is: soft light, a soft rim, its leaves from both sides
+                    foreach (var r in kapok.GetComponentsInChildren<Renderer>())
+                    {
+                        var m = r.sharedMaterial;
+                        m.color = new Color(0.86f, 0.82f, 0.8f);
+                        if (m.HasProperty("_RimStrength")) m.SetFloat("_RimStrength", 0.25f);
+                        if (m.HasProperty("_BandSoftness")) m.SetFloat("_BandSoftness", 0.35f);
+                        if (m.HasProperty("_Cull")) m.SetFloat("_Cull", 0f);
+                    }
+                    tuskTrees.Add((t, x));
+                    treeShake.Add(0f);
+                    continue;
+                }
+                t.localPosition = new Vector3(x, 0f, TuskTreeColumnZ);
                 CbArt.Cylinder(bark, t, new Vector3(0, 2f, 0), TuskTreeR, 28f);
                 // the bark's ridges, a root flare behind, moss on the near side, a bough going up out of sight
                 for (int i = 0; i < 7; i++)
