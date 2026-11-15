@@ -247,7 +247,7 @@ namespace Cloudborne
             var panel = Panel(p, "HOW TO PLAY", out _);
             var t = UIKit.Label(panel,
                 "the stick: left and right - a little  walk   ·   all the way  run   ·   twice  <color=#ffc94a>sprint</color>\n" +
-                "<color=#ffc94a>stick ↑</color>  jump, again in the air  double somersault   ·   against a wall  wall jump   ·   push into vines  climb\n" +
+                "<color=#ffc94a>JUMP</color>  jump, again in the air  double somersault   ·   against a wall  wall jump   ·   push into vines  climb\n" +
                 "<color=#ffc94a>stick ↓</color>  slide (under low trunks), keep it down  crawl\n" +
                 "<color=#ffc94a>ATTACK</color>  paw and kick combo   ·   hold  staff smash, keep holding  staff whirl   ·   in the air  dive kick\n" +
                 "<color=#ffc94a>KI</color>  staff lunge (FIRE with the fire crystal), hold  staff throw (once learned)   ·   <color=#ffc94a>SPECIAL</color>  when it lights up\n" +

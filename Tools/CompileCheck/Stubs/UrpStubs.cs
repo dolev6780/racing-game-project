@@ -36,6 +36,8 @@ namespace UnityEngine.Rendering
     public class ClampedFloatParameter : FloatParameter { public ClampedFloatParameter(float v, float min, float max, bool o = false) : base(v, o) { } }
     public class ColorParameter : VolumeParameter<Color> { public ColorParameter(Color v, bool o = false) { } }
     public class BoolParameter : VolumeParameter<bool> { public BoolParameter(bool v, bool o = false) { } }
+    public class IntParameter : VolumeParameter<int> { public IntParameter(int v, bool o = false) { } }
+    public class ClampedIntParameter : IntParameter { public ClampedIntParameter(int v, int min, int max, bool o = false) : base(v, o) { } }
     public abstract class VolumeComponent : ScriptableObject { public bool active = true; }
     public class VolumeProfile : ScriptableObject
     {
@@ -49,8 +51,12 @@ namespace UnityEngine.Rendering.Universal
 {
     public enum TonemappingMode { None, Neutral, ACES }
     public class TonemappingModeParameter : UnityEngine.Rendering.VolumeParameter<TonemappingMode> { public TonemappingModeParameter(TonemappingMode v, bool o = false) { } }
+    public enum BloomDownscaleMode { Half, Quarter }
+    public class DownscaleParameter : UnityEngine.Rendering.VolumeParameter<BloomDownscaleMode> { public DownscaleParameter(BloomDownscaleMode v, bool o = false) { } }
     public sealed class Bloom : UnityEngine.Rendering.VolumeComponent
     {
+        public DownscaleParameter downscale;
+        public UnityEngine.Rendering.ClampedIntParameter maxIterations;
         public UnityEngine.Rendering.MinFloatParameter threshold, intensity;
         public UnityEngine.Rendering.ClampedFloatParameter scatter;
         public UnityEngine.Rendering.ColorParameter tint;

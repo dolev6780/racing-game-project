@@ -2180,41 +2180,30 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator TheStickJumpsAndSlides()
+        public IEnumerator TheJumpButtonIsBackAndTheStickSlides()
         {
-            // no JUMP button (the user): up on the stick jumps, held up its full height, let back and up again the double
-            // jump; down slides; running with the stick a little up does not jump, up on a slant does
-            bool up = false, down = false;
+            // the JUMP button is back (the user), and up on the stick does nothing for now; down on the stick slides,
+            // held down he stays low; left and right still move him
+            game = CbGame.Boot();
+            yield return Frames(3);
+            Assert.IsTrue(Object.FindObjectsByType<RectTransform>(FindObjectsInactive.Include, FindObjectsSortMode.None).Any(t => t.name == "jump"),
+                "There is no JUMP button");
+            bool down = false;
             var inp = new CbInput();
-            CbHud.StickMoves(new Vector2(0, 30), ref up, ref down, inp);
-            Assert.IsTrue(inp.jump && inp.jumpHeld && inp.stickJump, "Up on the stick did not jump");
+            CbHud.StickMoves(new Vector2(0, 40), ref down, inp);
+            Assert.IsFalse(inp.jump || inp.jumpHeld, "Up on the stick jumped");
+            Assert.AreEqual(0f, inp.y, 0.001f, "Up on the stick still did something");
             inp = new CbInput();
-            CbHud.StickMoves(new Vector2(3, 45), ref up, ref down, inp);
-            Assert.IsFalse(inp.jump, "Holding the stick up jumped again");
-            Assert.IsTrue(inp.jumpHeld, "Holding the stick up let go of the jump");
+            CbHud.StickMoves(new Vector2(60, 25), ref down, inp);
+            Assert.AreEqual(1f, inp.x, 0.01f, "The stick across was not a full run");
+            down = false;
             inp = new CbInput();
-            CbHud.StickMoves(new Vector2(0, 5), ref up, ref down, inp);
-            Assert.IsFalse(inp.jumpHeld, "The stick let back still held the jump");
-            inp = new CbInput();
-            CbHud.StickMoves(new Vector2(0, 30), ref up, ref down, inp);
-            Assert.IsTrue(inp.jump, "Up on the stick again did not jump again (the double jump)");
-            up = down = false;
-            inp = new CbInput();
-            CbHud.StickMoves(new Vector2(60, 18), ref up, ref down, inp);
-            Assert.IsFalse(inp.jump, "Running with the stick a little up jumped");
-            Assert.AreEqual(1f, inp.x, 0.01f, "Running with the stick a little up was not a full run");
-            inp = new CbInput();
-            CbHud.StickMoves(new Vector2(45, 40), ref up, ref down, inp);
-            Assert.IsTrue(inp.jump, "Up on a slant while running did not jump");
-            up = down = false;
-            inp = new CbInput();
-            CbHud.StickMoves(new Vector2(0, -30), ref up, ref down, inp);
+            CbHud.StickMoves(new Vector2(0, -30), ref down, inp);
             Assert.IsTrue(inp.slide && !inp.jump, "Down on the stick did not slide");
             inp = new CbInput();
-            CbHud.StickMoves(new Vector2(0, -45), ref up, ref down, inp);
+            CbHud.StickMoves(new Vector2(0, -45), ref down, inp);
             Assert.IsFalse(inp.slide, "Holding the stick down slid again");
             Assert.Less(inp.y, -0.5f, "Holding the stick down did not keep him low");
-            yield break;
         }
 
         [UnityTest]

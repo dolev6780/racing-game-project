@@ -46,7 +46,7 @@ namespace Cloudborne
         };
         static readonly (float x, int tip, string text)[] RiverTips =
         {
-            (2f, -1, "On the log! <color=#ffb03a>Stick ↑</color> jumps the rocks, <color=#ffb03a>stick ↓</color> ducks the branches, <color=#ffb03a>ATTACK</color> smashes the barrels"),
+            (2f, -1, "On the log! <color=#ffb03a>JUMP</color> the rocks, <color=#ffb03a>stick ↓</color> ducks the branches, <color=#ffb03a>ATTACK</color> smashes the barrels"),
             (36f, -1, "Koda: \"Raja! Tell them I'm not the child of the prophecy!\""),
             (118f, -1, "Koda: \"...OK, maybe a little!\""),
             (172f, -1, "Ledges over the river - something golden glints up there"),
@@ -146,7 +146,7 @@ namespace Cloudborne
         {
             (2f, -1, "The raiders fled into the treetops with Koda - after them!"),
             (20f, -1, "Mind the gaps between the boughs - it's a long way down"),
-            (58f, -1, "Swing across on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>stick ↑</color> to let go"),
+            (58f, -1, "Swing across on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go"),
             (90f, -1, "A saw drone! Slide under it (<color=#ffb03a>stick ↓</color>), jump over it, or smash it with the staff (hold <color=#ffb03a>ATTACK</color>)"),
             (118f, -1, "Cracked branches give way under you - don't wait on them"),
             (148f, -1, "Swinging logs! Time your run"),
@@ -182,14 +182,14 @@ namespace Cloudborne
         static readonly (float x, int tip, string text)[] JungleTips =
         {
             (17f, 1, null),
-            (6f, -1, "Push the <color=#ffb03a>stick ↑</color> to jump - again in the air for a double jump"),
+            (6f, -1, "<color=#ffb03a>JUMP</color> - and again in the air for a double jump"),
             (21f, -1, "A fallen trunk! Push the <color=#ffb03a>stick ↓</color> to slide under it"),
             (29f, -1, "The rope bridge - careful, it's a fine place for an ambush"),
             (57f, 3, null), (66f, 2, null),
             (97f, -1, "They wait on the bank - knock them back into the river!"),
             (115f, -1, "A springy leaf: jump on it to bounce up to the ledge"),
             (179f, -1, "Another fallen trunk, thorns on top: slide under it"),
-            (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>stick ↑</color> to let go. Hang from the bars"),
+            (192f, -1, "Swing on the vines: hold <color=#ffb03a>↔</color> to swing, <color=#ffb03a>JUMP</color> to let go. Hang from the bars"),
             (241f, -1, "The old temple: thorns need the staff (hold <color=#ffb03a>ATTACK</color>), slide under the darts (<color=#ffb03a>stick ↓</color>)"),
             (285f, 4, null),
             (291f, -1, "A monkey in a cage! Break it open and set it free"),
@@ -393,6 +393,13 @@ namespace Cloudborne
             {
                 urp.supportsHDR = true;     // glow above 1.0 for bloom
                 urp.shadowDistance = 45f;   // the camera sits 11-22 m from the action
+                // a phone's lighter settings (the game felt slow on the user's phone): 2x MSAA rather than 4x, one
+                // shadow cascade - the camera is close, 45 m of shadow is plenty in one
+                if (Application.isMobilePlatform)
+                {
+                    urp.msaaSampleCount = 2;
+                    urp.shadowCascadeCount = 1;
+                }
             }
             SetupCamera();
             SetupLight();
@@ -441,6 +448,12 @@ namespace Cloudborne
 
             var profile = Resources.Load<VolumeProfile>("Cloudborne/PostFX_Anime");
             if (profile == null) profile = CreatePostProfile();
+            // (a profile saved before bloom was made cheaper gets the same: CreatePostProfile)
+            else if (profile.TryGet<Bloom>(out var saved))
+            {
+                saved.downscale.Override(BloomDownscaleMode.Quarter);
+                saved.maxIterations.Override(5);
+            }
             var vol = new GameObject("PostFX").AddComponent<Volume>();
             vol.transform.SetParent(transform, false);
             vol.isGlobal = true;
@@ -456,6 +469,9 @@ namespace Cloudborne
         {
             var p = ScriptableObject.CreateInstance<VolumeProfile>();
             var bloom = p.Add<Bloom>(true);
+            // (worked out at a quarter of the screen, as cheap on a phone as bloom gets: it only lights the glow)
+            bloom.downscale.Override(BloomDownscaleMode.Quarter);
+            bloom.maxIterations.Override(5);
             bloom.threshold.Override(1.1f);
             bloom.intensity.Override(0.5f);
             bloom.scatter.Override(0.6f);
@@ -1579,7 +1595,12 @@ namespace Cloudborne
 
         void Update()
         {
-            float raw = TestStep > 0 ? TestStep : Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            // (a frame counts at most a fifteenth of a second: on a phone below 20 frames a second the old cap of a
+            // twentieth turned every slow frame into slow motion - the game "moving slowly": the user)
+            float raw = TestStep > 0 ? TestStep : Mathf.Min(Time.unscaledDeltaTime, 1f / 15f);
+            fpsT += Time.unscaledDeltaTime;
+            fpsFrames++;
+            if (fpsT >= 1f) { Fps = fpsFrames / fpsT; fpsT = 0; fpsFrames = 0; }
             clock += raw;
             ReadInput(raw);
 
@@ -1812,6 +1833,11 @@ namespace Cloudborne
         /// <summary>Test hook: the game's time goes on this much each frame, whatever the real time (on CI's uneven
         /// frames, one slow frame used up a test's second of waiting while the game went on a twentieth of one).</summary>
         public float TestStep;
+
+        /// <summary>Frames a second over the last second (shown on the pause screen, to see how the phone keeps up).</summary>
+        public static float Fps { get; private set; }
+        float fpsT;
+        int fpsFrames;
         /// <summary>Test hook: presses the controls themselves (ATTACK held, SKILL), before they are read as moves.</summary>
         public System.Action<CbInput> TestControls;
 
