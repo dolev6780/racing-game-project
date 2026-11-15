@@ -1715,6 +1715,94 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator TuskChargesIntoATreeAndIsBeatenFromBehind()
+        {
+            // Tusk (the story doc: he charges from side to side, armoured in front; dodge, he sticks in a tree, and you
+            // hit him from behind)
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-2");
+            game.BuildStage();
+            game.StartGame();
+            game.SkipToBoss();
+            yield return Frames(2);
+            Assert.AreEqual(2, game.level.TuskTrees, "Tusk's clearing has no trunks at its ends");
+            game.Teleport(CbLevel.TuskX - 6f);
+            game.hero.y = 0;
+            for (float w = 0; w < 2f && game.boss == null; w += Time.deltaTime) yield return null;
+            var tusk = game.boss;
+            Assert.IsNotNull(tusk, "Tusk did not appear");
+            Assert.AreEqual(CbEnemy.Kind.Tusk, tusk.kind);
+            Assert.AreEqual(CbGame.Mode.Play, game.mode, "Tusk's fight did not start");
+            Assert.IsNotNull(game.lockZone, "Tusk's arena is not shut");
+            game.hero.hp = 9999;
+            // his armour: a blow from in front glances off
+            float hp0 = tusk.hp;
+            Assert.IsFalse(game.HurtEnemy(tusk, 20, -tusk.facing, 6, 2, true, true, false, true), "A blow from in front got through Tusk's armour");
+            Assert.AreEqual(hp0, tusk.hp, 0.01f, "Tusk's armour let a blow from in front hurt him");
+            // he charges right across his arena, and rams the trunk at its end: stuck
+            bool charged = false;
+            for (float w = 0; w < 7f && !tusk.TuskStuck; w += Time.deltaTime)
+            {
+                yield return null;
+                charged |= tusk.tuskMove == CbEnemy.TuskMove.Charge;
+            }
+            Assert.IsTrue(charged, "Tusk never charged");
+            Assert.IsTrue(tusk.TuskStuck, "Tusk's charge did not end with his tusks stuck in a tree");
+            Assert.AreEqual(CbLevel.TuskX - CbEnemy.TuskCrash, tusk.x, 0.05f, "Tusk did not charge right across his arena");
+            Assert.Greater(game.level.TreeShake(0), 0f, "The trunk he rammed did not shake");
+            // stuck, a blow from behind hurts him
+            hp0 = tusk.hp;
+            Assert.IsTrue(game.HurtEnemy(tusk, 20, tusk.facing, 6, 2, true, true, false, true), "A blow from behind did not hurt the stuck Tusk");
+            Assert.Less(tusk.hp, hp0, "A blow from behind did not hurt the stuck Tusk");
+            // he pulls free after a while
+            for (float w = 0; w < CbEnemy.TuskStuckTime + 1f && tusk.TuskStuck; w += Time.deltaTime) yield return null;
+            Assert.IsFalse(tusk.TuskStuck, "Tusk stayed stuck in the tree");
+            // beaten: the arena opens, and the stage clears at the end of the camp
+            for (int k = 0; k < 60 && !tusk.dead; k++)
+            {
+                game.HurtEnemy(tusk, 40, tusk.facing, 8, 2, true, true, false, true);
+                yield return Frames(2);
+            }
+            Assert.IsTrue(tusk.dead, "Tusk could not be beaten");
+            yield return Frames(3);
+            Assert.IsNull(game.lockZone, "Tusk's arena did not open after he was beaten");
+            for (float w = 0; w < 3f && game.enemies.Contains(tusk); w += Time.deltaTime) yield return null;
+            Assert.IsFalse(game.enemies.Contains(tusk), "Beaten, Tusk never went");
+            game.Teleport(CbWorld.GoalX + 0.5f);
+            game.hero.y = 0;
+            for (float w = 0; w < 3f && !game.Cleared; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(game.Cleared, "Stage 1-2 did not clear after Tusk");
+        }
+
+        [UnityTest]
+        public IEnumerator ZzTuskPictures()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-2");
+            game.BuildStage();
+            game.StartGame();
+            game.SkipToBoss();
+            yield return Frames(2);
+            // the camera settled at the clearing, then into the fight: he rears and roars, charges, sticks in a tree
+            game.Teleport(CbLevel.TuskX - 8.5f);
+            game.hero.y = 0;
+            yield return new WaitForSeconds(2.5f);
+            game.hero.inv = 999f;
+            game.Teleport(CbLevel.TuskX - 5f);
+            yield return TakePictures(new[] { ("tusk_roar", float.NaN, 0f) }, 0.5f);
+            var tusk = game.boss;
+            Assert.IsNotNull(tusk, "Tusk did not appear");
+            for (float w = 0; w < 5f && tusk.tuskMove != CbEnemy.TuskMove.Charge; w += Time.deltaTime) yield return null;
+            yield return TakePictures(new[] { ("tusk_charge", float.NaN, 0f) }, 0.12f);
+            for (float w = 0; w < 5f && !tusk.TuskStuck; w += Time.deltaTime) yield return null;
+            game.Teleport(tusk.x - tusk.facing * 3.2f);
+            game.hero.facing = tusk.facing;
+            yield return TakePictures(new[] { ("tusk_stuck", float.NaN, 0f) }, 0.35f);
+        }
+
+        [UnityTest]
         public IEnumerator ZzTreetopsPictures()
         {
             game = CbGame.Boot();
@@ -1732,7 +1820,7 @@ namespace RacingGame.Tests
         /// Photographs the stage being played at each spot (Raja there, the camera eased after him) and logs the pictures
         /// for the CI to collect ("SHOT name i base64").
         /// </summary>
-        IEnumerator TakePictures((string name, float x, float y)[] spots)
+        IEnumerator TakePictures((string name, float x, float y)[] spots, float wait = 2.5f)
         {
             // the game's own camera (Camera.main can be another scene's: the first pictures were of the kart race)
             var cam = game.GetComponentInChildren<Camera>();
@@ -1753,16 +1841,20 @@ namespace RacingGame.Tests
             var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
             var oldTrace = Application.GetStackTraceLogType(LogType.Log);
             // where, and how high (the bars are over the river: he hangs from them, or he would be in the water)
+            // (x NaN: he stays where he is, for a moment in a fight)
             foreach (var (name, x, y) in spots)
             {
-                game.Teleport(x);
-                game.hero.y = y;
-                game.hero.vx = game.hero.vy = 0;
-                if (y > 0) game.hero.state = CbHero.State.Air;
+                if (!float.IsNaN(x))
+                {
+                    game.Teleport(x);
+                    game.hero.y = y;
+                    game.hero.vx = game.hero.vy = 0;
+                    if (y > 0) game.hero.state = CbHero.State.Air;
+                }
                 // the gorge with its water on the way up
                 if (name == "gorge") game.level.StartFlood(2.4f);
                 // the camera eases after him
-                yield return new WaitForSeconds(2.5f);
+                yield return new WaitForSeconds(wait);
                 // drawn by the pipeline as usual, for a frame, into the picture (WaitForEndOfFrame never comes in
                 // batch mode: two plain frames, the second after the first was drawn)
                 cam.targetTexture = rt;

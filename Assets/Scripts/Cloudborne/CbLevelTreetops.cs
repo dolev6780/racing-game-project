@@ -18,12 +18,15 @@ namespace Cloudborne
     /// <item>The big bough (212-250): an ambush.</item>
     /// <item>The long bridge (250-288): a long rope bridge, drones flying over it.</item>
     /// <item>Thorny boughs (288-320): thorns, a springy leaf up to a ledge.</item>
-    /// <item>The loggers' camp (320-352): the last soldiers (Tusk to come).</item>
+    /// <item>The loggers' camp (320-345): the last soldiers.</item>
+    /// <item>Tusk's clearing (345-372): the armoured boar, between two great trunks (CbEnemyTusk.cs).</item>
     /// </list>
     /// </summary>
     public partial class CbLevel
     {
-        public const float TreetopsMax = 352f, TreetopsGoal = 346f;
+        public const float TreetopsMax = 380f, TreetopsGoal = 374f;
+        /// <summary>The middle of Tusk's arena; the trunks he rams stand this far either side of it.</summary>
+        public const float TuskX = 358f, TuskTreeOff = CbEnemy.TuskCrash + 2.2f;
         static readonly (float x0, float x1)[] TreetopsDrops = { (24f, 31f), (62f, 84f), (122f, 146f), (182f, 210f), (252f, 286f) };
         /// <summary>The hidden nest high over the gap with the bars: its ledge's middle and top (the staff-throw scroll).</summary>
         public const float NestX = 202.5f, NestTop = 9.5f;
@@ -32,7 +35,7 @@ namespace Cloudborne
 
         void BuildTreetops()
         {
-            foreach (var x in new[] { 60f, 118f, 178f, 248f, 318f }) AddLantern(x);
+            foreach (var x in new[] { 60f, 118f, 178f, 248f, 318f, 341f }) AddLantern(x);
             AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
 
@@ -83,7 +86,62 @@ namespace Cloudborne
             AddThorns(296f);
             AddLeaf(304f, 0.45f);
             AddLedge(306.6f, 1.6f, 6.2f, false);
+
+            // ---- Tusk's clearing: a great trunk at either end of his arena
+            AddTuskTrees();
         }
+
+        // ---------- Tusk's trees ----------
+
+        // The trunks Tusk rams at the ends of his charges: they rise through the canopy from far below, a little back
+        // from the bough (Raja passes in front of them; the boar's tusks reach the bark), and shake when he hits them,
+        // a few leaves coming down.
+        const float TuskTreeZ = 1.1f, TuskTreeR = 0.8f;
+        readonly List<(Transform t, float x)> tuskTrees = new List<(Transform, float)>();
+        readonly List<float> treeShake = new List<float>();
+
+        void AddTuskTrees()
+        {
+            var bark = CbArt.Toon("#5b4232", CbArt.PropOutline);
+            var ridge = CbArt.Toon("#3f2c22", 0f);
+            var moss = CbArt.Toon("#5f7a3a", 0f);
+            foreach (var side in new[] { -1, 1 })
+            {
+                float x = TuskX + side * TuskTreeOff;
+                var t = CbArt.Joint(root, x, 0f, TuskTreeZ, "tuskTree");
+                CbArt.Cylinder(bark, t, new Vector3(0, 2f, 0), TuskTreeR, 28f);
+                // the bark's ridges, a root flare behind, moss on the near side, a bough going up out of sight
+                for (int i = 0; i < 7; i++)
+                {
+                    float a = (i / 7f + 0.05f * side) * Mathf.PI * 2f;
+                    CbArt.Box(ridge, t, new Vector3(Mathf.Sin(a) * TuskTreeR * 0.97f, 2f, -Mathf.Cos(a) * TuskTreeR * 0.97f),
+                        new Vector3(0.09f, 28f, 0.09f), Quaternion.Euler(0, -a * Mathf.Rad2Deg, 0));
+                }
+                CbArt.Cone(bark, t, new Vector3(0, 0.7f, 0.3f), TuskTreeR * 1.4f, 1.4f, null, 12);
+                CbArt.Box(moss, t, new Vector3(-side * 0.25f, 1.4f, -TuskTreeR * 0.9f), new Vector3(0.6f, 0.9f, 0.12f), Quaternion.Euler(0, side * 20f, 0));
+                CbArt.Cylinder(bark, t, new Vector3(side * 1.6f, 9.5f, 0.2f), 0.32f, 6f, Quaternion.Euler(0, 0, -side * 40f));
+                tuskTrees.Add((t, x));
+                treeShake.Add(0f);
+            }
+        }
+
+        /// <summary>Tusk's tusks hit the trunk nearest x: it shakes (by amount), and leaves come down.</summary>
+        public void ShakeTree(float x, float amount)
+        {
+            int best = -1;
+            for (int i = 0; i < tuskTrees.Count; i++)
+                if (best < 0 || Mathf.Abs(tuskTrees[i].x - x) < Mathf.Abs(tuskTrees[best].x - x)) best = i;
+            if (best < 0) return;
+            treeShake[best] = Mathf.Max(treeShake[best], amount);
+            float tx = tuskTrees[best].x;
+            for (int i = 0; i < Mathf.CeilToInt(8 * amount); i++)
+                CbFx.Spark(new Vector3(tx + Random.Range(-2.5f, 2.5f), Random.Range(5f, 8f), Random.Range(-0.8f, 0.4f)),
+                    Color.Lerp(CbArt.Hex("#4f8a2e"), CbArt.Hex("#9cc04a"), Random.value), 1, 1.2f, 0.3f, 1.8f, 1.6f);
+        }
+
+        /// <summary>How hard each of Tusk's trees is shaking (test hook).</summary>
+        public float TreeShake(int i) => treeShake[i];
+        public int TuskTrees => tuskTrees.Count;
 
         /// <summary>A rope bridge over a gap, from cx - half to cx + half.</summary>
         void AddRopeBridge(float cx, float half)
@@ -147,6 +205,11 @@ namespace Cloudborne
         void UpdateTreetops(float dt, CbHero hero)
         {
             float time = g.clock;
+            for (int i = 0; i < tuskTrees.Count; i++)
+            {
+                treeShake[i] = Mathf.MoveTowards(treeShake[i], 0, dt * 1.3f);
+                tuskTrees[i].t.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(time * 27f + i) * treeShake[i] * 1.4f);
+            }
             foreach (var s in saws)
             {
                 if (s.smashed) continue;
@@ -205,6 +268,7 @@ namespace Cloudborne
         void ResetTreetops()
         {
             foreach (var s in saws) { s.smashed = false; s.hp = 2; s.flash = 0; s.t.gameObject.SetActive(true); }
+            for (int i = 0; i < treeShake.Count; i++) treeShake[i] = 0;
         }
     }
 }

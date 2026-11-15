@@ -7,11 +7,12 @@ namespace Cloudborne
     /// his machete (a glint on the blade as he winds up) and steps back after; he shouts with his blade raised as he
     /// first sees Raja;
     /// the shield variant blocks blows from the front until a staff move or the roar breaks its guard.
-    /// Sergeant Snap, the mini-boss at the end of stage 1-1, fights with a set of his own (see BossAttack).
+    /// Sergeant Snap, the mini-boss at the end of stage 1-1, fights with a set of his own (see BossAttack); Tusk, the
+    /// armoured boar at the end of stage 1-2, charges from side to side (CbEnemyTusk.cs).
     /// </summary>
-    public class CbEnemy
+    public partial class CbEnemy
     {
-        public enum Kind { Hyena, Shield, Sergeant, Thrower }
+        public enum Kind { Hyena, Shield, Sergeant, Thrower, Tusk }
         public enum State { Move, Atk, Hurt, Dying }
         /// <summary>Sergeant Snap's attacks.</summary>
         public enum BossMove { Combo, Chop, Leap, Whistle }
@@ -47,6 +48,8 @@ namespace Cloudborne
 
         // ---- Sergeant Snap ----
         public bool Boss => kind == Kind.Sergeant;
+        /// <summary>A mini-boss (Sergeant Snap or Tusk): a bigger puff when he goes, and more in it.</summary>
+        public bool Big => Boss || kind == Kind.Tusk;
         /// <summary>
         /// A soldier at his post along the way (CbGame): he keeps between minX and maxX (his own stretch of dry path),
         /// goes for Raja only once he comes within Notice, and an asleep one waits until Raja is right by him or
@@ -84,14 +87,15 @@ namespace Cloudborne
             g = game;
             kind = k;
             x = x0;
-            bool shield = k == Kind.Shield, sergeant = k == Kind.Sergeant, thrower = k == Kind.Thrower;
-            hp = max = sergeant ? 320 : shield ? 46 : thrower ? 28 : 34;
+            bool shield = k == Kind.Shield, sergeant = k == Kind.Sergeant, thrower = k == Kind.Thrower, tusk = k == Kind.Tusk;
+            hp = max = tusk ? TuskHp : sergeant ? 320 : shield ? 46 : thrower ? 28 : 34;
             speed = sergeant ? 2.3f : shield ? 2.1f : 2.7f;
             dmg = sergeant ? 9 : shield ? 10 : 8;
             reach = sergeant ? 1.9f : shield ? 1.6f : 1.5f;
-            scoreValue = sergeant ? 3000 : shield ? 500 : thrower ? 400 : 300;
+            scoreValue = sergeant || tusk ? 3000 : shield ? 500 : thrower ? 400 : 300;
             if (shield) w = 0.6f;
             if (sergeant) { w = 0.7f; hy = 1.5f; }
+            if (tusk) { w = TuskHalf; hy = 1f; }
             guard = shield;
             cd = Random.Range(0.5f, 1.4f);
             runPh = Random.Range(0f, 6f);
@@ -107,7 +111,7 @@ namespace Cloudborne
             blade = CbArt.Joint(f.R.hand, 0, -0.02f, 0.02f, thrower ? "spear" : "machete");
             // the thrower holds a spear (a shaft with a stone head), and has another to hand as soon as one is thrown
             if (thrower) SpearShape(blade, f.M("#7a5a36"), f.M("#9aa2ab"));
-            else if (CbArt.Prop("Cloudborne/Props/Machete/Machete", blade) == null)
+            else if (!tusk && CbArt.Prop("Cloudborne/Props/Machete/Machete", blade) == null)
             {
                 CbArt.Box(f.M("#c9ced6"), blade, new Vector3(0, 0, 0.38f), new Vector3(0.03f, 0.1f, 0.62f));
                 CbArt.Box(f.M("#2a1f1a"), blade, new Vector3(0, 0, 0.02f), new Vector3(0.05f, 0.06f, 0.16f));
@@ -127,6 +131,7 @@ namespace Cloudborne
             f.root.SetParent(parent, false);
             f.root.localPosition = new Vector3(x, 0, 0);
             f.body.localRotation = Quaternion.Euler(0, -115, 0);
+            if (tusk) { SetUpTusk(); return; }
 
             // The rig still places, turns and flips the hyena; with the model loaded only its machete and shield are drawn.
             modelPath = sergeant ? "Cloudborne/HyenaSergeant/HyenaSergeant" : shield ? "Cloudborne/HyenaGuard/HyenaGuard" : "Cloudborne/HyenaRaider/HyenaRaider";
@@ -322,6 +327,8 @@ namespace Cloudborne
 
         public void Stagger(int dir, float kb, float up)
         {
+            // too heavy to be knocked about: the blows only flash on him
+            if (kind == Kind.Tusk) return;
             if (Boss)
             {
                 // armoured: he takes the blows and keeps going, unless he stands open or a big blow lands
@@ -342,6 +349,7 @@ namespace Cloudborne
         {
             dead = true; state = State.Dying; t = 0;
             vx = dir * 10; vy = 7;
+            if (kind == Kind.Tusk) vx = vy = 0;
         }
 
         /// <summary>A ki move (a staff technique, or fire) stops his whistle before it calls anyone.</summary>
@@ -480,14 +488,9 @@ namespace Cloudborne
             f.shield = null;
         }
 
-        /// <summary>Returns true when the enemy is gone and can be removed.</summary>
-        public bool Update(float dt)
+        /// <summary>Burning: a flicker of flame on him, and a little hurt every 0.4 s.</summary>
+        void Burn(float dt)
         {
-            t += dt;
-            cd -= dt;
-            flash = Mathf.Max(0, flash - dt);
-            tele = 0;
-            telePurple = false;
             if (burnT > 0 && !dead)
             {
                 burnT -= dt; burnTick -= dt;
@@ -501,6 +504,18 @@ namespace Cloudborne
                     if (hp <= 0) g.KillEnemy(this, -facing);
                 }
             }
+        }
+
+        /// <summary>Returns true when the enemy is gone and can be removed.</summary>
+        public bool Update(float dt)
+        {
+            if (kind == Kind.Tusk) return UpdateTusk(dt);
+            t += dt;
+            cd -= dt;
+            flash = Mathf.Max(0, flash - dt);
+            tele = 0;
+            telePurple = false;
+            Burn(dt);
 
             var hero = g.hero;
             float dx = hero.x - x, dist = Mathf.Abs(dx);

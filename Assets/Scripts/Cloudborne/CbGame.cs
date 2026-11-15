@@ -47,7 +47,7 @@ namespace Cloudborne
         {
             (0f, "Into the treetops"), (60f, "The vine gap"), (90f, "The saw drones"), (118f, "Crumbling branches"),
             (148f, "The swinging logs"), (180f, "Hand over hand"), (212f, "The big bough"), (250f, "The long bridge"),
-            (288f, "Thorny boughs"), (320f, "The loggers' camp"),
+            (288f, "Thorny boughs"), (320f, "The loggers' camp"), (345f, "Tusk's clearing"),
         };
         static readonly (float x, int tip, string text)[] TreetopsTips =
         {
@@ -61,6 +61,7 @@ namespace Cloudborne
             (248f, -1, "A long rope bridge - and saw drones flying over it"),
             (286f, -1, "Thorns: cut them with the staff (hold <color=#ffb03a>ATTACK</color>)"),
             (318f, -1, "The loggers' camp! Koda must be here"),
+            (342f, -1, "Something big is snorting up ahead..."),
         };
         static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] JunglePosts =
         {
@@ -131,9 +132,13 @@ namespace Cloudborne
 
         public static CbGame I { get; private set; }
 
-        // Sergeant Snap, the mini-boss: his arena stands in front of the shrine gate
-        const float BossX = 474f;
-        static readonly Zone BossZone = new Zone { x = BossX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
+        // The mini-boss: Sergeant Snap in stage 1-1, his arena in front of the shrine gate; Tusk in stage 1-2, in his
+        // clearing at the end of the loggers' camp
+        const float SnapX = 474f;
+        static float BossX => CbStage.Treetops ? CbLevel.TuskX : SnapX;
+        static readonly Zone SnapZone = new Zone { x = SnapX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
+        static readonly Zone TuskZone = new Zone { x = CbLevel.TuskX, label = "Tusk", spawn = new (CbEnemy.Kind, float)[0] };
+        static Zone BossZone => CbStage.Treetops ? TuskZone : SnapZone;
         /// <summary>
         /// An ambush on a bridge: once he is from metres along it, the way shuts either side and raiders come at him
         /// from both ends, wave after wave (offsets from the zone's middle); when they are beaten, it opens.
@@ -424,8 +429,6 @@ namespace Cloudborne
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false;
-            // (stage 1-2's boss, Tusk, is still to come: its goal is open from the start)
-            if (CbStage.Treetops) bossStarted = bossDone = true;
             foreach (var a in Ambushes) { a.started = a.done = false; a.wave = 0; }
             exiting = false;
             hud?.HideBoss();
@@ -548,6 +551,7 @@ namespace Cloudborne
             bossStarted = true;
             lockZone = BossZone;
             hud.ShowGo(false);
+            if (CbStage.Treetops) { SpawnTusk(); return; }
             mode = Mode.Scene;
             hud.SetScreen(CbHud.Screen.Scene);
             scene = CbStory.SnapIntro(this, BossX);
@@ -564,6 +568,21 @@ namespace Cloudborne
             hud.SetWave("Defeat Sergeant Snap");
             hud.SetTip("<color=#ffb03a>Swipe ↔</color> to dodge his three blows, then strike. Purple flash: get away! A <color=#ffb03a>KI</color> move stops his whistle");
             hud.Banner("SGT. SNAP!");
+        }
+
+        /// <summary>
+        /// Tusk's fight: he waits at the far end of his clearing, rears and roars, and charges from trunk to trunk.
+        /// </summary>
+        void SpawnTusk()
+        {
+            boss = new CbEnemy(this, CbEnemy.Kind.Tusk, BossX + 6f, actors) { minX = BossX - CbEnemy.TuskCrash, maxX = BossX + CbEnemy.TuskCrash };
+            enemies.Add(boss);
+            arenaFoes.Clear();
+            arenaFoes.Add(boss);
+            hud.ShowBoss("TUSK");
+            hud.SetWave("Defeat Tusk");
+            hud.SetTip("His armour stops blows from the front. Jump or <color=#ffb03a>swipe ↔</color> out of his charge: he rams the tree - hit him from behind!");
+            hud.Banner("TUSK!");
         }
 
         /// <summary>A raider stepping into a fight at x, on the stone bridge's deck if that is over the water.</summary>
@@ -599,9 +618,16 @@ namespace Cloudborne
             bossDone = true;
             lockZone = null;
             hud.HideBoss();
-            hud.Banner("SNAP DEFEATED!");
             level?.OpenGoalGate(true);
             hud.ShowGo(true);
+            if (CbStage.Treetops)
+            {
+                hud.Banner("TUSK DEFEATED!");
+                hud.SetWave("Find Koda's cage");
+                hud.SetTip("Koda's cage is at the end of the camp");
+                return;
+            }
+            hud.Banner("SNAP DEFEATED!");
             hud.SetWave("Reach the shrine gate");
             hud.SetTip("The way to the shrine gate is open");
         }
@@ -804,6 +830,18 @@ namespace Cloudborne
             e.asleep = false;
             bool frontal = dir == -e.facing;
             var at = new Vector3(e.x - dir * 0.3f, e.HitHeight, -0.5f);
+            // Tusk's armour: a blow from in front glances off, unless his tusks are stuck in a tree
+            if (e.Armoured(dir))
+            {
+                var plate = new Vector3(e.x - dir * e.w, e.HitHeight + 0.2f, -0.5f);
+                CbFx.Spark(plate, CbFx.Grey, 10, 6, 0.3f, 0.25f, 4);
+                CbVfx.Burst(plate, CbFx.Grey, 1.3f, 0.1f);
+                hud.Popup(new Vector3(e.x - dir * e.w, e.HitHeight + 1.4f, 0), "ARMOUR!", CbHud.PopStyle.Block);
+                CbFx.Sfx("block");
+                hero.vx = -dir * 4;
+                hitstop = Mathf.Max(hitstop, 0.03f);
+                return false;
+            }
             // a raised shield stops everything except staff blows and the special shot
             if (e.guard && frontal && e.state != CbEnemy.State.Hurt && !breaker)
             {
@@ -907,13 +945,13 @@ namespace Cloudborne
         public void EnemyPoof(CbEnemy e)
         {
             var at = new Vector3(e.x, e.y + 0.7f, -0.4f);
-            CbFx.Puff(at, new Color(0.96f, 0.95f, 0.92f), e.Boss ? 22 : 14, e.Boss ? 3f : 2.2f, e.Boss ? 1.3f : 0.95f, 0.6f);
+            CbFx.Puff(at, new Color(0.96f, 0.95f, 0.92f), e.Big ? 22 : 14, e.Big ? 3f : 2.2f, e.Big ? 1.3f : 0.95f, 0.6f);
             CbFx.Puff(at + Vector3.up * 0.3f, new Color(0.82f, 0.8f, 0.86f), 6, 1.2f, 0.7f, 0.5f);
             CbFx.Spark(at, CbFx.Flame, 8, 5f, 0.22f, 0.5f, 2);
-            CbVfx.Burst(at, CbFx.Hit, e.Boss ? 2.2f : 1.4f, 0.16f);
+            CbVfx.Burst(at, CbFx.Hit, e.Big ? 2.2f : 1.4f, 0.16f);
             CbFx.Sfx("poof", 0.8f);
             items.Drop(new Vector3(e.x, e.y + 0.6f, 0));
-            if (e.Boss)
+            if (e.Big)
             {
                 for (int k = 0; k < 4; k++) items.Drop(new Vector3(e.x, e.y + 0.6f, 0));
                 items.Spawn(CbItems.Kind.Mango, new Vector3(e.x, e.y + 0.6f, 0));
