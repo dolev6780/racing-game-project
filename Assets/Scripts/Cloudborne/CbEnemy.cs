@@ -12,7 +12,7 @@ namespace Cloudborne
     /// </summary>
     public partial class CbEnemy
     {
-        public enum Kind { Hyena, Shield, Sergeant, Thrower, Tusk }
+        public enum Kind { Hyena, Shield, Sergeant, Thrower, Tusk, Grak }
         public enum State { Move, Atk, Hurt, Dying }
         /// <summary>Sergeant Snap's attacks.</summary>
         public enum BossMove { Combo, Chop, Leap, Whistle }
@@ -49,7 +49,7 @@ namespace Cloudborne
         // ---- Sergeant Snap ----
         public bool Boss => kind == Kind.Sergeant;
         /// <summary>A mini-boss (Sergeant Snap or Tusk): a bigger puff when he goes, and more in it.</summary>
-        public bool Big => Boss || kind == Kind.Tusk;
+        public bool Big => Boss || kind == Kind.Tusk || kind == Kind.Grak;
         /// <summary>
         /// A soldier at his post along the way (CbGame): he keeps between minX and maxX (his own stretch of dry path),
         /// goes for Raja only once he comes within Notice, and an asleep one waits until Raja is right by him or
@@ -87,15 +87,16 @@ namespace Cloudborne
             g = game;
             kind = k;
             x = x0;
-            bool shield = k == Kind.Shield, sergeant = k == Kind.Sergeant, thrower = k == Kind.Thrower, tusk = k == Kind.Tusk;
-            hp = max = tusk ? TuskHp : sergeant ? 320 : shield ? 46 : thrower ? 28 : 34;
+            bool shield = k == Kind.Shield, sergeant = k == Kind.Sergeant, thrower = k == Kind.Thrower, tusk = k == Kind.Tusk, grak = k == Kind.Grak;
+            hp = max = grak ? GrakHp : tusk ? TuskHp : sergeant ? 320 : shield ? 46 : thrower ? 28 : 34;
             speed = sergeant ? 2.3f : shield ? 2.1f : 2.7f;
             dmg = sergeant ? 9 : shield ? 10 : 8;
             reach = sergeant ? 1.9f : shield ? 1.6f : 1.5f;
-            scoreValue = sergeant || tusk ? 3000 : shield ? 500 : thrower ? 400 : 300;
+            scoreValue = grak ? 5000 : sergeant || tusk ? 3000 : shield ? 500 : thrower ? 400 : 300;
             if (shield) w = 0.6f;
             if (sergeant) { w = 0.7f; hy = 1.5f; }
             if (tusk) { w = TuskHalf; hy = 1f; }
+            if (grak) { w = GrakHalf; hy = 1.7f; }
             guard = shield;
             cd = Random.Range(0.5f, 1.4f);
             runPh = Random.Range(0f, 6f);
@@ -111,7 +112,7 @@ namespace Cloudborne
             blade = CbArt.Joint(f.R.hand, 0, -0.02f, 0.02f, thrower ? "spear" : "machete");
             // the thrower holds a spear (a shaft with a stone head), and has another to hand as soon as one is thrown
             if (thrower) SpearShape(blade, f.M("#7a5a36"), f.M("#9aa2ab"));
-            else if (!tusk && CbArt.Prop("Cloudborne/Props/Machete/Machete", blade) == null)
+            else if (!tusk && !grak && CbArt.Prop("Cloudborne/Props/Machete/Machete", blade) == null)
             {
                 CbArt.Box(f.M("#c9ced6"), blade, new Vector3(0, 0, 0.38f), new Vector3(0.03f, 0.1f, 0.62f));
                 CbArt.Box(f.M("#2a1f1a"), blade, new Vector3(0, 0, 0.02f), new Vector3(0.05f, 0.06f, 0.16f));
@@ -132,6 +133,13 @@ namespace Cloudborne
             f.root.localPosition = new Vector3(x, 0, 0);
             f.body.localRotation = Quaternion.Euler(0, -115, 0);
             if (tusk) { SetUpTusk(); return; }
+            if (grak)
+            {
+                modelPath = GrakPath;
+                model = CbModel.Load(GrakPath, GrakHeight, f.body);
+                SetUpGrak();
+                return;
+            }
 
             // The rig still places, turns and flips the hyena; with the model loaded only its machete and shield are drawn.
             modelPath = sergeant ? "Cloudborne/HyenaSergeant/HyenaSergeant" : shield ? "Cloudborne/HyenaGuard/HyenaGuard" : "Cloudborne/HyenaRaider/HyenaRaider";
@@ -329,6 +337,8 @@ namespace Cloudborne
         {
             // too heavy to be knocked about: the blows only flash on him
             if (kind == Kind.Tusk) return;
+            // Grak too: a blow only makes him flinch while his guard is down
+            if (kind == Kind.Grak) { if (GrakOpen) grakHurt = 0.35f; return; }
             if (Boss)
             {
                 // armoured: he takes the blows and keeps going, unless he stands open or a big blow lands
@@ -349,7 +359,7 @@ namespace Cloudborne
         {
             dead = true; state = State.Dying; t = 0;
             vx = dir * 10; vy = 7;
-            if (kind == Kind.Tusk) vx = vy = 0;
+            if (kind == Kind.Tusk || kind == Kind.Grak) vx = vy = 0;
         }
 
         /// <summary>A ki move (a staff technique, or fire) stops his whistle before it calls anyone.</summary>
@@ -510,6 +520,7 @@ namespace Cloudborne
         public bool Update(float dt)
         {
             if (kind == Kind.Tusk) return UpdateTusk(dt);
+            if (kind == Kind.Grak) return UpdateGrak(dt);
             t += dt;
             cd -= dt;
             flash = Mathf.Max(0, flash - dt);

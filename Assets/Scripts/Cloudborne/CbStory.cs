@@ -159,13 +159,46 @@ namespace Cloudborne
         };
 
         /// <summary>
-        /// Drawn, kept for stage 1-5: Raja touches the fire crystal and the fire bursts out of him for the first time,
-        /// his stripes lit gold. Until then he has no powers.
+        /// Drawn, as stage 1-5 begins (the story doc, "the crystal torn out"): Grak tears the fire crystal from its altar
+        /// in the Ember Temple, and a line of fire runs out between the trees.
+        /// </summary>
+        public static readonly CbComic.Shot[] CrystalTorn =
+        {
+            new CbComic.Shot { image = "crystal_torn", dur = 3.8f, from = new Vector3(0.45f, 0.5f, 1f), to = new Vector3(0.36f, 0.48f, 1.2f), fx = "embers",
+                caption = "The Ember Temple. On its altar, for a thousand years, the fire crystal..." },
+            new CbComic.Shot { image = "crystal_torn", dur = 3.2f, from = new Vector3(0.3f, 0.45f, 1.2f), to = new Vector3(0.28f, 0.45f, 1.3f), fx = "embers",
+                flash = true, shake = true, sfx = "heavy", caption = "...until Commander Grak tore it out." },
+            new CbComic.Shot { image = "crystal_torn", dur = 4.2f, from = new Vector3(0.5f, 0.62f, 1.18f), to = new Vector3(0.5f, 0.6f, 1.3f), fx = "embers",
+                who = "COMMANDER GRAK", caption = "This jungle will burn anyway. I'm just getting ahead." },
+        };
+
+        /// <summary>
+        /// Drawn, in the middle of Grak's fight (the story doc, "the stripes light up"): Raja is down, the crystal rolls to
+        /// him; at his touch a flash like a falling star, and his stripes light up gold. Until then he had no powers.
         /// </summary>
         public static readonly CbComic.Shot[] FireWakes =
         {
-            new CbComic.Shot { image = "fire_burst", dur = 2.8f, from = new Vector3(0.5f, 0.45f, 1.3f), to = new Vector3(0.5f, 0.5f, 1.05f), fx = "sparks",
-                flash = true, shake = true, sfx = "roar" },
+            new CbComic.Shot { image = "stripes_ignite", dur = 2.6f, from = new Vector3(0.62f, 0.4f, 1.25f), to = new Vector3(0.58f, 0.42f, 1.1f), fx = "embers",
+                caption = "The crystal rolled to him. He touched it..." },
+            new CbComic.Shot { image = "stripes_ignite", dur = 3f, from = new Vector3(0.45f, 0.5f, 1.05f), to = new Vector3(0.42f, 0.52f, 1.25f), fx = "sparks",
+                flash = true, shake = true, sfx = "roar", caption = "...and his stripes caught fire. Gold." },
+            new CbComic.Shot { image = "stripes_ignite", dur = 3.6f, from = new Vector3(0.36f, 0.55f, 1.25f), to = new Vector3(0.36f, 0.55f, 1.32f), fx = "sparks",
+                who = "RAJA", caption = "(to his fire) I'm not afraid of you anymore." },
+        };
+
+        /// <summary>
+        /// Drawn, the end of chapter 1 (the story doc, "the ship in the sky"): an airship over the burnt jungle, Koda caged
+        /// on its deck; the Crown's purple eye opens as it sees Raja's stripes.
+        /// </summary>
+        public static readonly CbComic.Shot[] ShipInTheSky =
+        {
+            new CbComic.Shot { image = "ship_in_sky", dur = 3.6f, from = new Vector3(0.6f, 0.4f, 1f), to = new Vector3(0.55f, 0.42f, 1.15f), fx = "embers",
+                caption = "High over the burnt jungle, an airship of the Iron Crown..." },
+            new CbComic.Shot { image = "ship_in_sky", dur = 3.4f, from = new Vector3(0.4f, 0.55f, 1.2f), to = new Vector3(0.42f, 0.55f, 1.3f),
+                who = "GENERAL VRASK", caption = "We took the wrong cub." },
+            new CbComic.Shot { image = "ship_in_sky", dur = 4.6f, from = new Vector3(0.75f, 0.75f, 1.2f), to = new Vector3(0.78f, 0.78f, 1.35f), fx = "purple",
+                who = "THE CROWN", caption = "(whispering) Leave the wolf. The tiger will come after him... and bring us all of them." },
+            new CbComic.Shot { title = "END OF CHAPTER 1", subtitle = "The fire crystal is Raja's. Koda is still a prisoner.", dur = 3.4f, fx = "embers" },
         };
 
         /// <summary>

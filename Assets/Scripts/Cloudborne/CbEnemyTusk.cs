@@ -43,8 +43,10 @@ namespace Cloudborne
         public bool Angry => kind == Kind.Tusk && hp < max * 0.5f;
         /// <summary>His tusks are stuck in a trunk: the time to hit him.</summary>
         public bool TuskStuck => kind == Kind.Tusk && !dead && tuskMove == TuskMove.Stuck;
-        /// <summary>A blow pushing dir glances off his armour: it comes from in front, and his tusks are not stuck.</summary>
-        public bool Armoured(int dir) => kind == Kind.Tusk && !dead && dir == -facing && tuskMove != TuskMove.Stuck;
+        /// <summary>A blow pushing dir glances off his armour: it comes from in front, and his tusks are not stuck (Tusk) or
+        /// his guard is up (Grak).</summary>
+        public bool Armoured(int dir) => !dead && dir == -facing
+            && (kind == Kind.Tusk ? tuskMove != TuskMove.Stuck : kind == Kind.Grak && !GrakOpen);
 
         void SetUpTusk()
         {

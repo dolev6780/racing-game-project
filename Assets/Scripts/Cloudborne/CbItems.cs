@@ -88,6 +88,7 @@ namespace Cloudborne
             if (CbStage.Treetops) { LayOutTreetops(); return; }
             if (CbStage.Grove) { LayOutGrove(); return; }
             if (CbStage.River) { LayOutRiver(); return; }
+            if (CbStage.Ember) { LayOutEmber(); return; }
 
             // crates along the path, each with something in it
             AddCrate(9f, Kind.Coin, Kind.Coin, Kind.Coin);
@@ -191,6 +192,19 @@ namespace Cloudborne
             Spawn(Kind.KiCrystal, new Vector3(CbLevel.TrialX[1] + 3.2f, 1.2f, 0), resting: true);
             AddCrate(91f, Kind.Mango, Kind.Coin);
             for (float x = 120f; x < 126f; x += 1.5f) C(x, 1.1f);
+        }
+
+        /// <summary>Stage 1-5: a few crates and coins on the way in, mangoes and ki crystals just before Grak's courtyard.</summary>
+        void LayOutEmber()
+        {
+            void C(float x, float y) => Spawn(Kind.Coin, new Vector3(x, y, 0), resting: true);
+            AddCrate(8f, Kind.Coin, Kind.Coin);
+            for (float x = 11f; x < 15f; x += 1.3f) C(x, 1.1f);
+            AddCrate(20f, Kind.Mango, Kind.Coin);
+            for (float x = 28f; x < 31f; x += 1.3f) C(x, 2.2f);
+            AddCrate(37f, Kind.KiCrystal, Kind.Coin);
+            AddCrate(45.5f, Kind.Mango, Kind.Mango);
+            Spawn(Kind.KiCrystal, new Vector3(CbLevel.GrakX - 13f, 1.2f, 0), resting: true);
         }
 
         void AddCrate(float x, params Kind[] contents)

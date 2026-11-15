@@ -31,9 +31,12 @@ namespace Cloudborne
         /// one waits until Raja is right by him. No arena: only Sergeant Snap shuts one.
         /// </summary>
         class Post { public float x, range; public CbEnemy.Kind kind; public bool asleep, spawned; public CbEnemy enemy; public Transform seat; }
-        static (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan => CbStage.Treetops ? TreetopsPosts : CbStage.Grove || CbStage.River ? GrovePosts : JunglePosts;
-        static (float x, string name)[] Sections => CbStage.Treetops ? TreetopsSections : CbStage.Grove ? GroveSections : CbStage.River ? RiverSections : JungleSections;
-        static (float x, int tip, string text)[] Tips => CbStage.Treetops ? TreetopsTips : CbStage.Grove ? GroveTips : CbStage.River ? RiverTips : JungleTips;
+        static (float x, CbEnemy.Kind kind, float range, bool asleep)[] PostPlan => CbStage.Treetops ? TreetopsPosts : CbStage.Grove || CbStage.River ? GrovePosts
+            : CbStage.Ember ? EmberPosts : JunglePosts;
+        static (float x, string name)[] Sections => CbStage.Treetops ? TreetopsSections : CbStage.Grove ? GroveSections : CbStage.River ? RiverSections
+            : CbStage.Ember ? EmberSections : JungleSections;
+        static (float x, int tip, string text)[] Tips => CbStage.Treetops ? TreetopsTips : CbStage.Grove ? GroveTips : CbStage.River ? RiverTips
+            : CbStage.Ember ? EmberTips : JungleTips;
 
         // stage 1-4, The Stormy River: riding, no soldiers; Koda shouting from his barge ahead; the saw barge at the end
         static readonly (float x, string name)[] RiverSections =
@@ -59,6 +62,21 @@ namespace Cloudborne
 
         // stage 1-3, Baba's Grove: no soldiers; Baba's three trials (CbLevelGrove), each shutting the way until it is done
         static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] GrovePosts = new (float, CbEnemy.Kind, float, bool)[0];
+        // stage 1-5, The Ember Temple: the last of the raiders on the way in through the burning jungle, then Grak
+        static readonly (float x, CbEnemy.Kind kind, float range, bool asleep)[] EmberPosts =
+        {
+            (16f, CbEnemy.Kind.Hyena, 4f, false), (24f, CbEnemy.Kind.Hyena, 4f, false), (33f, CbEnemy.Kind.Shield, 4f, false),
+            (41f, CbEnemy.Kind.Thrower, 4f, false),
+        };
+        static readonly (float x, string name)[] EmberSections =
+        {
+            (0f, "The burning jungle"), (CbLevel.GrakX - 14f, "The Ember Temple"),
+        };
+        static readonly (float x, int tip, string text)[] EmberTips =
+        {
+            (2f, -1, "The jungle is burning... the Ember Temple is just ahead"),
+            (CbLevel.GrakX - 16f, -1, "Grak has the fire crystal. Get it back!"),
+        };
         static readonly (float x, string name)[] GroveSections =
         {
             (0f, "Baba's grove"), (CbLevel.TrialX[0] - 12f, "The bells"), (CbLevel.TrialX[1] - 12f, "The bamboo dummies"),
@@ -211,11 +229,12 @@ namespace Cloudborne
         // The mini-boss: Sergeant Snap in stage 1-1, his arena in front of the shrine gate; Tusk in stage 1-2, in his
         // clearing at the end of the loggers' camp
         const float SnapX = 474f;
-        static float BossX => CbStage.Treetops ? CbLevel.TuskX : CbStage.River ? CbLevel.BasinX - 2f : SnapX;
+        static float BossX => CbStage.Treetops ? CbLevel.TuskX : CbStage.River ? CbLevel.BasinX - 2f : CbStage.Ember ? CbLevel.GrakX : SnapX;
         static readonly Zone SnapZone = new Zone { x = SnapX, label = "Sergeant Snap", spawn = new (CbEnemy.Kind, float)[0] };
         static readonly Zone TuskZone = new Zone { x = CbLevel.TuskX, label = "Tusk", spawn = new (CbEnemy.Kind, float)[0] };
         static readonly Zone BargeZone = new Zone { x = CbLevel.BasinX - 3f, label = "The saw barge", spawn = new (CbEnemy.Kind, float)[0] };
-        static Zone BossZone => CbStage.Treetops ? TuskZone : CbStage.River ? BargeZone : SnapZone;
+        static readonly Zone GrakZone = new Zone { x = CbLevel.GrakX, label = "Commander Grak", spawn = new (CbEnemy.Kind, float)[0] };
+        static Zone BossZone => CbStage.Treetops ? TuskZone : CbStage.River ? BargeZone : CbStage.Ember ? GrakZone : SnapZone;
         /// <summary>
         /// An ambush on a bridge: once he is from metres along it, the way shuts either side and raiders come at him
         /// from both ends, wave after wave (offsets from the zone's middle); when they are beaten, it opens.
@@ -333,7 +352,7 @@ namespace Cloudborne
         // the camera looks a little above his head: the ground sits low in the view, the painted jungle fills it
         const float BaseFov = 26f, CamBase = 2.1f, CamRise = 0.6f, ViewHalfWidth = 8f, LookAhead = 2.4f;
         // drawn back over high ground: down to CamLow (just under the water) in view, at most CamBackMax times as far
-        const float CamLow = -0.9f, CamBackMax = 1.45f, TuskFightBack = 1.35f, BargeFightBack = 1.4f, RideLook = 4.5f;
+        const float CamLow = -0.9f, CamBackMax = 1.45f, TuskFightBack = 1.35f, BargeFightBack = 1.4f, GrakFightBack = 1.3f, RideLook = 4.5f;
         // in the gorge the camera draws back further and looks at its middle, showing its walls and the water below
         // (the user wanted it further out there)
         const float CamGorge = 1.95f;
@@ -509,7 +528,7 @@ namespace Cloudborne
             foreach (var (x, kind, range, asleep) in PostPlan)
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
-            boss = null; bossStarted = bossDone = false;
+            boss = null; bossStarted = bossDone = false; FireAwakened = false;
             // (stage 1-3 has no boss: Baba's trials, then the way on)
             if (CbStage.Grove) bossStarted = bossDone = true;
             trial = 0;
@@ -553,6 +572,7 @@ namespace Cloudborne
                 BuildStage();
                 // the opening is stage 1-1's; stage 1-2 starts straight away, stage 1-3 with Baba's lesson (drawn)
                 if (CbStage.Grove && CbComic.Available(CbStory.BabaLesson)) PlayLesson();
+                else if (CbStage.Ember && CbComic.Available(CbStory.CrystalTorn)) PlayDrawnStart(CbStory.CrystalTorn);
                 else if (introSeen || !CbStage.Jungle) StartGame();
                 else if (CbComic.Available(CbStory.Prologue)) PlayPrologue();
                 else PlayOpening();
@@ -610,12 +630,15 @@ namespace Cloudborne
         }
 
         /// <summary>Stage 1-3 opens with Baba's lesson, drawn (the story doc), then the trials begin.</summary>
-        void PlayLesson()
+        void PlayLesson() => PlayDrawnStart(CbStory.BabaLesson);
+
+        /// <summary>A stage that opens with a drawn moment (Baba's lesson, the crystal torn out), then begins.</summary>
+        void PlayDrawnStart(CbComic.Shot[] shots)
         {
             ResetGame();
             mode = Mode.Comic;
             hud.SetScreen(CbHud.Screen.Scene);
-            comic.Play(CbStory.BabaLesson, () => fade.FadeThrough(() => { comic.Hide(); StartGame(); }));
+            comic.Play(shots, () => fade.FadeThrough(() => { comic.Hide(); StartGame(); }));
         }
 
         /// <summary>MENU on the pause or result screen: the run ends and the main menu comes back.</summary>
@@ -662,6 +685,7 @@ namespace Cloudborne
             lockZone = BossZone;
             hud.ShowGo(false);
             if (CbStage.Treetops) { SpawnTusk(); return; }
+            if (CbStage.Ember) { SpawnGrak(); return; }
             if (CbStage.River)
             {
                 level.StartSawBarge();
@@ -702,6 +726,83 @@ namespace Cloudborne
             hud.SetWave("Defeat Tusk");
             hud.SetTip("His armour stops blows from the front. Jump or <color=#ffb03a>swipe ↔</color> out of his charge: he rams the tree - hit him from behind!");
             hud.Banner("TUSK!");
+        }
+
+        /// <summary>
+        /// Commander Grak's fight (stage 1-5): he waits in the middle of the temple's courtyard, pounds his chest and roars,
+        /// and comes on (CbEnemyGrak).
+        /// </summary>
+        void SpawnGrak()
+        {
+            boss = new CbEnemy(this, CbEnemy.Kind.Grak, BossX + 5f, actors) { minX = BossX - CbLevel.GrakCrash, maxX = BossX + CbLevel.GrakCrash };
+            enemies.Add(boss);
+            arenaFoes.Clear();
+            arenaFoes.Add(boss);
+            hud.ShowBoss("COMMANDER GRAK");
+            hud.SetWave("Defeat Commander Grak");
+            hud.SetTip("His iron stops blows from the front. Dodge his saw and strike as it misses; jump or <color=#ffb03a>swipe ↔</color> out of his charge - winded against the pillar, he is open!");
+            hud.Banner("COMMANDER GRAK!");
+        }
+
+        /// <summary>Grak's last slam knocked the crystal out of his armour: it rolls to Raja, and his fire wakes.</summary>
+        public void CrystalLoose() => Invoke(nameof(FireAwakens), CbLevel.CrystalRoll + 0.25f);
+
+        /// <summary>
+        /// The crystal reaches Raja (the story doc, "the stripes light up", drawn): he touches it and his fire wakes - his
+        /// stripes gold, his ki full, his moves now fire. Grak, his crystal gone, can be beaten.
+        /// </summary>
+        void FireAwakens()
+        {
+            if (mode != Mode.Play || !CbStage.Ember) return;
+            if (!CbComic.Available(CbStory.FireWakes)) { AwakenFire(); return; }
+            mode = Mode.Comic;
+            hud.SetScreen(CbHud.Screen.Scene);
+            comic.Play(CbStory.FireWakes, () => fade.FadeThrough(() =>
+            {
+                comic.Hide();
+                mode = Mode.Play;
+                hud.SetScreen(CbHud.Screen.None);
+                AwakenFire();
+            }));
+        }
+
+        void AwakenFire()
+        {
+            CbSave.FireAwake = true;
+            level?.CrystalTaken();
+            hero.ki = 100;
+            hero.hp = Mathf.Min(hero.MaxHp, hero.hp + 40f);
+            boss?.Awaken();
+            FireAwakened = true;
+            var at = new Vector3(hero.x, hero.y + 1.2f, -0.4f);
+            CbFx.Spark(at, CbFx.Flame, 40, 9, 0.6f, 0.8f, -2);
+            CbVfx.Burst(at, CbFx.Flame, 3.4f, 0.3f);
+            CbVfx.Ring(at, CbFx.Fire * 0.5f, 3f, 0.5f);
+            hud.ImpactFlash(0.6f);
+            hud.Banner("THE FIRE AWAKENS!");
+            hud.SetTip("Your fire is awake! <color=#ffb03a>SPECIAL</color>: the tiger flame cannon - finish him!");
+        }
+
+        /// <summary>Raja's fire woke in this fight (test hook).</summary>
+        public bool FireAwakened { get; private set; }
+
+        /// <summary>
+        /// Grak beaten, the end of chapter 1 (drawn: the airship over the burnt jungle, Koda on its deck; the Crown's eye
+        /// opens), then the stage is clear.
+        /// </summary>
+        void ChapterEnd()
+        {
+            if (mode != Mode.Play) return;
+            if (!CbComic.Available(CbStory.ShipInTheSky)) { StageCleared(); return; }
+            mode = Mode.Comic;
+            hud.SetScreen(CbHud.Screen.Scene);
+            comic.Play(CbStory.ShipInTheSky, () => fade.FadeThrough(() =>
+            {
+                comic.Hide();
+                mode = Mode.Play;
+                hud.SetScreen(CbHud.Screen.None);
+                StageCleared();
+            }));
         }
 
         /// <summary>A raider stepping into a fight at x, on the stone bridge's deck if that is over the water.</summary>
@@ -748,6 +849,14 @@ namespace Cloudborne
                 mode = Mode.Scene;
                 hud.SetScreen(CbHud.Screen.Scene);
                 scene = CbStory.RiverEnd(this);
+                return;
+            }
+            if (CbStage.Ember)
+            {
+                hud.Banner("GRAK DEFEATED!");
+                cleared = true;
+                hud.ShowGo(false);
+                Invoke(nameof(ChapterEnd), 2.4f);
                 return;
             }
             if (CbStage.Treetops)
@@ -805,6 +914,7 @@ namespace Cloudborne
                 if (a.started && !a.done) { a.started = false; a.wave = 0; lockZone = null; hud.ShowGo(true); }
             if (CbStage.Grove && lockZone != null) { lockZone = null; level?.LeaveTrial(); hud.ShowGo(true); }
             if (CbStage.River) level?.LeaveSawBarge();
+            if (CbStage.Ember) { level?.LeaveGrakFight(); CancelInvoke(nameof(FireAwakens)); }
             hero.RespawnAt(checkpointX);
             level?.Respawned(checkpointX);
             lastHp = hero.hp;
@@ -979,14 +1089,14 @@ namespace Cloudborne
         /// A blow on an enemy. breaker: a staff blow (breaks a raised shield); fire: it sets him burning; ki: a ki move
         /// (a staff technique or fire), which stops the sergeant's whistle.
         /// </summary>
-        public bool HurtEnemy(CbEnemy e, float dmg, int dir, float kb, float up, bool big, bool breaker, bool fire, bool fromPlayer, bool ki = false)
+        public bool HurtEnemy(CbEnemy e, float dmg, int dir, float kb, float up, bool big, bool breaker, bool fire, bool fromPlayer, bool ki = false, bool pierce = false)
         {
             if (e.dead) return false;
             e.asleep = false;
             bool frontal = dir == -e.facing;
             var at = new Vector3(e.x - dir * 0.3f, e.HitHeight, -0.5f);
             // Tusk's armour: a blow from in front glances off, unless his tusks are stuck in a tree
-            if (e.Armoured(dir))
+            if (!pierce && e.Armoured(dir))
             {
                 var plate = new Vector3(e.x - dir * e.w, e.HitHeight + 0.2f, -0.5f);
                 CbFx.Spark(plate, CbFx.Grey, 10, 6, 0.3f, 0.25f, 4);
@@ -1021,6 +1131,8 @@ namespace Cloudborne
             if ((fire || ki) && e.Whistling) e.BreakWhistle();
             if (hero.empower && fromPlayer) { dmg *= 2; hero.empower = false; big = true; }
             e.hp -= dmg;
+            // (Grak can't be beaten before Raja's fire wakes: CbEnemyGrak)
+            e.HoldOn();
             e.flash = 0.12f;
             if (fire) { e.burnT = 3; e.burnTick = 0.4f; }
             combo++;
@@ -1555,6 +1667,9 @@ namespace Cloudborne
             // the saw barge: drawn back a little, the whole barge and its barrels in view with the basin ahead of it
             bool bargeFight = mode == Mode.Play && CbStage.River && lockZone != null && lockZone == BossZone;
             if (bargeFight) back = Mathf.Max(back, BargeFightBack);
+            // Grak's courtyard: drawn back like Tusk's clearing, pillar to pillar
+            bool grakFight = mode == Mode.Play && CbStage.Ember && lockZone != null && lockZone == BossZone;
+            if (grakFight) back = Mathf.Max(back, GrakFightBack);
             camBack += (back - camBack) * (1 - Mathf.Exp(-2f * dt));
             dist *= camBack;
             float tx = hero.x + hero.facing * LookAhead;
@@ -1563,6 +1678,7 @@ namespace Cloudborne
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
             if (tuskFight) tx = Mathf.Lerp(lockZone.x, hero.x, 0.15f);
             if (bargeFight) tx = Mathf.Lerp(lockZone.x - 2.5f, hero.x, 0.3f);
+            if (grakFight) tx = Mathf.Lerp(lockZone.x, hero.x, 0.3f);
             // riding the river: the view well ahead, to see what is coming
             if (CbStage.River && Riding) tx = hero.x + RideLook;
             tx = Mathf.Lerp(tx, CbLevel.GorgeMiddle, gorge * 0.6f);

@@ -84,7 +84,8 @@ namespace RacingGame.Tests
             }
             Assert.Greater(least, 0.9f, "Moving in, the cutscene cut away much of the painting");
             // the story's own moves in keep nearly all of it too
-            foreach (var scene in new[] { CbStory.Prologue, CbStory.KodaBoast, CbStory.KodaTaken, CbStory.Journey, CbStory.FireWakes })
+            foreach (var scene in new[] { CbStory.Prologue, CbStory.KodaBoast, CbStory.KodaTaken, CbStory.Journey, CbStory.FireWakes,
+                         CbStory.CrystalTorn, CbStory.ShipInTheSky, CbStory.BabaLesson })
                 foreach (var shot in scene)
                     if (shot.title == null) Assert.LessOrEqual(Mathf.Max(shot.from.z, shot.to.z), 1.5f, $"{shot.image} moves in too far");
             Assert.IsTrue(done, "The drawn cutscene never finished");
@@ -332,7 +333,8 @@ namespace RacingGame.Tests
         {
             yield return null;
             foreach (var name in new[] { "prologue_temple", "prologue_crown", "prologue_shatter", "prologue_leap", "prologue_jungle",
-                         "koda_boast", "koda_taken", "raja_angry", "raja_journey", "baba_lesson1", "baba_lesson2", "cub_clouds" })
+                         "koda_boast", "koda_taken", "raja_angry", "raja_journey", "baba_lesson1", "baba_lesson2", "cub_clouds",
+                         "crystal_torn", "stripes_ignite", "ship_in_sky" })
             {
                 var tex = Resources.Load<Texture2D>("Cloudborne/Story/" + name);
                 Assert.IsNotNull(tex, $"The painting {name} is missing (Resources/Cloudborne/Story)");
@@ -344,6 +346,9 @@ namespace RacingGame.Tests
             Assert.IsTrue(CbComic.Available(CbStory.Prologue), "The prologue can't be shown");
             Assert.IsTrue(CbComic.Available(CbStory.BabaLesson), "Baba's lesson can't be shown");
             Assert.IsTrue(CbComic.Available(CbStory.CubInTheClouds), "The drawing behind Baba's scroll can't be shown");
+            Assert.IsTrue(CbComic.Available(CbStory.CrystalTorn), "Grak tearing out the crystal can't be shown");
+            Assert.IsTrue(CbComic.Available(CbStory.FireWakes), "Raja's fire waking can't be shown");
+            Assert.IsTrue(CbComic.Available(CbStory.ShipInTheSky), "The end of chapter 1 can't be shown");
         }
 
         [UnityTest]
@@ -1941,6 +1946,135 @@ namespace RacingGame.Tests
             game.Teleport(CbLevel.BasinX + 2f);
             game.hero.y = CbLevel.RiverFloor(CbLevel.BasinX);
             yield return TakePictures(new[] { ("river_barge", float.NaN, 0f) }, 4.5f);
+        }
+
+        [UnityTest]
+        public IEnumerator GraksThreePhasesAndRajasFireWakes()
+        {
+            // stage 1-5 (the story doc): Commander Grak - his armour (charges into the pillars, his saw), the fire round the
+            // arena (beaten back, filling ki), the crystal on his armour (fire, waves); his last slam knocks the crystal to
+            // Raja, his fire wakes (drawn), and Grak is beaten; then the end of chapter 1 (drawn)
+            CbSave.FireAwake = false;
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-5");
+            game.BuildStage();
+            game.StartGame();
+            Time.captureDeltaTime = game.TestStep = 1f / 30f;
+            yield return Frames(2);
+            var hero = game.hero;
+            var level = game.level;
+            hero.hp = 9999;
+            game.SkipFights();
+            game.SkipToBoss();
+            // (his fight starts 7 metres before the middle of the courtyard)
+            game.Teleport(CbLevel.GrakX - 6.5f);
+            hero.y = 0;
+            yield return Frames(3);
+            var grak = game.boss;
+            Assert.IsNotNull(grak, "Grak did not come");
+            Assert.AreEqual(CbEnemy.Kind.Grak, grak.kind);
+            Assert.IsNotNull(grak.model, "Grak's model did not load");
+            // his iron: a blow from in front glances off
+            float hp = grak.hp;
+            game.HurtEnemy(grak, 10f, -grak.facing, 2f, 0f, false, false, fire: false, fromPlayer: true);
+            Assert.AreEqual(hp, grak.hp, 0.01f, "A blow from in front got through Grak's armour");
+            // far from Raja he charges - into the pillar, winded: now he is open
+            for (float w = 0; w < 12f && grak.grakMove != CbEnemy.GrakMove.Dazed; w += Time.deltaTime)
+            {
+                yield return null;
+                if (grak.grakMove != CbEnemy.GrakMove.Charge && grak.grakMove != CbEnemy.GrakMove.Scrape) { hero.x = grak.x < CbLevel.GrakX ? CbLevel.GrakX + 9f : CbLevel.GrakX - 9f; hero.y = 0; }
+            }
+            Assert.AreEqual(CbEnemy.GrakMove.Dazed, grak.grakMove, "Grak's charge did not end against a pillar");
+            Assert.IsTrue(grak.GrakOpen, "Winded against the pillar, Grak's guard is still up");
+            hp = grak.hp;
+            game.HurtEnemy(grak, 10f, -grak.facing, 2f, 0f, false, false, fire: false, fromPlayer: true);
+            Assert.Less(grak.hp, hp, "A blow on Grak while he is winded did nothing");
+            // two thirds down: the arena's edges catch fire and creep in
+            grak.hp = grak.max * 0.6f;
+            for (float w = 0; w < 10f && !level.FireOn; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(level.FireOn, "The fire did not catch round the arena");
+            Assert.AreEqual(2, grak.GrakPhase);
+            float left = level.FireLeftX;
+            yield return new WaitForSeconds(1f);
+            Assert.Greater(level.FireLeftX, left, "The fire did not creep in");
+            // a blow on it beats it back, and its heat fills his ki
+            left = level.FireLeftX;
+            hero.x = left + 1.3f; hero.y = 0; hero.ki = 0;
+            level.Strike(hero.x, 0.5f, -1, 1.5f, staff: true);
+            Assert.Less(level.FireLeftX, left, "A blow did not beat the fire back");
+            Assert.Greater(hero.ki, 0f, "The fire's heat did not fill Raja's ki");
+            hero.x = CbLevel.GrakX - 2f;
+            // a third down: the crystal on his armour, and fire from it
+            grak.hp = grak.max * 0.3f;
+            for (float w = 0; w < 10f && !grak.CrystalOnArmour; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(grak.CrystalOnArmour, "Grak did not fix the crystal to his armour");
+            bool fire = false;
+            for (float w = 0; w < 20f && !fire; w += Time.deltaTime)
+            {
+                yield return null;
+                fire = grak.FireWaves > 0 || level.ThrownComing(hero.x, 0f, hero.x < grak.x ? 1 : -1, 30f);
+                if (Mathf.Abs(hero.x - grak.x) < 4f) hero.x = grak.x < CbLevel.GrakX ? CbLevel.GrakX + 6f : CbLevel.GrakX - 6f;
+            }
+            Assert.IsTrue(fire, "With the crystal on him Grak shot no fire and sent out no waves");
+            // he can't be beaten while Raja's fire sleeps: his last slam knocks the crystal loose, it rolls to Raja
+            game.HurtEnemy(grak, 9999f, 1, 2f, 0f, false, false, fire: false, fromPlayer: true, pierce: true);
+            Assert.IsFalse(grak.dead, "Grak was beaten before Raja's fire woke");
+            for (float w = 0; w < 15f && !level.CrystalRolling && game.mode == CbGame.Mode.Play; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(level.CrystalRolling || game.mode == CbGame.Mode.Comic, "Grak's last slam did not knock the crystal loose");
+            for (float w = 0; w < 5f && game.mode != CbGame.Mode.Comic && !game.FireAwakened; w += Time.deltaTime) yield return null;
+            if (game.mode == CbGame.Mode.Comic) game.comic.Skip();
+            for (float w = 0; w < 4f && !game.FireAwakened; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(game.FireAwakened, "Raja's fire did not wake");
+            Assert.IsTrue(CbSave.FireAwake, "Raja's fire woke but was not kept");
+            Assert.IsTrue(grak.GrakAwakened, "Grak did not know Raja's fire woke");
+            Assert.AreEqual(100f, hero.ki, 0.5f, "His fire woke but his ki is not full");
+            // now he can be beaten: then the end of chapter 1 (drawn), and the stage is clear
+            game.HurtEnemy(grak, 9999f, 1, 2f, 0f, true, false, fire: true, fromPlayer: true, pierce: true);
+            Assert.IsTrue(grak.dead, "With Raja's fire awake Grak could not be beaten");
+            for (float w = 0; w < 8f && game.mode != CbGame.Mode.Comic; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(CbGame.Mode.Comic, game.mode, "The end of chapter 1 was not shown");
+            Assert.IsTrue(game.Cleared, "Stage 1-5 was not cleared");
+            game.comic.Skip();
+            yield return WaitForMode(CbGame.Mode.Over, 8f);
+            Assert.AreEqual(CbGame.Mode.Over, game.mode, "Stage 1-5 did not end");
+            CbSave.FireAwake = false;
+            CbStage.Set("1-1");
+            game.BuildStage();
+        }
+
+        [UnityTest]
+        public IEnumerator ZzEmberPictures()
+        {
+            CbSave.FireAwake = false;
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-5");
+            game.BuildStage();
+            game.StartGame();
+            Time.captureDeltaTime = game.TestStep = 1f / 30f;
+            yield return Frames(2);
+            game.hero.hp = 9999;
+            game.hero.inv = 999f;
+            yield return TakePictures(new[] { ("ember_start", 6f, 0f) }, 2f);
+            game.SkipFights();
+            game.SkipToBoss();
+            game.Teleport(CbLevel.GrakX - 6.5f);
+            game.hero.y = 0;
+            yield return TakePictures(new[] { ("ember_grak", float.NaN, 0f) }, 1.2f);
+            var grak = game.boss;
+            Assert.IsNotNull(grak, "Grak did not come");
+            for (float w = 0; w < 10f && grak.grakMove != CbEnemy.GrakMove.Swing && grak.grakMove != CbEnemy.GrakMove.Chop && grak.grakMove != CbEnemy.GrakMove.Charge; w += Time.deltaTime)
+                yield return null;
+            yield return TakePictures(new[] { ("ember_blow", float.NaN, 0f) }, 0.4f);
+            grak.hp = grak.max * 0.6f;
+            for (float w = 0; w < 10f && !game.level.FireOn; w += Time.deltaTime) yield return null;
+            yield return TakePictures(new[] { ("ember_fire", float.NaN, 0f) }, 1.5f);
+            grak.hp = grak.max * 0.3f;
+            for (float w = 0; w < 10f && !grak.CrystalOnArmour; w += Time.deltaTime) yield return null;
+            for (float w = 0; w < 10f && grak.grakMove != CbEnemy.GrakMove.Fire && grak.grakMove != CbEnemy.GrakMove.Slam; w += Time.deltaTime) yield return null;
+            yield return TakePictures(new[] { ("ember_crystal", float.NaN, 0f) }, 0.7f);
+            CbSave.FireAwake = false;
         }
 
         [UnityTest]

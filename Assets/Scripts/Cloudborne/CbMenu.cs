@@ -23,7 +23,7 @@ namespace Cloudborne
             public bool open;
         }
 
-        /// <summary>Chapter 1's stages, as in the story doc; only 1-1 is built so far.</summary>
+        /// <summary>Chapter 1's stages, as in the story doc.</summary>
         public static readonly StageInfo[] Stages =
         {
             new StageInfo { id = "1-1", name = "THE JUNGLE GATE", open = true },
@@ -31,7 +31,7 @@ namespace Cloudborne
             new StageInfo { id = "1-2", name = "THE TREETOPS", open = true },
             new StageInfo { id = "1-3", name = "BABA'S GROVE", open = true },
             new StageInfo { id = "1-4", name = "THE STORMY RIVER", open = true },
-            new StageInfo { id = "1-5", name = "THE EMBER TEMPLE" },
+            new StageInfo { id = "1-5", name = "THE EMBER TEMPLE", open = true },
         };
 
         static readonly Color Paper = CbArt.Hex("#fff6e8"), Gold = CbArt.Hex("#ffc94a"), Ember = CbArt.Hex("#ff5a2e"),

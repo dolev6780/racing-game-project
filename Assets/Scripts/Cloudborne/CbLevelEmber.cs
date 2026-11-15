@@ -1,0 +1,287 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Cloudborne
+{
+    /// <summary>
+    /// Stage 1-5, The Ember Temple (the story doc: a boss stage; Grak tears the fire crystal out and the jungle goes up in
+    /// flames; the edges of the arena burn and close in; Raja grabs the crystal and his stripes light up). A short way in
+    /// past the last of the raiders, then the temple's courtyard: a stone floor, the empty altar at the back (the crystal's
+    /// stone paws, the crystal gone), a shrine pillar at either end of the arena (Grak's charges end against them), embers
+    /// rising all the time.
+    /// <list type="bullet">
+    /// <item>The fire (Grak's second phase): it catches at both ends of the arena and creeps in. Touching it burns. A blow
+    /// on it (any blow, the staff's wind) beats it back a little, and its heat fills Raja's ki (the story doc: his fire
+    /// draws it in) - his fire is waking.</item>
+    /// <item>The crystal: Grak fixes it to his armour for his third phase and shoots fire with it; knocked out of it, it
+    /// rolls across the stones to Raja (CbEnemy, CbGame.FireAwakens).</item>
+    /// </list>
+    /// </summary>
+    public partial class CbLevel
+    {
+        public const float EmberMax = 80f, EmberGoal = 77f;
+        /// <summary>The middle of Grak's arena, and how far from it his charges end (against the pillars).</summary>
+        public const float GrakX = 62f, GrakCrash = 9.4f;
+        static readonly (float x0, float x1)[] EmberWaters = new (float, float)[0];
+        const string CrystalPath = "Cloudborne/Ember/FireCrystal/FireCrystal";
+        // the fire: where each side starts, how far in it can creep, how fast, how far a blow beats it back, what it gives
+        public const float FireFrom = 9.2f, FireClosest = 4.2f;
+        const float FireCreep = 0.42f, FireBeat = 1.3f, FireKi = 7f, FireDamage = 7f, FireTall = 1.6f;
+
+        Transform emberAltar, altarCrystal, looseCrystal;
+        readonly List<Transform> emberPillars = new List<Transform>();
+        readonly List<Transform> fireTongues = new List<Transform>();
+        Transform fireLeft, fireRight;
+        float fireL, fireR, emberT, pillarShake, pillarShakeX;
+        bool fireOn;
+        // the crystal knocked out of Grak's armour, rolling across the stones to Raja
+        Vector3 rollFrom, rollTo;
+        float rollT = -1f;
+
+        /// <summary>The fire around the arena is burning (Grak's second phase on), and how far in it has come each side.</summary>
+        public bool FireOn => fireOn;
+        public float FireLeftX => GrakX - fireL;
+        public float FireRightX => GrakX + fireR;
+        /// <summary>The crystal is rolling to Raja (it reaches him at the end of CrystalRoll seconds).</summary>
+        public bool CrystalRolling => rollT >= 0;
+        public const float CrystalRoll = 1.3f;
+
+        void BuildEmber()
+        {
+            AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
+            AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
+            // the courtyard's floor: worn sandstone slabs over the path, from just before the arena to its end
+            var slab = CbArt.NewToon(Color.white, 0f, SlabTexture());
+            slab.SetFloat("_SpecStrength", 0f);
+            float from = GrakX - 13f, to = EmberMax + 6f;
+            slab.mainTextureScale = new Vector2((to - from) / 2.4f, 1.4f);
+            CbArt.Part(CbMesh.Quad, slab, root, new Vector3((from + to) / 2, 0.015f, 0.4f), new Vector3(to - from, 3.6f, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "slabs";
+            // a pillar at either end of the arena: where Grak's charges end (just outside where Raja can go)
+            foreach (int side in new[] { -1, 1 })
+            {
+                var t = CbArt.Joint(root, GrakX + side * (GrakCrash + 1.35f), 0, 0.75f, "emberPillar");
+                var holder = CbArt.Joint(t, 0, 0, 0, "shape");
+                holder.localScale = new Vector3(1.1f / 1.48f, 4.6f / 3.6f, 0.8f);
+                if (CbArt.Prop("Cloudborne/Jungle/Pillar/Pillar", holder, CbArt.PropOutline) == null)
+                    CbArt.Box(M("#a08a6a"), holder, new Vector3(0, 1.8f, 0), new Vector3(1.48f, 3.6f, 1.5f));
+                emberPillars.Add(t);
+            }
+            // the altar at the back of the courtyard: a stepped block of stone, the crystal's stone paws on top, empty
+            emberAltar = CbArt.Joint(root, GrakX, 0, 2.6f, "altar");
+            var stone = M("#8a7660");
+            CbArt.Box(stone, emberAltar, new Vector3(0, 0.25f, 0), new Vector3(2.6f, 0.5f, 1.8f));
+            CbArt.Box(M("#7a6650"), emberAltar, new Vector3(0, 0.75f, 0), new Vector3(1.8f, 0.5f, 1.3f));
+            var crystal = CbArt.Joint(emberAltar, 0, 1.0f, 0, "crystalHolder");
+            if (CbArt.Prop(CrystalPath, crystal, CbArt.PropOutline) is Transform holderModel)
+                foreach (var c in holderModel.GetComponentsInChildren<Transform>(true))
+                    if (c.name == "Crystal") altarCrystal = c;
+            // (torn out already when the stage begins: the opening's painting)
+            if (altarCrystal != null) altarCrystal.gameObject.SetActive(false);
+            // the fire: a row of flames at each side, unlit until Grak sets it going
+            fireLeft = FireWall("fireLeft");
+            fireRight = FireWall("fireRight");
+            ResetEmber();
+        }
+
+        /// <summary>A wall of fire across the path: tall flickering tongues from the back to the front, glowing.</summary>
+        Transform FireWall(string name)
+        {
+            var t = CbArt.Joint(root, GrakX, 0, 0, name);
+            var flame = CbArt.Glow(new Color(1f, 0.55f, 0.15f, 0.85f), CbArt.Shaft);
+            var core = CbArt.Glow(new Color(1f, 0.85f, 0.4f, 0.9f), CbArt.Shaft);
+            for (int k = 0; k < 7; k++)
+            {
+                float z = -1.4f + k * 0.55f;
+                var tongue = CbArt.Part(CbMesh.Quad, k % 2 == 0 ? flame : core, t, new Vector3(Random.Range(-0.2f, 0.2f), FireTall / 2, z),
+                    new Vector3(0.9f, FireTall, 1), shadows: false);
+                tongue.name = "flame";
+                fireTongues.Add(tongue);
+            }
+            t.gameObject.SetActive(false);
+            return t;
+        }
+
+        /// <summary>A sandstone slab texture drawn in code: big worn slabs, dark joints, a few cracks and scorch marks.</summary>
+        static Texture2D SlabTexture()
+        {
+            const int S = 128;
+            var tex = new Texture2D(S, S, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Repeat, name = "slabs" };
+            var px = new Color[S * S];
+            Color sand = CbArt.Hex("#b8946a"), dark = CbArt.Hex("#6b5038"), soot = CbArt.Hex("#4a3a2e");
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    // two slabs across, two deep; every other row shifted half a slab
+                    int row = y / 64;
+                    int sx = (x + row * 32) % 64, sy = y % 64;
+                    float n = Mathf.PerlinNoise(x * 0.09f, y * 0.09f) * 0.5f + Mathf.PerlinNoise(x * 0.3f, y * 0.3f) * 0.2f;
+                    var c = Color.Lerp(sand * 0.85f, sand * 1.08f, n);
+                    if (sx < 2 || sy < 2) c = dark;
+                    float scorch = Mathf.PerlinNoise(x * 0.04f + 7f, y * 0.04f + 3f);
+                    if (scorch > 0.62f) c = Color.Lerp(c, soot, (scorch - 0.62f) * 1.6f);
+                    c.a = 1;
+                    px[y * S + x] = c;
+                }
+            tex.SetPixels(px);
+            tex.Apply();
+            return tex;
+        }
+
+        /// <summary>Grak's charge ends against a pillar: it shakes and dust falls from it.</summary>
+        public void PillarHit(float x)
+        {
+            pillarShake = 0.5f;
+            pillarShakeX = x;
+            CbFx.Spark(new Vector3(x, 3.5f, 0.3f), new Color(0.72f, 0.62f, 0.5f), 14, 2f, 0.3f, 0.9f, 8);
+            CbFx.Puff(new Vector3(x, 1.2f, 0.2f), new Color(0.78f, 0.7f, 0.6f), 8, 2f, 0.9f, 0.6f);
+        }
+
+        /// <summary>Grak's second phase: the fire catches at both ends of the arena.</summary>
+        public void LightArenaFire()
+        {
+            if (fireOn) return;
+            fireOn = true;
+            fireL = fireR = FireFrom;
+            fireLeft.gameObject.SetActive(true);
+            fireRight.gameObject.SetActive(true);
+            foreach (int side in new[] { -1, 1 })
+            {
+                var at = new Vector3(GrakX + side * FireFrom, 0.6f, -0.3f);
+                CbFx.Spark(at, CbFx.Fire, 30, 7f, 0.5f, 0.7f, -3);
+                CbVfx.Burst(at, CbFx.Fire, 3f, 0.25f);
+            }
+            CbFx.Sfx("fire");
+            g.shake = Mathf.Max(g.shake, 0.4f);
+        }
+
+        /// <summary>Grak's crystal, knocked out of his armour at from, rolls across the stones to Raja.</summary>
+        public void RollCrystal(Vector3 from, float toX)
+        {
+            if (looseCrystal == null)
+            {
+                looseCrystal = CbArt.Joint(root, 0, 0, 0, "looseCrystal");
+                if (CbArt.Prop(CrystalPath, looseCrystal, CbArt.PropOutline) is Transform m)
+                {
+                    // only the crystal itself, not its stone paws
+                    foreach (var c in m.GetComponentsInChildren<Transform>(true))
+                        if (c.name != "Crystal" && c != m && c.GetComponent<Renderer>() != null) c.gameObject.SetActive(false);
+                    m.localScale = Vector3.one * 0.7f;
+                }
+                else CbArt.Part(CbMesh.Sphere, CbArt.Glow(new Color(1f, 0.4f, 0.1f), CbArt.Shaft), looseCrystal, new Vector3(0, 0.3f, 0), new Vector3(0.3f, 0.6f, 0.3f));
+            }
+            looseCrystal.gameObject.SetActive(true);
+            rollFrom = from;
+            rollTo = new Vector3(toX, 0f, -0.2f);
+            rollT = 0;
+            CbFx.Sfx("bell4", 0.8f);
+        }
+
+        /// <summary>The crystal is in Raja's hands now (the fire awakens): no longer on the ground.</summary>
+        public void CrystalTaken()
+        {
+            rollT = -1f;
+            if (looseCrystal != null) looseCrystal.gameObject.SetActive(false);
+        }
+
+        /// <summary>A ball of fire from Grak's crystal, flying at chest height along dir (a dart: ducked, jumped, or sent back
+        /// by the perfect guard - then it burns him, armour or not).</summary>
+        public void ThrowFireball(float x, float y, int dir, float speed, float dmg)
+        {
+            var t = CbArt.Joint(root, x, y, 0, "fireball");
+            CbArt.Part(CbMesh.Sphere, CbArt.Glow(new Color(1f, 0.5f, 0.12f), CbArt.Shaft), t, Vector3.zero, Vector3.one * 0.42f, shadows: false);
+            CbArt.Part(CbMesh.Sphere, CbArt.Glow(new Color(1f, 0.9f, 0.5f), CbArt.Shaft), t, Vector3.zero, Vector3.one * 0.24f, shadows: false);
+            darts.Add(new Dart { x = x, y = y, vx = dir * speed, dmg = dmg, t = t, fire = true });
+            CbFx.Sfx("fire", 0.7f);
+        }
+
+        /// <summary>A blow on the fire beats it back (and its heat fills his ki); a blow anywhere else, nothing here.</summary>
+        bool StrikeEmber(float x, float y, int dir, float range, bool staff)
+        {
+            if (!fireOn || y > FireTall + 0.5f) return false;
+            bool any = false;
+            if (dir < 0 && InReach(FireLeftX, x, dir, range)) { fireL = Mathf.Min(FireFrom, fireL + FireBeat); any = true; Beaten(FireLeftX); }
+            if (dir > 0 && InReach(FireRightX, x, dir, range)) { fireR = Mathf.Min(FireFrom, fireR + FireBeat); any = true; Beaten(FireRightX); }
+            return any;
+        }
+
+        void Beaten(float at)
+        {
+            var hero = g.hero;
+            hero.ki = Mathf.Min(100f, hero.ki + FireKi);
+            // the heat drawn into him: sparks flying from the flames to his chest
+            CbFx.Spark(new Vector3(at, 0.8f, -0.3f), CbFx.Fire, 14, 5f, 0.4f, 0.5f, -2, Mathf.Sign(hero.x - at) * 3f);
+            CbVfx.Burst(new Vector3(at, 0.8f, -0.4f), CbFx.Flame, 1.6f, 0.15f);
+            g.hud.Popup(new Vector3(at, 2.4f, 0), "+KI", CbHud.PopStyle.Normal);
+            CbFx.Sfx("fire", 0.6f);
+        }
+
+        void UpdateEmber(float dt, CbHero hero)
+        {
+            float time = g.clock;
+            // embers rising all over the courtyard and the burning jungle behind it
+            emberT -= dt;
+            if (emberT <= 0)
+            {
+                emberT = 0.05f;
+                var at = new Vector3(hero.x + Random.Range(-14f, 14f), Random.Range(0f, 2f), Random.Range(-1f, 8f));
+                CbFx.Spark(at, CbFx.Fire * Random.Range(0.5f, 1f), 1, 0.6f, 0.08f, 1.6f, -1.2f, Random.Range(-0.5f, 0.5f));
+            }
+            // a pillar Grak ran into shakes for a moment
+            pillarShake = Mathf.Max(0, pillarShake - dt);
+            foreach (var p in emberPillars)
+            {
+                float k = Mathf.Abs(p.localPosition.x - pillarShakeX) < 3f ? pillarShake : 0f;
+                p.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(time * 40f) * 2.5f * k);
+            }
+            // the fire: creeping in from both sides, flickering; it burns him if he touches it
+            if (fireOn)
+            {
+                fireL = Mathf.Max(FireClosest, fireL - FireCreep * dt);
+                fireR = Mathf.Max(FireClosest, fireR - FireCreep * dt);
+                fireLeft.localPosition = new Vector3(FireLeftX, 0, 0);
+                fireRight.localPosition = new Vector3(FireRightX, 0, 0);
+                for (int i = 0; i < fireTongues.Count; i++)
+                {
+                    var t = fireTongues[i];
+                    float s = 1f + Mathf.Sin(time * (9f + i) + i * 1.7f) * 0.18f;
+                    t.localScale = new Vector3(0.9f * (2f - s), FireTall * s, 1);
+                    var p = t.localPosition;
+                    p.y = FireTall * s / 2;
+                    t.localPosition = p;
+                }
+                if (Random.value < 0.8f)
+                    foreach (var fx in new[] { FireLeftX, FireRightX })
+                        CbFx.Spark(new Vector3(fx + Random.Range(-0.3f, 0.3f), Random.Range(0.2f, 1.4f), Random.Range(-1.2f, 2f)), CbFx.Fire, 1, 1.5f, 0.25f, 0.5f, -4);
+                if (hero.y < FireTall)
+                {
+                    if (hero.x < FireLeftX + 0.4f) hero.TakeHit(FireDamage, 1, unblockable: true, knock: 6f);
+                    else if (hero.x > FireRightX - 0.4f) hero.TakeHit(FireDamage, -1, unblockable: true, knock: 6f);
+                }
+            }
+            // the crystal rolling to Raja: a hop out of Grak's armour, then across the stones, turning over and over
+            if (rollT >= 0 && looseCrystal != null)
+            {
+                rollT += dt;
+                float k = Mathf.Clamp01(rollT / CrystalRoll);
+                float hop = Mathf.Sin(Mathf.Clamp01(k * 2.2f) * Mathf.PI) * 1.6f * (1 - k);
+                var at = Vector3.Lerp(rollFrom, rollTo, 1 - (1 - k) * (1 - k));
+                at.y = Mathf.Lerp(rollFrom.y, rollTo.y, Mathf.Clamp01(k * 2.2f)) + hop;
+                looseCrystal.localPosition = at;
+                looseCrystal.localRotation = Quaternion.Euler(0, 0, -Mathf.Sign(rollTo.x - rollFrom.x) * k * 720f);
+                if (Random.value < 0.6f) CbFx.Spark(at + new Vector3(0, 0.3f, -0.2f), CbFx.Flame, 1, 1.5f, 0.25f, 0.4f, 1);
+            }
+        }
+
+        void ResetEmber()
+        {
+            fireOn = false;
+            fireL = fireR = FireFrom;
+            if (fireLeft != null) fireLeft.gameObject.SetActive(false);
+            if (fireRight != null) fireRight.gameObject.SetActive(false);
+            CrystalTaken();
+        }
+
+        /// <summary>Raja fell in Grak's fight: the fire goes out (it starts again with the fight).</summary>
+        public void LeaveGrakFight() => ResetEmber();
+    }
+}

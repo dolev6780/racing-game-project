@@ -16,8 +16,10 @@ namespace Cloudborne
     {
         // the stage runs from LevelMin to LevelMax; it is cleared at the shrine gate at GoalX, once every fight is won
         public const float LevelMin = -8f;
-        public static float LevelMax => CbStage.Treetops ? CbLevel.TreetopsMax : CbStage.Grove ? CbLevel.GroveMax : CbStage.River ? CbLevel.RiverMax : 494f;
-        public static float GoalX => CbStage.Treetops ? CbLevel.TreetopsGoal : CbStage.Grove ? CbLevel.GroveGoal : CbStage.River ? CbLevel.RiverGoal : 488f;
+        public static float LevelMax => CbStage.Treetops ? CbLevel.TreetopsMax : CbStage.Grove ? CbLevel.GroveMax : CbStage.River ? CbLevel.RiverMax
+            : CbStage.Ember ? CbLevel.EmberMax : 494f;
+        public static float GoalX => CbStage.Treetops ? CbLevel.TreetopsGoal : CbStage.Grove ? CbLevel.GroveGoal : CbStage.River ? CbLevel.RiverGoal
+            : CbStage.Ember ? CbLevel.EmberGoal : 488f;
         // the scenery runs on a little past the end of the stage
         static float End => LevelMax + 20f;
         // the blue-teal haze of the painted backdrop: distant scenery fades into it, not into white
@@ -82,7 +84,14 @@ namespace Cloudborne
             ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
             ("Cloudborne/River/Backdrop/RiverBackdrop", float.MinValue),
         };
-        static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : CbStage.River ? RiverBackdrops : JungleBackdrops;
+        // stage 1-5: the Ember Temple at sunset, the jungle burning round it
+        static readonly (string path, float from)[] EmberBackdrops =
+        {
+            ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
+            ("Cloudborne/Ember/Backdrop/EmberBackdrop", float.MinValue),
+        };
+        static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : CbStage.River ? RiverBackdrops
+            : CbStage.Ember ? EmberBackdrops : JungleBackdrops;
         const float BackdropFade = 12f;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         int shownPart = -1;
@@ -915,7 +924,7 @@ namespace Cloudborne
                 // the new look: a row of big painted trees in a light haze, and right behind the path a hedge of
                 // bushes and flowers (it hides the flat lawn that ran back to the trees), broken by the rivers
                 // (not in Baba's grove: its painted clearing - the hut, the bells, the mountains - showed only in gaps)
-                mid = !CbStage.Grove && !CbStage.River && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
+                mid = !CbStage.Grove && !CbStage.River && !CbStage.Ember && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
                 var hedge = BushGround();
                 near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, PaintTint);
                 // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and

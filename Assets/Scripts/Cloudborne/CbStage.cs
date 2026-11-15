@@ -1,8 +1,8 @@
 namespace Cloudborne
 {
     /// <summary>
-    /// Which stage is being played: 1-1 The Jungle Gate, 1-2 The Treetops (the user: on to the next stage), or 1-3
-    /// Baba's Grove. The level, the scenery, the soldiers, the tips and the boss follow it; CbGame rebuilds them when it
+    /// Which stage is being played: 1-1 The Jungle Gate, 1-2 The Treetops (the user: on to the next stage), 1-3
+    /// Baba's Grove, 1-4 The Stormy River or 1-5 The Ember Temple. The level, the scenery, the soldiers, the tips and the boss follow it; CbGame rebuilds them when it
     /// changes.
     /// </summary>
     public static class CbStage
@@ -21,9 +21,13 @@ namespace Cloudborne
         /// <summary>Stage 1-4, The Stormy River: riding a log down the falls after Koda's barge; the saw barge.</summary>
         public static bool River => Id == "1-4";
 
-        /// <summary>The stage's name, as the loading screen shows it.</summary>
-        public static string Title => Treetops ? "STAGE 1-2 · THE TREETOPS" : Grove ? "STAGE 1-3 · BABA'S GROVE" : River ? "STAGE 1-4 · THE STORMY RIVER" : "STAGE 1-1 · THE JUNGLE GATE";
+        /// <summary>Stage 1-5, The Ember Temple: Commander Grak, the fire crystal, Raja's fire awakening.</summary>
+        public static bool Ember => Id == "1-5";
 
-        public static void Set(string id) => Id = id == "1-2" || id == "1-3" || id == "1-4" ? id : "1-1";
+        /// <summary>The stage's name, as the loading screen shows it.</summary>
+        public static string Title => Treetops ? "STAGE 1-2 · THE TREETOPS" : Grove ? "STAGE 1-3 · BABA'S GROVE" : River ? "STAGE 1-4 · THE STORMY RIVER"
+            : Ember ? "STAGE 1-5 · THE EMBER TEMPLE" : "STAGE 1-1 · THE JUNGLE GATE";
+
+        public static void Set(string id) => Id = id == "1-2" || id == "1-3" || id == "1-4" || id == "1-5" ? id : "1-1";
     }
 }
