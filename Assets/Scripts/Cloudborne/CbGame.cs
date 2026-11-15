@@ -1464,7 +1464,7 @@ namespace Cloudborne
 
         void Update()
         {
-            float raw = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
+            float raw = TestStep > 0 ? TestStep : Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             clock += raw;
             ReadInput(raw);
 
@@ -1689,6 +1689,10 @@ namespace Cloudborne
 
         /// <summary>Test hook: edits the input every frame after touch and keyboard are read.</summary>
         public System.Action<CbInput> TestInput;
+
+        /// <summary>Test hook: the game's time goes on this much each frame, whatever the real time (on CI's uneven
+        /// frames, one slow frame used up a test's second of waiting while the game went on a twentieth of one).</summary>
+        public float TestStep;
         /// <summary>Test hook: presses the controls themselves (ATTACK held, SKILL), before they are read as moves.</summary>
         public System.Action<CbInput> TestControls;
 
