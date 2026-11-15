@@ -1845,11 +1845,7 @@ namespace RacingGame.Tests
             game.Teleport(level.RockX(0) - 3f);
             hero.y = 0;
             float hp = hero.hp;
-            for (float w = 0; w < 1f && hero.hp >= hp; w += Time.deltaTime)
-            {
-                yield return null;
-                if (Mathf.Abs(hero.x - level.RockX(0)) < 1f) Debug.Log($"ROCK x {hero.x:F2} y {hero.y:F2} state {hero.state} inv {hero.inv:F2} mode {game.mode} riding {game.Riding}");
-            }
+            for (float w = 0; w < 1f && hero.hp >= hp; w += Time.deltaTime) yield return null;
             Assert.Less(hero.hp, hp, "Running into a rock did not hurt");
             yield return new WaitForSeconds(1.2f);
             // ducking (the stick held down) he passes under a low branch
@@ -1883,7 +1879,7 @@ namespace RacingGame.Tests
             for (float w = 0; w < 1f && game.Tokens < 1; w += Time.deltaTime) yield return null;
             Assert.AreEqual(1, game.Tokens, "The golden lotus up on the route was not taken");
             // the basin: the saw barge
-            game.Teleport(CbLevel.BasinFrom + 6f);
+            game.Teleport(CbLevel.BasinX + 2f);
             hero.y = CbLevel.RiverFloor(CbLevel.BasinX);
             for (float w = 0; w < 3f && !level.SawBargeFighting; w += Time.deltaTime) yield return null;
             Assert.IsTrue(level.SawBargeFighting, "The saw barge did not come");
@@ -1935,7 +1931,7 @@ namespace RacingGame.Tests
             yield return TakePictures(new[] { ("river_falls", float.NaN, 0f) }, 2f);
             game.Teleport(176f - lead);
             yield return TakePictures(new[] { ("river_route", float.NaN, 0f) }, 2f);
-            game.Teleport(CbLevel.BasinFrom + 6f);
+            game.Teleport(CbLevel.BasinX + 2f);
             game.hero.y = CbLevel.RiverFloor(CbLevel.BasinX);
             yield return TakePictures(new[] { ("river_barge", float.NaN, 0f) }, 4.5f);
         }

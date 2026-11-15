@@ -35,6 +35,8 @@ namespace Cloudborne
         const float SideDepth = 3.4f, SideCrest = 0.23f, SideTile = SideDepth * 1563f / 846f;
         // the water-front shader's quad reaches this far over the still surface (its highest wave is about 0.19)
         const float FrontAbove = 0.25f;
+        // stage 1-4: how far back the river's water runs, to under the painting's rapids
+        const float RiverFar = 140f;
         // a rounded clump of bushes where the hedge meets a river, ClumpHeight tall
         const float ClumpHeight = 2.1f;
         static bool NewLook => Resources.Load<Texture2D>(LipPath) != null;
@@ -88,7 +90,7 @@ namespace Cloudborne
             BackdropStretch = 1.5f, BackdropSlide = 0.15f;
         Transform backdrop;
         Material backdropMat;
-        float backdropY;
+        float backdropY, riverSky = float.NaN;
         static readonly Color ForegroundShade = new Color(0.16f, 0.24f, 0.2f);
         // The painted textures are bright, and the toon light doubles them in the sun: plain, they glow lime green.
         // Toned down a little towards blue they sit behind the characters, like the painting.
@@ -292,8 +294,9 @@ namespace Cloudborne
         {
             var list = new List<(float, float)>();
             float a = from;
-            foreach (var (x0, x1) in CbLevel.Waters) { list.Add((a, x0 - margin)); a = x1 + margin; }
-            list.Add((a, to));
+            // (stage 1-4's river runs on unbroken from stretch to stretch: no ground at all between them)
+            foreach (var (x0, x1) in CbLevel.Waters) { if (x0 - margin - a > 0.5f) list.Add((a, x0 - margin)); a = x1 + margin; }
+            if (to - a > 0.5f) list.Add((a, to));
             return list;
         }
 
@@ -570,11 +573,16 @@ namespace Cloudborne
                 // (stage 1-4's river is lower after each waterfall: each stretch at its own level, its far bank just over it)
                 level = CbLevel.SurfaceAt(c);
                 bed = level - 0.55f;
-                float bankTop = CbStage.River ? level + 1.3f : 0f;
+                float bankTop = 0f, farEdge = CbStage.River ? RiverFar : back;
                 if (baseFront != null && CbStage.River) { front = new Material(baseFront); front.SetFloat("_Level", level); }
                 // the ground behind the channel's end, and under it
-                var behind = new Material(grass) { mainTextureScale = new Vector2(w / GrassTile, (GroundBack - back) / GrassTile), mainTextureOffset = new Vector2(x0 / GrassTile, 0) };
-                CbArt.Box(behind, root, new Vector3(c, bankTop - GroundDepth / 2, (back + GroundBack) / 2), new Vector3(w, GroundDepth, GroundBack - back));
+                // (not on stage 1-4's river: its water runs on back to the painting, no green bank between - a flat
+                // lawn strip and a row of bushes stood between the river and its painted rapids)
+                if (!CbStage.River)
+                {
+                    var behind = new Material(grass) { mainTextureScale = new Vector2(w / GrassTile, (GroundBack - back) / GrassTile), mainTextureOffset = new Vector2(x0 / GrassTile, 0) };
+                    CbArt.Box(behind, root, new Vector3(c, bankTop - GroundDepth / 2, (back + GroundBack) / 2), new Vector3(w, GroundDepth, GroundBack - back));
+                }
                 CbArt.Box(CbArt.Toon("#2d4a3a"), root, new Vector3(c, bed - 1f, (GroundFront + back) / 2), new Vector3(w, 2f, back - GroundFront));
                 // the banks: earth walls from the grass down into the water
                 var bank = new Material(face);
@@ -593,16 +601,16 @@ namespace Cloudborne
                 {
                     // the new look: drawn as painted, in the cross-section's turquoise, its ripples drawn out in depth
                     // (seen this low, a finer repeat blurred into a flat stripe)
-                    surface = new Material(paintedSurface) { mainTextureScale = new Vector2(w / 5f, (back - GroundFront) / 10f) };
+                    surface = new Material(paintedSurface) { mainTextureScale = new Vector2(w / 5f, (farEdge - GroundFront) / 10f) };
                 }
                 else
                 {
                     surface = CbArt.NewToon(new Color(0.9f, 0.97f, 1f), 0f, waterTex);
                     surface.SetFloat("_SpecStrength", 0.35f);
-                    surface.mainTextureScale = new Vector2(w / 3f, (back - GroundFront) / 3f);
+                    surface.mainTextureScale = new Vector2(w / 3f, (farEdge - GroundFront) / 3f);
                 }
                 waterMats.Add(surface);
-                CbArt.Part(CbMesh.Quad, surface, root, new Vector3(c, level, (GroundFront + back) / 2), new Vector3(w, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "water";
+                CbArt.Part(CbMesh.Quad, surface, root, new Vector3(c, level, (GroundFront + farEdge) / 2), new Vector3(w, farEdge - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "water";
                 // its cross-section at the front edge: the new look's painting (foamy crests, light rays, pebbles on
                 // sand, as deep as the soil it replaces), or deeper and darker towards the bed with a light line on top
                 float under = bed;
@@ -625,6 +633,8 @@ namespace Cloudborne
                 else CbArt.Part(CbMesh.Quad, WaterSide(), root, new Vector3(c, (level + bed) / 2, GroundFront - 0.012f), new Vector3(w, level - bed, 1), shadows: false).name = "waterSide";
                 // and the soil below; the banks slope down into it (they dropped straight, a square cut: the user)
                 FaceQuad(face, x0, x1, under, -GroundDepth);
+                // (stage 1-4's stretches meet at its waterfalls: their banks made a hump of earth under each one)
+                if (CbStage.River) continue;
                 BankSlope(face, x0, 1, under);
                 BankSlope(face, x1, -1, under);
                 // where it comes out of the ground: a little cascade between leaves
@@ -909,7 +919,7 @@ namespace Cloudborne
                 // the old leaf models showed there)
                 var behind = new List<(float a, float b)>();
                 foreach (var (x0, x1) in CbLevel.Waters) behind.Add((x0 - 1f, x1 + 1f));
-                BuildLayer("JungleNear", CbLevel.WaterBack + 0.7f, -0.15f, 1.9f, 0f, behind, PaintTint);
+                if (!CbStage.River) BuildLayer("JungleNear", CbLevel.WaterBack + 0.7f, -0.15f, 1.9f, 0f, behind, PaintTint);
                 // where it meets a river, a rounded clump closes it (it ended in a straight cut)
                 var clumpTex = Resources.Load<Texture2D>(ClumpPath);
                 var clump = clumpTex != null ? Cutout(clumpTex, 0f, PaintTint) : null;
@@ -1150,7 +1160,13 @@ namespace Cloudborne
                 var p = backdrop.localPosition;
                 p.x = camX;
                 // (stage 1-4: down with the river at each waterfall, or the view looked under the painting)
-                p.y = backdropY + (CbStage.River ? CbLevel.RiverFloor(camX) : 0f);
+                // (eased, as the camera is: it jumped a step at each waterfall)
+                if (CbStage.River)
+                {
+                    float floor = CbLevel.RiverFloor(camX);
+                    riverSky = float.IsNaN(riverSky) ? floor : riverSky + (floor - riverSky) * (1 - Mathf.Exp(-2.5f * Time.deltaTime));
+                }
+                p.y = backdropY + (CbStage.River ? riverSky : 0f);
                 backdrop.localPosition = p;
                 backdropMat.mainTextureOffset = new Vector2(camX * BackdropSlide / (BackdropWidth / backdropMat.mainTextureScale.x), 0);
                 ShowPart(camX);

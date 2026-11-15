@@ -330,7 +330,7 @@ namespace Cloudborne
         // the camera looks a little above his head: the ground sits low in the view, the painted jungle fills it
         const float BaseFov = 26f, CamBase = 2.1f, CamRise = 0.6f, ViewHalfWidth = 8f, LookAhead = 2.4f;
         // drawn back over high ground: down to CamLow (just under the water) in view, at most CamBackMax times as far
-        const float CamLow = -0.9f, CamBackMax = 1.45f, TuskFightBack = 1.35f, RideLook = 4.5f;
+        const float CamLow = -0.9f, CamBackMax = 1.45f, TuskFightBack = 1.35f, BargeFightBack = 1.3f, RideLook = 4.5f;
         // in the gorge the camera draws back further and looks at its middle, showing its walls and the water below
         // (the user wanted it further out there)
         const float CamGorge = 1.95f;
@@ -1549,6 +1549,9 @@ namespace Cloudborne
             // the screen and rammed trees out of sight)
             bool tuskFight = mode == Mode.Play && CbStage.Treetops && lockZone != null && lockZone == BossZone;
             if (tuskFight) back = Mathf.Max(back, TuskFightBack);
+            // the saw barge: drawn back a little, the whole barge and its barrels in view with the basin ahead of it
+            bool bargeFight = mode == Mode.Play && CbStage.River && lockZone != null && lockZone == BossZone;
+            if (bargeFight) back = Mathf.Max(back, BargeFightBack);
             camBack += (back - camBack) * (1 - Mathf.Exp(-2f * dt));
             dist *= camBack;
             float tx = hero.x + hero.facing * LookAhead;
@@ -1556,6 +1559,7 @@ namespace Cloudborne
             if (mode == Mode.Title) { tx = hero.x - 3.4f + Mathf.Sin(clock * 0.2f) * 0.3f; dist *= 0.72f; }
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
             if (tuskFight) tx = Mathf.Lerp(lockZone.x, hero.x, 0.15f);
+            if (bargeFight) tx = Mathf.Lerp(lockZone.x - 3.5f, hero.x, 0.25f);
             // riding the river: the view well ahead, to see what is coming
             if (CbStage.River && Riding) tx = hero.x + RideLook;
             tx = Mathf.Lerp(tx, CbLevel.GorgeMiddle, gorge * 0.6f);

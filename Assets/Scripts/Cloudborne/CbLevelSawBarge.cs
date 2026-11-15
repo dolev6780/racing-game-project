@@ -15,7 +15,8 @@ namespace Cloudborne
     {
         enum Barge { Away, Enter, Throw, Wind, Ram, Stuck, Back, Sinking, Sunk }
 
-        const float BargeHome = BasinX - 12.5f, BargeFrom = BasinX - 30f, BargeFront = 3.1f, BargeZ = 0.9f;
+        // (its home close enough that its deck and barrels are in view: further back, only its bow showed)
+        const float BargeHome = BasinX - 9.5f, BargeFrom = BasinX - 30f, BargeFront = 3.1f, BargeZ = 0.9f;
         const float BargeThrowEvery = 1.7f, BargeWind = 1.0f, BargeRamSpeed = 12f, BargeStuck = 2.6f, BargeBackSpeed = 4f;
         const float LogSpeed = 10f, LogDamage = 12f, BargeSawDamage = 16f, SawHigh = 1.35f;
         // its three fuel barrels on the deck, toward the camera (the ones to knock down): x from its middle, height over the water
@@ -208,6 +209,12 @@ namespace Cloudborne
                     if (Random.value < 0.2f) CbFx.Puff(sawBarge.position + new Vector3(Random.Range(-2f, 2f), 2.5f - bargeSink, -0.5f), new Color(0.15f, 0.13f, 0.12f), 2, 1.5f, 1.4f, 1.2f);
                     if (bargeSink >= 3f) { barge = Barge.Sunk; sawBarge.gameObject.SetActive(false); }
                     break;
+            }
+            // its bow pushes him along before it (but stuck, he can jump its saws onto the deck); not once it is sinking
+            if (barge != Barge.Stuck && barge != Barge.Sinking)
+            {
+                float bow = SawBargeFront;
+                if (hero.x < bow + 0.4f && hero.x > bow - 1.2f && hero.y < floor + SawHigh) hero.x = bow + 0.4f;
             }
             float bob = Mathf.Sin(time * 2.2f) * 0.06f;
             sawBarge.localPosition = new Vector3(bargeX, SurfaceAt(BasinX) - 0.25f + bob - bargeSink, BargeZ);

@@ -128,16 +128,24 @@ namespace Cloudborne
 
         // which way the barges' models face (their bows to the right, the way the river runs)
         const float KodaBargeYaw = 180f, SawBargeYaw = 180f;
+        // how far back the river runs (CbWorld: to under the painting's rapids)
+        const float FallsFar = 140f;
 
         /// <summary>The waterfalls: a cliff of wet rock from the upper river down to the lower, a sheet of white water over it.</summary>
         void BuildFalls()
         {
             var rock = M("#3e423f");
             var foam = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.85f), CbArt.Shaft);
+            var foamFlat = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.5f), CbArt.Shaft);
             foreach (var f in Falls)
             {
                 float top = SurfaceAt(f - 1f), bottom = SurfaceAt(f + 1f);
-                CbArt.Box(rock, root, new Vector3(f - 0.5f, (top + bottom) / 2 - 0.6f, 3f), new Vector3(1f, top - bottom + 1.2f, 8f));
+                // (right across the river, back to where its water ends under the painting; a hair under the upper
+                // water's surface so the two don't flicker)
+                CbArt.Box(rock, root, new Vector3(f - 0.5f, (top + bottom) / 2 - 0.62f, (FallsFar - 1f) / 2), new Vector3(1f, top - bottom + 1.2f, FallsFar + 1f));
+                // the foam at its foot, all the way across
+                var churn = CbArt.Part(CbMesh.Quad, foamFlat, root, new Vector3(f + 1f, bottom + 0.02f, (FallsFar - 1f) / 2), new Vector3(2f, FallsFar + 1f, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
+                churn.name = "fallsFoam";
                 var sheet = CbArt.Part(CbMesh.Quad, foam, root, new Vector3(f + 0.05f, (top + bottom) / 2, -0.4f), new Vector3(2.2f, top - bottom + 0.4f, 1), shadows: false);
                 sheet.name = "waterfall";
             }
@@ -182,25 +190,28 @@ namespace Cloudborne
             logRoll += speed * dt / 0.35f * Mathf.Rad2Deg;
             riverLog.localPosition = new Vector3(hero.x, floor - 0.32f + Mathf.Sin(time * 3.1f) * 0.04f, 0.05f);
             riverLog.localRotation = Quaternion.Euler(logRoll, 0, Mathf.Sin(time * 2.3f) * 2f);
-            // the rocks, the branches, the barrels: run into them and they hurt him
+            // the rocks, the branches, the barrels: run into them and they hurt him (checked along the whole stretch he
+            // went since the last frame: at a slow frame rate he is carried metres a frame, right over a rock between two)
             foreach (var r in rocks)
-                if (Mathf.Abs(hero.x - r.x) < 0.65f && hero.y < RiverFloor(r.x) + r.h - 0.15f) hero.TakeHit(10, -1, knock: 4f);
+                if (Crossed(r.x, 0.65f, hero, out float ry) && ry < RiverFloor(r.x) + r.h - 0.15f) hero.TakeHit(10, -1, knock: 4f);
             foreach (var b in branches)
             {
                 float bf = RiverFloor(b);
-                if (Mathf.Abs(hero.x - b) < 0.45f && hero.y + hero.Height > bf + BranchLow && hero.y < bf + BranchHigh) hero.TakeHit(8, -1);
+                if (Crossed(b, 0.45f, hero, out float by) && by + hero.Height > bf + BranchLow && by < bf + BranchHigh) hero.TakeHit(8, -1);
             }
             foreach (var f in floaters)
             {
                 if (f.broken) continue;
                 f.t.localPosition = new Vector3(f.x, RiverFloor(f.x) - 0.15f + Mathf.Sin(time * 2.4f + f.bob) * 0.08f, 0);
                 f.t.localRotation = Quaternion.Euler(Mathf.Sin(time * 1.7f + f.bob) * 8f, f.bob * 40f, Mathf.Sin(time * 2.1f + f.bob) * 6f);
-                if (Mathf.Abs(hero.x - f.x) < BarrelR + 0.3f && hero.y < RiverFloor(f.x) + 0.9f)
+                if (Crossed(f.x, BarrelR + 0.3f, hero, out float fy) && fy < RiverFloor(f.x) + 0.9f)
                 {
                     hero.TakeHit(8, -1);
                     BreakBarrel(f, 1);
                 }
             }
+            riverPrevX = hero.x;
+            riverPrevY = hero.y;
             // checkpoints along the way
             while (checkIdx < RiverCheckpoints.Length && hero.x >= RiverCheckpoints[checkIdx]) g.Checkpoint(RiverCheckpoints[checkIdx++]);
             // Koda's barge, ahead: now in sight at the edge of the view, now gone on round the bend
@@ -225,8 +236,24 @@ namespace Cloudborne
             UpdateSawBarge(dt, hero);
         }
 
+        float riverPrevX = float.NaN, riverPrevY;
+
+        /// <summary>He passed within w of px between the last frame and this one; and how high he was as he did.</summary>
+        bool Crossed(float px, float w, CbHero hero, out float atY)
+        {
+            float from = riverPrevX, to = hero.x;
+            atY = hero.y;
+            // no last frame, or a jump too far to have been ridden (a respawn, a teleport): only where he is now
+            if (float.IsNaN(from) || Mathf.Abs(to - from) > 6f) return Mathf.Abs(to - px) < w;
+            if (px < Mathf.Min(from, to) - w || px > Mathf.Max(from, to) + w) return false;
+            float k = Mathf.Abs(to - from) < 0.001f ? 1f : Mathf.Clamp01((px - from) / (to - from));
+            atY = Mathf.Lerp(riverPrevY, hero.y, k);
+            return true;
+        }
+
         void ResetRiver()
         {
+            riverPrevX = float.NaN;
             foreach (var f in floaters) { f.broken = false; f.t.gameObject.SetActive(true); }
             checkIdx = 0;
             kodaY = 0;
