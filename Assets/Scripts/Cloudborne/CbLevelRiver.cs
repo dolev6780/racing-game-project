@@ -85,8 +85,13 @@ namespace Cloudborne
                 float floor = RiverFloor(x);
                 // the jungle's river rock, from under the water up to its top (one grey egg was a stand-in)
                 var t = CbArt.Joint(root, x, floor, RockZ, "riverRock");
-                if (FitTop(RiverRockPath, t, new Vector3(-0.75f, WaterLevel - 0.6f, -0.7f), new Vector3(0.75f, h, 0.7f)) == null)
-                    CbArt.Part(CbMesh.Sphere, stone, t, new Vector3(0, h * 0.4f, 0), new Vector3(1.3f, h * 1.6f, 1.2f));
+                if (FitTop(RiverRockPath, t, new Vector3(-0.75f, WaterLevel - 0.6f, -0.7f), new Vector3(0.75f, h, 0.7f)) is Transform rm)
+                {
+                    // wet and dark in the storm, like the painting's boulders (the jungle's pale stone read as a pillar of
+                    // chalk on the water)
+                    foreach (var r in rm.GetComponentsInChildren<Renderer>()) r.material.color = new Color(0.5f, 0.52f, 0.5f);
+                }
+                else CbArt.Part(CbMesh.Sphere, stone, t, new Vector3(0, h * 0.4f, 0), new Vector3(1.3f, h * 1.6f, 1.2f));
                 rocks.Add(new Rock { x = x, h = h });
             }
             var bark = M("#5b4232");
@@ -128,8 +133,9 @@ namespace Cloudborne
             BuildSawBarge();
         }
 
-        // which way the barges' models face (their bows to the right, the way the river runs)
-        const float KodaBargeYaw = 180f, SawBargeYaw = 180f;
+        // which way the barges' models face (their bows to the right, the way the river runs; their models are drawn bow to the left: turned 180 they sailed backwards, the saw barge's saws away from Raja -
+        // the CI's pictures once they stood upright)
+        const float KodaBargeYaw = 0f, SawBargeYaw = 0f;
         // how far back the river runs (CbWorld: to under the painting's rapids)
         const float FallsFar = 140f;
 
