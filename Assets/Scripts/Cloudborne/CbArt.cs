@@ -10,7 +10,8 @@ namespace Cloudborne
     /// </summary>
     public static class CbArt
     {
-        public const float CharacterOutline = 1.15f;
+        // (thicker, for the anime look the user wants: was 1.15)
+        public const float CharacterOutline = 1.45f;
         public const float PropOutline = 0.8f;
 
         static Shader toon, glow, sparks;
