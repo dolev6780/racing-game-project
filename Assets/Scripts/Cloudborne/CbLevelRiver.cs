@@ -120,7 +120,9 @@ namespace Cloudborne
             // Koda's barge, ahead down the river
             kodaBarge = CbArt.Joint(root, 20f, WaterLevel, 3.2f, "kodaBarge");
             var kb = CbArt.Prop(KodaBargePath, kodaBarge, CbArt.PropOutline);
-            if (kb != null) kb.localRotation = Quaternion.Euler(0, KodaBargeYaw, 0);
+            // (turned on top of its own import rotation, which stands it up: set outright, it lay on its back - the
+            // CI's pictures showed the saw barge's deck face-on)
+            if (kb != null) kb.localRotation = Quaternion.Euler(0, KodaBargeYaw, 0) * kb.localRotation;
             else CbArt.Box(M("#6b4a2a"), kodaBarge, new Vector3(0, 0.4f, 0), new Vector3(5f, 0.8f, 1.8f));
             BuildFalls();
             BuildSawBarge();

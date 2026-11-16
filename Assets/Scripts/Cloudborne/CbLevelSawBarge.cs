@@ -21,7 +21,8 @@ namespace Cloudborne
         const float LogSpeed = 10f, LogDamage = 12f, BargeSawDamage = 16f, SawHigh = 1.35f;
         // its three fuel barrels on the deck, toward the camera (the ones to knock down): x from its middle, height over the water
         static readonly float[] FuelOff = { -0.3f, 0.35f, 1.0f };
-        const float FuelY = 1.35f, FuelZ = -0.7f;
+        // on its deck (they floated over it), a little in from its rail
+        const float FuelY = 0.85f, FuelZ = -0.35f;
 
         Barge barge = Barge.Away;
         float bargeX = BargeFrom, bargeT, bargeSink, bargeRamTo, bargeGlow;
@@ -47,7 +48,8 @@ namespace Cloudborne
             var model = CbArt.Prop(BargePath, sawBarge, CbArt.PropOutline);
             if (model != null)
             {
-                model.localRotation = Quaternion.Euler(0, SawBargeYaw, 0);
+                // (on top of its import rotation, which stands it up: set outright, it lay on its back, deck to the camera)
+                model.localRotation = Quaternion.Euler(0, SawBargeYaw, 0) * model.localRotation;
                 bargeMat = model.GetComponentInChildren<Renderer>().sharedMaterial;
             }
             else
