@@ -2108,25 +2108,54 @@ namespace RacingGame.Tests
         [UnityTest]
         public IEnumerator ZzRunFrames()
         {
-            // Raja running flat out, frame after frame (a thirtieth of a second apart), to see whether his feet slide
-            // on the ground; and an impact frame
+            // Raja running flat out on an open stretch (the way into the Ember Temple, its raiders skipped; on stage 1-1
+            // he ran into its crates): how fast his planted foot moves over the ground, as a share of his own speed (0:
+            // his feet hold to the ground; above 0 they slide on with him, the run cycle too slow; below, too fast) -
+            // logged as STRIDE, with four frames of it; then an impact frame
             game = CbGame.Boot();
             yield return Frames(3);
-            CbStage.Set("1-1");
+            CbStage.Set("1-5");
             game.BuildStage();
             game.StartGame();
             Time.captureDeltaTime = game.TestStep = 1f / 30f;
             yield return Frames(2);
-            game.hero.hp = 9999;
-            game.hero.inv = 999f;
-            // (on an open stretch, nothing in his way: at the start he ran into the first crate)
+            var hero = game.hero;
+            hero.hp = 9999;
+            hero.inv = 999f;
             game.SkipFights();
-            game.Teleport(110f);
+            game.Teleport(47f);
             game.TestControls = i => i.x = 1f;
-            yield return new WaitForSeconds(0.8f);
-            for (int k = 0; k < 8; k++)
+            yield return new WaitForSeconds(0.5f);
+            Transform left = null, right = null;
+            if (hero.model != null)
+                foreach (var b in hero.model.root.GetComponentsInChildren<Transform>())
+                {
+                    if (b.name == "LeftToeBase") left = b;
+                    if (b.name == "RightToeBase") right = b;
+                }
+            Assert.IsNotNull(left, "Raja's model has no toe bones");
+            var samples = new List<(float lx, float ly, float rx, float ry, float vx)>();
+            for (int k = 0; k < 40; k++)
+            {
+                yield return null;
+                samples.Add((left.position.x, left.position.y, right.position.x, right.position.y, hero.vx));
+            }
+            float lowL = samples.Min(p => p.ly), lowR = samples.Min(p => p.ry);
+            var shares = new List<float>();
+            for (int k = 1; k < samples.Count; k++)
+            {
+                var a = samples[k - 1]; var b = samples[k];
+                if (Mathf.Abs(b.vx) < 1f) continue;
+                if (a.ly < lowL + 0.04f && b.ly < lowL + 0.04f) shares.Add((b.lx - a.lx) * 30f / b.vx);
+                if (a.ry < lowR + 0.04f && b.ry < lowR + 0.04f) shares.Add((b.rx - a.rx) * 30f / b.vx);
+            }
+            shares.Sort();
+            float median = shares.Count > 0 ? shares[shares.Count / 2] : float.NaN;
+            Debug.Log($"STRIDE planted foot share {median:F2} over {shares.Count} samples, speed {hero.vx:F1}");
+            for (int k = 0; k < 4; k++)
                 yield return TakePictures(new[] { ($"run{k}", float.NaN, 0f) }, 1f / 30f);
             game.TestControls = null;
+            Assert.Greater(shares.Count, 3, "No frames with his foot on the ground");
             game.ImpactFrame(0.5f);
             yield return null;
             Assert.IsTrue(game.InImpactFrame, "The impact frame did not hold");
