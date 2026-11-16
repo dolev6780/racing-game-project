@@ -393,16 +393,11 @@ namespace Cloudborne
             {
                 urp.supportsHDR = true;     // glow above 1.0 for bloom
                 urp.shadowDistance = 45f;   // the camera sits 11-22 m from the action
-                // a phone's lighter settings (the game felt slow on the user's phone): 2x MSAA rather than 4x, one
-                // shadow cascade - the camera is close, 45 m of shadow is plenty in one
-                if (Application.isMobilePlatform)
-                {
-                    urp.msaaSampleCount = 2;
-                    urp.shadowCascadeCount = 1;
-                }
             }
             SetupCamera();
             SetupLight();
+            // the graphics' level for this phone (CbQuality: shadows, MSAA, bloom, sparks)
+            ApplyQuality();
             CbFx.Init(transform);
             CbVfx.Init(transform);
             world = new CbWorld(transform);
@@ -460,6 +455,23 @@ namespace Cloudborne
             vol.priority = 10;
             vol.sharedProfile = profile;
             profile.TryGet(out grading);
+            profile.TryGet(out bloomFx);
+        }
+
+        Bloom bloomFx;
+        float slowFor;
+
+        /// <summary>Sets the graphics for CbQuality's current level (at the start, and when SETTINGS changes it).</summary>
+        public void ApplyQuality() => CbQuality.Apply(sun, bloomFx);
+
+        /// <summary>On AUTO, a phone that keeps running slowly in play steps down a level, for good.</summary>
+        void WatchSpeed(float raw)
+        {
+            if (mode != Mode.Play || TestStep > 0 || Fps < 1f) return;
+            slowFor = Fps < CbQuality.StepDownFps ? slowFor + raw : Mathf.Max(0, slowFor - raw * 0.5f);
+            if (slowFor < CbQuality.StepDownAfter) return;
+            slowFor = 0;
+            if (CbQuality.StepDown()) ApplyQuality();
         }
 
         // ---------- impact frames ----------
@@ -1662,6 +1674,7 @@ namespace Cloudborne
             if (fpsT >= 1f) { Fps = fpsFrames / fpsT; fpsT = 0; fpsFrames = 0; }
             clock += raw;
             UpdateImpactFrame(raw);
+            WatchSpeed(raw);
             ReadInput(raw);
 
             if (input.pause)

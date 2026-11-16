@@ -2082,6 +2082,30 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator GraphicsLevelsChooseWhatIsDrawn()
+        {
+            // the graphics' levels (each phone differs: the user): SETTINGS cycles AUTO, LOW, MEDIUM, HIGH; a lower level
+            // draws fewer sparks and no bloom
+            game = CbGame.Boot();
+            yield return Frames(2);
+            int was = CbQuality.Setting;
+            CbQuality.Setting = 1;
+            Assert.AreEqual(CbQuality.Tier.Low, CbQuality.Current);
+            int sparks = 0;
+            for (int i = 0; i < 50; i++) sparks += CbQuality.Particles(10);
+            Assert.Less(sparks, 300, "The low level draws as many sparks as the high one");
+            game.ApplyQuality();
+            CbQuality.Setting = 3;
+            Assert.AreEqual(CbQuality.Tier.High, CbQuality.Current);
+            Assert.AreEqual(10, CbQuality.Particles(10));
+            game.ApplyQuality();
+            CbQuality.Setting = 0;
+            StringAssert.StartsWith("AUTO", CbQuality.Label);
+            CbQuality.Setting = was;
+            game.ApplyQuality();
+        }
+
+        [UnityTest]
         public IEnumerator ZzRunFrames()
         {
             // Raja running flat out, frame after frame (a thirtieth of a second apart), to see whether his feet slide

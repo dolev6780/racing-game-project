@@ -137,6 +137,8 @@ namespace Cloudborne
         public static void Spark(Vector3 pos, Color c, int n, float speed = 7f, float size = 0.35f, float life = 0.4f, float grav = 6f, float dirX = 0f)
         {
             if (falling == null) return;
+            // (fewer on a phone's lower graphics level: CbQuality)
+            n = CbQuality.Particles(n);
             var ps = grav > 0.5f ? falling : grav < -0.5f ? rising : floating;
             // the sparks shader brightens the core itself; keep vertex colours in 0..1 and pass brightness as size
             var col = (Color32)new Color(Mathf.Clamp01(c.r / 3f), Mathf.Clamp01(c.g / 3f), Mathf.Clamp01(c.b / 3f), 1f);

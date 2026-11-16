@@ -58,7 +58,7 @@ namespace Cloudborne
         bool resetArmed;
         readonly HashSet<int> seen = new HashSet<int>(), now = new HashSet<int>();
 
-        Text coinsTxt, shopCoins, shopMsg, volumeTxt, padsTxt, replayTxt, resetTxt;
+        Text coinsTxt, shopCoins, shopMsg, volumeTxt, padsTxt, graphicsTxt, replayTxt, resetTxt;
         Btn resetBtn;
         readonly List<(Text status, StageInfo stage)> stageCards = new List<(Text, StageInfo)>();
         readonly List<(Btn buy, Image[] pips, CbSave.Upgrade up)> shopRows = new List<(Btn, Image[], CbSave.Upgrade)>();
@@ -229,6 +229,10 @@ namespace Cloudborne
             Row("TOUCH BUTTONS");
             padsTxt = Button(Page.Settings, panel, "", new Vector2(0, 1), new Vector2(0, 1), new Vector2(380, y), new Vector2(198, 40), () => { CbSave.Pads++; Refresh(); }, 15).label;
             y -= 45;
+            Row("GRAPHICS");
+            graphicsTxt = Button(Page.Settings, panel, "", new Vector2(0, 1), new Vector2(0, 1), new Vector2(380, y), new Vector2(198, 40),
+                () => { CbQuality.Setting++; g.ApplyQuality(); Refresh(); }, 15).label;
+            y -= 45;
             Row("OPENING SCENE");
             replayTxt = Button(Page.Settings, panel, "", new Vector2(0, 1), new Vector2(0, 1), new Vector2(380, y), new Vector2(198, 40), () => { g.ReplayOpening(); Refresh(); }, 15).label;
             y -= 45;
@@ -326,6 +330,7 @@ namespace Cloudborne
             }
             volumeTxt.text = Mathf.RoundToInt(CbSave.Volume * 100) + "%";
             padsTxt.text = CbSave.Pads == 0 ? "AUTO" : CbSave.Pads == 1 ? "ALWAYS" : "OFF";
+            graphicsTxt.text = CbQuality.Label;
             replayTxt.text = CbSave.IntroSeen ? "PLAY IT AGAIN" : "PLAYS NEXT TIME";
             resetTxt.text = resetArmed ? "SURE? TAP AGAIN" : "RESET";
         }
