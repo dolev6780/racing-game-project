@@ -858,7 +858,9 @@ namespace Cloudborne
 
             if (state == State.Run)
             {
-                runPh += dt * Mathf.Abs(vx) * 1.9f;
+                // (the run cycle's pace to his speed, so his planted foot holds to the ground: measured in CI - the
+                // STRIDE test - his foot slid on with him at a tenth of his speed at 1.9)
+                runPh += dt * Mathf.Abs(vx) * 2.1f;
                 walkT += dt * Mathf.Abs(vx) / WalkClipPace;
                 Pose.Run(ref pose, runPh);
                 bool sprinting = Mathf.Abs(vx) > RunSpeed + 1f;
