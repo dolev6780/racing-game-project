@@ -1536,8 +1536,24 @@ namespace Cloudborne
             float shimmer = inv > 0 && state != State.Dead ? (0.5f + 0.5f * Mathf.Sin(g.clock * 16f)) * 0.45f : 0f;
             var extra = hitFlash > 0 ? new Color(1f, 0.22f, 0.15f) * (hitFlash / HitFlash) * 1.8f : Color.white * shimmer;
             CbArt.SetGlow(furMat, col * glow + extra);
-            if (model != null) CbArt.SetGlow(model.material, col * glow * 0.35f + extra);
+            if (model == null) return;
+            // once his fire is awake (stage 1-5, the story doc: his stripes lit gold) his stripes glow gold, softly
+            // pulsing, and his fire and his flashes show mostly in them (Raja_Stripes: his texture's stripes, made by
+            // picking the dark marks inside the orange fur)
+            if (fire != stripesLit)
+            {
+                stripesLit = fire;
+                var mask = fire ? Resources.Load<Texture2D>(ModelPath + "_Stripes") : null;
+                model.material.SetTexture("_EmissionMap", mask != null ? mask : Texture2D.whiteTexture);
+                stripesMasked = mask != null;
+            }
+            if (stripesMasked)
+                CbArt.SetGlow(model.material, StripeGold * (0.7f + 0.2f * Mathf.Sin(g.clock * 2.5f)) + (col * glow * 0.35f + extra) * 2.5f);
+            else CbArt.SetGlow(model.material, col * glow * 0.35f + extra);
         }
+
+        static readonly Color StripeGold = new Color(1f, 0.72f, 0.22f);
+        bool stripesLit, stripesMasked;
 
         // the red flash of a blow, as it fades
         const float HitFlash = 0.18f;

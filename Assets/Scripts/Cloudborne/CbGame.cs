@@ -513,9 +513,31 @@ namespace Cloudborne
             RenderSettings.fogColor = CbWorld.Horizon;
             RenderSettings.fogStartDistance = 24f;
             RenderSettings.fogEndDistance = 175f;
-            var sky = CbArt.Sky(CbArt.Hex("#2a78a8"), CbWorld.Horizon, CbWorld.Horizon);
+            StageLight();
+        }
+
+        /// <summary>
+        /// The stage's light, fog and sky: the jungle's clear day, or (stage 1-5) the burning temple's - a low orange sun,
+        /// warm shade, and smoke for fog (the jungle's pale blue haze showed as a grey band under its burning painting).
+        /// </summary>
+        void StageLight()
+        {
+            bool ember = CbStage.Ember;
+            if (sun != null)
+            {
+                sun.color = ember ? new Color(1f, 0.66f, 0.42f) : new Color(1f, 0.9f, 0.72f);
+                sun.intensity = ember ? 1.6f : 1.8f;
+            }
+            RenderSettings.ambientSkyColor = ember ? new Color(0.78f, 0.5f, 0.4f) : new Color(0.58f, 0.74f, 0.8f);
+            RenderSettings.ambientEquatorColor = ember ? new Color(0.52f, 0.32f, 0.24f) : new Color(0.4f, 0.52f, 0.44f);
+            RenderSettings.ambientGroundColor = ember ? new Color(0.24f, 0.13f, 0.09f) : new Color(0.2f, 0.24f, 0.17f);
+            var horizon = ember ? CbArt.Hex("#4a2418") : CbWorld.Horizon;
+            RenderSettings.fogColor = horizon;
+            RenderSettings.fogStartDistance = ember ? 16f : 24f;
+            RenderSettings.fogEndDistance = ember ? 120f : 175f;
+            var sky = CbArt.Sky(ember ? CbArt.Hex("#2a1410") : CbArt.Hex("#2a78a8"), horizon, horizon);
             if (sky != null) RenderSettings.skybox = sky;
-            else { cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = CbWorld.Horizon; }
+            else { cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = horizon; }
         }
 
         // ---------- flow ----------
@@ -618,6 +640,7 @@ namespace Cloudborne
             items = new CbItems(this, transform);
             level = new CbLevel(this, transform);
             jungleAmbushes = treetopsAmbushes = null;
+            StageLight();
         }
 
         /// <summary>The drawn prologue (the night the cloud temple fell), then a fade into the opening scene.</summary>

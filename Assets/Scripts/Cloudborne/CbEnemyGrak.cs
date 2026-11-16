@@ -7,8 +7,9 @@ namespace Cloudborne
     /// Commander Grak, the boss of stage 1-5 (the story doc: a rhino in iron armour; charges, a giant saw and the burning
     /// arena; three phases). His arena is the Ember Temple's courtyard, a shrine pillar at either end (CbLevelEmber).
     /// <list type="bullet">
-    /// <item>The armour (phase 1): his front is iron - blows from in front glance off it. He swings his great saw
-    /// sideways (jump it, or get away) and brings it down overhead; after each blow he stands open a moment. From afar
+    /// <item>The armour (phase 1): his front is iron - blows from in front glance off it. He swings his great saw round
+    /// in an arc that ends low in front (jump it, or get away) and brings it down overhead; after each blow he stands
+    /// open a moment. From afar
     /// he lowers his head and charges right across the arena (jump or swipe out of it) into the pillar: winded, his
     /// guard down, the time to hit him. Learn to dodge and punish.</item>
     /// <item>The fire (phase 2, from two thirds of his health): he pounds his chest and the arena's edges catch fire and
@@ -34,13 +35,17 @@ namespace Cloudborne
         /// <summary>How far down his health goes before Raja's fire must wake (his last slam, the crystal knocked loose).</summary>
         public const float GrakAwakeAt = 0.14f;
         /// <summary>How long each of his moves lasts, and when its blow lands (seconds in).</summary>
-        public const float GrakSwingTime = 1.3f, GrakSwingHit = 0.62f, GrakChopTime = 1.5f, GrakChopHit = 0.82f, GrakSlamTime = 1.5f, GrakSlamHit = 0.78f,
+        // (measured on his clips, the right hand's path in Blender: the saw comes down at 0.86 of Heavy_Hammer_Swing,
+        // the chop at 0.59 of Charged_Axe_Chop - a long crouch before it, so only 0.25-0.75 of it plays - the fists hit
+        // the ground at 0.6 of Charged_Ground_Slam; the blows landed early, his hand still going up)
+        public const float GrakSwingTime = 1.2f, GrakSwingHit = 0.99f, GrakChopTime = 1.5f, GrakChopHit = 1.02f, GrakSlamTime = 1.5f, GrakSlamHit = 0.9f,
             GrakFireTime = 1.7f, GrakDazed = 2.6f;
         const float GrakWalk = 1.7f, GrakChargeSpeed = 10.5f, GrakRoar = 1.7f, GrakScrape = 0.8f, GrakIgniteTime = 1.8f, GrakCrystalTime = 1.6f,
             GrakSwingReach = 3.3f, GrakSwingHigh = 1.25f, GrakSwingDamage = 14f, GrakChopReach = 3.5f, GrakChopDamage = 18f, GrakBump = 16f, GrakThrow = 9f,
             GrakFireballSpeed = 9f, GrakFireballDamage = 10f, GrakWaveSpeed = 9f, GrakWaveLife = 1.3f, GrakWaveDamage = 12f, GrakOpenAfter = 0.85f,
             GrakDying = 2.6f, GrakBack = 2.6f, GrakChargeFrom = 5.5f, GrakCloseIn = 3.4f;
-        static readonly float[] GrakFireballsAt = { 0.42f, 0.6f, 0.78f };
+        // (while his hands are out in front of his chest: 0.15-0.6 of Charged_Spell_Cast plays)
+        static readonly float[] GrakFireballsAt = { 0.45f, 0.65f, 0.85f };
 
         public GrakMove grakMove;
         float grakT, openT, grakHurt, walkPh, chargePh, stanceFor, grakStars;
@@ -269,7 +274,8 @@ namespace Cloudborne
                     case GrakMove.Swing:
                     case GrakMove.Chop:
                     {
-                        // the saw: swung sideways at his waist (jump it), or brought down overhead (get away)
+                        // the saw: swung round and down in a great arc that ends low in front (jump it), or brought down
+                        // overhead (get away)
                         bool chop = grakMove == GrakMove.Chop;
                         float len = chop ? GrakChopTime : GrakSwingTime, hit = chop ? GrakChopHit : GrakSwingHit;
                         vx = 0;
@@ -422,13 +428,13 @@ namespace Cloudborne
                 case GrakMove.Roar: model.Window("Chest_Pound_Taunt", 0f, 1f, grakT / GrakRoar); break;
                 case GrakMove.Ignite: model.Window("Chest_Pound_Taunt", 0f, 1f, grakT / GrakIgniteTime); break;
                 case GrakMove.Crystal: model.Window("Charged_Spell_Cast", 0f, 1f, grakT / GrakCrystalTime); break;
-                case GrakMove.Fire: model.Window("Charged_Spell_Cast", 0.15f, 1f, grakT / GrakFireTime); break;
+                case GrakMove.Fire: model.Window("Charged_Spell_Cast", 0.15f, 0.6f, grakT / GrakFireTime); break;
                 case GrakMove.Scrape: model.Show("Male_Head_Down_Charge", 0.05f, 0.2f); break;
                 case GrakMove.Charge: model.LoopSeconds("Male_Head_Down_Charge", chargePh); break;
                 case GrakMove.Dazed:
                 case GrakMove.Felled: model.LoopSeconds("Catching_Breath", grakT, 0.2f); break;
-                case GrakMove.Swing: model.Window("Heavy_Hammer_Swing", 0f, 1f, grakT / GrakSwingTime); break;
-                case GrakMove.Chop: model.Window("Charged_Axe_Chop", 0f, 1f, grakT / GrakChopTime); break;
+                case GrakMove.Swing: model.Window("Heavy_Hammer_Swing", 0.2f, 1f, grakT / GrakSwingTime); break;
+                case GrakMove.Chop: model.Window("Charged_Axe_Chop", 0.25f, 0.75f, grakT / GrakChopTime); break;
                 case GrakMove.Slam: model.Window("Charged_Ground_Slam", 0f, 1f, grakT / GrakSlamTime); break;
                 default:
                     if (Mathf.Abs(vx) > 0.3f)

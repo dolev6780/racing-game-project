@@ -70,7 +70,8 @@ namespace Cloudborne
             float R(float a, float b) => a + (float)rnd.NextDouble() * (b - a);
 
             var wings = Resources.Load<Texture2D>(Dir + ButterflyName);
-            var wingMat = CbWorld.Painted(wings);
+            // (no butterflies round the burning temple, stage 1-5)
+            var wingMat = CbStage.Ember ? null : CbWorld.Painted(wings);
             if (wingMat != null)
             {
                 float aspect = wings.width / (float)wings.height;
@@ -111,7 +112,7 @@ namespace Cloudborne
 
             var bird = Resources.Load<Texture2D>(Dir + BirdName);
             // a little hazed: they are far off
-            birdMat = CbWorld.Painted(bird, 0.18f);
+            birdMat = CbStage.Ember ? null : CbWorld.Painted(bird, 0.18f);
             if (birdMat != null) birdAspect = bird.width / (float)bird.height;
         }
 

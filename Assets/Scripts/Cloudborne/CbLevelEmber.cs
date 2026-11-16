@@ -30,6 +30,7 @@ namespace Cloudborne
 
         Transform emberAltar, altarCrystal, looseCrystal;
         readonly List<Transform> emberPillars = new List<Transform>();
+        readonly List<Vector3> braziers = new List<Vector3>();
         readonly List<Transform> fireTongues = new List<Transform>();
         Transform fireLeft, fireRight;
         float fireL, fireR, emberT, pillarShake, pillarShakeX;
@@ -62,15 +63,32 @@ namespace Cloudborne
                 var t = CbArt.Joint(root, GrakX + side * (GrakCrash + CbEnemy.GrakHalf + 0.6f), 0, 0.75f, "emberPillar");
                 var holder = CbArt.Joint(t, 0, 0, 0, "shape");
                 holder.localScale = new Vector3(1.1f / 1.48f, 4.6f / 3.6f, 0.8f);
-                if (CbArt.Prop("Cloudborne/Jungle/Pillar/Pillar", holder, CbArt.PropOutline) == null)
-                    CbArt.Box(M("#a08a6a"), holder, new Vector3(0, 1.8f, 0), new Vector3(1.48f, 3.6f, 1.5f));
+                if (CbArt.Prop("Cloudborne/Jungle/Pillar/Pillar", holder, CbArt.PropOutline) is Transform pm)
+                {
+                    // the jungle shrine's mossy stone, scorched (it read bright yellow-green in the fire's light)
+                    foreach (var r in pm.GetComponentsInChildren<Renderer>())
+                        r.material.color = new Color(0.62f, 0.42f, 0.34f);
+                }
+                else CbArt.Box(M("#a08a6a"), holder, new Vector3(0, 1.8f, 0), new Vector3(1.48f, 3.6f, 1.5f));
                 emberPillars.Add(t);
             }
             // the altar at the back of the courtyard: a stepped block of stone, the crystal's stone paws on top, empty
             emberAltar = CbArt.Joint(root, GrakX, 0, 2.6f, "altar");
-            var stone = M("#8a7660");
+            // (of the courtyard's slabs: plain boxes read as cardboard)
+            var stone = CbArt.NewToon(new Color(0.85f, 0.75f, 0.68f), CbArt.PropOutline, SlabTexture());
+            stone.mainTextureScale = new Vector2(1.2f, 0.4f);
+            var dark = CbArt.NewToon(new Color(0.7f, 0.6f, 0.55f), CbArt.PropOutline, SlabTexture());
+            dark.mainTextureScale = new Vector2(0.9f, 0.4f);
             CbArt.Box(stone, emberAltar, new Vector3(0, 0.25f, 0), new Vector3(2.6f, 0.5f, 1.8f));
-            CbArt.Box(M("#7a6650"), emberAltar, new Vector3(0, 0.75f, 0), new Vector3(1.8f, 0.5f, 1.3f));
+            CbArt.Box(dark, emberAltar, new Vector3(0, 0.75f, 0), new Vector3(1.8f, 0.5f, 1.3f));
+            // a fire in a bowl at either side of it
+            foreach (int side in new[] { -1, 1 })
+            {
+                var bowl = CbArt.Joint(emberAltar, side * 1.7f, 0, -0.2f, "brazier");
+                CbArt.Cylinder(M("#3a2a22"), bowl, new Vector3(0, 0.45f, 0), 0.08f, 0.9f);
+                CbArt.Cylinder(M("#5a4030"), bowl, new Vector3(0, 0.95f, 0), 0.3f, 0.16f);
+                braziers.Add(bowl.position + new Vector3(0, 1.1f, 0));
+            }
             var crystal = CbArt.Joint(emberAltar, 0, 1.0f, 0, "crystalHolder");
             if (CbArt.Prop(CrystalPath, crystal, CbArt.PropOutline) is Transform holderModel)
                 foreach (var c in holderModel.GetComponentsInChildren<Transform>(true))
@@ -136,8 +154,11 @@ namespace Cloudborne
         }
 
         /// <summary>A sandstone slab texture drawn in code: big worn slabs, dark joints, a few cracks and scorch marks.</summary>
+        static Texture2D slabTex;
+
         static Texture2D SlabTexture()
         {
+            if (slabTex != null) return slabTex;
             const int S = 128;
             var tex = new Texture2D(S, S, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Repeat, name = "slabs" };
             var px = new Color[S * S];
@@ -158,7 +179,7 @@ namespace Cloudborne
                 }
             tex.SetPixels(px);
             tex.Apply();
-            return tex;
+            return slabTex = tex;
         }
 
         /// <summary>Grak's charge ends against a pillar: it shakes and dust falls from it.</summary>
@@ -260,6 +281,9 @@ namespace Cloudborne
                 var at = new Vector3(hero.x + Random.Range(-14f, 14f), Random.Range(0f, 2f), Random.Range(-1f, 8f));
                 CbFx.Spark(at, CbFx.Fire * Random.Range(0.5f, 1f), 1, 0.6f, 0.08f, 1.6f, -1.2f, Random.Range(-0.5f, 0.5f));
             }
+            // the braziers by the altar
+            foreach (var b in braziers)
+                if (Random.value < 0.5f) CbFx.Spark(b + new Vector3(Random.Range(-0.15f, 0.15f), 0, 0), CbFx.Fire, 1, 1.2f, 0.35f, 0.5f, -5);
             // a pillar Grak ran into shakes for a moment
             pillarShake = Mathf.Max(0, pillarShake - dt);
             foreach (var p in emberPillars)

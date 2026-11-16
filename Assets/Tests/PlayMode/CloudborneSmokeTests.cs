@@ -2074,6 +2074,10 @@ namespace RacingGame.Tests
             for (float w = 0; w < 10f && !grak.CrystalOnArmour; w += Time.deltaTime) yield return null;
             for (float w = 0; w < 10f && grak.grakMove != CbEnemy.GrakMove.Fire && grak.grakMove != CbEnemy.GrakMove.Slam; w += Time.deltaTime) yield return null;
             yield return TakePictures(new[] { ("ember_crystal", float.NaN, 0f) }, 0.7f);
+            // his fire awake: his stripes glow gold
+            CbSave.FireAwake = true;
+            game.Teleport(CbLevel.GrakX - 8f);
+            yield return TakePictures(new[] { ("ember_awake", float.NaN, 0f) }, 0.6f);
             CbSave.FireAwake = false;
         }
 
