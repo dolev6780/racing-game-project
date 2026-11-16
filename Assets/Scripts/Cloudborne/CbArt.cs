@@ -51,8 +51,9 @@ namespace Cloudborne
             var m = NewToon(Color.white, outline, texture);
             m.SetFloat("_Bands", 1);
             m.SetFloat("_BandSoftness", 0.02f);
-            // a light shadow and a strong warm rim: against the bright painted jungle the characters looked dim
-            m.SetColor("_ShadowColor", new Color(0.78f, 0.72f, 0.88f));
+            // a cool shadow with a crisp edge and a strong warm rim: anime cel shading (the user wanted the look of an
+            // anime fighting game; the shadow was lighter, from when the characters looked dim against the bright jungle)
+            m.SetColor("_ShadowColor", new Color(0.66f, 0.6f, 0.82f));
             m.SetFloat("_SpecStrength", 0);
             m.SetColor("_RimColor", new Color(1f, 0.92f, 0.8f));
             m.SetFloat("_RimPower", 3f);

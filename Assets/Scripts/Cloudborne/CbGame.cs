@@ -459,6 +459,38 @@ namespace Cloudborne
             vol.isGlobal = true;
             vol.priority = 10;
             vol.sharedProfile = profile;
+            profile.TryGet(out grading);
+        }
+
+        // ---------- impact frames ----------
+
+        // The anime impact frame (the user wanted the look and feel of an anime fighting game): on the biggest blows the
+        // picture goes stark black and white for a moment, the hit frozen in it. The grading's saturation and contrast
+        // are swung there and back; never more often than ImpactGap.
+        ColorAdjustments grading;
+        float impactT, impactGap;
+        const float ImpactGap = 0.7f, GradeSaturation = 12f, GradeContrast = 12f;
+
+        /// <summary>An impact frame: a moment in stark black and white (a finisher, a crash, a boss going down).</summary>
+        public void ImpactFrame(float time = 0.07f)
+        {
+            if (impactGap > 0 || grading == null) return;
+            impactT = time;
+            impactGap = ImpactGap;
+            hitstop = Mathf.Max(hitstop, time);
+        }
+
+        /// <summary>Whether an impact frame is showing (test hook).</summary>
+        public bool InImpactFrame => impactT > 0;
+
+        void UpdateImpactFrame(float raw)
+        {
+            impactGap = Mathf.Max(0, impactGap - raw);
+            if (grading == null) return;
+            bool on = impactT > 0;
+            impactT = Mathf.Max(0, impactT - raw);
+            grading.saturation.Override(on ? -100f : GradeSaturation);
+            grading.contrast.Override(on ? 75f : GradeContrast);
         }
 
         /// <summary>
@@ -1188,6 +1220,8 @@ namespace Cloudborne
                 hud.SpeedLines(0.55f, 0.3f);
             }
             hud.Popup(new Vector3(e.x, e.HitHeight + 0.9f, 0), Mathf.RoundToInt(dmg).ToString(), big ? CbHud.PopStyle.Big : CbHud.PopStyle.Normal);
+            // the biggest blows get an impact frame: a heavy finisher, or a blow on a boss that lands hard
+            if (big && fromPlayer && (dmg >= 14f || (e.Big && dmg >= 10f)) && e.hp > 0) ImpactFrame();
             hud.SetCombo(combo);
             if (e.hp <= 0) { KillEnemy(e, dir); return true; }
             e.Stagger(dir, kb, up);
@@ -1201,6 +1235,8 @@ namespace Cloudborne
         {
             if (e.dead) return;
             e.Kill(dir);
+            // a boss going down: the longest impact frame
+            if (e.Big) { impactGap = 0; ImpactFrame(0.14f); }
             score += e.scoreValue;
             hitstop = Mathf.Max(hitstop, 0.06f);
             shake = Mathf.Max(shake, 0.4f);
@@ -1625,6 +1661,7 @@ namespace Cloudborne
             fpsFrames++;
             if (fpsT >= 1f) { Fps = fpsFrames / fpsT; fpsT = 0; fpsFrames = 0; }
             clock += raw;
+            UpdateImpactFrame(raw);
             ReadInput(raw);
 
             if (input.pause)

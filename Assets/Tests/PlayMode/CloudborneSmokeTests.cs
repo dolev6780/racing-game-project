@@ -2082,6 +2082,31 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ZzRunFrames()
+        {
+            // Raja running flat out, frame after frame (a thirtieth of a second apart), to see whether his feet slide
+            // on the ground; and an impact frame
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-1");
+            game.BuildStage();
+            game.StartGame();
+            Time.captureDeltaTime = game.TestStep = 1f / 30f;
+            yield return Frames(2);
+            game.hero.hp = 9999;
+            game.hero.inv = 999f;
+            game.Teleport(4f);
+            game.TestControls = i => i.x = 1f;
+            yield return new WaitForSeconds(0.8f);
+            for (int k = 0; k < 8; k++)
+                yield return TakePictures(new[] { ($"run{k}", float.NaN, 0f) }, 1f / 30f);
+            game.TestControls = null;
+            game.ImpactFrame(0.5f);
+            yield return TakePictures(new[] { ("impact_frame", float.NaN, 0f) }, 1f / 30f);
+            Assert.IsTrue(game.InImpactFrame, "The impact frame did not hold");
+        }
+
+        [UnityTest]
         public IEnumerator BabasScrollHidesTheCubInTheClouds()
         {
             // stage 1-3's secret (the story doc): behind a scroll by Baba's hut, a drawing of a cub in the clouds

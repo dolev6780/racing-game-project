@@ -1523,8 +1523,25 @@ namespace Cloudborne
                 f.sash[i].localRotation = CbArt.Rot(-speed * 0.6f + Mathf.Sin(tt * 8 + i) * 0.15f, 0, Mathf.Sin(tt * 5 + i) * 0.1f);
         }
 
+        // The aura (the user wanted an anime fighting game's look): with his ki full, energy rises round him - pale gold
+        // while his fire sleeps, flame once it is awake - and a soft ring at his feet now and then.
+        float auraT;
+
+        void UpdateAura(float dt)
+        {
+            if (ki < 99.5f || state == State.Dead || state == State.Swim || g.mode != CbGame.Mode.Play) return;
+            auraT -= dt;
+            if (auraT > 0) return;
+            auraT = 0.035f;
+            var col = FireAwake ? (Random.value < 0.5f ? CbFx.Fire : CbFx.Flame) : new Color(1f, 0.92f, 0.6f) * 2.2f;
+            var at = new Vector3(x + Random.Range(-0.45f, 0.45f), y + Random.Range(0f, 1.4f), Random.Range(-0.5f, 0.3f));
+            CbFx.Spark(at, col, 1, 0.8f, Random.Range(0.18f, 0.32f), 0.45f, -6f);
+            if (Random.value < 0.04f) CbVfx.Ring(new Vector3(x, y + 0.05f, 0), col * 0.35f, 1.4f, 0.35f, ground: true);
+        }
+
         void UpdateFire(float dt)
         {
+            UpdateAura(dt);
             // fire glows in his fur only once it is awake; before that, a perfect dodge's power is a pale shine
             bool fire = FireAwake;
             float target = state == State.Special && fire ? (t < SpecialWindup ? 1.6f + t / SpecialWindup * 1.6f : 3.2f) : empower ? 1.2f : 0f;
