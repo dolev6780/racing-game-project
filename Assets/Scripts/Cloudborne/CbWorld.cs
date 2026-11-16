@@ -57,14 +57,15 @@ namespace Cloudborne
         // its top above the view; the wall goes on up to BackdropTop with the painting's top row, so no screen shape
         // ever sees past it.
         const string BackdropPath = "Cloudborne/Jungle/Backdrop/JungleBackdrop";
-        // The stage changes scenery on the way: the jungle, then a waterfall gorge from GorgeAt, then temple ruins at
-        // sunset from TempleAt, each painting cross-fading into the next over BackdropFade metres. A part whose
-        // painting isn't in the project keeps the one before.
+        // The stage changes scenery on the way: the jungle, then the gorge in the late afternoon from the foot of the
+        // mountain, then the shrine at sunset from the guardian statue on (to Sergeant Snap at its gate), each painting
+        // cross-fading into the next over BackdropFade metres. A part whose painting isn't in the project keeps the one
+        // before. (They were set at 76 and 110 m, from before the stage grew longer.)
         static readonly (string path, float from)[] JungleBackdrops =
         {
             ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
-            ("Cloudborne/Jungle/Backdrop/GorgeBackdrop", 76f),
-            ("Cloudborne/Jungle/Backdrop/TempleBackdrop", 110f),
+            ("Cloudborne/Jungle/Backdrop/GorgeBackdrop", CbLevel.MountainFrom - 6f),
+            ("Cloudborne/Jungle/Backdrop/TempleBackdrop", 240f),
         };
         // stage 1-2: high in the canopy (the jungle's painting until its own is in the project)
         static readonly (string path, float from)[] TreetopsBackdrops =
