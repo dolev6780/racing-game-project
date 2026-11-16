@@ -133,12 +133,16 @@ namespace Cloudborne
         // how far back the river runs (CbWorld: to under the painting's rapids)
         const float FallsFar = 140f;
 
-        /// <summary>The waterfalls: a cliff of wet rock from the upper river down to the lower, a sheet of white water over it.</summary>
+        /// <summary>
+        /// The waterfalls: a cliff of wet rock right across the river from the upper river down to the lower; over it,
+        /// falling water (the jungle's waterfall shader) in sheets from the front back across the river's width, and
+        /// foam at its foot. (Seen from the side the cliff showed only as a thin grey line, a glow strip for its water.)
+        /// </summary>
         void BuildFalls()
         {
-            var rock = M("#3e423f");
-            var foam = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.85f), CbArt.Shaft);
+            var rock = M("#33372f");
             var foamFlat = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.5f), CbArt.Shaft);
+            var shader = Resources.Load<Shader>("Shaders/Waterfall");
             foreach (var f in Falls)
             {
                 float top = SurfaceAt(f - 1f), bottom = SurfaceAt(f + 1f);
@@ -148,10 +152,29 @@ namespace Cloudborne
                 // the foam at its foot, all the way across
                 var churn = CbArt.Part(CbMesh.Quad, foamFlat, root, new Vector3(f + 1f, bottom + 0.02f, (FallsFar - 1f) / 2), new Vector3(2f, FallsFar + 1f, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
                 churn.name = "fallsFoam";
-                var sheet = CbArt.Part(CbMesh.Quad, foam, root, new Vector3(f + 0.05f, (top + bottom) / 2, -0.4f), new Vector3(2.2f, top - bottom + 0.4f, 1), shadows: false);
-                sheet.name = "waterfall";
+                // the falling water: over the lip and down, curving out a little, from the front of the river to its back
+                float w0 = f - 0.3f, w1 = f + 1.5f;
+                Material water;
+                if (shader != null && shader.isSupported)
+                {
+                    water = new Material(shader) { name = "riverFalls", renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent };
+                    water.SetFloat("_X0", w0);
+                    water.SetFloat("_X1", w1);
+                    water.SetFloat("_Top", top + 0.15f);
+                    water.SetFloat("_Bottom", bottom - 0.2f);
+                }
+                else water = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.85f), CbArt.Shaft);
+                foreach (float z in FallsSheets)
+                {
+                    var sheet = CbArt.Part(CbMesh.Quad, water, root, new Vector3((w0 + w1) / 2, (top + bottom) / 2, z),
+                        new Vector3(w1 - w0, top - bottom + 0.35f, 1), shadows: false);
+                    sheet.name = "waterfall";
+                }
             }
         }
+
+        // the sheets of falling water, from the front of the river to its back
+        static readonly float[] FallsSheets = { -1.3f, 2.5f, 7f, 14f, 26f, 45f };
 
         bool StrikeRiver(float x, float y, int dir, float range, bool staff)
         {
