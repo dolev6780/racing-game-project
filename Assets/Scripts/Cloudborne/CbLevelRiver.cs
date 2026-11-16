@@ -88,8 +88,8 @@ namespace Cloudborne
                 if (FitTop(RiverRockPath, t, new Vector3(-0.75f, WaterLevel - 0.6f, -0.7f), new Vector3(0.75f, h, 0.7f)) is Transform rm)
                 {
                     // wet and dark in the storm, like the painting's boulders (the jungle's pale stone read as a pillar of
-                    // chalk on the water)
-                    foreach (var r in rm.GetComponentsInChildren<Renderer>()) r.material.color = new Color(0.5f, 0.52f, 0.5f);
+                    // chalk on the water; toned to half it still did - the sun's light saturates its pale texture)
+                    foreach (var r in rm.GetComponentsInChildren<Renderer>()) r.material.color = new Color(0.3f, 0.32f, 0.32f);
                 }
                 else CbArt.Part(CbMesh.Sphere, stone, t, new Vector3(0, h * 0.4f, 0), new Vector3(1.3f, h * 1.6f, 1.2f));
                 rocks.Add(new Rock { x = x, h = h });
