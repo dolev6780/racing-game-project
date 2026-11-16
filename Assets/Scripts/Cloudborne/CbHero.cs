@@ -211,6 +211,16 @@ namespace Cloudborne
                 foreach (var r in f.body.GetComponentsInChildren<Renderer>(true))
                     if (!r.transform.IsChildOf(model.root)) r.enabled = false;
             staff = RigBuilder.Staff();
+            // a glowing trail off the staff's tip as it swings (an anime action game's smear: the user)
+            var tip = CbArt.Joint(staff, 0, 1.1f, 0, "staffTip");
+            staffTrail = tip.gameObject.AddComponent<TrailRenderer>();
+            staffTrail.time = 0.13f;
+            staffTrail.minVertexDistance = 0.05f;
+            staffTrail.widthCurve = new AnimationCurve(new Keyframe(0, 0.22f), new Keyframe(1, 0f));
+            staffTrail.material = CbArt.Glow(Color.white, null);
+            staffTrail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            staffTrail.receiveShadows = false;
+            staffTrail.emitting = false;
             staff.SetParent(model != null ? f.body : f.chest, false);
             staff.localPosition = StaffBackPos;
             staff.localRotation = StaffBackRot;
@@ -1473,10 +1483,27 @@ namespace Cloudborne
             f.body.localRotation = Quaternion.Euler(0, Mathf.LerpAngle(cur, target, 1 - Mathf.Exp(-18f * Time.deltaTime)), 0);
         }
 
+        TrailRenderer staffTrail;
+
         void UpdateStaffPlacement(Pose pose, float dt)
         {
             // the staff storm holds the staff too
             bool holding = state == State.Staff || (state == State.Special && !FireAwake);
+            if (staffTrail != null)
+            {
+                // its smear while it swings: gold, flame once his fire is awake
+                bool swing = holding && !staffFlying;
+                if (swing && !staffTrail.emitting)
+                {
+                    var c = FireAwake ? new Color(1f, 0.55f, 0.15f) : new Color(1f, 0.9f, 0.6f);
+                    staffTrail.colorGradient = new Gradient
+                    {
+                        colorKeys = new[] { new GradientColorKey(c, 0), new GradientColorKey(c, 1) },
+                        alphaKeys = new[] { new GradientAlphaKey(0.85f, 0), new GradientAlphaKey(0f, 1) },
+                    };
+                }
+                staffTrail.emitting = swing;
+            }
             if (!holding)
             {
                 staffHold = Mathf.Max(0, staffHold - dt);
