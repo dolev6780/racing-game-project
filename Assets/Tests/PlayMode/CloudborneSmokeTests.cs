@@ -2119,15 +2119,18 @@ namespace RacingGame.Tests
             yield return Frames(2);
             game.hero.hp = 9999;
             game.hero.inv = 999f;
-            game.Teleport(4f);
+            // (on an open stretch, nothing in his way: at the start he ran into the first crate)
+            game.SkipFights();
+            game.Teleport(110f);
             game.TestControls = i => i.x = 1f;
             yield return new WaitForSeconds(0.8f);
             for (int k = 0; k < 8; k++)
                 yield return TakePictures(new[] { ($"run{k}", float.NaN, 0f) }, 1f / 30f);
             game.TestControls = null;
             game.ImpactFrame(0.5f);
-            yield return TakePictures(new[] { ("impact_frame", float.NaN, 0f) }, 1f / 30f);
+            yield return null;
             Assert.IsTrue(game.InImpactFrame, "The impact frame did not hold");
+            yield return TakePictures(new[] { ("impact_frame", float.NaN, 0f) }, 1f / 30f);
         }
 
         [UnityTest]

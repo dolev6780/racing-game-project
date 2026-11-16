@@ -159,6 +159,9 @@ namespace Cloudborne
         readonly Transform staff;
         bool staffInHand;
         float t, buffer, heavyBuffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, ghostT, blockT, crouchT, walkT, stowT;
+        // his model's landing crouch, and the time since he left the ground in a jump (its push off)
+        float landT, jumpT = 9f;
+        const float LandTime = 0.15f;
         // the edge he hangs from (its corner and top, which way it is) and where he hangs; a moment before he can catch
         // one again after letting go; knocked down, the time since he landed on his back
         float grabX, grabTop, hangX, hangY, grabCd, downT;
@@ -641,6 +644,8 @@ namespace Cloudborne
         {
             t += dt;
             inv = Mathf.Max(0, inv - dt);
+            landT = Mathf.Max(0, landT - dt);
+            jumpT += dt;
             parryT = Mathf.Max(0, parryT - dt);
             dashCd = Mathf.Max(0, dashCd - dt);
             grabCd = Mathf.Max(0, grabCd - dt);
@@ -784,6 +789,7 @@ namespace Cloudborne
                     jumpBufT = 0;
                     cuttable = true;
                     vy = jumps == 0 ? 11.5f : 10f;
+                    jumpT = 0; landT = 0;
                     if (jumps == 1) flipT = FlipTime;
                     jumps++; air = true; state = State.Air;
                     CbFx.Sfx("jump", 0.6f);
@@ -949,6 +955,8 @@ namespace Cloudborne
                 if (air)
                 {
                     if (fall < -4f) Squash(Mathf.Clamp(-fall * 0.016f, 0.08f, 0.24f));
+                    // a moment's landing crouch in his model (from a real drop, not a step)
+                    if (fall < -5f) landT = LandTime;
                     air = false; jumps = 0; airDashed = false; airHits = 0;
                     if (state == State.Air) state = State.Idle;
                     if (state == State.Atk) { state = State.Idle; combo = 0; }
@@ -1021,15 +1029,30 @@ namespace Cloudborne
                     else model.Show(CrouchClip, 0.15f + Mathf.PingPong((crouchT - 0.12f) * 0.25f, 0.65f));
                     break;
                 case State.Idle when stowT > 0: model.Window("Heavy_Hammer_Swing", 0.4f, 0.62f, 1 - stowT / StowTime, 0.06f); break;
-                case State.Idle: model.LoopSeconds("Combat_Stance", g.clock); break;
+                // landing from a jump or a drop: the jump clip's own landing crouch for a moment (Regular_Jump 0.6-0.76,
+                // measured on its hips in Blender), then on into standing or running
+                case State.Idle when landT > 0:
+                case State.Run when landT > 0: model.Window("Regular_Jump", 0.6f, 0.76f, 1 - landT / LandTime, 0.05f); break;
+                // (longer blends between standing, walking and running: they switched in a blink)
+                case State.Idle: model.LoopSeconds("Combat_Stance", g.clock, 0.16f); break;
                 // a light push on the stick walks, a full one runs (a slow run looked like slow motion)
-                case State.Run when Mathf.Abs(vx) < WalkSpeed: model.LoopSeconds("Quick_Walk", walkT); break;
-                case State.Run: model.Loop("RunFast", runPh / (Mathf.PI * 2)); break;
+                case State.Run when Mathf.Abs(vx) < WalkSpeed: model.LoopSeconds("Quick_Walk", walkT, 0.14f); break;
+                case State.Run: model.Loop("RunFast", runPh / (Mathf.PI * 2), 0.12f); break;
                 // the somersault shows the tuck of the backflip clip (its hips' turn removed): the game turns him
                 // sliding down a wall: clinging to it, arms up and knees in (the reach of "Jump and Grab Wall")
                 case State.Air when sliding: model.Show("Jump_and_Grab_Wall", 0.62f, 0.1f); break;
                 case State.Air when flipT > 0: model.Window("Backflip_Jump", 0.3f, 0.52f, 1 - flipT / FlipTime, 0.06f); break;
-                case State.Air: model.Show("Regular_Jump", vy > 0 ? 0.32f : 0.5f, 0.12f); break;
+                // in the air the jump clip follows his rise and fall (it jumped between two poses at the top): the push
+                // off just after leaving the ground (0.22-0.3), rising (0.3), tucked at the top (0.45), legs reaching
+                // down falling (0.56) - its phases measured on its hips and feet in Blender
+                case State.Air:
+                {
+                    float rise = Mathf.Clamp(vy / 10f, -1f, 1f);
+                    float clip = rise >= 0 ? Mathf.Lerp(0.45f, 0.3f, rise) : Mathf.Lerp(0.45f, 0.56f, -rise);
+                    if (vy > 0 && jumpT < 0.08f) clip = Mathf.Lerp(0.22f, 0.3f, jumpT / 0.08f);
+                    model.Show("Regular_Jump", clip, 0.1f);
+                    break;
+                }
                 case State.Atk:
                 {
                     float u = t / Paw[combo].dur;
