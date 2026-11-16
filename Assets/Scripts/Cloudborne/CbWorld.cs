@@ -41,6 +41,8 @@ namespace Cloudborne
         const float RiverFar = 140f;
         // a rounded clump of bushes where the hedge meets a river, ClumpHeight tall
         const float ClumpHeight = 2.1f;
+        // stage 1-1: where the row of painted trees ends, so the shrine's painting shows (from its guardian statue on)
+        const float ShrineFrom = 232f;
         static bool NewLook => Resources.Load<Texture2D>(LipPath) != null;
         // the painted ground drawn as painted (unlit), a touch darker so the characters stand out from it
         static readonly Color PaintTint = new Color(0.93f, 0.92f, 0.95f);
@@ -65,7 +67,7 @@ namespace Cloudborne
         {
             ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
             ("Cloudborne/Jungle/Backdrop/GorgeBackdrop", CbLevel.MountainFrom - 6f),
-            ("Cloudborne/Jungle/Backdrop/TempleBackdrop", 240f),
+            ("Cloudborne/Jungle/Backdrop/TempleBackdrop", ShrineFrom + 6f),
         };
         // stage 1-2: high in the canopy (the jungle's painting until its own is in the project)
         static readonly (string path, float from)[] TreetopsBackdrops =
@@ -931,7 +933,18 @@ namespace Cloudborne
                 // the new look: a row of big painted trees in a light haze, and right behind the path a hedge of
                 // bushes and flowers (it hides the flat lawn that ran back to the trees), broken by the rivers
                 // (not in Baba's grove: its painted clearing - the hut, the bells, the mountains - showed only in gaps)
-                mid = !CbStage.Grove && !CbStage.River && !CbStage.Ember && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
+                // (stage 1-1: the row of trees ends before the shrine - its painting at sunset showed only as a strip of
+                // sky over the daylit trees - a big rounded crown closing it)
+                var midSpans = CbStage.Jungle ? new List<(float a, float b)> { (-120f, ShrineFrom) } : null;
+                mid = !CbStage.Grove && !CbStage.River && !CbStage.Ember && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f, midSpans);
+                var crownTex = mid && CbStage.Jungle ? Resources.Load<Texture2D>(ClumpPath) : null;
+                var crown = crownTex != null ? Cutout(crownTex, 0.3f, PaintTint) : null;
+                if (crown != null)
+                {
+                    crownTex.wrapMode = TextureWrapMode.Clamp;
+                    float ch = 7.5f, cw = ch * crownTex.width / crownTex.height;
+                    CbArt.Part(CbMesh.Quad, crown, root, new Vector3(ShrineFrom - cw / 2 + 2.2f, ch / 2 - 0.6f, 17.9f), new Vector3(cw, ch, 1), shadows: false).name = "treeRowEnd";
+                }
                 var hedge = BushGround();
                 near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, StageTint);
                 // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and
