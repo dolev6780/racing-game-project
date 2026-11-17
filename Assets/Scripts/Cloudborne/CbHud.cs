@@ -180,6 +180,8 @@ namespace Cloudborne
             gesture.gameObject.SetActive(false);
             holdTxt = UIKit.Label(atkPad.rt, "HOLD", 14, Gold, new Vector2(0.5f, 1), new Vector2(0.5f, 0), new Vector2(0, 6), new Vector2(120, 20), TextAnchor.MiddleCenter, true);
             holdTxt.gameObject.SetActive(false);
+            // the special's cut-in over the play screen and the pads' notes (under the cinematics and the menus)
+            cutIn.SetAsLastSibling();
 
             // cinematics: black bars that slide in at the top and bottom, a speech box over the lower one, SKIP
             barTop = UIKit.Rect(root, "barTop", new Vector2(0.5f, 1), new Vector2(0.5f, 1), Vector2.zero, new Vector2(4000, 0));
@@ -521,7 +523,7 @@ namespace Cloudborne
         // ---------- the special's cut-in (the user's Sparking Zero): a dark band across the screen, Raja's eyes, the name ----------
 
         RectTransform cutIn, cutFace, cutName;
-        Image cutEdge;
+        Image cutEdge, cutSlash;
         Text cutText;
         Outline cutOutline;
         readonly List<(RectTransform rt, float speed)> cutStreaks = new List<(RectTransform, float)>();
@@ -535,8 +537,8 @@ namespace Cloudborne
 
         void BuildCutIn()
         {
-            // tilted a little, a touch above the middle; a glowing edge behind the band, the band masking what is on it
-            cutIn = UIKit.Rect(root, "cutIn", new Vector2(0.5f, 0.56f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(CutInWide, CutInHigh));
+            // tilted a little, above the middle; a glowing edge behind the band, the band masking what is on it
+            cutIn = UIKit.Rect(root, "cutIn", new Vector2(0.5f, 0.6f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(CutInWide, CutInHigh));
             cutIn.localRotation = Quaternion.Euler(0, 0, 5f);
             cutEdge = UIKit.Image(UIKit.Rect(cutIn, "edge", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(CutInWide, CutInHigh + 10)), null, Ember);
             var band = UIKit.Rect(cutIn, "band", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(CutInWide, CutInHigh));
@@ -559,6 +561,13 @@ namespace Cloudborne
             face.uvRect = new Rect(0.06f, 0.16f, 0.76f, 0.5f);
             face.raycastTarget = false;
             cutFace.sizeDelta = new Vector2(CutInHigh * 2f * 0.76f / 0.5f, CutInHigh * 2f);
+            // its right side cut on a slant, with a bright line along the cut
+            var wedge = UIKit.Rect(cutFace, "wedge", new Vector2(1, 0.5f), new Vector2(0, 0.5f), new Vector2(-24, 0), new Vector2(160, CutInHigh * 1.6f));
+            wedge.localRotation = Quaternion.Euler(0, 0, -14f);
+            UIKit.Image(wedge, null, new Color(0.06f, 0.035f, 0.03f, 1f));
+            var slash = UIKit.Rect(cutFace, "slash", new Vector2(1, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-24, 0), new Vector2(6, CutInHigh * 1.6f));
+            slash.localRotation = Quaternion.Euler(0, 0, -14f);
+            cutSlash = UIKit.Image(slash, null, Ember);
             // the move's name
             cutName = UIKit.Rect(band, "name", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(CutNameX, 0), new Vector2(560, CutInHigh));
             cutText = UIKit.Label(cutName, "", 40, Paper, TextAnchor.MiddleCenter, true);
@@ -573,6 +582,7 @@ namespace Cloudborne
         {
             var col = fire ? Ember : Gold;
             cutEdge.color = col;
+            cutSlash.color = col;
             cutText.text = name;
             cutOutline.effectColor = fire ? CbArt.Hex("#a3200c") : CbArt.Hex("#7a5410");
             cutT = 0;
