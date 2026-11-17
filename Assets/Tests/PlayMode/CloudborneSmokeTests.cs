@@ -2164,6 +2164,16 @@ namespace RacingGame.Tests
             var walk = new List<float>();
             yield return PlantedFootShare(e.model.root, () => e.vx, 60, 120f, walk);
             Debug.Log($"STRIDE hyena charge {Median(charge):F2} over {charge.Count}, walk {Median(walk):F2} over {walk.Count}");
+            e.f.Destroy();
+            game.enemies.Remove(e);
+            // Commander Grak's heavy walk, coming in on Raja after his roar
+            var grak = new CbEnemy(game, CbEnemy.Kind.Grak, hero.x + 4.6f, game.transform) { minX = hero.x - 20f, maxX = hero.x + 20f };
+            game.enemies.Add(grak);
+            Assert.IsNotNull(grak.model, "Grak's model did not load");
+            for (int k = 0; k < 600 && grak.grakMove != CbEnemy.GrakMove.Stance; k++) yield return null;
+            var heavy = new List<float>();
+            yield return PlantedFootShare(grak.model.root, () => grak.vx, 100, 120f, heavy);
+            Debug.Log($"STRIDE grak walk {Median(heavy):F2} over {heavy.Count}");
             game.TestStep = 0f;
         }
 

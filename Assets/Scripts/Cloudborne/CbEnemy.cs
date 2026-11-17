@@ -48,6 +48,10 @@ namespace Cloudborne
         // charging - the cycle too fast; walking, at 0.67 of its old pace his foot slid on with him at 0.62 of his
         // speed - too slow; the share falls in a straight line with the pace)
         const float ChargePace = 0.6f, WalkPace = 1.76f;
+        // (measured on the raider, 2.25 m tall: the guard's and the sergeant's models carry the same clips at their own
+        // size, a taller one's stride longer, so their pace goes with the raider's height over theirs)
+        const float PacedHeight = 2.25f;
+        float paceK = 1f;
         float backT, chargeT, backPh;
         bool charging;
 
@@ -148,7 +152,9 @@ namespace Cloudborne
 
             // The rig still places, turns and flips the hyena; with the model loaded only its machete and shield are drawn.
             modelPath = sergeant ? "Cloudborne/HyenaSergeant/HyenaSergeant" : shield ? "Cloudborne/HyenaGuard/HyenaGuard" : "Cloudborne/HyenaRaider/HyenaRaider";
-            model = CbModel.Load(modelPath, sergeant ? 2.55f : shield ? 2.1f : 2.25f, f.body);
+            float height = sergeant ? 2.55f : shield ? 2.1f : 2.25f;
+            paceK = PacedHeight / height;
+            model = CbModel.Load(modelPath, height, f.body);
             if (model != null)
             {
                 foreach (var r in f.body.GetComponentsInChildren<Renderer>(true))
@@ -226,10 +232,10 @@ namespace Cloudborne
                     }
                     else if (Mathf.Abs(vx) > 0.4f && charging && model.HasClip(ChargeClip))
                     {
-                        chargeT += Time.deltaTime * Mathf.Abs(vx) / (speed * ChargeBoost) * ChargePace;
+                        chargeT += Time.deltaTime * Mathf.Abs(vx) / (speed * ChargeBoost) * ChargePace * paceK;
                         model.LoopSeconds(ChargeClip, chargeT);
                     }
-                    else if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh * WalkPace / (Mathf.PI * 2));
+                    else if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh * WalkPace * paceK / (Mathf.PI * 2));
                     else if (shield && guard) model.Show("Block1", 0.15f);
                     else model.LoopSeconds("Combat_Stance", g.clock + runPh);
                     break;
@@ -253,7 +259,7 @@ namespace Cloudborne
                     else model.Window("Shouting_Angrily", 0f, 1f, t / WhistleTime);
                     break;
                 default:
-                    if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh * WalkPace / (Mathf.PI * 2));
+                    if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh * WalkPace * paceK / (Mathf.PI * 2));
                     else model.LoopSeconds("Combat_Stance", g.clock * (open > 0 ? 1.8f : 1f));
                     break;
             }
