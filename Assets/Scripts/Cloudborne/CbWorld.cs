@@ -104,7 +104,8 @@ namespace Cloudborne
         static readonly Dictionary<string, (Color haze, Color lawn)> PaintingGround = new Dictionary<string, (Color, Color)>
         {
             { "Cloudborne/Jungle/Backdrop/GorgeBackdrop", (CbArt.Hex("#767040"), JungleLawn) },
-            { "Cloudborne/Jungle/Backdrop/TempleBackdrop", (CbArt.Hex("#614b21"), CbArt.Hex("#33291c")) },
+            // (darker than sampled: in the sun the lawn still showed a light brown band under the painting's shaded foot)
+            { "Cloudborne/Jungle/Backdrop/TempleBackdrop", (CbArt.Hex("#4a3a1c"), CbArt.Hex("#1c150d")) },
         };
         static readonly Color JungleLawn = CbArt.Hex("#3a7a33");
         Material lawnMat;
