@@ -403,8 +403,9 @@ namespace Cloudborne
             // the streams cross the jungle's ground; in the treetops the gaps between the branches drop away
             if (CbStage.Treetops) BuildDrops(face);
             else BuildStreams(grass, face, far);
-            // the lawn running back to the trees (not on the river: it lay over the water, a flat green band)
-            if (!CbStage.River)
+            // the lawn running back to the trees (not on the river: it lay over the water, a flat green band; nor in the
+            // treetops: seen through the gaps between the boughs it was a pale wall in the fog, not a drop)
+            if (!CbStage.River && !CbStage.Treetops)
                 CbArt.Part(CbMesh.Quad, CbArt.Toon(CbStage.Ember ? "#3a2620" : "#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
 
             // grass blades and fern fronds, merged straight into a few meshes
@@ -506,13 +507,14 @@ namespace Cloudborne
             var haze = Cutout(tex, 0f, Color.white);
             if (haze != null) haze.SetFloat("_Cutoff", 0f);
             else haze = CbArt.Toon("#1c3326");
-            var mist = CbArt.Glow(new Color(0.75f, 0.85f, 0.8f, 0.25f), CbArt.Mist);
+            var mist = CbArt.Glow(new Color(0.75f, 0.85f, 0.8f, 0.14f), CbArt.Mist);
             foreach (var (x0, x1) in CbLevel.Waters)
             {
                 float w = x1 - x0, c = (x0 + x1) / 2;
                 // (a floor near the top read as a green pond: it lies deep, dark, under a thin mist, all the way back -
                 // the grass behind the gap read as a lawn going on: the CI's pictures)
-                const float Far = 40f;
+                // (as far back as the view sees down through the gap: the lawn that lay behind it is gone)
+                const float Far = 140f;
                 CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -6f, GroundFront - 0.012f), new Vector3(w + 0.1f, 12f, 1), shadows: false).name = "dropFront";
                 CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -11f, (GroundFront + Far) / 2), new Vector3(w + 0.1f, Far - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropFloor";
                 CbArt.Part(CbMesh.Quad, mist, root, new Vector3(c, -2.5f, (GroundFront + Far) / 2), new Vector3(w * 1.2f, Far - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropMist";

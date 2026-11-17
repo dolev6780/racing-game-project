@@ -490,6 +490,8 @@ namespace Cloudborne
             impactT = time;
             impactGap = ImpactGap;
             hitstop = Mathf.Max(hitstop, time);
+            // and the camera punches in on it for a moment (eased back out by UpdateCamera)
+            fovKick = Mathf.Min(fovKick, -2.6f);
         }
 
         /// <summary>Whether an impact frame is showing (test hook).</summary>
