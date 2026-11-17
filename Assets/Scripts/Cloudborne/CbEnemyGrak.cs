@@ -441,9 +441,10 @@ namespace Cloudborne
                 default:
                     if (Mathf.Abs(vx) > 0.3f)
                     {
-                        // (paced so his planted foot holds to the ground: measured in CI, the STRIDE test, at the clip's
-                        // own pace at his walking speed his foot ran back at 0.79 of his speed - too fast)
-                        walkPh += dt * Mathf.Abs(vx) / GrakWalk * 0.56f;
+                        // (paced so his planted foot holds to the ground: measured in CI, the STRIDE test - at the clip's
+                        // own pace his foot ran back at 0.79 of his speed, at 0.56 of it slid on at 0.34: the line between
+                        // the two crosses nought at 0.69)
+                        walkPh += dt * Mathf.Abs(vx) / GrakWalk * 0.69f;
                         model.LoopSeconds("walking_man", walkPh, 0.2f);
                     }
                     else model.LoopSeconds("Axe_Stance", g.clock, 0.2f);
