@@ -2134,20 +2134,24 @@ namespace RacingGame.Tests
                     if (b.name == "RightToeBase") right = b;
                 }
             Assert.IsNotNull(left, "Raja's model has no toe bones");
+            // (measured finely, a hundred and twentieth of a second a frame over a second and a half: at a thirtieth his
+            // foot was down for only three or so frames a run, and the number swung from +0.1 to -0.44)
+            Time.captureDeltaTime = game.TestStep = 1f / 120f;
             var samples = new List<(float lx, float ly, float rx, float ry, float vx)>();
-            for (int k = 0; k < 40; k++)
+            for (int k = 0; k < 180; k++)
             {
                 yield return null;
                 samples.Add((left.position.x, left.position.y, right.position.x, right.position.y, hero.vx));
             }
+            Time.captureDeltaTime = game.TestStep = 1f / 30f;
             float lowL = samples.Min(p => p.ly), lowR = samples.Min(p => p.ry);
             var shares = new List<float>();
             for (int k = 1; k < samples.Count; k++)
             {
                 var a = samples[k - 1]; var b = samples[k];
                 if (Mathf.Abs(b.vx) < 1f) continue;
-                if (a.ly < lowL + 0.04f && b.ly < lowL + 0.04f) shares.Add((b.lx - a.lx) * 30f / b.vx);
-                if (a.ry < lowR + 0.04f && b.ry < lowR + 0.04f) shares.Add((b.rx - a.rx) * 30f / b.vx);
+                if (a.ly < lowL + 0.05f && b.ly < lowL + 0.05f) shares.Add((b.lx - a.lx) * 120f / b.vx);
+                if (a.ry < lowR + 0.05f && b.ry < lowR + 0.05f) shares.Add((b.rx - a.rx) * 120f / b.vx);
             }
             shares.Sort();
             float median = shares.Count > 0 ? shares[shares.Count / 2] : float.NaN;
