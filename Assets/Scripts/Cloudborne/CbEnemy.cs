@@ -344,8 +344,13 @@ namespace Cloudborne
             vy = 6.5f;
         }
 
+        // A blow squashes him for a moment, springing back (an anime hit's punch: the user's reference)
+        float hitSquash;
+        const float HitSquashTime = 0.14f;
+
         public void Stagger(int dir, float kb, float up)
         {
+            hitSquash = HitSquashTime;
             // too heavy to be knocked about: the blows only flash on him
             if (kind == Kind.Tusk) return;
             // Grak too: a blow only makes him flinch while his guard is down
@@ -369,6 +374,7 @@ namespace Cloudborne
         public void Kill(int dir)
         {
             dead = true; state = State.Dying; t = 0;
+            hitSquash = HitSquashTime;
             vx = dir * 10; vy = 7;
             if (kind == Kind.Tusk || kind == Kind.Grak) vx = vy = 0;
         }
@@ -735,6 +741,14 @@ namespace Cloudborne
             float target = facing * (90f + (model != null ? 8f : 25f));
             f.body.localRotation = Quaternion.Euler(0, Mathf.LerpAngle(f.body.localEulerAngles.y, target, 1 - Mathf.Exp(-12 * dt)), 0);
             Animate();
+            // squashed by a blow, springing back
+            if (!dozing)
+            {
+                hitSquash = Mathf.Max(0, hitSquash - dt);
+                float q = hitSquash / HitSquashTime;
+                q *= q;
+                f.body.localScale = new Vector3(1 + 0.2f * q, 1 - 0.18f * q, 1 + 0.2f * q);
+            }
             PlaceGear(1 - Mathf.Exp(-25 * dt));
             if (kind == Kind.Thrower && blade != null)
             {

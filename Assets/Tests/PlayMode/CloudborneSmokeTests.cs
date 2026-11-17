@@ -1273,6 +1273,30 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ABlowSquashesASoldierForAMoment()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            // on open ground, a soldier struck lightly: squashed (wider, shorter) for a moment, then springing back
+            game.Teleport(184f);
+            var e = new CbEnemy(game, CbEnemy.Kind.Hyena, 192f, game.transform);
+            game.enemies.Add(e);
+            yield return Frames(3);
+            Assert.AreEqual(1f, e.f.body.localScale.y, 0.001f, "The soldier was squashed before any blow");
+            game.HurtEnemy(e, 1f, 1, 0.5f, 0f, false, false, false, true);
+            yield return null;
+            Assert.Less(e.f.body.localScale.y, 0.97f, "A blow did not squash the soldier");
+            Assert.Greater(e.f.body.localScale.x, 1.03f, "A squashed soldier did not widen");
+            for (float w = 0; w < 0.4f; w += Time.deltaTime) yield return null;
+            Assert.IsFalse(e.dead, "A light blow beat the soldier");
+            Assert.AreEqual(1f, e.f.body.localScale.y, 0.001f, "The soldier did not spring back from the squash");
+            Assert.AreEqual(1f, e.f.body.localScale.x, 0.001f, "The soldier stayed wide after the squash");
+        }
+
+        [UnityTest]
         public IEnumerator ASpearThrowerKeepsHisDistanceAndThrows()
         {
             game = CbGame.Boot();
