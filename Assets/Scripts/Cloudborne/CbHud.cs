@@ -217,8 +217,16 @@ namespace Cloudborne
             fpsTxt = UIKit.Label(paused, "", 16, new Color(1, 1, 1, 0.7f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -160), new Vector2(600, 24), TextAnchor.MiddleCenter, true);
 
             result = Overlay("result");
-            resultTitle = UIKit.Label(result, "STAGE CLEAR", 64, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 80), new Vector2(700, 80), TextAnchor.MiddleCenter, true);
-            resultStats = UIKit.Label(result, "", 18, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 0), new Vector2(760, 64), TextAnchor.MiddleCenter, true);
+            resultTitle = UIKit.Label(result, "STAGE CLEAR", 60, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 130), new Vector2(700, 76), TextAnchor.MiddleCenter, true);
+            for (int i = 0; i < 3; i++)
+                resultStars[i] = UIKit.Label(result, "★", 50, Gold, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2((i - 1) * 60, 76), new Vector2(64, 60), TextAnchor.MiddleCenter, true);
+            resultStats = UIKit.Label(result, "", 18, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 16), new Vector2(760, 64), TextAnchor.MiddleCenter, true);
+            // the rank, stamped in at the right once the rest has counted up
+            resultRank = UIKit.Label(result, "", 116, Gold, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(300, 92), new Vector2(170, 150), TextAnchor.MiddleCenter, true);
+            resultRank.fontStyle = FontStyle.Italic;
+            rankOutline = resultRank.gameObject.AddComponent<Outline>();
+            rankOutline.effectDistance = new Vector2(4, -4);
+            resultRankLabel = UIKit.Label(result, "RANK", 16, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(300, 158), new Vector2(120, 20), TextAnchor.MiddleCenter, true);
             BigButton(result, "PLAY AGAIN", new Vector2(0, -50));
             resultMenuBtn = (RectTransform)BigButton(result, "MENU", new Vector2(0, -118)).transform.parent;
 
@@ -408,10 +416,78 @@ namespace Cloudborne
         /// <summary>The results: score, combo, time; tiger tokens, friends freed, stars (and a badge for no hit taken).</summary>
         public void ShowResult(bool won, int score, int maxCombo, float time, int tokens = 0, int friends = 0, int stars = 0, bool flawless = false)
         {
-            resultTitle.text = won ? "STAGE CLEAR  " + new string('★', stars) + new string('☆', 3 - stars) : "DEFEATED";
-            resultStats.text = $"SCORE {score:N0}    ·    MAX COMBO {maxCombo}    ·    TIME {(int)(time / 60)}:{(int)(time % 60):00}\n" +
-                $"TIGER TOKENS {tokens}/3    ·    FRIENDS FREED {friends}/3" + (flawless ? "    ·    NO HIT TAKEN!" : "");
+            res = (won, score, maxCombo, time, tokens, friends, stars, flawless);
+            resultTitle.text = won ? "STAGE CLEAR" : "DEFEATED";
+            Rank = won ? RankOf(stars, flawless) : "";
+            resultRank.text = Rank;
+            var (fill, edge) = Rank == "S" ? (Gold, CbArt.Hex("#a3200c")) : Rank == "A" ? (Ember, CbArt.Hex("#4a0f05"))
+                : Rank == "B" ? (CbArt.Hex("#5ab4ff"), CbArt.Hex("#0d2a5c")) : (CbArt.Hex("#c9c4b8"), CbArt.Hex("#2b2a26"));
+            resultRank.color = fill;
+            rankOutline.effectColor = edge;
+            resultRankLabel.gameObject.SetActive(won);
+            resultT = 0;
             SetScreen(Screen.Result);
+            TickResult(0);
+        }
+
+        /// <summary>
+        /// The stage's rank: S for every star with no hit taken, A for every star (or two and no hit), B for two, C else.
+        /// </summary>
+        public static string RankOf(int stars, bool flawless) =>
+            stars >= 3 && flawless ? "S" : stars >= 3 || (stars == 2 && flawless) ? "A" : stars == 2 ? "B" : "C";
+
+        /// <summary>The rank the results show ("" when defeated).</summary>
+        public string Rank { get; private set; } = "";
+
+        // The results come in like an anime game's (the user's reference): the title slams down, the stars pop in one
+        // by one, the numbers count up, and the rank is stamped in last.
+        readonly Text[] resultStars = new Text[3];
+        Text resultRank, resultRankLabel;
+        Outline rankOutline;
+        (bool won, int score, int combo, float time, int tokens, int friends, int stars, bool flawless) res;
+        float resultT = -1;
+        const float StarsAt = 0.3f, StarGap = 0.2f, CountFrom = 0.15f, CountTime = 0.9f, RankAt = 1.3f;
+
+        /// <summary>The results have finished coming in (the rank is down).</summary>
+        public bool ResultsIn => resultT >= RankAt + 0.2f;
+
+        static float Ease(float k) { k = Mathf.Clamp01(k); return 1 - (1 - k) * (1 - k) * (1 - k); }
+
+        void TickResult(float dt)
+        {
+            if (resultT < 0 || screen != Screen.Result) return;
+            float before = resultT;
+            resultT += dt;
+            float t = resultT;
+            // the title slams down
+            float k = Ease(t / 0.18f);
+            resultTitle.transform.localScale = Vector3.one * Mathf.Lerp(2.4f, 1f, k);
+            resultTitle.color = new Color(Paper.r, Paper.g, Paper.b, Mathf.Clamp01(t / 0.12f));
+            // the stars pop in, the earned ones gold with a chime, the rest dim
+            for (int i = 0; i < 3; i++)
+            {
+                float at = StarsAt + i * StarGap, u = (t - at) / 0.16f;
+                bool earned = i < res.stars && res.won;
+                var star = resultStars[i];
+                star.gameObject.SetActive(res.won);
+                star.color = earned ? Gold : new Color(0.3f, 0.3f, 0.32f, 0.85f);
+                star.transform.localScale = Vector3.one * (u < 0 ? 0f : earned ? 1f + 1.1f * (1 - Ease(u)) * (1 - Ease(u)) : Ease(u));
+                if (earned && before < at && t >= at) CbFx.Sfx("pickup", 0.5f);
+            }
+            // the numbers count up
+            if (before < CountFrom + CountTime + 0.05f)
+            {
+                float c = Ease((t - CountFrom) / CountTime);
+                float time = res.time * c;
+                resultStats.text = $"SCORE {Mathf.RoundToInt(res.score * c):N0}    ·    MAX COMBO {Mathf.RoundToInt(res.combo * c)}    ·    TIME {(int)(time / 60)}:{(int)(time % 60):00}\n" +
+                    $"{(CbStage.River ? "GOLDEN LOTUSES" : "TIGER TOKENS")} {res.tokens}/3    ·    FRIENDS FREED {res.friends}/3" + (res.flawless ? "    ·    NO HIT TAKEN!" : "");
+            }
+            // the rank, stamped in with a thud
+            float r = (t - RankAt) / 0.14f;
+            resultRank.transform.localScale = Vector3.one * (r < 0 ? 0f : Mathf.Lerp(3f, 1f, Ease(r)));
+            resultRank.transform.localRotation = Quaternion.Euler(0, 0, -8f);
+            resultRankLabel.color = new Color(Paper.r, Paper.g, Paper.b, Mathf.Clamp01(r));
+            if (res.won && before < RankAt && t >= RankAt) CbFx.Sfx("heavy", 0.8f);
         }
 
         public void SetWave(string s) { waveTxt.text = s; stageTxt.text = CbStage.Title; }
@@ -848,6 +924,7 @@ namespace Cloudborne
                 else banners[i] = b;
             }
             TickCounters(dt);
+            TickResult(dt);
             if (comboPop > 0) { comboPop -= dt; comboN.transform.localScale = Vector3.one * (1 + Mathf.Max(0, comboPop) * 2f); }
             hurtT = Mathf.Max(0, hurtT - dt);
             hurtFlash.color = new Color(1f, 0.2f, 0.15f, hurtT > 0 ? 0.75f * hurtT / 0.25f : 0);

@@ -148,6 +148,30 @@ namespace RacingGame.Tests
             // no cheering: the gate opened and he walked on through it (the user)
             Assert.AreNotEqual(CbHero.State.Victory, game.hero.state, "Raja cheered at the shrine gate");
             Assert.Greater(game.hero.x, CbWorld.GoalX + 1.6f, "Raja did not walk through the shrine gate");
+            // the results come in: the stars, the numbers counting up, the rank stamped in last
+            for (float w = 0; w < 1.8f; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(game.hud.ResultsIn, "The results never finished coming in");
+            Assert.AreNotEqual("", game.hud.Rank, "A cleared stage got no rank");
+        }
+
+        [UnityTest]
+        public IEnumerator ZzResultsComeIn()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            // S for every star and no hit, A for every star (or two and no hit), B for two, C else
+            Assert.AreEqual("S", CbHud.RankOf(3, true));
+            Assert.AreEqual("A", CbHud.RankOf(3, false));
+            Assert.AreEqual("A", CbHud.RankOf(2, true));
+            Assert.AreEqual("B", CbHud.RankOf(2, false));
+            Assert.AreEqual("C", CbHud.RankOf(1, true));
+            game.hud.ShowResult(true, 12840, 23, 251f, 3, 2, 3, false);
+            yield return TakePictures(new[] { ("results", float.NaN, 0f) }, 1.8f);
+            Assert.IsTrue(game.hud.ResultsIn, "The results never finished coming in");
+            Assert.AreEqual("A", game.hud.Rank, "Every star with a hit taken is not an A");
         }
 
         [UnityTest]
