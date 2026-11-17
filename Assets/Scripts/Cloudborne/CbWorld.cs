@@ -330,29 +330,6 @@ namespace Cloudborne
             return list;
         }
 
-        /// <summary>
-        /// The foreground (depth, as in a polished 2.5D game: the user wanted that look): now and then a stretch of the
-        /// painted hedge between the camera and the path, low over the ground's face and dark against the lit stage, so
-        /// the world reads as deep. Never over the path itself (its top stays below the path's front edge on screen), and
-        /// not on the river or in the treetops (water and drops in front there).
-        /// </summary>
-        void BuildForeground()
-        {
-            if (CbStage.River || CbStage.Treetops) return;
-            var spans = new List<(float a, float b)>();
-            var rnd = new System.Random(23);
-            for (float x = -10f; x < End; x += 18f + (float)rnd.NextDouble() * 14f)
-            {
-                float w = 5f + (float)rnd.NextDouble() * 5f;
-                if (CbLevel.InWater(x, 2f) || CbLevel.InWater(x + w, 2f)) continue;
-                spans.Add((x, x + w));
-            }
-            var dark = CbStage.Ember ? new Color(0.22f, 0.1f, 0.07f) : new Color(0.16f, 0.24f, 0.17f);
-            BuildLayer("JungleNear", ForeZ, -1.95f, 1.75f, 0f, spans, dark);
-        }
-        // how far in front of the path the foreground stands (towards the camera, which is 11 m or more away)
-        const float ForeZ = -3.4f;
-
         /// <summary>The ground behind the path where the bushes stand: all of it but the streams and rivers.</summary>
         static List<(float a, float b)> BushGround() => BankToBank(-120f, End + 120f, 0.3f);
 
@@ -1035,7 +1012,7 @@ namespace Cloudborne
                 mid = BuildLayer("JungleMid", 34f, -1f, 16f, 0.32f);
             }
             layers = near || mid;
-            if (near) BuildForeground();
+            // (no dark hedge in front of the ground's face any more: the user wanted it gone)
             if (NewLook)
             {
                 if (BuildBackdrop()) return;

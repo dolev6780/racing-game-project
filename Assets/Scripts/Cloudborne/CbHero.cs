@@ -99,7 +99,7 @@ namespace Cloudborne
         static readonly float[] ClimbRise = { 0f, 0.145f, 0.42f, 0.52f, 0.97f, 0.98f, 1f, 1f };
         static readonly float[] ClimbFwd = { 0f, 0.013f, 0.12f, 0.2f, 0.49f, 0.8f, 0.99f, 1f };
         // treading water ("Swim Idle") a moment before he is put back on the bank, the water at his shoulders
-        const float SwimTime = 0.9f, SwimDepth = 1.12f;
+        const float SwimDepth = 1.12f;
         // knocked down by a heavy blow: thrown on his back ("Knock Down"), lying a moment, up again ("Stand Up 1")
         const float DownLie = 0.35f, GetUpTime = 0.85f, DownGuard = 2.4f;
         // the stage won: a hop and a fist punched high ("Victory Cheer"), then the fist held up
@@ -474,9 +474,18 @@ namespace Cloudborne
         void FellInWater(float level, string tip)
         {
             swimLevel = level;
-            var at = new Vector3(x, level + 0.1f, -0.3f);
-            CbFx.Spark(at, CbFx.Water, 26, 7, 0.45f, 0.6f, 12);
-            CbVfx.Ring(new Vector3(x, level + 0.02f, 0), CbFx.Water * 0.5f, 1.6f, 0.4f, ground: true);
+            // (the user: his fall into the water looked no good - he stopped dead at the surface, trod water and was
+            // back on land in a blink) he plunges in with his fall's speed, under in a tall splash, bubbles streaming
+            // up after him; floats up and treads water a moment; goes under; and drops back onto dry land
+            swimVy = Mathf.Clamp(vy, -16f, -5f);
+            swimDrift = vx * 0.25f;
+            swimPhase = 0;
+            var at = new Vector3(x, level + 0.05f, -0.3f);
+            CbFx.Splash(at, 34, 9f + Mathf.Abs(swimVy) * 0.25f, 2.4f, 0.45f, 0.8f);
+            CbFx.Spark(at, CbFx.Water, 12, 4f, 0.3f, 0.4f, 12);
+            CbVfx.Ring(new Vector3(x, level + 0.02f, 0), CbFx.Water * 0.5f, 2.2f, 0.5f, ground: true);
+            CbVfx.Ring(new Vector3(x, level + 0.02f, 0), CbFx.Water * 0.35f, 1.2f, 0.3f, ground: true);
+            g.shake = Mathf.Max(g.shake, 0.12f);
             CbFx.Sfx("splash");
             hp = Mathf.Max(0, hp - WaterDamage);
             g.hud.Popup(new Vector3(x, level + 2.2f, 0), "-" + Mathf.RoundToInt(WaterDamage), CbHud.PopStyle.Hurt);
@@ -484,7 +493,57 @@ namespace Cloudborne
             g.hud.SetTip(tip);
             state = State.Swim; t = 0; move = Move.None; combo = 0;
             vx = vy = 0; air = false; jumps = 0; airDashed = false; flipT = 0; wallT = 0; sliding = false; crouching = false;
-            y = level - SwimDepth;
+        }
+
+        // the plunge: the water slows him and lifts him back up (no deeper than PlungeDeep under where he treads);
+        // treading water for TreadTime; going under for SinkTime; then dropped back onto dry land from ReturnDrop up
+        const float PlungeLift = 34f, PlungeDrag = 3f, PlungeDeep = 1.3f, TreadTime = 0.75f, SinkTime = 0.4f, ReturnDrop = 1.3f;
+        static readonly Color BubbleCol = new Color(0.85f, 0.97f, 1f) * 1.3f;
+        float swimVy, swimDrift;
+        int swimPhase;
+
+        void UpdateSwim(ref Pose pose, float dt)
+        {
+            pose.sLx = -1.2f; pose.sRx = -1.2f; pose.eL = -0.6f; pose.eR = -0.6f; pose.hLx = -0.4f; pose.kL = 0.8f; pose.hRx = 0.3f; pose.kR = 0.6f;
+            float rest = swimLevel - SwimDepth;
+            void Bubble(float chance)
+            {
+                if (Random.value < chance)
+                    CbFx.Spark(new Vector3(x + Random.Range(-0.35f, 0.35f), Mathf.Min(y + Random.Range(0.6f, 1.4f), swimLevel - 0.05f), -0.45f), BubbleCol, 1, 0.5f, 0.14f, 0.7f, -4f);
+            }
+            if (swimPhase == 0)
+            {
+                // in with his fall's speed, slowed by the water and lifted back up
+                swimVy += PlungeLift * dt;
+                swimVy *= 1 - Damp(PlungeDrag, dt);
+                y = Mathf.Max(y + swimVy * dt, rest - PlungeDeep);
+                x += swimDrift * dt;
+                swimDrift *= 1 - Damp(4f, dt);
+                Bubble(0.7f);
+                if ((swimVy > 0 && y >= rest) || t > 1.2f)
+                {
+                    // up at the surface: a small splash, a ripple
+                    y = rest; swimPhase = 1; t = 0;
+                    CbFx.Splash(new Vector3(x, swimLevel + 0.05f, -0.35f), 12, 4f, 1.2f, 0.32f, 0.5f);
+                    CbVfx.Ring(new Vector3(x, swimLevel + 0.02f, 0), CbFx.Water * 0.4f, 1.1f, 0.35f, ground: true);
+                    CbFx.Sfx("splash", 0.35f);
+                }
+            }
+            else if (swimPhase == 1)
+            {
+                // treading water, his shoulders under, ripples going out
+                y = rest + Mathf.Sin(t * 6f) * 0.05f;
+                if (Random.value < 0.25f) CbFx.Spark(new Vector3(x + Random.Range(-0.5f, 0.5f), swimLevel + 0.05f, -0.4f), CbFx.Water, 1, 1.2f, 0.25f, 0.35f, 2);
+                if (Mathf.Repeat(t, 0.4f) < dt) CbVfx.Ring(new Vector3(x, swimLevel + 0.02f, 0), CbFx.Water * 0.3f, 0.9f, 0.4f, ground: true);
+                if (t > TreadTime) { swimPhase = 2; t = 0; }
+            }
+            else
+            {
+                // under, a last stream of bubbles
+                y -= dt * 2.4f;
+                Bubble(0.9f);
+                if (t > SinkTime) LeaveWater();
+            }
         }
 
         /// <summary>
@@ -519,9 +578,13 @@ namespace Cloudborne
         {
             x = safeX; y = safeY; vx = vy = 0; air = false;
             state = State.Idle; t = 0;
-            inv = Mathf.Max(inv, 1f);
-            CbFx.Spark(new Vector3(x, y + 0.8f, -0.3f), CbFx.Water, 10, 2.5f, 0.3f, 0.45f, 6);
-            if (hp <= 0) { state = State.Dead; t = 0; g.Invoke(nameof(CbGame.Defeated), 1.4f); }
+            inv = Mathf.Max(inv, 1.2f);
+            if (hp <= 0) { state = State.Dead; t = 0; g.Invoke(nameof(CbGame.Defeated), 1.4f); return; }
+            // back on dry land: dropped in from a little above, a sparkle where he comes, a bounce as he lands
+            y = safeY + ReturnDrop; air = true; state = State.Air; jumps = 1; cuttable = false; flipT = 0;
+            CbVfx.Sparkle(new Vector3(x, y + 0.5f, -0.45f), new Color(0.85f, 0.97f, 1f) * 1.8f, 1.8f, 0.45f);
+            CbVfx.Ring(new Vector3(x, safeY + 0.03f, 0), new Color(0.85f, 0.97f, 1f) * 0.5f, 1.2f, 0.4f, ground: true);
+            CbFx.Spark(new Vector3(x, y + 0.6f, -0.35f), CbFx.Water, 8, 2f, 0.25f, 0.4f, 6);
         }
 
         /// <summary>Off a wall: kicked up and away from it, with one more jump in the air after it.</summary>
@@ -689,12 +752,7 @@ namespace Cloudborne
                 case State.Bars: UpdateBars(ref pose, input, dt); break;
                 case State.Zip: UpdateZip(ref pose, input, dt); break;
                 case State.Climb: UpdateClimb(ref pose); break;
-                case State.Swim:
-                    pose.sLx = -1.2f; pose.sRx = -1.2f; pose.eL = -0.6f; pose.eR = -0.6f; pose.hLx = -0.4f; pose.kL = 0.8f; pose.hRx = 0.3f; pose.kR = 0.6f;
-                    y = swimLevel - SwimDepth + Mathf.Sin(t * 6f) * 0.05f;
-                    if (Random.value < 0.25f) CbFx.Spark(new Vector3(x + Random.Range(-0.5f, 0.5f), swimLevel + 0.05f, -0.4f), CbFx.Water, 1, 1.2f, 0.25f, 0.35f, 2);
-                    if (t > SwimTime) LeaveWater();
-                    break;
+                case State.Swim: UpdateSwim(ref pose, dt); break;
                 case State.Down: UpdateDown(ref pose, input, dt); break;
                 case State.Victory:
                     vx *= 1 - Damp(10, dt);
@@ -1144,6 +1202,8 @@ namespace Cloudborne
                     else model.Show("Jump_and_Grab_Wall", 0.82f + Mathf.PingPong(t * 0.08f, 0.12f));
                     break;
                 case State.Climb: model.Window("Ladder_Climb_Finish", 0.25f, 0.85f, t / ClimbTime, 0.06f); break;
+                // plunging in: his fall's pose; then treading water
+                case State.Swim when swimPhase == 0: model.Show("Regular_Jump", 0.5f, 0.12f); break;
                 case State.Swim: model.LoopSeconds("Swim_Idle", t); break;
                 // knocked down: flung back onto the ground (Knock_Down), then up from lying on his back (Stand_Up1 from
                 // 0.22, lying, to 0.76, standing)

@@ -134,6 +134,26 @@ namespace Cloudborne
         /// A burst of <paramref name="n"/> particles. <paramref name="grav"/> &gt; 0 falls, &lt; 0 rises, 0 floats
         /// (the three demo cases); <paramref name="dirX"/> pushes the burst sideways.
         /// </summary>
+        /// <summary>
+        /// A splash: drops thrown up out of the water (up metres a second at most, spread to the sides), falling back.
+        /// </summary>
+        public static void Splash(Vector3 pos, int n, float up, float spread, float size = 0.4f, float life = 0.7f)
+        {
+            if (falling == null) return;
+            n = CbQuality.Particles(n);
+            var col = (Color32)new Color(Mathf.Clamp01(Water.r / 3f), Mathf.Clamp01(Water.g / 3f), Mathf.Clamp01(Water.b / 3f), 1f);
+            var p = new ParticleSystem.EmitParams { applyShapeToPosition = false };
+            for (int i = 0; i < n; i++)
+            {
+                p.position = pos + new Vector3(Random.Range(-0.25f, 0.25f), 0, 0);
+                p.velocity = new Vector3(Random.Range(-spread, spread), Random.Range(0.45f, 1f) * up, Random.Range(-0.8f, 0.8f));
+                p.startLifetime = life * Random.Range(0.6f, 1.2f);
+                p.startSize = size * Random.Range(0.6f, 1.3f) * 1.4f;
+                p.startColor = col;
+                falling.Emit(p, 1);
+            }
+        }
+
         public static void Spark(Vector3 pos, Color c, int n, float speed = 7f, float size = 0.35f, float life = 0.4f, float grav = 6f, float dirX = 0f)
         {
             if (falling == null) return;
