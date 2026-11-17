@@ -6,7 +6,7 @@ namespace Cloudborne
     /// <summary>
     /// One frame of player input: stick, edges (pressed this frame) and holds. What he does, not which button: the
     /// controls (CbHud, CbGame.ReadKeys) are a stick, three buttons and a swipe - the stick: left and right, up a jump
-    /// (held: its full height), down a slide (held: a crawl); ATTACK (tapped: atk, the combo; held: heavy, the staff);
+    /// (held: its full height), down a slide (held: a duck); ATTACK (tapped: atk, the combo; held: heavy, the staff);
     /// KI (kiTap; FIRE once his fire is awake; held, once learned, the staff throw); SPECIAL (skill); a swipe across:
     /// dash (a dodge) that way. (Seven buttons and their combinations were too much on a phone, then the JUMP button
     /// went too: the user.) guard is on no control now; the hero still knows it.
@@ -282,18 +282,14 @@ namespace Cloudborne
         bool kickLanded;
         float kickLandT;
 
-        // ---------- the slide and the crawl ----------
-        // (the user: obstacles to slide or crawl under) running, down drops him into a slide along the ground, low,
-        // knocking a soldier in his way off his feet; held down he crawls; under a low passage he can't stand up
-        // He crawls flat on his belly like a soldier, pulling himself along on one elbow and then the other (made in
-        // Meshy from a description, one clean cycle of it: Raja_More_Clips; on hands and knees he looked like he was
-        // on all fours, and the user wanted the elbows, like a marine). A cycle - both elbows - carries him
-        // CrawlStride metres, so his forearms keep pace with the ground (the first crawl slid along at 2.3 m/s and he
-        // seemed to drift on the floor: the user); about half a second to each pull.
-        const float SlideFrom = 5f, SlideSpeed = 10f, SlideTime = 0.55f, CrawlSpeed = 0.8f, CrawlStride = 0.8f, SlideDmg = 6f;
-        const string SlideClip = "slide_light", CrawlClip = "Crawl";
+        // ---------- the slide ----------
+        // (the user: obstacles to slide under) running, down drops him into a slide along the ground, low, knocking a
+        // soldier in his way off his feet; under a low passage he can't stand up.
+        // No crawl any more (the user: sliding is enough): held down he ducks where he is; down and across slides him;
+        // a slide that ends under something low carries on until he is out from under it.
+        const float SlideFrom = 5f, SlideSpeed = 10f, SlideTime = 0.55f, SlideEnd = 2.5f, SlideDmg = 6f;
+        const string SlideClip = "slide_light";
         bool downBefore;
-        float crawlPh;
 
         /// <summary>Whether something over him keeps him from standing up.</summary>
         bool LowCeiling => g.level != null && g.level.CeilingAt(x, y) < y + CbLevel.StandHeight;
@@ -312,7 +308,7 @@ namespace Cloudborne
             // off an edge: falling, not sliding
             if (air) { state = State.Air; t = 0; crouching = false; return; }
             float k = Mathf.Clamp01(t / SlideTime);
-            vx = facing * Mathf.Lerp(SlideSpeed, CrawlSpeed, k * k);
+            vx = facing * Mathf.Lerp(SlideSpeed, SlideEnd, k * k);
             // (on the river he ducks low on his log, carried on)
             if (g.Riding) vx = g.RideVx(0);
             if (Random.value < 0.7f) CbFx.Spark(new Vector3(x - facing * 0.3f, y + 0.08f, -0.3f), CbFx.Dust, 1, 2f, 0.45f, 0.35f, 1);
@@ -335,7 +331,12 @@ namespace Cloudborne
                 CbFx.Sfx("jump", 0.6f);
                 return;
             }
-            if (t >= SlideTime) { state = State.Run; t = 0; crouching = LowCeiling || input.y < -0.5f; }
+            if (t >= SlideTime)
+            {
+                // still under something low: slides on, out from under it
+                if (LowCeiling) t = SlideTime * 0.5f;
+                else { state = State.Run; t = 0; crouching = input.y < -0.5f && Mathf.Abs(input.x) < 0.5f; }
+            }
         }
 
         void StartDiveKick()
@@ -765,22 +766,26 @@ namespace Cloudborne
 
             // a swipe down: a slide (from a stand too); down at a run: a slide
             bool downNow = input.y < -0.5f;
-            if (!air && (state == State.Run || state == State.Idle) && input.slide) StartSlide();
+            // ducking (or stopped under something low), the stick across: a slide that way
+            bool across = Mathf.Abs(input.x) > 0.5f && (state == State.Run || state == State.Idle) && !air &&
+                ((crouching && input.y < -0.3f) || LowCeiling);
+            if (across) facing = input.x > 0 ? 1 : -1;
+            if (!air && (state == State.Run || state == State.Idle) && (input.slide || across)) StartSlide();
             else if (!air && state == State.Run && downNow && !downBefore && Mathf.Abs(vx) > SlideFrom) StartSlide();
             downBefore = downNow;
             bool free = state == State.Idle || state == State.Run || state == State.Air;
             if (free)
             {
-                // down on the stick ducks, and he crawls if he moves; under a low passage he can't stand up
+                // down on the stick ducks where he is (down and across slides, above); under a low passage he can't stand up
                 bool low = !air && LowCeiling;
-                crouching = !air && (input.y < -0.5f || low);
+                crouching = !air && ((input.y < -0.5f && Mathf.Abs(input.x) < 0.5f) || low);
                 crouchT = crouching ? crouchT + dt : 0;
                 // just kicked off a wall, the stick can't pull him straight back for a moment; pushing the stone block
                 // slows him
                 pushing = !air && Mathf.Abs(input.x) > 0.3f && g.level != null && g.level.Push(x, y, input.x > 0 ? 1 : -1, dt);
                 if (wallLockT <= 0)
                 {
-                    float top = crouching ? CrawlSpeed : pushing ? PushSpeed : input.sprint ? SprintSpeed : RunSpeed;
+                    float top = crouching ? 0f : pushing ? PushSpeed : input.sprint ? SprintSpeed : RunSpeed;
                     // turning round at a run: a skid, a puff of dust at his feet
                     if (!air && Mathf.Abs(vx) > 4.5f && input.x * vx < -0.3f && Random.value < 0.6f)
                         CbFx.Spark(new Vector3(x + Mathf.Sign(vx) * 0.25f, y + 0.08f, -0.3f), CbFx.Dust, 2, 2.2f, 0.4f, 0.35f, 1);
@@ -1028,15 +1033,11 @@ namespace Cloudborne
             {
                 // ducking (a clip made in Meshy from a description): drops in 0.12 s into a low crouching guard, knees
                 // deep, one foot forward, fists up at his chin (hips from 0.75 to 0.43), then breathes in it
-                // crawling on his elbows, a cycle for every CrawlStride metres he goes
-                case State.Run when crouching && Mathf.Abs(vx) > 0.2f && model.HasClip(CrawlClip):
-                    crawlPh += Time.deltaTime * Mathf.Abs(vx) / CrawlStride;
-                    model.Loop(CrawlClip, crawlPh, 0.12f);
-                    break;
-                // stopped under something low he lies still where he is, not up in a crouch (into the log over him)
-                case State.Idle when crouching && LowCeiling && model.HasClip(CrawlClip):
-                case State.Run when crouching && LowCeiling && model.HasClip(CrawlClip):
-                    model.Loop(CrawlClip, crawlPh, 0.15f);
+                // stopped under something low (only for a moment: the stick across slides him out) he lies low, as
+                // at the end of his slide, not up in a crouch into what is over him
+                case State.Idle when crouching && LowCeiling && model.HasClip(SlideClip):
+                case State.Run when crouching && LowCeiling && model.HasClip(SlideClip):
+                    model.Show(SlideClip, 0.5f, 0.1f);
                     break;
                 // the slide: Meshy's "Slide Light", from the drop to the low glide along the ground
                 case State.Slide when model.HasClip(SlideClip):
@@ -1583,25 +1584,10 @@ namespace Cloudborne
                 f.sash[i].localRotation = CbArt.Rot(-speed * 0.6f + Mathf.Sin(tt * 8 + i) * 0.15f, 0, Mathf.Sin(tt * 5 + i) * 0.1f);
         }
 
-        // The aura (the user wanted an anime fighting game's look): with his ki full, energy rises round him - pale gold
-        // while his fire sleeps, flame once it is awake - and a soft ring at his feet now and then.
-        float auraT;
-
-        void UpdateAura(float dt)
-        {
-            if (ki < 99.5f || state == State.Dead || state == State.Swim || g.mode != CbGame.Mode.Play) return;
-            auraT -= dt;
-            if (auraT > 0) return;
-            auraT = 0.035f;
-            var col = FireAwake ? (Random.value < 0.5f ? CbFx.Fire : CbFx.Flame) : new Color(1f, 0.92f, 0.6f) * 2.2f;
-            var at = new Vector3(x + Random.Range(-0.45f, 0.45f), y + Random.Range(0f, 1.4f), Random.Range(-0.5f, 0.3f));
-            CbFx.Spark(at, col, 1, 0.8f, Random.Range(0.18f, 0.32f), 0.45f, -6f);
-            if (Random.value < 0.04f) CbVfx.Ring(new Vector3(x, y + 0.05f, 0), col * 0.35f, 1.4f, 0.35f, ground: true);
-        }
+        // (no aura round him with his ki full: the user didn't want it)
 
         void UpdateFire(float dt)
         {
-            UpdateAura(dt);
             // fire glows in his fur only once it is awake; before that, a perfect dodge's power is a pale shine
             bool fire = FireAwake;
             float target = state == State.Special && fire ? (t < SpecialWindup ? 1.6f + t / SpecialWindup * 1.6f : 3.2f) : empower ? 1.2f : 0f;
