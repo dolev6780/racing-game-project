@@ -405,7 +405,11 @@ namespace Cloudborne
             else BuildStreams(grass, face, far);
             // the lawn running back to the trees (not on the river: it lay over the water, a flat green band; nor in the
             // treetops: seen through the gaps between the boughs it was a pale wall in the fog, not a drop)
-            if (!CbStage.River && !CbStage.Treetops)
+            // (in the treetops a dark floor far below in its place - the forest's depths - or the sky showed past the
+            // boughs' ends at the gaps' sides)
+            if (CbStage.Treetops)
+                CbArt.Part(CbMesh.Quad, CbArt.Toon("#0e1c16"), root, new Vector3(130, -11.5f, 68), new Vector3(700, 140, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "depths";
+            else if (!CbStage.River)
                 CbArt.Part(CbMesh.Quad, CbArt.Toon(CbStage.Ember ? "#3a2620" : "#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
 
             // grass blades and fern fronds, merged straight into a few meshes
