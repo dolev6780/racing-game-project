@@ -180,7 +180,7 @@ namespace Cloudborne
         // the feel of his jumps (the user: his moves weren't the best): let go of JUMP early and he stops rising
         // (a short hop or a full jump, as the player wants); he falls a little faster than he rises (no floating), never
         // faster than MaxFall; JUMP pressed just before he lands still jumps as he lands
-        const float Gravity = 30f, FallGravity = 1.3f, MaxFall = 20f, JumpCut = 4f, JumpBuffer = 0.13f;
+        const float Gravity = 30f, FallGravity = 1.3f, MaxFall = 20f, JumpCut = 4f, JumpBuffer = 0.13f, ApexBand = 2.2f, ApexGravity = 0.55f;
         bool cuttable;
         float jumpBufT;
         int combo, jumps, airHits, hits;
@@ -927,7 +927,10 @@ namespace Cloudborne
 
         void StepPhysics(CbInput input, float dt)
         {
-            if (state != State.Dash || !air) vy -= Gravity * (vy < 0 && air ? FallGravity : 1f) * dt;
+            // the top of a jump held (the new 2D Mario's float: the user's reference): gravity eases for a moment as he
+            // turns from rising to falling, so the jump hangs before it drops
+            float apex = air && input.jumpHeld && state == State.Air && Mathf.Abs(vy) < ApexBand ? ApexGravity : 1f;
+            if (state != State.Dash || !air) vy -= Gravity * (vy < 0 && air ? FallGravity : 1f) * apex * dt;
             if (vy < -MaxFall) vy = -MaxFall;
             // JUMP let go on the way up: he stops rising (once per jump; not when thrown up by a leaf, a seesaw, a blow)
             if (cuttable && air && vy > JumpCut && !input.jumpHeld && state == State.Air) { vy = JumpCut; cuttable = false; }
@@ -970,7 +973,8 @@ namespace Cloudborne
                     if (fall < -4f) Squash(Mathf.Clamp(-fall * 0.016f, 0.08f, 0.24f));
                     // a moment's landing crouch in his model (from a real drop, not a step)
                     if (fall < -5f) landT = LandTime;
-                    // a heavy landing kicks up a cloud of dust
+                    // a little dust at his feet on landing, a cloud from a heavy one
+                    if (fall < -6f) CbFx.Spark(new Vector3(x, y + 0.06f, -0.3f), CbFx.Dust, 6, 2.4f, 0.45f, 0.35f, 1);
                     if (fall < -11f) CbVfx.Smoke(new Vector3(x, y + 0.35f, -0.4f), new Color(0.85f, 0.8f, 0.7f), 1.6f, 0.45f);
                     air = false; jumps = 0; airDashed = false; airHits = 0;
                     if (state == State.Air) state = State.Idle;
