@@ -2105,6 +2105,66 @@ namespace RacingGame.Tests
             game.ApplyQuality();
         }
 
+        /// <summary>
+        /// How fast a character's planted foot moves over the ground as a share of its own speed, sampled every frame
+        /// for frames frames (0: its feet hold; above 0 they slide on with it, its cycle too slow; below, too fast).
+        /// </summary>
+        static IEnumerator PlantedFootShare(Transform model, System.Func<float> speed, int frames, float fps, List<float> shares)
+        {
+            Transform left = null, right = null;
+            foreach (var b in model.GetComponentsInChildren<Transform>())
+            {
+                if (b.name == "LeftToeBase") left = b;
+                if (b.name == "RightToeBase") right = b;
+            }
+            if (left == null || right == null) yield break;
+            var samples = new List<(float lx, float ly, float rx, float ry, float vx)>();
+            for (int k = 0; k < frames; k++)
+            {
+                yield return null;
+                samples.Add((left.position.x, left.position.y, right.position.x, right.position.y, speed()));
+            }
+            float lowL = samples.Min(p => p.ly), lowR = samples.Min(p => p.ry);
+            for (int k = 1; k < samples.Count; k++)
+            {
+                var a = samples[k - 1]; var b = samples[k];
+                if (Mathf.Abs(b.vx) < 1f) continue;
+                if (a.ly < lowL + 0.05f && b.ly < lowL + 0.05f) shares.Add((b.lx - a.lx) * fps / b.vx);
+                if (a.ry < lowR + 0.05f && b.ry < lowR + 0.05f) shares.Add((b.rx - a.rx) * fps / b.vx);
+            }
+        }
+
+        static float Median(List<float> v) { if (v.Count == 0) return float.NaN; v.Sort(); return v[v.Count / 2]; }
+
+        [UnityTest]
+        public IEnumerator ZzStrideOfTheHyenas()
+        {
+            // the hyena raider's feet as he comes at Raja: charging from afar, then his fighting walk - logged as STRIDE
+            // charge / walk (see PlantedFootShare)
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-5");
+            game.BuildStage();
+            game.StartGame();
+            yield return Frames(2);
+            game.SkipFights();
+            var hero = game.hero;
+            hero.hp = 9999;
+            hero.inv = 999f;
+            game.Teleport(40f);
+            Time.captureDeltaTime = game.TestStep = 1f / 120f;
+            var e = new CbEnemy(game, CbEnemy.Kind.Hyena, 49.6f, game.transform);
+            game.enemies.Add(e);
+            Assert.IsNotNull(e.model, "The raider's model did not load");
+            yield return Frames(6);
+            var charge = new List<float>();
+            yield return PlantedFootShare(e.model.root, () => e.vx, 150, 120f, charge);
+            var walk = new List<float>();
+            yield return PlantedFootShare(e.model.root, () => e.vx, 60, 120f, walk);
+            Debug.Log($"STRIDE hyena charge {Median(charge):F2} over {charge.Count}, walk {Median(walk):F2} over {walk.Count}");
+            game.TestStep = 0f;
+        }
+
         [UnityTest]
         public IEnumerator ZzRunFrames()
         {
