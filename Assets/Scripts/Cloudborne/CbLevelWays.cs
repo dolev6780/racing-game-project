@@ -580,7 +580,13 @@ namespace Cloudborne
             var t = CbArt.Joint(root, x, 0, 0f, "endGate");
             t.localRotation = Quaternion.Euler(0, side > 0 ? 180f - EndGateTurn : 180f + EndGateTurn, 0);
             const float k = EndGateScale;
-            if (Model("Gate", t, new Vector3(3.45f * k, 3.6f * k, 1.24f * k), 0f) != null) return;
+            if (Model("Gate", t, new Vector3(3.45f * k, 3.6f * k, 1.24f * k), 0f) is Transform gm)
+            {
+                // round the burning temple (stage 1-5) its bamboo and mossy stone are scorched (it shone bright yellow)
+                if (CbStage.Ember)
+                    foreach (var r in gm.GetComponentsInChildren<Renderer>()) r.material.color = new Color(0.55f, 0.36f, 0.28f);
+                return;
+            }
             for (float bx = -1.4f; bx <= 1.41f; bx += 0.28f)
                 CbArt.Cylinder(Bamboo, t, new Vector3(bx * k, 1.8f * k, 0), 0.08f * k, 3.6f * k);
             CbArt.Box(Wood, t, new Vector3(0, 3.3f * k, 0), new Vector3(3.2f * k, 0.2f, 0.2f));
