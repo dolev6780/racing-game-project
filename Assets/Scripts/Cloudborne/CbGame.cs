@@ -1448,7 +1448,8 @@ namespace Cloudborne
             var m = closeOn.model;
             var eyes = m.Eyes;
             var dir = (m.FaceDirection + Vector3.back * 0.7f).normalized;
-            closeCam.transform.position = eyes + dir * m.FaceLength * 4.2f;
+            // (4.2 face lengths off showed his head and shoulders: closer, his eyes fill the band)
+            closeCam.transform.position = eyes + dir * m.FaceLength * 3f;
             closeCam.transform.LookAt(eyes);
         }
 
