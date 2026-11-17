@@ -474,7 +474,7 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator RajaSlidesAndCrawlsUnderALowPassage()
+        public IEnumerator RajaSlidesUnderALowPassage()
         {
             game = CbGame.Boot();
             yield return Frames(3);
@@ -492,7 +492,7 @@ namespace RacingGame.Tests
                 Assert.Less(level.BlockX(lx - 3f, lx + 1f, 0f), lx - 0.35f - CbLevel.HalfWidth + 0.01f, $"The trunk at {lx} does not stop him standing");
                 Assert.AreEqual(lx + 1f, level.BlockX(lx - 3f, lx + 1f, 0f, CbLevel.LowHeight), 0.001f, $"The trunk at {lx} stops him even low");
             }
-            // running at it, down: a slide, then a crawl, carries him under
+            // running at it, down: a slide carries him under (on until he is out from under it: no crawl, the user)
             game.Teleport(x - 6f);
             game.hero.y = 0;
             float t0 = Time.time;
@@ -857,9 +857,9 @@ namespace RacingGame.Tests
             // the gorge's first ledge is landed on from above and jumped through from below
             Assert.AreEqual(2f, level.SupportAt(141.9f, 2.6f), 0.001f, "Raja does not land on the first ledge");
             Assert.AreEqual(0f, level.SupportAt(141.9f, 1f), 0.001f, "The ledge stops him jumping up through it");
-            // the cliff across the path stops him standing, and he crawls through the gap at its foot
+            // the cliff across the path stops him standing, and he slides through the gap at its foot
             Assert.LessOrEqual(level.BlockX(135f, 138f, 0f), CbLevel.MountainFrom - CbLevel.HalfWidth + 0.001f, "Raja walked into the cliff");
-            Assert.AreEqual(140.5f, level.BlockX(135f, 140.5f, 0f, CbLevel.LowHeight), 0.001f, "Raja can't crawl through the gap under the cliff");
+            Assert.AreEqual(140.5f, level.BlockX(135f, 140.5f, 0f, CbLevel.LowHeight), 0.001f, "Raja can't slide through the gap under the cliff");
             Assert.AreEqual(CbLevel.SummitTop, level.SupportAt(154f, 12f), 0.001f, "The summit does not hold him");
             // the hero really stands on the ledge: dropped above it, he comes to rest on top
             game.SkipFights();
@@ -917,9 +917,9 @@ namespace RacingGame.Tests
             game.Teleport(96.3f);
             game.hero.y = 1f;
             game.hero.vy = 0;
-            // in he goes: a moment treading water, then back on the stone
+            // in he goes: under, up, a moment treading water, under again, then dropped back onto the stone
             bool swam = false;
-            for (float waited = 0; waited < 1.7f; waited += Time.deltaTime)
+            for (float waited = 0; waited < 3.5f && !(swam && game.hero.state != CbHero.State.Swim && game.hero.state != CbHero.State.Air); waited += Time.deltaTime)
             {
                 yield return null;
                 swam |= game.hero.state == CbHero.State.Swim;
@@ -933,6 +933,8 @@ namespace RacingGame.Tests
             game.hero.vy = 0;
             yield return new WaitForSeconds(3.4f);
             Assert.AreEqual(hp0 - 2 * CbHero.WaterDamage, game.hero.hp, 0.01f, "The pale stone did not sink under him");
+            // (out of the water and back on his feet before he is moved on)
+            for (float w = 0; w < 3f && (game.hero.state == CbHero.State.Swim || game.hero.state == CbHero.State.Air); w += Time.deltaTime) yield return null;
             // a drifting log carries him along with it
             game.Teleport(level.CrossingAt(92.2f));
             game.hero.y = 0.6f;
@@ -1015,7 +1017,7 @@ namespace RacingGame.Tests
             CbSave.Learned = 0;
             game.hud.SetTip("A fallen trunk! Push the <color=#ffb03a>stick ↓</color> to slide under it");
             if (CbHud.ShowPads) Assert.AreEqual(CbHud.Hint.StickDown, game.hud.ShownHint, "No hint for the stick down");
-            // down on the stick at the fallen trunk: he slides under it and crawls out the far side by himself
+            // down on the stick at the fallen trunk: he slides under it and on out the far side
             float trunk = CbLevel.TrunkX;
             game.Teleport(trunk - 3f);
             hero.y = 0;
@@ -1084,7 +1086,9 @@ namespace RacingGame.Tests
             int raiders = 0;
             for (int wave = 1; wave <= 6 && !game.RopeAmbushDone; wave++)
             {
-                var foes = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.RopeBridgeX) < 12f);
+                // (they come running in from off the screen at the right: the user)
+                var foes = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.RopeBridgeX) < 20f);
+                if (wave == 1) Assert.IsTrue(foes.TrueForAll(e => e.x > CbLevel.RopeBridgeX + 11f), "An ambush's raider appeared on the screen");
                 Assert.Greater(foes.Count, 0, $"Wave {wave} of the rope bridge's ambush has no raiders");
                 raiders += foes.Count;
                 foreach (var e in foes) { e.vx = e.vy = 0; e.Kill(1); }
@@ -1220,7 +1224,7 @@ namespace RacingGame.Tests
             for (int wave = 1; wave <= 3; wave++)
             {
                 Assert.AreEqual(wave, game.BridgeWave, $"Wave {wave} of the ambush did not come");
-                var foes = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.StoneBridgeX) < 12f);
+                var foes = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.StoneBridgeX) < 20f);
                 Assert.Greater(foes.Count, 2, $"Wave {wave} has too few raiders");
                 raiders += foes.Count;
                 foreach (var e in foes) { e.y = CbLevel.StoneDeck; e.vx = e.vy = 0; e.Kill(1); }
@@ -1442,6 +1446,8 @@ namespace RacingGame.Tests
             Assert.AreEqual(CbHero.State.Swim, game.hero.state, "The water rose over him and he did not notice");
             Assert.AreEqual(hp - CbHero.WaterDamage, game.hero.hp, 0.01f, "The water cost him nothing");
             for (float w = 0; w < 3f && game.hero.state == CbHero.State.Swim; w += Time.deltaTime) yield return null;
+            // (dropped back onto the floor from a little above it)
+            for (float w = 0; w < 1.5f && game.hero.state == CbHero.State.Air; w += Time.deltaTime) yield return null;
             yield return Frames(2);
             Assert.AreEqual(0f, game.hero.y, 0.05f, "Raja is not back on the gorge's floor");
             Assert.That(game.hero.x, Is.InRange(CbLevel.GorgeFrom, CbLevel.GorgeFrom + 2f), "Raja is not back at the foot of the gorge");
