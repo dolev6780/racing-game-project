@@ -566,13 +566,45 @@ namespace Cloudborne
         /// The stage's light, fog and sky: the jungle's clear day, or (stage 1-5) the burning temple's - a low orange sun,
         /// warm shade, and smoke for fog (the jungle's pale blue haze showed as a grey band under its burning painting).
         /// </summary>
+        // Stage 1-1's evening: as its paintings go from the day to the gorge's late afternoon and the shrine's sunset
+        // (CbWorld.Dusk), the light where Raja is goes with them - the sun lower, warmer and dimmer, the shade warm,
+        // the whole picture graded towards the sunset's orange (it stayed midday under the sunset: the user)
+        static readonly Color DaySun = new Color(1f, 0.9f, 0.72f), DuskSun = new Color(1f, 0.56f, 0.32f);
+        static readonly Color DaySky = new Color(0.58f, 0.74f, 0.8f), DuskSky = new Color(0.6f, 0.44f, 0.5f);
+        static readonly Color DayEquator = new Color(0.4f, 0.52f, 0.44f), DuskEquator = new Color(0.42f, 0.3f, 0.28f);
+        static readonly Color DayGround = new Color(0.2f, 0.24f, 0.17f), DuskGround = new Color(0.15f, 0.11f, 0.09f);
+        static readonly Color DuskGrade = new Color(1f, 0.8f, 0.66f);
+        static readonly Vector3 DaySunDir = new Vector3(9, -15, 11), DuskSunDir = new Vector3(13, -9, 11);
+        const float DaySunPower = 1.8f, DuskSunPower = 1.2f;
+        float shownDusk = -1f;
+
+        void DuskLight()
+        {
+            if (!CbStage.Jungle || world == null || sun == null) return;
+            float d = world.Dusk;
+            if (Mathf.Abs(d - shownDusk) < 0.002f) return;
+            shownDusk = d;
+            sun.color = Color.Lerp(DaySun, DuskSun, d);
+            sun.intensity = Mathf.Lerp(DaySunPower, DuskSunPower, d);
+            sun.transform.rotation = Quaternion.LookRotation(Vector3.Lerp(DaySunDir, DuskSunDir, d));
+            RenderSettings.ambientSkyColor = Color.Lerp(DaySky, DuskSky, d);
+            RenderSettings.ambientEquatorColor = Color.Lerp(DayEquator, DuskEquator, d);
+            RenderSettings.ambientGroundColor = Color.Lerp(DayGround, DuskGround, d);
+            if (grading != null) grading.colorFilter.Override(Color.Lerp(Color.white, DuskGrade, d));
+        }
+
+        /// <summary>The evening's light at the moment (stage 1-1: 0 the day, 1 the sunset).</summary>
+        public float ShownDusk => shownDusk;
+
         void StageLight()
         {
+            shownDusk = -1f;
             bool ember = CbStage.Ember;
             if (sun != null)
             {
-                sun.color = ember ? new Color(1f, 0.66f, 0.42f) : new Color(1f, 0.9f, 0.72f);
-                sun.intensity = ember ? 1.6f : 1.8f;
+                sun.color = ember ? new Color(1f, 0.66f, 0.42f) : DaySun;
+                sun.intensity = ember ? 1.6f : DaySunPower;
+                sun.transform.rotation = Quaternion.LookRotation(DaySunDir);
             }
             RenderSettings.ambientSkyColor = ember ? new Color(0.78f, 0.5f, 0.4f) : new Color(0.58f, 0.74f, 0.8f);
             RenderSettings.ambientEquatorColor = ember ? new Color(0.52f, 0.32f, 0.24f) : new Color(0.4f, 0.52f, 0.44f);
@@ -1838,6 +1870,7 @@ namespace Cloudborne
                 }
             }
             world.Update(clock, camX);
+            DuskLight();
             critters.Update(clock, camX, camY, hero.x, hero.y);
             UpdateCamera(raw);
             CbVfx.Update(cam, raw);

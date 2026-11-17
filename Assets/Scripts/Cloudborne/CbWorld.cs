@@ -96,17 +96,22 @@ namespace Cloudborne
         static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : CbStage.River ? RiverBackdrops
             : CbStage.Ember ? EmberBackdrops : JungleBackdrops;
         const float BackdropFade = 12f;
-        readonly List<(Texture2D tex, float from, Color haze, Color lawn)> paintings = new List<(Texture2D, float, Color, Color)>();
+        readonly List<(Texture2D tex, float from, Color haze, Color lawn, float dusk)> paintings = new List<(Texture2D, float, Color, Color, float)>();
         // Stage 1-1's later paintings, the haze at their foot (their colour about 70% of the way down, sampled from the
         // paintings) and the far lawn's colour under them: both fade in with the painting. Past the trees' end at the
         // shrine the lawn lies open between the hedges and the painting, a flat bright green band under the dark stones
         // of its courtyard (mint in the jungle's haze: the CI's pictures); there it is the courtyard's dark earth.
-        static readonly Dictionary<string, (Color haze, Color lawn)> PaintingGround = new Dictionary<string, (Color, Color)>
+        // And how far into the evening each is (0 the day, 1 sunset): the light where Raja is goes with it (CbGame's
+        // DuskLight; it stayed midday under the sunset: the user).
+        static readonly Dictionary<string, (Color haze, Color lawn, float dusk)> PaintingGround = new Dictionary<string, (Color, Color, float)>
         {
-            { "Cloudborne/Jungle/Backdrop/GorgeBackdrop", (CbArt.Hex("#767040"), JungleLawn) },
+            { "Cloudborne/Jungle/Backdrop/GorgeBackdrop", (CbArt.Hex("#767040"), JungleLawn, 0.45f) },
             // (darker than sampled: in the sun the lawn still showed a light brown band under the painting's shaded foot)
-            { "Cloudborne/Jungle/Backdrop/TempleBackdrop", (CbArt.Hex("#4a3a1c"), CbArt.Hex("#1c150d")) },
+            { "Cloudborne/Jungle/Backdrop/TempleBackdrop", (CbArt.Hex("#4a3a1c"), CbArt.Hex("#1c150d"), 1f) },
         };
+
+        /// <summary>How far into the evening the painting behind Raja is (stage 1-1: 0 by day, 1 at sunset), as it fades.</summary>
+        public float Dusk { get; private set; }
         static readonly Color JungleLawn = CbArt.Hex("#3a7a33");
         Material lawnMat;
         int shownPart = -1;
@@ -1075,6 +1080,7 @@ namespace Cloudborne
                 var before = i == 0 ? paintings[0] : paintings[i - 1];
                 RenderSettings.fogColor = Color.Lerp(before.haze, paintings[i].haze, blend);
                 if (lawnMat != null) lawnMat.color = Color.Lerp(before.lawn, paintings[i].lawn, blend);
+                Dusk = Mathf.Lerp(before.dusk, paintings[i].dusk, blend);
             }
         }
 
@@ -1091,8 +1097,8 @@ namespace Cloudborne
                 // mirrored repeats join without a seam
                 t.wrapModeU = TextureWrapMode.Mirror;
                 t.wrapModeV = TextureWrapMode.Clamp;
-                var (haze, lawn) = PaintingGround.TryGetValue(path, out var ground) ? ground : (Horizon, JungleLawn);
-                paintings.Add((t, from, haze, lawn));
+                var (haze, lawn, dusk) = PaintingGround.TryGetValue(path, out var ground) ? ground : (Horizon, JungleLawn, 0f);
+                paintings.Add((t, from, haze, lawn, dusk));
             }
             backdropMat = new Material(shader) { mainTexture = tex };
             float tile = ImageHeight * tex.width / tex.height * BackdropStretch;
