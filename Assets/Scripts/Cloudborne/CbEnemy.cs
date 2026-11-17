@@ -43,6 +43,10 @@ namespace Cloudborne
         // like it).
         const float ChargeFrom = 3.6f, ChargeBoost = 1.45f, BackTime = 0.5f;
         const string ChargeClip = "Standard_Forward_Charge_inplace";
+        // the charge's and the fighting walk's pace to his speed, so his planted feet hold to the ground (measured in CI,
+        // the STRIDE test at 120 frames a second: at the clip's own pace his planted foot ran back at 0.67 of his speed
+        // charging, and at 0.49 walking - the cycles too fast; the share falls in a straight line with the pace)
+        const float ChargePace = 0.6f, WalkPace = 0.67f;
         float backT, chargeT, backPh;
         bool charging;
 
@@ -221,10 +225,10 @@ namespace Cloudborne
                     }
                     else if (Mathf.Abs(vx) > 0.4f && charging && model.HasClip(ChargeClip))
                     {
-                        chargeT += Time.deltaTime * Mathf.Abs(vx) / (speed * ChargeBoost);
+                        chargeT += Time.deltaTime * Mathf.Abs(vx) / (speed * ChargeBoost) * ChargePace;
                         model.LoopSeconds(ChargeClip, chargeT);
                     }
-                    else if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh / (Mathf.PI * 2));
+                    else if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh * WalkPace / (Mathf.PI * 2));
                     else if (shield && guard) model.Show("Block1", 0.15f);
                     else model.LoopSeconds("Combat_Stance", g.clock + runPh);
                     break;
@@ -248,7 +252,7 @@ namespace Cloudborne
                     else model.Window("Shouting_Angrily", 0f, 1f, t / WhistleTime);
                     break;
                 default:
-                    if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh / (Mathf.PI * 2));
+                    if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh * WalkPace / (Mathf.PI * 2));
                     else model.LoopSeconds("Combat_Stance", g.clock * (open > 0 ? 1.8f : 1f));
                     break;
             }

@@ -2159,6 +2159,8 @@ namespace RacingGame.Tests
             yield return Frames(6);
             var charge = new List<float>();
             yield return PlantedFootShare(e.model.root, () => e.vx, 150, 120f, charge);
+            // (his fighting walk only from inside ChargeFrom: until then he still charges)
+            for (int k = 0; k < 240 && Mathf.Abs(e.x - hero.x) > 3.3f; k++) yield return null;
             var walk = new List<float>();
             yield return PlantedFootShare(e.model.root, () => e.vx, 60, 120f, walk);
             Debug.Log($"STRIDE hyena charge {Median(charge):F2} over {charge.Count}, walk {Median(walk):F2} over {walk.Count}");
