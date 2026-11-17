@@ -48,6 +48,8 @@ namespace Cloudborne
         readonly Text gestureTxt, holdTxt;
         readonly Image[] fingerImgs;
         Hint hint;
+        // the swipe's note under the pads: hidden while its own hint shows on the same row (it read twice)
+        GameObject swipeNote;
         float hintT;
         // the SKILL button: bamboo gold for the staff techniques, orange once it shoots fire
         static readonly Color KiPadCol = CbArt.Hex("#c48a2c"), FirePadCol = CbArt.Hex("#e8642a");
@@ -166,8 +168,8 @@ namespace Cloudborne
             AddPad("jump", "JUMP", new Vector2(-14 - 124 - 44, 12 + 44), 88, CbArt.Hex("#3aa862"), 17);
             kiPad = AddPad("ki", "KI", new Vector2(-14 - 40 - 38, 12 + 124 + 38), 76, KiPadCol, 15);
             sp = AddPad("sp", "SPECIAL", new Vector2(-14 - 150 - 34, 12 + 112 + 34), 68, CbArt.Hex("#b8401f"), 12);
-            UIKit.Label(pads, "SWIPE  ↔ dodge", 13, new Color(1, 1, 1, 0.55f), new Vector2(1, 0), new Vector2(1, 0),
-                new Vector2(-14, 12 + 214), new Vector2(260, 20), TextAnchor.MiddleRight, true);
+            swipeNote = UIKit.Label(pads, "SWIPE  ↔ dodge", 13, new Color(1, 1, 1, 0.55f), new Vector2(1, 0), new Vector2(1, 0),
+                new Vector2(-14, 12 + 214), new Vector2(260, 20), TextAnchor.MiddleRight, true).transform.parent.gameObject;
             UIKit.Label(pads, "STICK  ↓ slide", 13, new Color(1, 1, 1, 0.55f), new Vector2(0, 0), new Vector2(0, 0),
                 new Vector2(24, 12 + 176), new Vector2(260, 20), TextAnchor.MiddleLeft, true);
             // the hints: a finger in the swipe area over the buttons, HOLD over ATTACK
@@ -439,6 +441,7 @@ namespace Cloudborne
             bool stick = hint == Hint.StickUp || hint == Hint.StickDown;
             gesture.gameObject.SetActive(stick || hint == Hint.SwipeAcross);
             holdTxt.gameObject.SetActive(hint == Hint.Hold);
+            if (swipeNote != null) swipeNote.SetActive(hint != Hint.SwipeAcross);
             gestureTxt.text = hint == Hint.StickUp ? "STICK ↑" : hint == Hint.StickDown ? "STICK ↓" : hint == Hint.SwipeAcross ? "SWIPE ↔" : "";
             // the stick's hints over the stick (bottom left), the swipe's in the swipe area (right)
             gesture.anchorMin = gesture.anchorMax = stick ? Vector2.zero : new Vector2(1, 0);

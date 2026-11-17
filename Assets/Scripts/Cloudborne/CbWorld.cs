@@ -96,7 +96,15 @@ namespace Cloudborne
         static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : CbStage.River ? RiverBackdrops
             : CbStage.Ember ? EmberBackdrops : JungleBackdrops;
         const float BackdropFade = 12f;
-        readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
+        readonly List<(Texture2D tex, float from, Color haze)> paintings = new List<(Texture2D, float, Color)>();
+        // Stage 1-1's later paintings and the haze at their foot (their colour about 70% of the way down, sampled from
+        // the paintings): the fog fades to it with the painting. The far lawn melts into the fog there, and in the
+        // jungle's pale haze it was a flat mint band under the dark stones of the shrine's painting (the CI's pictures).
+        static readonly Dictionary<string, Color> PaintingHaze = new Dictionary<string, Color>
+        {
+            { "Cloudborne/Jungle/Backdrop/GorgeBackdrop", CbArt.Hex("#767040") },
+            { "Cloudborne/Jungle/Backdrop/TempleBackdrop", CbArt.Hex("#614b21") },
+        };
         int shownPart = -1;
         const float BackdropZ = 150f, ImageTop = 44f, ImageHeight = 46f, BackdropTop = 80f, BackdropWidth = 300f,
             BackdropStretch = 1.5f, BackdropSlide = 0.15f;
@@ -1062,6 +1070,7 @@ namespace Cloudborne
                 backdropMat.SetTexture("_NextTex", paintings[i].tex);
             }
             backdropMat.SetFloat("_Blend", blend);
+            if (CbStage.Jungle) RenderSettings.fogColor = Color.Lerp(i == 0 ? paintings[0].haze : paintings[i - 1].haze, paintings[i].haze, blend);
         }
 
         /// <summary>The painted backdrop in place of the canopy layers; false when the painting or its shader is missing.</summary>
@@ -1077,7 +1086,7 @@ namespace Cloudborne
                 // mirrored repeats join without a seam
                 t.wrapModeU = TextureWrapMode.Mirror;
                 t.wrapModeV = TextureWrapMode.Clamp;
-                paintings.Add((t, from));
+                paintings.Add((t, from, PaintingHaze.TryGetValue(path, out var haze) ? haze : Horizon));
             }
             backdropMat = new Material(shader) { mainTexture = tex };
             float tile = ImageHeight * tex.width / tex.height * BackdropStretch;
