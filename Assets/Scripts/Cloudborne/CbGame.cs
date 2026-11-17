@@ -782,7 +782,7 @@ namespace Cloudborne
                 hud.ShowBoss("THE SAW BARGE");
                 hud.SetWave("Sink the saw barge");
                 hud.SetTip("<color=#ffb03a>Swipe ↔</color> INTO its logs to send them back at its fuel barrels. Jump its saws - stuck, its barrels are in reach!");
-                hud.Banner("THE SAW BARGE!");
+                BossCutIn("THE SAW BARGE!", level.SawBargeCloseUp);
                 return;
             }
             mode = Mode.Scene;
@@ -1405,17 +1405,29 @@ namespace Cloudborne
 
         Camera closeCam;
         RenderTexture closeRT;
-        CbEnemy closeOn;
+        System.Func<(Vector3 from, Vector3 at)> closeAim;
         float closeT;
 
         /// <summary>
         /// A boss comes on: the cut-in's band with his name in red and his own face close up - a second camera's live
         /// picture of it, as he roars (on the LOW graphics level, the name alone).
         /// </summary>
-        public void BossCutIn(CbEnemy e, string name)
+        public void BossCutIn(CbEnemy e, string name) => BossCutIn(name, e != null && e.model != null ? () => FaceCloseUp(e.model) : null);
+
+        /// <summary>The close-up camera at his face, a little to the side towards the view (a three-quarter look).</summary>
+        static (Vector3 from, Vector3 at) FaceCloseUp(CbModel m)
+        {
+            var eyes = m.Eyes;
+            var dir = (m.FaceDirection + Vector3.back * 0.7f).normalized;
+            // (4.2 face lengths off showed his head and shoulders: closer, his eyes fill the band)
+            return (eyes + dir * m.FaceLength * 3f, eyes);
+        }
+
+        /// <summary>A boss's cut-in, its close-up aimed (each frame, as it moves) where aim says; none, the name alone.</summary>
+        public void BossCutIn(string name, System.Func<(Vector3 from, Vector3 at)> aim)
         {
             Texture face = null;
-            if (e != null && e.model != null && CbQuality.Current != CbQuality.Tier.Low && cam != null)
+            if (aim != null && CbQuality.Current != CbQuality.Tier.Low && cam != null)
             {
                 if (closeCam == null)
                 {
@@ -1432,7 +1444,7 @@ namespace Cloudborne
                     var data = closeCam.GetUniversalAdditionalCameraData();
                     if (data != null) data.renderPostProcessing = true;
                 }
-                closeOn = e;
+                closeAim = aim;
                 closeT = CbHud.CutInTime;
                 closeCam.enabled = true;
                 AimCloseUp();
@@ -1442,22 +1454,18 @@ namespace Cloudborne
             shake = Mathf.Max(shake, 0.15f);
         }
 
-        /// <summary>The close-up camera at his face, a little to the side towards the view (a three-quarter look).</summary>
         void AimCloseUp()
         {
-            var m = closeOn.model;
-            var eyes = m.Eyes;
-            var dir = (m.FaceDirection + Vector3.back * 0.7f).normalized;
-            // (4.2 face lengths off showed his head and shoulders: closer, his eyes fill the band)
-            closeCam.transform.position = eyes + dir * m.FaceLength * 3f;
-            closeCam.transform.LookAt(eyes);
+            var (from, at) = closeAim();
+            closeCam.transform.position = from;
+            closeCam.transform.LookAt(at);
         }
 
         void UpdateCloseUp(float raw)
         {
             if (closeCam == null || !closeCam.enabled) return;
             closeT -= raw;
-            if (closeT <= 0 || closeOn == null || closeOn.model == null) { closeCam.enabled = false; return; }
+            if (closeT <= 0 || closeAim == null) { closeCam.enabled = false; return; }
             AimCloseUp();
         }
 

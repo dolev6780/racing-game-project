@@ -2002,7 +2002,11 @@ namespace RacingGame.Tests
             yield return TakePictures(new[] { ("river_route", float.NaN, 0f) }, 2f);
             game.Teleport(CbLevel.BasinX + 2f);
             game.hero.y = CbLevel.RiverFloor(CbLevel.BasinX);
-            yield return TakePictures(new[] { ("river_barge", float.NaN, 0f) }, 4.5f);
+            // its cut-in: the band with its name and its saws close up
+            yield return TakePictures(new[] { ("barge_cut_in", float.NaN, 0f) }, 0.45f);
+            Assert.IsTrue(game.hud.CuttingIn, "The saw barge came on with no cut-in");
+            Assert.IsTrue(game.CloseUpOn, "No close-up of the saw barge in its cut-in");
+            yield return TakePictures(new[] { ("river_barge", float.NaN, 0f) }, 4f);
         }
 
         [UnityTest]

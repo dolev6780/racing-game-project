@@ -42,6 +42,13 @@ namespace Cloudborne
         public float FuelX(int i) => bargeX + FuelOff[i];
         public Transform RiverCage => riverCage;
 
+        /// <summary>Its cut-in's close-up: its saws, from in front of them and a little to the side, as it comes on.</summary>
+        public (Vector3 from, Vector3 at) SawBargeCloseUp()
+        {
+            var saws = sawBarge.TransformPoint(new Vector3(BargeFront, 0.85f, -0.3f));
+            return (saws + new Vector3(2.6f, 0.7f, -2.4f), saws + new Vector3(-0.6f, 0, 0));
+        }
+
         void BuildSawBarge()
         {
             sawBarge = CbArt.Joint(root, bargeX, SurfaceAt(BasinX), BargeZ, "sawBarge");
