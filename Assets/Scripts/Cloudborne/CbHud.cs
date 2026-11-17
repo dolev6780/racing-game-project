@@ -129,6 +129,8 @@ namespace Cloudborne
             UIKit.Label(play, "SCORE", 10, new Color(1, 1, 1, 0.8f), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -14), new Vector2(120, 14), TextAnchor.MiddleRight);
             scoreTxt = UIKit.Label(play, "0", 24, Paper, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -28), new Vector2(160, 28), TextAnchor.MiddleRight, true);
             coinTxt = UIKit.Label(play, "COINS 0", 20, Gold, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -58), new Vector2(160, 24), TextAnchor.MiddleRight, true);
+            // (they pop about their right ends, where the right-aligned numbers are)
+            scoreTxt.rectTransform.pivot = coinTxt.rectTransform.pivot = new Vector2(1, 0.5f);
             pauseBtn = UIKit.Rect(root, "pause", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -12), new Vector2(48, 48));
             UIKit.Image(pauseBtn, UIKit.Circle, Glass);
             UIKit.Image(UIKit.Rect(pauseBtn, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(48, 48)), UIKit.Ring, Paper);
@@ -477,7 +479,38 @@ namespace Cloudborne
         /// <summary>Whether the SPECIAL button is lit (ki high enough).</summary>
         public bool SpecialLit => sp.img.color.a > 0.9f;
 
-        public void SetScore(int s) => scoreTxt.text = s.ToString("N0");
+        // The score counts up to a new total rather than jumping to it, and the counters pop as they rise (a new Mario's
+        // counters: the user's reference)
+        int scoreTarget;
+        float scoreShown, scorePop, coinPop;
+        const float CounterPop = 0.16f;
+
+        public void SetScore(int s)
+        {
+            if (s > scoreTarget) scorePop = CounterPop;
+            scoreTarget = s;
+            // (back to nought at a new run: at once)
+            if (s < scoreShown) { scoreShown = s; scoreTxt.text = s.ToString("N0"); }
+        }
+
+        /// <summary>The score the counter shows now (it counts up to the game's).</summary>
+        public int ScoreShown => Mathf.RoundToInt(scoreShown);
+
+        void TickCounters(float dt)
+        {
+            if (scoreShown < scoreTarget)
+            {
+                // most of the way in about a fifth of a second, never slower than 400 a second
+                scoreShown = Mathf.Min(scoreTarget, scoreShown + Mathf.Max(400f * dt, (scoreTarget - scoreShown) * (1 - Mathf.Exp(-12f * dt))));
+                scoreTxt.text = Mathf.RoundToInt(scoreShown).ToString("N0");
+            }
+            scorePop = Mathf.Max(0, scorePop - dt);
+            coinPop = Mathf.Max(0, coinPop - dt);
+            float sp = scorePop / CounterPop, cp = coinPop / CounterPop;
+            scoreTxt.transform.localScale = Vector3.one * (1 + 0.28f * sp * sp);
+            coinTxt.transform.localScale = Vector3.one * (1 + 0.35f * cp * cp);
+            coinTxt.color = Color.Lerp(Gold, Color.white, cp);
+        }
 
         /// <summary>A boss's name and a full health bar.</summary>
         public void ShowBoss(string name)
@@ -492,7 +525,11 @@ namespace Cloudborne
         public void HideBoss() => bossBar.gameObject.SetActive(false);
 
         /// <summary>Tiger coins picked up this run.</summary>
-        public void SetCoins(int n) => coinTxt.text = "COINS " + n;
+        public void SetCoins(int n)
+        {
+            if (coinTxt.text != "COINS " + n && n > 0) coinPop = CounterPop;
+            coinTxt.text = "COINS " + n;
+        }
 
         public void SetCombo(int n)
         {
@@ -810,6 +847,7 @@ namespace Cloudborne
                 if (k >= 1) { Object.Destroy(b.rt.gameObject); banners.RemoveAt(i); }
                 else banners[i] = b;
             }
+            TickCounters(dt);
             if (comboPop > 0) { comboPop -= dt; comboN.transform.localScale = Vector3.one * (1 + Mathf.Max(0, comboPop) * 2f); }
             hurtT = Mathf.Max(0, hurtT - dt);
             hurtFlash.color = new Color(1f, 0.2f, 0.15f, hurtT > 0 ? 0.75f * hurtT / 0.25f : 0);

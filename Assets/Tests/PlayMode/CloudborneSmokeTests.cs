@@ -1275,6 +1275,10 @@ namespace RacingGame.Tests
             Assert.IsFalse(game.enemies.Contains(e), "The soldier was not thrown into the river");
             Assert.IsTrue(e.dead, "A soldier in the river is not beaten");
             Assert.Greater(game.score, score + 200, "No bonus for throwing him in");
+            // the counter counts up to the new score
+            Assert.Less(game.hud.ScoreShown, game.score, "The score jumped straight to its new total");
+            for (float w = 0; w < 1f; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(game.score, game.hud.ScoreShown, "The score counter did not catch up");
         }
 
         [UnityTest]
