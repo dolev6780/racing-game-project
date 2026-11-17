@@ -2240,6 +2240,15 @@ namespace RacingGame.Tests
             CbVfx.Smoke(new Vector3(hero.x - 3.2f, hero.y + 0.8f, -0.5f), new Color(0.85f, 0.8f, 0.7f), 2.6f, 0.6f);
             CbVfx.Ring(new Vector3(hero.x, hero.y + 0.05f, 0), CbFx.Hit * 0.5f, 1.8f, 0.6f, ground: true);
             yield return TakePictures(new[] { ("effects", float.NaN, 0f) }, 0.1f);
+            // the same on the LOW graphics level (a weak phone): no bloom, no HDR, fewer sparks - still clear
+            int setting = CbQuality.Setting;
+            CbQuality.Setting = 1;
+            game.ApplyQuality();
+            CbVfx.Burst(at, CbFx.Hit, 2.2f, 0.6f);
+            CbVfx.Slash(at + new Vector3(1.6f, 0, 0), 1, Color.white * 1.6f, 2.4f, 0.6f);
+            yield return TakePictures(new[] { ("effects_low", float.NaN, 0f) }, 0.1f);
+            CbQuality.Setting = setting;
+            game.ApplyQuality();
             game.ImpactFrame(0.5f);
             yield return null;
             Assert.IsTrue(game.InImpactFrame, "The impact frame did not hold");
