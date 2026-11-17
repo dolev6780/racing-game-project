@@ -545,7 +545,8 @@ namespace Cloudborne
             cutIn.localRotation = Quaternion.Euler(0, 0, 5f);
             cutEdge = UIKit.Image(UIKit.Rect(cutIn, "edge", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(CutInWide, CutInHigh + 10)), null, Ember);
             var band = UIKit.Rect(cutIn, "band", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(CutInWide, CutInHigh));
-            UIKit.Image(band, null, new Color(0.06f, 0.035f, 0.03f, 0.95f));
+            // (opaque, as the slant's wedge over his face is: a see-through band showed the wedge as a darker block)
+            UIKit.Image(band, null, new Color(0.06f, 0.035f, 0.03f, 1f));
             band.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             // streaks of light racing across it
             for (int i = 0; i < 9; i++)

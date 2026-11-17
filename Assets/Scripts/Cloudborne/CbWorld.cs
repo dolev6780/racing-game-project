@@ -96,15 +96,18 @@ namespace Cloudborne
         static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : CbStage.River ? RiverBackdrops
             : CbStage.Ember ? EmberBackdrops : JungleBackdrops;
         const float BackdropFade = 12f;
-        readonly List<(Texture2D tex, float from, Color haze)> paintings = new List<(Texture2D, float, Color)>();
-        // Stage 1-1's later paintings and the haze at their foot (their colour about 70% of the way down, sampled from
-        // the paintings): the fog fades to it with the painting. The far lawn melts into the fog there, and in the
-        // jungle's pale haze it was a flat mint band under the dark stones of the shrine's painting (the CI's pictures).
-        static readonly Dictionary<string, Color> PaintingHaze = new Dictionary<string, Color>
+        readonly List<(Texture2D tex, float from, Color haze, Color lawn)> paintings = new List<(Texture2D, float, Color, Color)>();
+        // Stage 1-1's later paintings, the haze at their foot (their colour about 70% of the way down, sampled from the
+        // paintings) and the far lawn's colour under them: both fade in with the painting. Past the trees' end at the
+        // shrine the lawn lies open between the hedges and the painting, a flat bright green band under the dark stones
+        // of its courtyard (mint in the jungle's haze: the CI's pictures); there it is the courtyard's dark earth.
+        static readonly Dictionary<string, (Color haze, Color lawn)> PaintingGround = new Dictionary<string, (Color, Color)>
         {
-            { "Cloudborne/Jungle/Backdrop/GorgeBackdrop", CbArt.Hex("#767040") },
-            { "Cloudborne/Jungle/Backdrop/TempleBackdrop", CbArt.Hex("#614b21") },
+            { "Cloudborne/Jungle/Backdrop/GorgeBackdrop", (CbArt.Hex("#767040"), JungleLawn) },
+            { "Cloudborne/Jungle/Backdrop/TempleBackdrop", (CbArt.Hex("#614b21"), CbArt.Hex("#33291c")) },
         };
+        static readonly Color JungleLawn = CbArt.Hex("#3a7a33");
+        Material lawnMat;
         int shownPart = -1;
         const float BackdropZ = 150f, ImageTop = 44f, ImageHeight = 46f, BackdropTop = 80f, BackdropWidth = 300f,
             BackdropStretch = 1.5f, BackdropSlide = 0.15f;
@@ -418,7 +421,12 @@ namespace Cloudborne
             if (CbStage.Treetops)
                 CbArt.Part(CbMesh.Quad, CbArt.Toon("#0e1c16"), root, new Vector3(130, -11.5f, 68), new Vector3(700, 140, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "depths";
             else if (!CbStage.River)
-                CbArt.Part(CbMesh.Quad, CbArt.Toon(CbStage.Ember ? "#3a2620" : "#3a7a33"), root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
+            {
+                // (its own material: on stage 1-1 it changes colour with the painting, ShowPart)
+                lawnMat = CbArt.NewToon(CbStage.Ember ? CbArt.Hex("#3a2620") : JungleLawn, 0f);
+                lawnMat.SetFloat("_SpecStrength", 0.05f);
+                CbArt.Part(CbMesh.Quad, lawnMat, root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "lawn";
+            }
 
             // grass blades and fern fronds, merged straight into a few meshes
             var blade = CbMesh.Cone(3);
@@ -1070,7 +1078,12 @@ namespace Cloudborne
                 backdropMat.SetTexture("_NextTex", paintings[i].tex);
             }
             backdropMat.SetFloat("_Blend", blend);
-            if (CbStage.Jungle) RenderSettings.fogColor = Color.Lerp(i == 0 ? paintings[0].haze : paintings[i - 1].haze, paintings[i].haze, blend);
+            if (CbStage.Jungle)
+            {
+                var before = i == 0 ? paintings[0] : paintings[i - 1];
+                RenderSettings.fogColor = Color.Lerp(before.haze, paintings[i].haze, blend);
+                if (lawnMat != null) lawnMat.color = Color.Lerp(before.lawn, paintings[i].lawn, blend);
+            }
         }
 
         /// <summary>The painted backdrop in place of the canopy layers; false when the painting or its shader is missing.</summary>
@@ -1086,7 +1099,8 @@ namespace Cloudborne
                 // mirrored repeats join without a seam
                 t.wrapModeU = TextureWrapMode.Mirror;
                 t.wrapModeV = TextureWrapMode.Clamp;
-                paintings.Add((t, from, PaintingHaze.TryGetValue(path, out var haze) ? haze : Horizon));
+                var (haze, lawn) = PaintingGround.TryGetValue(path, out var ground) ? ground : (Horizon, JungleLawn);
+                paintings.Add((t, from, haze, lawn));
             }
             backdropMat = new Material(shader) { mainTexture = tex };
             float tile = ImageHeight * tex.width / tex.height * BackdropStretch;
