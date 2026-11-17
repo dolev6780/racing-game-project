@@ -45,8 +45,9 @@ namespace Cloudborne
         const string ChargeClip = "Standard_Forward_Charge_inplace";
         // the charge's and the fighting walk's pace to his speed, so his planted feet hold to the ground (measured in CI,
         // the STRIDE test at 120 frames a second: at the clip's own pace his planted foot ran back at 0.67 of his speed
-        // charging, and at 0.49 walking - the cycles too fast; the share falls in a straight line with the pace)
-        const float ChargePace = 0.6f, WalkPace = 0.67f;
+        // charging - the cycle too fast; walking, at 0.67 of its old pace his foot slid on with him at 0.62 of his
+        // speed - too slow; the share falls in a straight line with the pace)
+        const float ChargePace = 0.6f, WalkPace = 1.76f;
         float backT, chargeT, backPh;
         bool charging;
 
