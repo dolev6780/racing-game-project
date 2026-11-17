@@ -420,7 +420,7 @@ namespace Cloudborne
             // (in the treetops a dark floor far below in its place - the forest's depths - or the sky showed past the
             // boughs' ends at the gaps' sides)
             if (CbStage.Treetops)
-                CbArt.Part(CbMesh.Quad, CbArt.Toon("#0e1c16"), root, new Vector3(130, -11.5f, 68), new Vector3(700, 140, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "depths";
+                CbArt.Part(CbMesh.Quad, DropHaze(), root, new Vector3(130, -11.5f, 68), new Vector3(700, 140, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "depths";
             else if (!CbStage.River)
             {
                 // (its own material: on stage 1-1 it changes colour with the painting, ShowPart)
@@ -519,15 +519,28 @@ namespace Cloudborne
         /// the front cross-section and as a floor of mist below), the boughs' ends rounding down into it, and the ground
         /// behind going on as the rest of the canopy.
         /// </summary>
-        void BuildDrops(Material face)
+        Material dropHaze;
+
+        /// <summary>
+        /// The treetops' depths: dark, a deep green far off, painted (unlit, no fog: the fog turned the far floor mint,
+        /// a pale frame round each gap - the CI's pictures).
+        /// </summary>
+        Material DropHaze()
         {
+            if (dropHaze != null) return dropHaze;
             var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "drop" };
             for (int i = 0; i < 64; i++)
                 tex.SetPixel(0, i, Color.Lerp(new Color(0.02f, 0.05f, 0.04f), new Color(0.16f, 0.3f, 0.22f), Mathf.Pow(i / 63f, 2.2f)));
             tex.Apply();
-            var haze = Cutout(tex, 0f, Color.white);
-            if (haze != null) haze.SetFloat("_Cutoff", 0f);
-            else haze = CbArt.Toon("#1c3326");
+            dropHaze = Cutout(tex, 0f, Color.white);
+            if (dropHaze != null) dropHaze.SetFloat("_Cutoff", 0f);
+            else dropHaze = CbArt.Toon("#1c3326");
+            return dropHaze;
+        }
+
+        void BuildDrops(Material face)
+        {
+            var haze = DropHaze();
             var mist = CbArt.Glow(new Color(0.75f, 0.85f, 0.8f, 0.14f), CbArt.Mist);
             foreach (var (x0, x1) in CbLevel.Waters)
             {
@@ -538,7 +551,8 @@ namespace Cloudborne
                 const float Far = 140f;
                 CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -6f, GroundFront - 0.012f), new Vector3(w + 0.1f, 12f, 1), shadows: false).name = "dropFront";
                 CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -11f, (GroundFront + Far) / 2), new Vector3(w + 0.1f, Far - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropFloor";
-                CbArt.Part(CbMesh.Quad, mist, root, new Vector3(c, -2.5f, (GroundFront + Far) / 2), new Vector3(w * 1.2f, Far - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropMist";
+                // (wide: seen down through the gap its sides showed as edges)
+                CbArt.Part(CbMesh.Quad, mist, root, new Vector3(c, -2.5f, (GroundFront + Far) / 2), new Vector3(w + 30f, Far - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropMist";
                 // the boughs' ends: the soil rounding down into the gap from each side
                 BankSlope(face, x0, 1, -3.5f);
                 BankSlope(face, x1, -1, -3.5f);
