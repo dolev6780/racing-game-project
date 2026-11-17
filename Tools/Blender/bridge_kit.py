@@ -7,7 +7,7 @@ bridge (the model's rails, cut into sections and chained, kinked at every joint)
 
     blender --background --python Tools/Blender/bridge_kit.py -- RopeBridge.fbx OUT_DIR
 
-Writes OUT_DIR/BridgeEnd.fbx (the end, from the cut at x = 0 out to -x) and BridgeDeck.fbx (from x = 0 to
+Writes OUT_DIR/BridgeEnd.fbx (the post at the end, out towards -x from POST_IN - END_CUT) and BridgeDeck.fbx (from x = 0 to
 +SECTION), in metres, the deck's top near z = DECK_TOP.
 """
 
@@ -19,7 +19,11 @@ import bmesh  # after bpy: bpy loads it
 
 args = sys.argv[sys.argv.index("--") + 1:]
 src, out_dir = args[0], args[1]
-END_CUT = -2.5                 # the end: everything past here (posts, the first planks)
+END_CUT = -2.5                 # where the end piece was cut (its shift: the post keeps its place in the kit)
+POST_IN = -3.27                # the end piece is the post alone, with its rope bands, cut at their inner side: the
+                               # game lays the planks and strings the ropes from post to post (the model's first
+                               # planks and rope ends sloped down to it and met the game's level bridge with a kink:
+                               # the user saw the bridge broken where it starts)
 SECTION = (-1.2, 1.0)          # a section of planks and rails from the middle, between two plank gaps
 DECK_TOP = 0.2                 # faces centred lower than this are the deck
 
@@ -66,7 +70,7 @@ def piece(name, x0, x1, shift, keep=None, level=False):
     return o
 
 
-end = piece("BridgeEnd", None, END_CUT, -END_CUT)
+end = piece("BridgeEnd", None, POST_IN, -END_CUT)
 deck = piece("BridgeDeck", SECTION[0], SECTION[1], -SECTION[0], lambda c: c.z < DECK_TOP, level=True)
 print(f"levelled the section by {TILT:.3f} m per m")
 os.makedirs(out_dir, exist_ok=True)

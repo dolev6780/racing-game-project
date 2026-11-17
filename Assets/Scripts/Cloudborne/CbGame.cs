@@ -904,11 +904,25 @@ namespace Cloudborne
             return e;
         }
 
-        /// <summary>Soldiers stepping into the fight going on, at x + each offset.</summary>
+        /// <summary>
+        /// An ambush's soldiers: they come running in from off the screen at the right, one behind the other (the user:
+        /// they just appeared - at the arena's sides, one of them on top of Raja; the offsets now only order them).
+        /// </summary>
         void SpawnFoes(params (CbEnemy.Kind kind, float dx)[] foes)
         {
-            foreach (var (kind, dx) in foes) arenaFoes.Add(SpawnAt(kind, lockZone.x + dx));
+            int i = 0;
+            foreach (var (kind, _) in foes)
+            {
+                var e = SpawnAt(kind, lockZone.x + RunInFrom + i++ * RunInGap);
+                e.runningIn = true;
+                e.facing = -1;
+                arenaFoes.Add(e);
+            }
         }
+
+        // where an ambush's soldiers start, past the arena's middle: the camera keeps within 3 m of the middle and shows
+        // ViewHalfWidth either side, so they start out of view; one behind the other this far apart
+        const float RunInFrom = 3f + ViewHalfWidth + 1.5f, RunInGap = 1.6f;
 
         /// <summary>His whistle: two raiders run in from the arena's sides.</summary>
         public void SummonRaiders()

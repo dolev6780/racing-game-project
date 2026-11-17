@@ -886,10 +886,14 @@ namespace Cloudborne
         }
 
         /// <summary>
-        /// Strings the rope bridge across c from the kit: an end with its posts at each side, then sections of planks
-        /// along the deck's sag, each tilted to it; the sections in RopeHoles get no planks, and become c's holes. The
-        /// ropes are one smooth curve each over the whole bridge (StringRopes). Without the kit, the one-piece bridge
-        /// model, stretched.
+        /// Strings the rope bridge across c from the kit: a bamboo post at each end, out on the banks and standing still
+        /// (the bridge bounces under Raja, its posts don't: the user), then sections of planks from post to post along
+        /// the deck's sag, each tilted to it; the sections in RopeHoles get no planks, and become c's holes. The ropes
+        /// are one smooth curve each from post to post (StringRopes). Without the kit, the one-piece bridge model,
+        /// stretched.
+        /// (The kit's end piece had the model's first planks and rope ends with the post, sloping down to it: they met
+        /// the game's level bridge with a kink, and the user saw the bridge broken where it starts. Now the end piece is
+        /// the post alone, and the planks and ropes run on into it.)
         /// </summary>
         Transform StringRopeBridge(Crossing c)
         {
@@ -906,9 +910,27 @@ namespace Cloudborne
             float secLen = db.size.x, deckTop = db.max.y;
             bool runsLeft = db.center.x < 0;
             Object.Destroy(probeDeck.gameObject);
-            float a = c.X0 + RopeEndIn, b = c.X1 - RopeEndIn, w = (b - a) / RopeSections;
+            // the posts, just out on the banks: their inner faces PostOut past the water's edges
+            var posts = CbArt.Joint(root, 0, 0, 0.15f, "ropeBridgePosts");
+            foreach (var (edge, outward) in new[] { (c.X0, -1f), (c.X1, 1f) })
+            {
+                float face = edge + outward * PostOut;
+                var end = CbArt.Joint(posts, face, 0, 0, "post");
+                var part = BridgePart("BridgeEnd", end);
+                if (part == null) continue;
+                var eb = LocalBounds(part, end);
+                // turned so it stands outward of its face
+                if (eb.center.x * outward < 0) end.localScale = new Vector3(-1, 1, 1);
+                eb = LocalBounds(part, posts);
+                float inner = outward < 0 ? eb.max.x : eb.min.x;
+                end.localPosition = new Vector3(face + (face - inner), c.Top(face) - PostDeck, 0);
+            }
+            // the planks from post to post, tucked into the posts' lower rope bands
+            float a = c.X0 - PostOut - PostTuck, b = c.X1 + PostOut + PostTuck;
+            int n = Mathf.Max(1, Mathf.RoundToInt((b - a) / PlankSection));
+            float w = (b - a) / n;
             c.holes = new List<(float, float)>();
-            for (int k = 0; k < RopeSections; k++)
+            for (int k = 0; k < n; k++)
             {
                 float x0 = a + k * w, x1 = x0 + w;
                 float y0 = c.Top(x0) - deckTop, y1 = c.Top(x1) - deckTop;
@@ -921,25 +943,15 @@ namespace Cloudborne
                 if (System.Array.IndexOf(RopeHoles, k) >= 0) c.holes.Add((x0, x1));
                 else BridgePart("BridgeDeck", fit);
             }
-            // the ends: their posts out on the banks, their planks meeting the first and last sections
-            foreach (var (edge, outward) in new[] { (a, -1f), (b, 1f) })
-            {
-                var end = CbArt.Joint(t, edge, 0, 0, "end");
-                var part = BridgePart("BridgeEnd", end);
-                if (part == null) continue;
-                var eb = LocalBounds(part, end);
-                // turned so it reaches outward from the edge
-                bool reachesOut = (eb.center.x - 0) * outward > 0;
-                if (!reachesOut) end.localScale = new Vector3(-1, 1, 1);
-                eb = LocalBounds(part, t);
-                float inner = outward < 0 ? eb.max.x : eb.min.x;
-                end.localPosition = new Vector3(edge - (inner - edge), c.Top(edge) - EndDeckTop, 0);
-            }
             StringRopes(c, t, a, b);
             return t;
         }
 
-        // the end piece's planks where it meets the sections, above its foot
+        // the posts' inner faces this far out past the water's edges (where the old end pieces stood them); the planks
+        // run this far into their rope bands; how high the planks meet a post over its foot (in its lower band); and
+        // about how long a section of planks is (the kit's, drawn out a little)
+        const float PostOut = 0.12f, PostTuck = 0.08f, PostDeck = 0.36f, PlankSection = 2.13f;
+        // the model's planks by its post, over its foot (its handrail's height over them comes from these)
         const float EndDeckTop = 0.31f;
         // the ropes: the handrail as high over the planks as the end piece's rope where it is cut (0.87 over its foot),
         // either side of the planks, a tie between the handrail and the planks' edge rope every TieEvery metres
