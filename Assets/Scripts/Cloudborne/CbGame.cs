@@ -1225,6 +1225,9 @@ namespace Cloudborne
             hero.ki = Mathf.Min(100, hero.ki + 3);
             CbFx.Spark(at, fire ? CbFx.Fire : CbFx.Hit, big ? 22 : 12, big ? 11 : 7, big ? 0.6f : 0.4f);
             CbVfx.Burst(at, fire ? CbFx.Fire : CbFx.Hit, big ? 2.4f : 1.4f, big ? 0.2f : 0.12f);
+            // a staff blow, or any big one of his, sweeps a slash arc across where it lands
+            if (fromPlayer && (breaker || big))
+                CbVfx.Slash(at + new Vector3(0, 0, -0.1f), dir, fire ? CbFx.Fire * 0.7f : new Color(1f, 1f, 1f, 0.9f) * 1.6f, big ? 2.6f : 1.9f);
             if (big)
             {
                 CbVfx.Ring(at, (fire ? CbFx.Fire : CbFx.Hit) * 0.35f, 1.4f, 0.3f);

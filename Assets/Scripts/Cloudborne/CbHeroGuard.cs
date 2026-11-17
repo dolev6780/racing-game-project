@@ -53,6 +53,7 @@ namespace Cloudborne
             CbFx.Spark(at, new Color(1f, 0.85f, 0.4f) * 2.5f, 18, 7, 0.35f, 0.35f, 2);
             CbVfx.Ring(at, CbFx.Hit * 0.6f, 1.8f, 0.3f);
             CbVfx.Burst(at, CbFx.Hit, 2f, 0.15f);
+            CbVfx.Sparkle(at, new Color(1f, 0.9f, 0.5f) * 1.6f, 1.6f);
             CbFx.Sfx("perfect");
             CbFx.Sfx("block", 0.8f);
             g.hud.Banner("PERFECT GUARD!", true);

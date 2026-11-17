@@ -969,6 +969,8 @@ namespace Cloudborne
                     if (fall < -4f) Squash(Mathf.Clamp(-fall * 0.016f, 0.08f, 0.24f));
                     // a moment's landing crouch in his model (from a real drop, not a step)
                     if (fall < -5f) landT = LandTime;
+                    // a heavy landing kicks up a cloud of dust
+                    if (fall < -11f) CbVfx.Smoke(new Vector3(x, y + 0.35f, -0.4f), new Color(0.85f, 0.8f, 0.7f), 1.6f, 0.45f);
                     air = false; jumps = 0; airDashed = false; airHits = 0;
                     if (state == State.Air) state = State.Idle;
                     if (state == State.Atk) { state = State.Idle; combo = 0; }

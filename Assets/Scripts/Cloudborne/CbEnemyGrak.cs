@@ -136,6 +136,7 @@ namespace Cloudborne
             g.hitstop = Mathf.Max(g.hitstop, 0.06f);
             CbVfx.Burst(at, CbFx.Hit, 2.6f, 0.2f);
             CbVfx.Ring(new Vector3(at.x, y + 0.05f, 0), CbFx.Dust * 1.5f, 2.6f, 0.35f, ground: true);
+            CbVfx.Smoke(new Vector3(at.x, y + 1.2f, -0.6f), new Color(0.85f, 0.78f, 0.7f), 3.2f, 0.7f);
             g.hud.Popup(new Vector3(x - facing * 0.6f, y + 3.6f, 0), "CRASH!", CbHud.PopStyle.Big);
             g.level?.PillarHit(x + facing * (GrakHalf + 0.6f));
         }
@@ -342,6 +343,7 @@ namespace Cloudborne
                             g.hitstop = Mathf.Max(g.hitstop, 0.06f);
                             CbVfx.Ring(new Vector3(x, y + 0.05f, 0), CbFx.Fire * 0.5f, 3.4f, 0.45f, ground: true);
                             CbFx.Spark(new Vector3(x, y + 0.2f, -0.4f), CbFx.Fire, 26, 7, 0.5f, 0.6f, 3);
+                            CbVfx.Smoke(new Vector3(x, y + 0.9f, -0.7f), new Color(0.55f, 0.45f, 0.4f), 3.6f, 0.8f);
                             if (finalSlam) LastSlam();
                             else
                             {

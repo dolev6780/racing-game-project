@@ -484,6 +484,7 @@ namespace Cloudborne
                     hero.ki = Mathf.Min(100, hero.ki + KiCrystalKi);
                     g.hud.Popup(at + Vector3.up, "KI +" + KiCrystalKi, CbHud.PopStyle.Burn);
                     CbFx.Spark(at, CbFx.Fire, 12, 3, 0.35f, 0.5f, -3);
+                    CbVfx.Sparkle(at, CbFx.Fire * 0.6f, 1.3f);
                     break;
                 case Kind.GoldenFruit:
                     hero.hp = hero.MaxHp;
@@ -491,12 +492,14 @@ namespace Cloudborne
                     g.hud.Banner("GOLDEN FRUIT!", true);
                     CbVfx.Ring(at, CbFx.Flame * 0.5f, 2f, 0.4f);
                     CbFx.Spark(at, CbFx.Flame, 24, 5, 0.4f, 0.6f, -3);
+                    CbVfx.Sparkle(at, CbFx.Flame * 0.7f, 2.2f, 0.5f);
                     break;
                 case Kind.Coin:
                     Coins++;
                     g.score += 50;
                     PlayerPrefs.SetInt(BankKey, PlayerPrefs.GetInt(BankKey, 0) + 1);
                     CbFx.Spark(at, CbFx.Flame, 5, 2, 0.25f, 0.3f, -2);
+                    CbVfx.Sparkle(at, new Color(1f, 0.9f, 0.5f) * 1.4f, 0.8f, 0.25f);
                     break;
                 case Kind.Token:
                     g.TokenFound();

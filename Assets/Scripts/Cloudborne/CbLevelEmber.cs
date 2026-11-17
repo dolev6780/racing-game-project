@@ -106,16 +106,19 @@ namespace Cloudborne
         Transform FireWall(string name)
         {
             var t = CbArt.Joint(root, GrakX, 0, 0, name);
-            var tex = FlameTexture();
-            var outer = CbArt.Glow(new Color(1f, 0.42f, 0.1f, 1f), tex);
-            var inner = CbArt.Glow(new Color(1f, 0.8f, 0.35f, 1f), tex);
+            // the painted fire the user approved (the flame drawn in code where it isn't in the project)
+            var tex = (Texture)CbVfx.Painted("Fire") ?? FlameTexture();
+            // (the painted fire has its own colours: only warmed a little)
+            bool painted = CbVfx.Painted("Fire") != null;
+            var outer = CbArt.Glow(painted ? new Color(1f, 0.85f, 0.75f, 1f) : new Color(1f, 0.42f, 0.1f, 1f), tex);
+            var inner = CbArt.Glow(painted ? new Color(1f, 1f, 0.9f, 0.9f) : new Color(1f, 0.8f, 0.35f, 1f), tex);
             for (int k = 0; k < 12; k++)
             {
                 bool core = k % 3 == 2;
                 float z = -1.5f + k * 0.32f + Random.Range(-0.1f, 0.1f);
                 float h = FireTall * (core ? Random.Range(0.55f, 0.75f) : Random.Range(0.75f, 1.15f));
                 var tongue = CbArt.Part(CbMesh.Quad, core ? inner : outer, t, new Vector3(Random.Range(-0.35f, 0.35f), h / 2, z - (core ? 0.05f : 0f)),
-                    new Vector3(h * 0.6f, h, 1), shadows: false);
+                    new Vector3(h * 0.95f, h, 1), shadows: false);
                 tongue.name = "flame";
                 fireTongues.Add(tongue);
                 tongueHeights.Add(h);
@@ -303,7 +306,7 @@ namespace Cloudborne
                     var t = fireTongues[i];
                     float h0 = tongueHeights[i];
                     float s = 1f + Mathf.Sin(time * (8f + i % 5) + i * 1.7f) * 0.16f + Mathf.Sin(time * 13f + i) * 0.06f;
-                    t.localScale = new Vector3(h0 * 0.6f * (1.6f - s * 0.6f), h0 * s, 1);
+                    t.localScale = new Vector3(h0 * 0.95f * (1.6f - s * 0.6f), h0 * s, 1);
                     var p = t.localPosition;
                     p.y = h0 * s / 2;
                     t.localPosition = p;

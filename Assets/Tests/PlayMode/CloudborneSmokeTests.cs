@@ -2156,6 +2156,14 @@ namespace RacingGame.Tests
                 yield return TakePictures(new[] { ($"run{k}", float.NaN, 0f) }, 1f / 30f);
             game.TestControls = null;
             Assert.Greater(shares.Count, 3, "No frames with his foot on the ground");
+            // the painted effects the user approved, all at once beside him
+            var at = new Vector3(hero.x + 2f, hero.y + 1.2f, -0.5f);
+            CbVfx.Burst(at, CbFx.Hit, 2.2f, 0.6f);
+            CbVfx.Slash(at + new Vector3(1.6f, 0, 0), 1, Color.white * 1.6f, 2.4f, 0.6f);
+            CbVfx.Sparkle(at + new Vector3(-2.6f, 0.4f, 0), new Color(1f, 0.9f, 0.5f) * 1.6f, 1.6f, 0.6f);
+            CbVfx.Smoke(new Vector3(hero.x + 4.5f, hero.y + 0.8f, -0.5f), new Color(0.85f, 0.8f, 0.7f), 2.6f, 0.6f);
+            CbVfx.Ring(new Vector3(hero.x, hero.y + 0.05f, 0), CbFx.Hit * 0.5f, 1.8f, 0.6f, ground: true);
+            yield return TakePictures(new[] { ("effects", float.NaN, 0f) }, 0.1f);
             game.ImpactFrame(0.5f);
             yield return null;
             Assert.IsTrue(game.InImpactFrame, "The impact frame did not hold");

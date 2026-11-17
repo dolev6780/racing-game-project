@@ -16,7 +16,7 @@ namespace Cloudborne
             public Material m;
             public MeshFilter mf;
             public Color c;
-            public float age, life, size0, size1, spin;
+            public float age, life, size0, size1, spin, flip = 1f, rise;
             public bool billboard, active;
         }
 
@@ -30,12 +30,44 @@ namespace Cloudborne
             holder = new GameObject("VFX").transform;
             holder.SetParent(parent, false);
             quads.Clear();
+            clouds.Clear();
             ghosts.Clear();
         }
 
+        // The painted effects (the user approved them: drawn in Canva on black, cut into Resources/Cloudborne/Effects) -
+        // a star burst, a slash arc, sparkles and a ring that add light, a cloud of smoke that doesn't. Where one isn't in
+        // the project, the effect drawn in code stands in.
+
         /// <summary>A star-shaped flash where a blow lands.</summary>
         public static void Burst(Vector3 pos, Color c, float size, float life = 0.14f)
-            => Spawn(pos, c, Star, size * 0.55f, size, life, true, Random.Range(0f, 360f));
+            => Spawn(pos, c, Painted("Burst") ?? Star, size * 0.55f, size, life, true, Random.Range(0f, 360f));
+
+        /// <summary>A slash arc across where a staff blow lands, sweeping the way it goes (dir), tinted c.</summary>
+        public static void Slash(Vector3 pos, int dir, Color c, float size, float life = 0.16f)
+        {
+            var tex = Painted("Slash");
+            if (tex == null) return;
+            var fx = Spawn(pos, c, tex, size * 0.75f, size, life, true, Random.Range(-25f, 25f));
+            if (fx != null) fx.flip = dir < 0 ? 1f : -1f;
+        }
+
+        /// <summary>Gold sparkles: a pickup, a perfect guard.</summary>
+        public static void Sparkle(Vector3 pos, Color c, float size, float life = 0.35f)
+        {
+            var tex = Painted("Sparkle");
+            if (tex == null) { CbFx.Spark(pos, c, 6, 2f, 0.3f, life, -2); return; }
+            var fx = Spawn(pos, c, tex, size * 0.6f, size, life, true, Random.Range(-15f, 15f));
+            if (fx != null) fx.rise = 0.8f;
+        }
+
+        /// <summary>A cloud of dust or smoke billowing up (a crash, a heavy landing): drawn over the scene, not glowing.</summary>
+        public static void Smoke(Vector3 pos, Color c, float size, float life = 0.55f)
+        {
+            var tex = Painted("Smoke");
+            if (tex == null) { CbFx.Puff(pos, c, 6, 2f, size * 0.5f, life); return; }
+            var fx = Spawn(pos, c, tex, size * 0.45f, size, life, true, Random.Range(-10f, 10f), clouds: true);
+            if (fx != null) fx.rise = 0.6f;
+        }
 
         /// <summary>
         /// A fiery explosion: the painted one (Resources/Cloudborne/Effects/Explosion, drawn in Canva on black, so
@@ -65,6 +97,10 @@ namespace Cloudborne
         /// <summary>An expanding ring: across the view for heavy blows, flat on the ground for slams and the roar.</summary>
         public static void Ring(Vector3 pos, Color c, float radius, float life = 0.3f, bool ground = false)
         {
+            // on the ground the painted ring (drawn as seen from a little above: it stands facing the camera); across the
+            // view, a round band
+            var painted = ground ? Painted("Ring") : null;
+            if (painted != null) { Spawn(pos + new Vector3(0, 0.15f, 0), c, painted, radius * 0.4f, radius * 2.2f, life, true, 0); return; }
             var fx = Spawn(pos, c, RingTexture, radius * 0.3f, radius * 2f, life, !ground, 0);
             if (fx != null && ground) fx.t.rotation = Quaternion.Euler(90, 0, 0);
         }
@@ -115,16 +151,31 @@ namespace Cloudborne
             return Mathf.Abs(Mathf.Log(k)) < Mathf.Abs(Mathf.Log(k / world)) ? world : 1f;
         }
 
-        static Fx Spawn(Vector3 pos, Color c, Texture tex, float size0, float size1, float life, bool billboard, float spin)
+        static readonly List<Fx> clouds = new List<Fx>();
+        static Shader paintedFx;
+
+        static Fx Spawn(Vector3 pos, Color c, Texture tex, float size0, float size1, float life, bool billboard, float spin, bool clouds = false)
         {
             if (holder == null) return null;
-            var fx = quads.Find(q => !q.active);
+            var pool = clouds ? CbVfx.clouds : quads;
+            var fx = pool.Find(q => !q.active);
             if (fx == null)
             {
-                var m = CbArt.Glow(c, tex);
+                Material m;
+                if (clouds)
+                {
+                    if (paintedFx == null) paintedFx = Resources.Load<Shader>("Shaders/PaintedFx");
+                    m = paintedFx != null && paintedFx.isSupported
+                        ? new Material(paintedFx) { mainTexture = tex, renderQueue = (int)RenderQueue.Transparent }
+                        : CbArt.Glow(c, tex);
+                    m.SetColor("_Color", c);
+                }
+                else m = CbArt.Glow(c, tex);
                 fx = new Fx { t = CbArt.Part(CbMesh.Quad, m, holder, Vector3.zero, Vector3.one, shadows: false), m = m };
-                quads.Add(fx);
+                pool.Add(fx);
             }
+            fx.flip = 1f;
+            fx.rise = 0f;
             fx.m.mainTexture = tex;
             fx.c = c;
             fx.age = 0;
@@ -143,19 +194,8 @@ namespace Cloudborne
 
         public static void Update(Camera cam, float dt)
         {
-            foreach (var fx in quads)
-            {
-                if (!fx.active) continue;
-                fx.age += dt;
-                float k = fx.age / fx.life;
-                if (k >= 1) { fx.active = false; fx.t.gameObject.SetActive(false); continue; }
-                float grow = 1 - (1 - k) * (1 - k);            // fast out, then settling
-                fx.t.localScale = Vector3.one * Mathf.Lerp(fx.size0, fx.size1, grow);
-                if (fx.billboard && cam != null) fx.t.rotation = cam.transform.rotation * Quaternion.Euler(0, 0, fx.spin);
-                var c = fx.c;
-                c.a *= 1 - k * k;
-                fx.m.SetColor("_Color", c);
-            }
+            UpdateQuads(quads, cam, dt);
+            UpdateQuads(clouds, cam, dt);
             foreach (var fx in ghosts)
             {
                 if (!fx.active) continue;
@@ -164,6 +204,25 @@ namespace Cloudborne
                 if (k >= 1) { fx.active = false; fx.t.gameObject.SetActive(false); continue; }
                 var c = fx.c;
                 c.a *= 1 - k;
+                fx.m.SetColor("_Color", c);
+            }
+        }
+
+        static void UpdateQuads(List<Fx> list, Camera cam, float dt)
+        {
+            foreach (var fx in list)
+            {
+                if (!fx.active) continue;
+                fx.age += dt;
+                float k = fx.age / fx.life;
+                if (k >= 1) { fx.active = false; fx.t.gameObject.SetActive(false); continue; }
+                float grow = 1 - (1 - k) * (1 - k);            // fast out, then settling
+                float s = Mathf.Lerp(fx.size0, fx.size1, grow);
+                fx.t.localScale = new Vector3(s * fx.flip, s, s);
+                if (fx.rise != 0) fx.t.position += Vector3.up * fx.rise * dt;
+                if (fx.billboard && cam != null) fx.t.rotation = cam.transform.rotation * Quaternion.Euler(0, 0, fx.spin);
+                var c = fx.c;
+                c.a *= 1 - k * k;
                 fx.m.SetColor("_Color", c);
             }
         }
