@@ -581,7 +581,8 @@ namespace Cloudborne
             inv = Mathf.Max(inv, 1.2f);
             if (hp <= 0) { state = State.Dead; t = 0; g.Invoke(nameof(CbGame.Defeated), 1.4f); return; }
             // back on dry land: dropped in from a little above, a sparkle where he comes, a bounce as he lands
-            y = safeY + ReturnDrop; air = true; state = State.Air; jumps = 1; cuttable = false; flipT = 0;
+            // (not catching an edge on the way down: in the gorge he hung from its rocks instead of standing at its foot)
+            y = safeY + ReturnDrop; air = true; state = State.Air; jumps = 1; cuttable = false; flipT = 0; grabCd = 0.5f;
             CbVfx.Sparkle(new Vector3(x, y + 0.5f, -0.45f), new Color(0.85f, 0.97f, 1f) * 1.8f, 1.8f, 0.45f);
             CbVfx.Ring(new Vector3(x, safeY + 0.03f, 0), new Color(0.85f, 0.97f, 1f) * 0.5f, 1.2f, 0.4f, ground: true);
             CbFx.Spark(new Vector3(x, y + 0.6f, -0.35f), CbFx.Water, 8, 2f, 0.25f, 0.4f, 6);
