@@ -672,12 +672,12 @@ namespace Cloudborne
             }
             // his face, large: the band crops it to his eyes (the painted badge: its eyes sit 41% up, a little left)
             cutFace = UIKit.Rect(band, "face", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(CutFaceX, 0), new Vector2(300, 300));
-            var face = cutFace.gameObject.AddComponent<RawImage>();
+            var face = cutFaceImg = cutFace.gameObject.AddComponent<RawImage>();
             var painted = Resources.Load<Texture2D>("Cloudborne/Hud/RajaPortrait");
-            face.texture = painted != null ? painted : Portrait();
-            face.uvRect = new Rect(0.06f, 0.16f, 0.76f, 0.5f);
+            face.texture = cutPortrait = painted != null ? painted : Portrait();
+            face.uvRect = PortraitEyes;
             face.raycastTarget = false;
-            cutFace.sizeDelta = new Vector2(CutInHigh * 2f * 0.76f / 0.5f, CutInHigh * 2f);
+            cutFace.sizeDelta = new Vector2(CutFaceWide, CutInHigh * 2f);
             // its right side cut on a slant, with a bright line along the cut
             var wedge = UIKit.Rect(cutFace, "wedge", new Vector2(1, 0.5f), new Vector2(0, 0.5f), new Vector2(-24, 0), new Vector2(160, CutInHigh * 1.6f));
             wedge.localRotation = Quaternion.Euler(0, 0, -14f);
@@ -695,13 +695,31 @@ namespace Cloudborne
         }
 
         /// <summary>The special's cut-in: the band sweeps in with Raja's eyes and the move's name, holds, and closes.</summary>
-        public void CutIn(string name, bool fire)
+        public void CutIn(string name, bool fire) =>
+            CutIn(name, fire ? Ember : Gold, fire ? CbArt.Hex("#a3200c") : CbArt.Hex("#7a5410"), null);
+
+        // Raja's eyes on the painted badge: 41% up it, a little left; the band shows the middle half of this
+        static readonly Rect PortraitEyes = new Rect(0.06f, 0.16f, 0.76f, 0.5f);
+        const float CutFaceWide = CutInHigh * 2f * 0.76f / 0.5f;
+        RawImage cutFaceImg;
+        Texture cutPortrait;
+
+        /// <summary>The shape of a close-up for the band (width over height): a camera's picture of a boss's face.</summary>
+        public const float CloseUpAspect = CutFaceWide / CutInHigh;
+
+        /// <summary>
+        /// A cut-in in these colours; face, when given, is a close-up (CloseUpAspect wide to one high) in place of
+        /// Raja's eyes - a boss's own face (CbGame.BossCutIn).
+        /// </summary>
+        public void CutIn(string name, Color edge, Color outline, Texture face)
         {
-            var col = fire ? Ember : Gold;
-            cutEdge.color = col;
-            cutSlash.color = col;
+            cutFaceImg.texture = face != null ? face : cutPortrait;
+            cutFaceImg.uvRect = face != null ? new Rect(0, 0, 1, 1) : PortraitEyes;
+            cutFace.sizeDelta = new Vector2(CutFaceWide, face != null ? CutInHigh : CutInHigh * 2f);
+            cutEdge.color = edge;
+            cutSlash.color = edge;
             cutText.text = name;
-            cutOutline.effectColor = fire ? CbArt.Hex("#a3200c") : CbArt.Hex("#7a5410");
+            cutOutline.effectColor = outline;
             cutT = 0;
             cutIn.gameObject.SetActive(true);
             TickCutIn(0);

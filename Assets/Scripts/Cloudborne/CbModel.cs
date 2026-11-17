@@ -49,6 +49,12 @@ namespace Cloudborne
         /// <summary>The way the face points (world space), up or down with the head.</summary>
         public Vector3 FaceDirection => (headFront.position - head.position).normalized;
 
+        /// <summary>About where the eyes are: along the head towards the snout, a little up (a close-up aims here).</summary>
+        public Vector3 Eyes => Vector3.Lerp(head.position, headFront.position, 0.55f) + Vector3.up * FaceLength * 0.15f;
+
+        /// <summary>How long the head is, from its bone to the front of the face (a close-up stands off by a few).</summary>
+        public float FaceLength => Mathf.Max(0.1f, Vector3.Distance(head.position, headFront.position));
+
         // removed whole: Unity won't take out one axis of a position, rotation or scale on its own
         static readonly string[] RootCurves = { "m_LocalPosition", "m_LocalRotation", "m_LocalScale" };
 

@@ -2118,7 +2118,11 @@ namespace RacingGame.Tests
             game.SkipToBoss();
             game.Teleport(CbLevel.GrakX - 6.5f);
             game.hero.y = 0;
-            yield return TakePictures(new[] { ("ember_grak", float.NaN, 0f) }, 1.2f);
+            // his cut-in: the band with his name, his own face close up from a second camera
+            yield return TakePictures(new[] { ("grak_cut_in", float.NaN, 0f) }, 0.45f);
+            Assert.IsTrue(game.hud.CuttingIn, "Grak came on with no cut-in");
+            Assert.IsTrue(game.CloseUpOn, "No close-up of Grak's face in his cut-in");
+            yield return TakePictures(new[] { ("ember_grak", float.NaN, 0f) }, 0.75f);
             var grak = game.boss;
             Assert.IsNotNull(grak, "Grak did not come");
             for (float w = 0; w < 10f && grak.grakMove != CbEnemy.GrakMove.Swing && grak.grakMove != CbEnemy.GrakMove.Chop && grak.grakMove != CbEnemy.GrakMove.Charge; w += Time.deltaTime)

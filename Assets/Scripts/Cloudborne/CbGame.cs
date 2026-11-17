@@ -800,7 +800,7 @@ namespace Cloudborne
             hud.ShowBoss("SGT. SNAP");
             hud.SetWave("Defeat Sergeant Snap");
             hud.SetTip("<color=#ffb03a>Swipe ↔</color> to dodge his three blows, then strike. Purple flash: get away! A <color=#ffb03a>KI</color> move stops his whistle");
-            hud.Banner("SGT. SNAP!");
+            BossCutIn(boss, "SGT. SNAP!");
         }
 
         /// <summary>
@@ -815,7 +815,7 @@ namespace Cloudborne
             hud.ShowBoss("TUSK");
             hud.SetWave("Defeat Tusk");
             hud.SetTip("His armour stops blows from the front. Jump or <color=#ffb03a>swipe ↔</color> out of his charge: he rams the tree - hit him from behind!");
-            hud.Banner("TUSK!");
+            BossCutIn(boss, "TUSK!");
         }
 
         /// <summary>
@@ -831,7 +831,7 @@ namespace Cloudborne
             hud.ShowBoss("COMMANDER GRAK");
             hud.SetWave("Defeat Commander Grak");
             hud.SetTip("His iron stops blows from the front. Dodge his saw and strike as it misses; jump or <color=#ffb03a>swipe ↔</color> out of his charge - winded against the pillar, he is open!");
-            hud.Banner("COMMANDER GRAK!");
+            BossCutIn(boss, "COMMANDER GRAK!");
         }
 
         /// <summary>Grak's last slam knocked the crystal out of his armour: it rolls to Raja, and his fire wakes.</summary>
@@ -1401,6 +1401,68 @@ namespace Cloudborne
         }
         const float CutInSlow = 0.5f;
 
+        // ---------- a boss's cut-in: his own face, close up, from a second camera ----------
+
+        Camera closeCam;
+        RenderTexture closeRT;
+        CbEnemy closeOn;
+        float closeT;
+
+        /// <summary>
+        /// A boss comes on: the cut-in's band with his name in red and his own face close up - a second camera's live
+        /// picture of it, as he roars (on the LOW graphics level, the name alone).
+        /// </summary>
+        public void BossCutIn(CbEnemy e, string name)
+        {
+            Texture face = null;
+            if (e != null && e.model != null && CbQuality.Current != CbQuality.Tier.Low && cam != null)
+            {
+                if (closeCam == null)
+                {
+                    closeRT = new RenderTexture(768, Mathf.RoundToInt(768 / CbHud.CloseUpAspect), 16) { name = "closeUp" };
+                    var go = new GameObject("closeUp");
+                    go.transform.SetParent(transform, false);
+                    closeCam = go.AddComponent<Camera>();
+                    closeCam.CopyFrom(cam);
+                    closeCam.targetTexture = closeRT;
+                    closeCam.fieldOfView = 26f;
+                    closeCam.nearClipPlane = 0.05f;
+                    closeCam.farClipPlane = 220f;
+                    closeCam.depth = cam.depth - 1;
+                    var data = closeCam.GetUniversalAdditionalCameraData();
+                    if (data != null) data.renderPostProcessing = true;
+                }
+                closeOn = e;
+                closeT = CbHud.CutInTime;
+                closeCam.enabled = true;
+                AimCloseUp();
+                face = closeRT;
+            }
+            hud.CutIn(name, CbArt.Hex("#e0302a"), CbArt.Hex("#3a0606"), face);
+            shake = Mathf.Max(shake, 0.15f);
+        }
+
+        /// <summary>The close-up camera at his face, a little to the side towards the view (a three-quarter look).</summary>
+        void AimCloseUp()
+        {
+            var m = closeOn.model;
+            var eyes = m.Eyes;
+            var dir = (m.FaceDirection + Vector3.back * 0.7f).normalized;
+            closeCam.transform.position = eyes + dir * m.FaceLength * 4.2f;
+            closeCam.transform.LookAt(eyes);
+        }
+
+        void UpdateCloseUp(float raw)
+        {
+            if (closeCam == null || !closeCam.enabled) return;
+            closeT -= raw;
+            if (closeT <= 0 || closeOn == null || closeOn.model == null) { closeCam.enabled = false; return; }
+            AimCloseUp();
+        }
+
+        /// <summary>The close-up camera is drawing a boss's face for the cut-in.</summary>
+        public bool CloseUpOn => closeCam != null && closeCam.enabled;
+
         /// <summary>
         /// SPECIAL, the tiger flame cannon: a beam of fire from Raja's hands, BeamLength long, in layers (an orange
         /// outer flame and a yellow one streaming forward, a white-hot core, a blazing head), with rings racing
@@ -1756,6 +1818,7 @@ namespace Cloudborne
             critters.Update(clock, camX, camY, hero.x, hero.y);
             UpdateCamera(raw);
             CbVfx.Update(cam, raw);
+            UpdateCloseUp(raw);
             hud.Tick(raw);
             fade.Update(raw);
         }
