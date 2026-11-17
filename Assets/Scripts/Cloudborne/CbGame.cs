@@ -579,6 +579,11 @@ namespace Cloudborne
             RenderSettings.fogColor = horizon;
             RenderSettings.fogStartDistance = ember ? 16f : 24f;
             RenderSettings.fogEndDistance = ember ? 120f : 175f;
+            // each stage its own grade over everything (an anime action game's colour, the user's reference): the
+            // jungle as painted, the treetops a touch warm, Baba's grove golden, the river cool and stormy, the temple fiery
+            if (grading != null)
+                grading.colorFilter.Override(CbStage.Treetops ? new Color(1f, 0.98f, 0.94f) : CbStage.Grove ? new Color(1f, 0.96f, 0.86f)
+                    : CbStage.River ? new Color(0.86f, 0.94f, 1f) : ember ? new Color(1f, 0.9f, 0.82f) : Color.white);
             var sky = CbArt.Sky(ember ? CbArt.Hex("#2a1410") : CbArt.Hex("#2a78a8"), horizon, horizon);
             if (sky != null) RenderSettings.skybox = sky;
             else { cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = horizon; }
