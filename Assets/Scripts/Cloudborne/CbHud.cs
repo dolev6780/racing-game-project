@@ -90,6 +90,7 @@ namespace Cloudborne
             speedLines.enabled = false;
             impactFlash = UIKit.Image(UIKit.Stretch(root, "impact"), null, Color.clear);
             impactFlash.enabled = false;
+            BuildCutIn();
             play = UIKit.Stretch(root, "play");
 
             // status: portrait, name, bars
@@ -517,6 +518,96 @@ namespace Cloudborne
             flashT = 0.08f;
             flashA = Mathf.Min(strength, 0.45f);
         }
+        // ---------- the special's cut-in (the user's Sparking Zero): a dark band across the screen, Raja's eyes, the name ----------
+
+        RectTransform cutIn, cutFace, cutName;
+        Image cutEdge;
+        Text cutText;
+        Outline cutOutline;
+        readonly List<(RectTransform rt, float speed)> cutStreaks = new List<(RectTransform, float)>();
+        float cutT = -1;
+        /// <summary>How long the cut-in shows, in real time.</summary>
+        public const float CutInTime = 0.95f;
+        const float CutInWide = 1500f, CutInHigh = 118f, CutFaceX = -250f, CutNameX = 190f;
+
+        /// <summary>The cut-in is on the screen.</summary>
+        public bool CuttingIn => cutT >= 0;
+
+        void BuildCutIn()
+        {
+            // tilted a little, a touch above the middle; a glowing edge behind the band, the band masking what is on it
+            cutIn = UIKit.Rect(root, "cutIn", new Vector2(0.5f, 0.56f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(CutInWide, CutInHigh));
+            cutIn.localRotation = Quaternion.Euler(0, 0, 5f);
+            cutEdge = UIKit.Image(UIKit.Rect(cutIn, "edge", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(CutInWide, CutInHigh + 10)), null, Ember);
+            var band = UIKit.Rect(cutIn, "band", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(CutInWide, CutInHigh));
+            UIKit.Image(band, null, new Color(0.06f, 0.035f, 0.03f, 0.95f));
+            band.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+            // streaks of light racing across it
+            for (int i = 0; i < 9; i++)
+            {
+                var st = UIKit.Rect(band, "streak", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(Random.Range(-CutInWide / 2, CutInWide / 2), Random.Range(-CutInHigh / 2 + 6, CutInHigh / 2 - 6)),
+                    new Vector2(Random.Range(160f, 520f), Random.Range(2f, 6f)));
+                UIKit.Image(st, null, new Color(1f, Random.Range(0.45f, 0.8f), 0.25f, Random.Range(0.25f, 0.6f)));
+                cutStreaks.Add((st, Random.Range(1800f, 3200f)));
+            }
+            // his face, large: the band crops it to his eyes (the painted badge: its eyes sit 41% up, a little left)
+            cutFace = UIKit.Rect(band, "face", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(CutFaceX, 0), new Vector2(300, 300));
+            var face = cutFace.gameObject.AddComponent<RawImage>();
+            var painted = Resources.Load<Texture2D>("Cloudborne/Hud/RajaPortrait");
+            face.texture = painted != null ? painted : Portrait();
+            face.uvRect = new Rect(0.06f, 0.16f, 0.76f, 0.5f);
+            face.raycastTarget = false;
+            cutFace.sizeDelta = new Vector2(CutInHigh * 2f * 0.76f / 0.5f, CutInHigh * 2f);
+            // the move's name
+            cutName = UIKit.Rect(band, "name", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(CutNameX, 0), new Vector2(560, CutInHigh));
+            cutText = UIKit.Label(cutName, "", 40, Paper, TextAnchor.MiddleCenter, true);
+            cutText.fontStyle = FontStyle.Italic;
+            cutOutline = cutText.gameObject.AddComponent<Outline>();
+            cutOutline.effectDistance = new Vector2(3, -3);
+            cutIn.gameObject.SetActive(false);
+        }
+
+        /// <summary>The special's cut-in: the band sweeps in with Raja's eyes and the move's name, holds, and closes.</summary>
+        public void CutIn(string name, bool fire)
+        {
+            var col = fire ? Ember : Gold;
+            cutEdge.color = col;
+            cutText.text = name;
+            cutOutline.effectColor = fire ? CbArt.Hex("#a3200c") : CbArt.Hex("#7a5410");
+            cutT = 0;
+            cutIn.gameObject.SetActive(true);
+            TickCutIn(0);
+        }
+
+        void TickCutIn(float dt)
+        {
+            if (cutT < 0) return;
+            cutT += dt;
+            float u = cutT / CutInTime;
+            if (u >= 1) { cutT = -1; cutIn.gameObject.SetActive(false); return; }
+            // sweeps in from the right, opens out, and at the end closes to a line
+            float inK = Mathf.Clamp01(u / 0.14f), outK = Mathf.Clamp01((u - 0.84f) / 0.16f);
+            float ease = 1 - (1 - inK) * (1 - inK) * (1 - inK);
+            cutIn.anchoredPosition = new Vector2((1 - ease) * CutInWide, 0);
+            cutIn.localScale = new Vector3(1, Mathf.Lerp(0.25f, 1f, ease) * (1 - outK * outK), 1);
+            // his eyes slide in from the left and drift on; the name drifts the other way
+            float faceIn = Mathf.Clamp01((u - 0.05f) / 0.16f);
+            faceIn = 1 - (1 - faceIn) * (1 - faceIn);
+            cutFace.anchoredPosition = new Vector2(Mathf.Lerp(CutFaceX - 500f, CutFaceX, faceIn) - 30f * u, 0);
+            float nameIn = Mathf.Clamp01((u - 0.12f) / 0.12f);
+            cutName.anchoredPosition = new Vector2(CutNameX + 40f * u, 0);
+            cutName.localScale = Vector3.one * Mathf.Lerp(1.8f, 1f, nameIn * (2 - nameIn));
+            cutText.color = new Color(Paper.r, Paper.g, Paper.b, nameIn);
+            foreach (var (st, speed) in cutStreaks)
+            {
+                var p = st.anchoredPosition;
+                p.x -= speed * dt;
+                if (p.x < -CutInWide / 2 - 300) p.x += CutInWide + 600;
+                st.anchoredPosition = p;
+            }
+        }
+
         public void SetSlow(bool on) => slowFx.color = new Color(0.25f, 0.5f, 1f, on ? 0.5f : 0f);
 
         public void Banner(string text, bool small = false)
@@ -722,6 +813,7 @@ namespace Cloudborne
                     speedLines.rectTransform.localScale = new Vector3(Random.value < 0.5f ? s : -s, Random.value < 0.5f ? s : -s, 1);
                 }
             }
+            TickCutIn(dt);
             flashT = Mathf.Max(0, flashT - dt);
             flashGap = Mathf.Max(0, flashGap - dt);
             impactFlash.enabled = flashT > 0;

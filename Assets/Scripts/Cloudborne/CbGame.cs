@@ -1389,6 +1389,19 @@ namespace Cloudborne
         }
 
         /// <summary>
+        /// The special's cut-in (the user's Sparking Zero): the band across the screen with Raja's eyes and the move's
+        /// name, the fight slowed right down while it sweeps in (the gathering power runs on behind it).
+        /// </summary>
+        public void SuperCutIn(bool fire)
+        {
+            hud.CutIn(fire ? "TIGER FLAME CANNON!" : "STAFF STORM!", fire);
+            hitstop = Mathf.Max(hitstop, CutInSlow);
+            hud.SpeedLines(0.6f, CbHud.CutInTime);
+            shake = Mathf.Max(shake, 0.12f);
+        }
+        const float CutInSlow = 0.5f;
+
+        /// <summary>
         /// SPECIAL, the tiger flame cannon: a beam of fire from Raja's hands, BeamLength long, in layers (an orange
         /// outer flame and a yellow one streaming forward, a white-hot core, a blazing head), with rings racing
         /// along it. It hits everything in its path BeamHits times, the last blow hard.

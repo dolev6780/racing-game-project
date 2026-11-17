@@ -848,6 +848,7 @@ namespace Cloudborne
                 else if (input.skill && SpecialUnlocked && ki >= SpecialCost && !air && (FireAwake || !staffFlying))
                 {
                     ki -= SpecialCost; state = State.Special; t = 0; vx = 0; fired = false; tick = 0; hits = 0; hitSet.Clear();
+                    g.SuperCutIn(FireAwake);
                     // the staff storm starts with the staff drawn and twirled
                     if (!FireAwake) { SetStaff(true); CbFx.Sfx("charge", 0.6f); }
                 }

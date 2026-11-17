@@ -695,13 +695,18 @@ namespace RacingGame.Tests
             pressed = false;
             bool sawStorm = false;
             game.TestInput = i => { if (!pressed) { i.skill = true; pressed = true; } };
-            for (float w = 0; w < 1.8f; w += Time.deltaTime)
+            // (its cut-in slows the fight for a moment first)
+            bool sawCutIn = false;
+            for (float w = 0; w < 2.4f; w += Time.deltaTime)
             {
                 yield return null;
                 if (game.hero.state == CbHero.State.Special) sawStorm = true;
+                sawCutIn |= game.hud.CuttingIn;
             }
             game.TestInput = null;
             Assert.IsTrue(sawStorm, "SPECIAL did not start the staff storm");
+            Assert.IsTrue(sawCutIn, "SPECIAL showed no cut-in");
+            Assert.IsFalse(game.hud.CuttingIn, "The cut-in stayed on the screen");
             Assert.AreNotEqual(CbHero.State.Special, game.hero.state, "The staff storm never ended");
             Assert.Less(game.hero.ki, 70f, "The staff storm took no ki");
         }
@@ -2277,6 +2282,14 @@ namespace RacingGame.Tests
             yield return null;
             Assert.IsTrue(game.InImpactFrame, "The impact frame did not hold");
             yield return TakePictures(new[] { ("impact_frame", float.NaN, 0f) }, 1f / 30f);
+            // the special's cut-in, swept in and holding
+            yield return new WaitForSeconds(0.3f);
+            hero.ki = 100f;
+            bool once = true;
+            game.TestControls = i => { i.skill = once; once = false; };
+            yield return TakePictures(new[] { ("cut_in", float.NaN, 0f) }, 0.4f);
+            game.TestControls = null;
+            Assert.IsTrue(game.hud.CuttingIn, "SPECIAL showed no cut-in");
         }
 
         [UnityTest]
