@@ -1742,6 +1742,30 @@ namespace RacingGame.Tests
                 ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 392.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck) });
         }
 
+        /// <summary>
+        /// Not a check: stage 1-1 photographed every 20 metres from start to end, Raja standing on what is there, for
+        /// going over the whole stage for glitches (the user: all of 1-1's glitches, then 1-2's).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ZzSurveyOfTheJungleGate()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            game.hero.inv = 9999f;
+            yield return Frames(2);
+            var spots = new List<(string, float, float)>();
+            for (float at = 10f; at < CbWorld.GoalX + 4f; at += 20f)
+            {
+                // (not over open water: on to the next place to stand)
+                float x = at;
+                while (CbLevel.InWater(x) && game.level.SupportAt(x, 50f) < -0.6f && x < at + 15f) x += 1f;
+                spots.Add(($"survey11_{(int)x:000}", x, Mathf.Max(0f, game.level.SupportAt(x, 50f))));
+            }
+            yield return TakePictures(spots.ToArray(), 1.4f);
+        }
+
         [UnityTest]
         public IEnumerator TheTreetopsStageIsBuiltAndPlays()
         {
