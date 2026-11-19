@@ -138,6 +138,8 @@ namespace Cloudborne
         readonly Transform root;
         bool climbTold;
         readonly List<Block> blocks = new List<Block>();
+        // slopes walked up and down (the stone bridge's ramps): from x0 at y0 to x1 at y1
+        readonly List<(float x0, float x1, float y0, float y1)> ramps = new List<(float, float, float, float)>();
         readonly List<Ledge> ledges = new List<Ledge>();
         readonly List<Crossing> crossings = new List<Crossing>();
         Material earth, grass, crackedEarth;
@@ -302,7 +304,8 @@ namespace Cloudborne
             AddLog(99.8f, 0, 0);
 
             // the brook by the ridge, under a stone bridge of two arches, half a screen long (it was one short arch, and he
-            // walked along the top of its parapet: the user). He jumps up onto it at either end; its deck lies between
+            // walked along the top of its parapet: the user). He walks up onto it at either end, up a grassy ramp (he had
+            // to jump up onto it, and the raiders of its ambush never got up at all: the user); its deck lies between
             // the parapets, low enough that the near one hides his feet. The arches overlap a little, their end posts
             // making one pier in the middle.
             var stone = CbArt.Joint(root, StoneBridgeX, 0, 0.15f, "stoneBridge");
@@ -318,6 +321,67 @@ namespace Cloudborne
             }
             if (!modelled) CbArt.Box(CbArt.Toon("#8f9a8a", CbArt.PropOutline), stone, new Vector3(0, StoneDeck / 2, 0), new Vector3(StoneBridgeHalf * 2, StoneDeck, 1.6f));
             blocks.Add(new Block { x0 = StoneBridgeX - StoneBridgeHalf, x1 = StoneBridgeX + StoneBridgeHalf, top = StoneDeck, t = stone });
+            BridgeRamp(StoneBridgeX - StoneBridgeHalf, -1, StoneDeck);
+            BridgeRamp(StoneBridgeX + StoneBridgeHalf, 1, StoneDeck);
+        }
+
+        // a bridge's ramp: up RampRun metres of slope, then RampFlat level with the deck before the bridge's end (a block
+        // stops him unless he is all but on its top HalfWidth before its end); its back edge behind the path
+        const float RampRun = 2.4f, RampFlat = 0.4f, RampBack = 3.2f;
+
+        /// <summary>
+        /// A grassy ramp of earth up to a bridge's end at (end, top), outward of it (dir -1: on its left), walked up and
+        /// down; drawn as the ground is - grass on its slope, the ground's earth on its front, its grass edge following
+        /// the slope.
+        /// </summary>
+        void BridgeRamp(float end, int dir, float top)
+        {
+            float flatTo = end, flatFrom = end + dir * RampFlat, foot = flatFrom + dir * RampRun;
+            ramps.Add((Mathf.Min(foot, flatFrom), Mathf.Max(foot, flatFrom), dir < 0 ? 0f : top, dir < 0 ? top : 0f));
+            ramps.Add((Mathf.Min(flatFrom, flatTo), Mathf.Max(flatFrom, flatTo), top, top));
+            // the ground's own materials, the earth's picture following the slope's edge
+            var grass = CbWorld.GrassMaterial();
+            var face = CbWorld.FaceMaterial();
+            float tileW = CbWorld.FaceTileWidth(face.mainTexture);
+            float zf = CbWorld.GroundFront, zb = RampBack;
+            var xs = new[] { foot, flatFrom, flatTo };
+            var ys = new[] { 0f, top, top };
+            // the slope and the flat on top
+            var tv = new List<Vector3>(); var tuv = new List<Vector2>(); var tt = new List<int>();
+            for (int i = 0; i < 3; i++)
+            {
+                tv.Add(new Vector3(xs[i], ys[i], zf)); tuv.Add(new Vector2(xs[i] / CbWorld.GrassTile, zf / CbWorld.GrassTile));
+                tv.Add(new Vector3(xs[i], ys[i], zb)); tuv.Add(new Vector2(xs[i] / CbWorld.GrassTile, zb / CbWorld.GrassTile));
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                int a = 2 * i, b = 2 * i + 2;
+                if (dir < 0) { tt.AddRange(new[] { a, a + 1, b, b, a + 1, b + 1 }); }
+                else { tt.AddRange(new[] { a, b, a + 1, b, b + 1, a + 1 }); }
+            }
+            var topMesh = new Mesh { name = "rampTop", vertices = tv.ToArray(), uv = tuv.ToArray(), triangles = tt.ToArray() };
+            topMesh.RecalculateNormals();
+            topMesh.RecalculateBounds();
+            CbArt.Part(topMesh, grass, root, Vector3.zero, Vector3.one, shadows: true).name = "bridgeRamp";
+            // its front: the earth from the ground's edge up to the slope, the picture's grassy top along the slope
+            var fv = new List<Vector3>(); var fuv = new List<Vector2>(); var ft = new List<int>();
+            for (int i = 0; i < 3; i++)
+            {
+                fv.Add(new Vector3(xs[i], ys[i], zf - 0.005f)); fuv.Add(new Vector2(xs[i] / tileW, 1f));
+                fv.Add(new Vector3(xs[i], 0f, zf - 0.005f)); fuv.Add(new Vector2(xs[i] / tileW, 1f - ys[i] / CbWorld.FaceHeight));
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                int a = 2 * i, b = 2 * i + 2;
+                if (dir < 0) { ft.AddRange(new[] { a, b, a + 1, a + 1, b, b + 1 }); }
+                else { ft.AddRange(new[] { a, a + 1, b, a + 1, b + 1, b }); }
+            }
+            var faceMesh = new Mesh { name = "rampFace", vertices = fv.ToArray(), uv = fuv.ToArray(), triangles = ft.ToArray() };
+            faceMesh.RecalculateNormals();
+            faceMesh.RecalculateBounds();
+            var fm = new Material(face);
+            fm.SetFloat("_Cull", 0f);
+            CbArt.Part(faceMesh, fm, root, Vector3.zero, Vector3.one, shadows: false).name = "bridgeRampFace";
         }
 
         /// <summary>A stepping stone, its top level with the banks; a sinking one shakes and goes under if he stays.</summary>
@@ -1050,6 +1114,13 @@ namespace Cloudborne
             }
             foreach (var b in blocks)
                 if (!b.broken && x > b.x0 - HalfWidth * 0.5f && x < b.x1 + HalfWidth * 0.5f && b.top <= fromY + 0.05f && b.top > best) best = b.top;
+            // a ramp: walked up it a step at a time
+            foreach (var (r0, r1, h0, h1) in ramps)
+            {
+                if (x < r0 || x > r1) continue;
+                float top = Mathf.Lerp(h0, h1, (x - r0) / Mathf.Max(0.01f, r1 - r0));
+                if (top <= fromY + StepUp && top > best) best = top;
+            }
             foreach (var l in ledges)
                 if (!l.gone && x > l.x0 - HalfWidth * 0.5f && x < l.x1 + HalfWidth * 0.5f && l.top <= fromY + 0.05f && l.top > best) best = l.top;
             WaysSupport(x, fromY, ref best);

@@ -1215,14 +1215,17 @@ namespace RacingGame.Tests
             game.hero.y = 0;
             yield return Frames(3);
             Assert.IsTrue(game.enemies.Exists(e => !e.dead && Mathf.Abs(e.x - 363f) < 3f), "No soldier at his post before the canopy");
-            // onto the stone bridge: the ambush
-            game.Teleport(CbLevel.StoneBridgeX - 2f);
-            game.hero.y = CbLevel.StoneDeck;
+            // up the ramp onto the stone bridge, walking (he had to jump up onto it: the user): the ambush
+            game.Teleport(CbLevel.StoneBridgeX - CbLevel.StoneBridgeHalf - 3.2f);   // (past the chest, at the ramp's foot)
+            game.hero.y = 0;
             game.hero.vy = 0;
             // (the raiders can't beat him while the test beats them)
             game.hero.inv = 999f;
-            yield return Frames(3);
+            game.TestInput = i => { i.x = 1; };
+            for (float w = 0; w < 5f && game.BridgeWave == 0; w += Time.deltaTime) yield return null;
+            game.TestInput = null;
             Assert.AreEqual(1, game.BridgeWave, "No ambush on the stone bridge");
+            Assert.AreEqual(CbLevel.StoneDeck, game.hero.y, 0.08f, "Raja did not walk up onto the stone bridge");
             int raiders = 0;
             for (int wave = 1; wave <= 3; wave++)
             {

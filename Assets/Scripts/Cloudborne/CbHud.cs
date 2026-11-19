@@ -151,7 +151,8 @@ namespace Cloudborne
             comboN = UIKit.Label(comboBox, "0", 56, Gold, new Vector2(1, 1), new Vector2(1, 1), Vector2.zero, new Vector2(160, 64), TextAnchor.MiddleRight, true);
             UIKit.Label(comboBox, "HITS!", 20, Paper, new Vector2(1, 0), new Vector2(1, 0), new Vector2(0, 10), new Vector2(160, 26), TextAnchor.MiddleRight, true);
             comboBox.gameObject.SetActive(false);
-            goTxt = UIKit.Label(play, "GO ▶", 40, Gold, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-32, 0), new Vector2(160, 50), TextAnchor.MiddleRight, true);
+            // (above the swipe's note and the KI button: in the middle it lay over "SWIPE ↔ dodge" - the survey's pictures)
+            goTxt = UIKit.Label(play, "GO ▶", 40, Gold, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-32, 78), new Vector2(160, 50), TextAnchor.MiddleRight, true);
             goTxt.gameObject.SetActive(false);
 
             // touch pads
