@@ -41,8 +41,6 @@ namespace Cloudborne
         const float RiverFar = 140f;
         // a rounded clump of bushes where the hedge meets a river, ClumpHeight tall
         const float ClumpHeight = 2.1f;
-        // stage 1-1: where the row of painted trees ends, so the shrine's painting shows (from its guardian statue on)
-        const float ShrineFrom = 232f;
         static bool NewLook => Resources.Load<Texture2D>(LipPath) != null;
         // the painted ground drawn as painted (unlit), a touch darker so the characters stand out from it
         static readonly Color PaintTint = new Color(0.93f, 0.92f, 0.95f);
@@ -59,15 +57,12 @@ namespace Cloudborne
         // its top above the view; the wall goes on up to BackdropTop with the painting's top row, so no screen shape
         // ever sees past it.
         const string BackdropPath = "Cloudborne/Jungle/Backdrop/JungleBackdrop";
-        // The stage changes scenery on the way: the jungle, then the gorge in the late afternoon from the foot of the
-        // mountain, then the shrine at sunset from the guardian statue on (to Sergeant Snap at its gate), each painting
-        // cross-fading into the next over BackdropFade metres. A part whose painting isn't in the project keeps the one
-        // before. (They were set at 76 and 110 m, from before the stage grew longer.)
+        // One painting for each stage, the time of day of its part of the story (the user: the jungle's trees and their
+        // colours didn't go with the gorge's late afternoon and the shrine's sunset painted behind them later in 1-1).
+        // Stage 1-1: the jungle by day, the whole way.
         static readonly (string path, float from)[] JungleBackdrops =
         {
             ("Cloudborne/Jungle/Backdrop/JungleBackdrop", float.MinValue),
-            ("Cloudborne/Jungle/Backdrop/GorgeBackdrop", CbLevel.MountainFrom - 6f),
-            ("Cloudborne/Jungle/Backdrop/TempleBackdrop", ShrineFrom + 6f),
         };
         // stage 1-2: high in the canopy (the jungle's painting until its own is in the project)
         static readonly (string path, float from)[] TreetopsBackdrops =
@@ -96,24 +91,8 @@ namespace Cloudborne
         static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : CbStage.River ? RiverBackdrops
             : CbStage.Ember ? EmberBackdrops : JungleBackdrops;
         const float BackdropFade = 12f;
-        readonly List<(Texture2D tex, float from, Color haze, Color lawn, float dusk)> paintings = new List<(Texture2D, float, Color, Color, float)>();
-        // Stage 1-1's later paintings, the haze at their foot (their colour about 70% of the way down, sampled from the
-        // paintings) and the far lawn's colour under them: both fade in with the painting. Past the trees' end at the
-        // shrine the lawn lies open between the hedges and the painting, a flat bright green band under the dark stones
-        // of its courtyard (mint in the jungle's haze: the CI's pictures); there it is the courtyard's dark earth.
-        // And how far into the evening each is (0 the day, 1 sunset): the light where Raja is goes with it (CbGame's
-        // DuskLight; it stayed midday under the sunset: the user).
-        static readonly Dictionary<string, (Color haze, Color lawn, float dusk)> PaintingGround = new Dictionary<string, (Color, Color, float)>
-        {
-            { "Cloudborne/Jungle/Backdrop/GorgeBackdrop", (CbArt.Hex("#767040"), JungleLawn, 0.45f) },
-            // (darker than sampled: in the sun the lawn still showed a light brown band under the painting's shaded foot)
-            { "Cloudborne/Jungle/Backdrop/TempleBackdrop", (CbArt.Hex("#4a3a1c"), CbArt.Hex("#1c150d"), 1f) },
-        };
-
-        /// <summary>How far into the evening the painting behind Raja is (stage 1-1: 0 by day, 1 at sunset), as it fades.</summary>
-        public float Dusk { get; private set; }
+        readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         static readonly Color JungleLawn = CbArt.Hex("#3a7a33");
-        Material lawnMat;
         int shownPart = -1;
         const float BackdropZ = 150f, ImageTop = 44f, ImageHeight = 46f, BackdropTop = 80f, BackdropWidth = 300f,
             BackdropStretch = 1.5f, BackdropSlide = 0.15f;
@@ -406,7 +385,7 @@ namespace Cloudborne
             else if (!CbStage.River)
             {
                 // (its own material: on stage 1-1 it changes colour with the painting, ShowPart)
-                lawnMat = CbArt.NewToon(CbStage.Ember ? CbArt.Hex("#3a2620") : JungleLawn, 0f);
+                var lawnMat = CbArt.NewToon(CbStage.Ember ? CbArt.Hex("#3a2620") : JungleLawn, 0f);
                 lawnMat.SetFloat("_SpecStrength", 0.05f);
                 CbArt.Part(CbMesh.Quad, lawnMat, root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "lawn";
             }
@@ -975,18 +954,8 @@ namespace Cloudborne
                 // the new look: a row of big painted trees in a light haze, and right behind the path a hedge of
                 // bushes and flowers (it hides the flat lawn that ran back to the trees), broken by the rivers
                 // (not in Baba's grove: its painted clearing - the hut, the bells, the mountains - showed only in gaps)
-                // (stage 1-1: the row of trees ends before the shrine - its painting at sunset showed only as a strip of
-                // sky over the daylit trees - a big rounded crown closing it)
-                var midSpans = CbStage.Jungle ? new List<(float a, float b)> { (-120f, ShrineFrom) } : null;
-                mid = !CbStage.Grove && !CbStage.River && !CbStage.Ember && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f, midSpans);
-                var crownTex = mid && CbStage.Jungle ? Resources.Load<Texture2D>(ClumpPath) : null;
-                var crown = crownTex != null ? Cutout(crownTex, 0.3f, PaintTint) : null;
-                if (crown != null)
-                {
-                    crownTex.wrapMode = TextureWrapMode.Clamp;
-                    float ch = 7.5f, cw = ch * crownTex.width / crownTex.height;
-                    CbArt.Part(CbMesh.Quad, crown, root, new Vector3(ShrineFrom - cw / 2 + 2.2f, ch / 2 - 0.6f, 17.9f), new Vector3(cw, ch, 1), shadows: false).name = "treeRowEnd";
-                }
+                // (stage 1-1: the row of trees goes on to the end now, as its jungle painting does)
+                mid = !CbStage.Grove && !CbStage.River && !CbStage.Ember && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
                 var hedge = BushGround();
                 near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, StageTint);
                 // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and
@@ -1075,13 +1044,6 @@ namespace Cloudborne
                 backdropMat.SetTexture("_NextTex", paintings[i].tex);
             }
             backdropMat.SetFloat("_Blend", blend);
-            if (CbStage.Jungle)
-            {
-                var before = i == 0 ? paintings[0] : paintings[i - 1];
-                RenderSettings.fogColor = Color.Lerp(before.haze, paintings[i].haze, blend);
-                if (lawnMat != null) lawnMat.color = Color.Lerp(before.lawn, paintings[i].lawn, blend);
-                Dusk = Mathf.Lerp(before.dusk, paintings[i].dusk, blend);
-            }
         }
 
         /// <summary>The painted backdrop in place of the canopy layers; false when the painting or its shader is missing.</summary>
@@ -1097,8 +1059,7 @@ namespace Cloudborne
                 // mirrored repeats join without a seam
                 t.wrapModeU = TextureWrapMode.Mirror;
                 t.wrapModeV = TextureWrapMode.Clamp;
-                var (haze, lawn, dusk) = PaintingGround.TryGetValue(path, out var ground) ? ground : (Horizon, JungleLawn, 0f);
-                paintings.Add((t, from, haze, lawn, dusk));
+                paintings.Add((t, from));
             }
             backdropMat = new Material(shader) { mainTexture = tex };
             float tile = ImageHeight * tex.width / tex.height * BackdropStretch;

@@ -1083,12 +1083,15 @@ namespace RacingGame.Tests
             game.hero.vy = 0;
             yield return Frames(3);
             Assert.AreEqual(1, game.RopeAmbushWave, "No ambush on the rope bridge");
+            // they come running in from off the screen at the right, one after another (the user)
+            var firstIn = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.RopeBridgeX) < 20f);
+            Assert.Greater(firstIn.Count, 0, "No raider came for the ambush");
+            Assert.IsTrue(firstIn.TrueForAll(e => e.x > CbLevel.RopeBridgeX + 10.5f), "An ambush's raider appeared on the screen");
             int raiders = 0;
             for (int wave = 1; wave <= 6 && !game.RopeAmbushDone; wave++)
             {
-                // (they come running in from off the screen at the right: the user)
+                for (float w = 0; w < 3f && !game.AllRunIn; w += Time.deltaTime) yield return null;
                 var foes = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.RopeBridgeX) < 20f);
-                if (wave == 1) Assert.IsTrue(foes.TrueForAll(e => e.x > CbLevel.RopeBridgeX + 11f), "An ambush's raider appeared on the screen");
                 Assert.Greater(foes.Count, 0, $"Wave {wave} of the rope bridge's ambush has no raiders");
                 raiders += foes.Count;
                 foreach (var e in foes) { e.vx = e.vy = 0; e.Kill(1); }
@@ -1224,10 +1227,16 @@ namespace RacingGame.Tests
             for (int wave = 1; wave <= 3; wave++)
             {
                 Assert.AreEqual(wave, game.BridgeWave, $"Wave {wave} of the ambush did not come");
+                for (float w = 0; w < 3f && !game.AllRunIn; w += Time.deltaTime) yield return null;
                 var foes = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.StoneBridgeX) < 20f);
                 Assert.Greater(foes.Count, 2, $"Wave {wave} has too few raiders");
+                if (wave == 1) yield return TakePictures(new[] { ("stone_ambush", float.NaN, 0f) }, 0.2f);
+                // they come along the bridge's deck, not on the ground under it (the user)
+                foreach (var e in foes)
+                    if (Mathf.Abs(e.x - CbLevel.StoneBridgeX) < CbLevel.StoneBridgeHalf - 0.5f)
+                        Assert.AreEqual(CbLevel.StoneDeck, e.y, 0.05f, "A raider of the ambush is under the stone bridge");
                 raiders += foes.Count;
-                foreach (var e in foes) { e.y = CbLevel.StoneDeck; e.vx = e.vy = 0; e.Kill(1); }
+                foreach (var e in foes) { e.vx = e.vy = 0; e.Kill(1); }
                 // their coins come to rest on the deck, not under it where he can't reach them
                 yield return new WaitForSeconds(CbEnemy.DyingTime + 1.2f);
                 foreach (var (pos, resting) in game.items.ItemsNear(CbLevel.StoneBridgeX, 11f))
