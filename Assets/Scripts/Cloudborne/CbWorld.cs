@@ -91,9 +91,10 @@ namespace Cloudborne
         static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : CbStage.River ? RiverBackdrops
             : CbStage.Ember ? EmberBackdrops : JungleBackdrops;
         const float BackdropFade = 12f;
-        // stage 1-2: high in the canopy, its painting lower - more of the canopy over the far-off camp, and its foot under
-        // the boughs (with no row of jungle trees in front of it, a strip of pale sky showed under it)
-        const float TreetopsSink = -12f;
+        // stage 1-2: its painting bigger, its foot further down, under the boughs (with no row of jungle trees in front
+        // of it, a strip of pale sky showed under it; moved down instead, its top came into view, streaked on up)
+        const float TreetopsImageHeight = 58f;
+        static float PaintingHeight => CbStage.Treetops ? TreetopsImageHeight : ImageHeight;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         static readonly Color JungleLawn = CbArt.Hex("#3a7a33");
         int shownPart = -1;
@@ -1074,10 +1075,10 @@ namespace Cloudborne
                 paintings.Add((t, from));
             }
             backdropMat = new Material(shader) { mainTexture = tex };
-            float tile = ImageHeight * tex.width / tex.height * BackdropStretch;
-            float height = BackdropTop - (ImageTop - ImageHeight);
+            float tile = PaintingHeight * tex.width / tex.height * BackdropStretch;
+            float height = BackdropTop - (ImageTop - PaintingHeight);
             // the quad's bottom is the painting's bottom; above the painting's top the clamped texture repeats its sky
-            backdropMat.mainTextureScale = new Vector2(BackdropWidth / tile, height / ImageHeight);
+            backdropMat.mainTextureScale = new Vector2(BackdropWidth / tile, height / PaintingHeight);
             backdropY = BackdropTop - height / 2;
             backdrop = CbArt.Part(CbMesh.Quad, backdropMat, root, new Vector3(0, backdropY, BackdropZ),
                 new Vector3(BackdropWidth, height, 1), shadows: false);
@@ -1222,7 +1223,7 @@ namespace Cloudborne
                     float floor = CbLevel.RiverFloor(camX);
                     riverSky = float.IsNaN(riverSky) ? floor : riverSky + (floor - riverSky) * (1 - Mathf.Exp(-2.5f * Time.deltaTime));
                 }
-                p.y = backdropY + (CbStage.River ? riverSky : 0f) + (CbStage.Treetops ? TreetopsSink : 0f);
+                p.y = backdropY + (CbStage.River ? riverSky : 0f);
                 backdrop.localPosition = p;
                 backdropMat.mainTextureOffset = new Vector2(camX * BackdropSlide / (BackdropWidth / backdropMat.mainTextureScale.x), 0);
                 ShowPart(camX);
