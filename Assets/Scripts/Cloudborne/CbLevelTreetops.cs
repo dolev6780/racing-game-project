@@ -308,19 +308,26 @@ namespace Cloudborne
                 CbArt.Box(m, t, new Vector3(Mathf.Sin(a) * r * 0.98f, 2f, -Mathf.Cos(a) * r * 0.98f),
                     new Vector3(w, 28f, 0.06f), Quaternion.Euler(0, -a * Mathf.Rad2Deg, (i % 2 == 0 ? 1 : -1) * 0.6f));
             }
-            // buttress roots spreading behind and to the sides, vines hanging down (moss drawn as patches on it read
-            // as green stickers)
-            foreach (var ra in new[] { -70f, -20f, 30f, 80f })
+            // its foot flaring out into the bough, buttress roots spreading from it and down into the bark (flat boards
+            // for roots read as brown paper triangles stuck to its sides: the survey's pictures), vines hanging down
+            // (moss drawn as patches on it read as green stickers)
+            var flare = new Material(column) { mainTextureScale = new Vector2(column.mainTextureScale.x, FlareHeight / (BarkTile * 2f)) };
+            CbArt.Part(CbMesh.Frustum(1f / FlareOut, 16, false), flare, t, new Vector3(0, -0.15f, 0), new Vector3(r * FlareOut, FlareHeight, r * FlareOut));
+            var outward = Quaternion.FromToRotation(Vector3.up, new Vector3(0, -0.38f, 1f));
+            foreach (var ra in new[] { -75f, -25f, 25f, 75f })
             {
                 var root1 = CbArt.Joint(t, 0, 0, 0, "root");
                 root1.localRotation = Quaternion.Euler(0, side < 0 ? ra : -ra, 0);
-                CbArt.Box(bark, root1, new Vector3(0, 0.55f, r + 0.35f), new Vector3(0.22f, 1.1f, 0.9f), Quaternion.Euler(-28f, 0, 0));
+                CbArt.Part(CbMesh.Cone(10), bark, root1, new Vector3(0, 0.45f, r * 1.05f), new Vector3(0.34f, 1.5f, 0.34f), outward);
             }
             for (int i = 0; i < 3; i++)
                 CbArt.Cylinder(vine, t, new Vector3((i - 1) * 0.35f - side * 0.2f, 5.6f - i * 0.5f, -r - 0.06f), 0.03f, 3.2f + i * 0.6f);
             CbArt.Cylinder(bark, t, new Vector3(side * (r + 0.75f), 9.5f, 0.2f), r * 0.4f, 6f, Quaternion.Euler(0, 0, -side * 40f));
             return t;
         }
+
+        // how much wider a great trunk is at its foot, and how high its flare goes
+        const float FlareOut = 1.45f, FlareHeight = 1.7f;
 
         void AddTuskTrees()
         {

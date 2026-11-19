@@ -518,6 +518,13 @@ namespace Cloudborne
                 BankSlope(face, x0, 1, -3.5f);
                 BankSlope(face, x1, -1, -3.5f);
             }
+            // the tops of the trees below in the gloom, seen down the gap: a band of shaded leaves under the boughs' edge,
+            // a darker one deeper down (a flat dark wall there read as a box, not a drop - the survey's pictures); behind
+            // the soil rounding down at its sides
+            var gaps = new List<(float a, float b)>();
+            foreach (var (x0, x1) in CbLevel.Waters) if (x1 - x0 > 3f) gaps.Add((x0 + 1.2f, x1 - 1.2f));
+            BuildLayer("JungleNear", GroundFront - 0.0135f, -3.0f, 2.5f, 0f, gaps, new Color(0.3f, 0.42f, 0.34f));
+            BuildLayer("JungleNear", GroundFront - 0.013f, -6.6f, 3.4f, 0f, gaps, new Color(0.13f, 0.21f, 0.17f));
         }
 
         /// <summary>
@@ -954,8 +961,10 @@ namespace Cloudborne
                 // the new look: a row of big painted trees in a light haze, and right behind the path a hedge of
                 // bushes and flowers (it hides the flat lawn that ran back to the trees), broken by the rivers
                 // (not in Baba's grove: its painted clearing - the hut, the bells, the mountains - showed only in gaps)
-                // (stage 1-1: the row of trees goes on to the end now, as its jungle painting does)
-                mid = !CbStage.Grove && !CbStage.River && !CbStage.Ember && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
+                // (stage 1-1: the row of trees goes on to the end now, as its jungle painting does; not in the treetops:
+                // the jungle floor's trees stood in front of its painting of the canopy - two pictures that didn't go
+                // together, the user said of 1-1's)
+                mid = CbStage.Jungle && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
                 var hedge = BushGround();
                 near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, StageTint);
                 // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and
