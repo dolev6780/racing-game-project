@@ -91,6 +91,9 @@ namespace Cloudborne
         static (string path, float from)[] BackdropParts => CbStage.Treetops ? TreetopsBackdrops : CbStage.Grove ? GroveBackdrops : CbStage.River ? RiverBackdrops
             : CbStage.Ember ? EmberBackdrops : JungleBackdrops;
         const float BackdropFade = 12f;
+        // stage 1-2: high in the canopy, its painting lower - more of the canopy over the far-off camp, and its foot under
+        // the boughs (with no row of jungle trees in front of it, a strip of pale sky showed under it)
+        const float TreetopsSink = -12f;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         static readonly Color JungleLawn = CbArt.Hex("#3a7a33");
         int shownPart = -1;
@@ -1219,7 +1222,7 @@ namespace Cloudborne
                     float floor = CbLevel.RiverFloor(camX);
                     riverSky = float.IsNaN(riverSky) ? floor : riverSky + (floor - riverSky) * (1 - Mathf.Exp(-2.5f * Time.deltaTime));
                 }
-                p.y = backdropY + (CbStage.River ? riverSky : 0f);
+                p.y = backdropY + (CbStage.River ? riverSky : 0f) + (CbStage.Treetops ? TreetopsSink : 0f);
                 backdrop.localPosition = p;
                 backdropMat.mainTextureOffset = new Vector2(camX * BackdropSlide / (BackdropWidth / backdropMat.mainTextureScale.x), 0);
                 ShowPart(camX);
