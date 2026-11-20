@@ -58,6 +58,8 @@ namespace Cloudborne
         const string BargePath = "Cloudborne/River/SawBarge/SawBarge", KodaBargePath = "Cloudborne/River/KodaBarge/KodaBarge",
             BarrelPath = "Cloudborne/River/Barrel/Barrel";
         const float RockZ = 0.15f, BranchLow = 1.15f, BranchHigh = 1.75f, BarrelR = 0.45f;
+        // the low boughs' trees: how far back in the river they stand, how deep in the water and how high over the bough
+        const float BranchTreeZ = 5.9f, TreeUnder = 1.2f, TreeOver = 3.6f;
 
         class Rock { public float x, h; }
         class Floater { public float x; public bool broken; public Transform t; public float bob; }
@@ -94,16 +96,36 @@ namespace Cloudborne
                 else CbArt.Part(CbMesh.Sphere, stone, t, new Vector3(0, h * 0.4f, 0), new Vector3(1.3f, h * 1.6f, 1.2f));
                 rocks.Add(new Rock { x = x, h = h });
             }
-            var bark = M("#5b4232");
+            var bark = CbArt.NewToon(new Color(0.62f, 0.5f, 0.42f), CbArt.PropOutline, BarkTexture());
+            bark.mainTextureScale = new Vector2(1.5f, 2.5f);
             var leaf = M("#3f7a3a");
+            var leafDark = M("#2f5f33");
             foreach (var x in RiverBranches)
             {
-                // a low bough reaching out over the river from the far bank, leaves along it
+                // a low bough reaching out over the river, leaves along it, from a tree standing in the water behind his
+                // way, its crown above (the bough alone hung in the air: a log with leaves on it, floating - the survey)
                 float floor = RiverFloor(x);
-                var t = CbArt.Joint(root, x, floor + (BranchLow + BranchHigh) / 2, 0, "lowBranch");
-                CbArt.Cylinder(bark, t, new Vector3(0, 0, 2.2f), 0.22f, 6.5f, Quaternion.Euler(90, 0, 0));
+                float mid = (BranchLow + BranchHigh) / 2;
+                var t = CbArt.Joint(root, x, floor + mid, 0, "lowBranch");
+                CbArt.Cylinder(bark, t, new Vector3(0, 0, 2.4f), 0.22f, 6.6f, Quaternion.Euler(90, 0, 0));
                 for (int k = 0; k < 4; k++)
                     CbArt.Part(CbMesh.Sphere, leaf, t, new Vector3(Random.Range(-0.3f, 0.3f), 0.25f, -0.6f + k * 0.9f), new Vector3(0.8f, 0.45f, 0.7f), shadows: false);
+                float lean = Random.Range(-6f, 6f);
+                var trunk = CbArt.Joint(t, 0, -mid - TreeUnder, BranchTreeZ, "branchTree");
+                trunk.localRotation = Quaternion.Euler(0, 0, lean);
+                float height = mid + TreeUnder + TreeOver;
+                CbArt.Cylinder(bark, trunk, new Vector3(0, height / 2, 0), 0.4f, height);
+                // its roots spreading at the waterline
+                for (int k = 0; k < 4; k++)
+                    CbArt.Cylinder(bark, trunk, new Vector3(0, TreeUnder - 0.1f, 0), 0.16f, 1.6f, Quaternion.Euler(0, k * 90f + 45f, 0) * Quaternion.Euler(62f, 0, 0));
+                // the crown: a few heaps of leaves round the top
+                for (int k = 0; k < 6; k++)
+                {
+                    float a = k * Mathf.PI * 2 / 6 + Random.Range(-0.3f, 0.3f);
+                    var at = new Vector3(Mathf.Cos(a) * 1.3f, height + Random.Range(-0.3f, 0.5f), Mathf.Sin(a) * 1.1f);
+                    CbArt.Part(CbMesh.Sphere, k % 2 == 0 ? leaf : leafDark, trunk, at, new Vector3(2.2f, 1.4f, 2f) * Random.Range(0.85f, 1.15f), shadows: false);
+                }
+                CbArt.Part(CbMesh.Sphere, leaf, trunk, new Vector3(0, height + 0.8f, 0), new Vector3(2.4f, 1.6f, 2.2f), shadows: false);
                 branches.Add(x);
             }
             foreach (var x in RiverBarrels)
