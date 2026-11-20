@@ -1746,78 +1746,23 @@ namespace RacingGame.Tests
         }
 
         /// <summary>
-        /// Not a check: stage 1-1 photographed every 20 metres from start to end, Raja standing on what is there, for
-        /// going over the whole stage for glitches (the user: all of 1-1's glitches, then 1-2's).
+        /// Not a check: stage 1-4 photographed every 40 metres from start to end, on the river where he rides, for going
+        /// over the whole stage for glitches (the user: stage by stage; 1-1 to 1-3 done).
         /// </summary>
         [UnityTest]
-        public IEnumerator ZzSurveyOfTheJungleGate()
+        public IEnumerator ZzSurveyOfTheRiver()
         {
             game = CbGame.Boot();
             yield return Frames(3);
-            game.StartGame();
-            game.SkipFights();
-            game.hero.inv = 9999f;
-            yield return Frames(2);
-            var spots = new List<(string, float, float)>();
-            for (float at = 10f; at < CbWorld.GoalX + 4f; at += 20f)
-            {
-                // (not over open water: on to the next place to stand)
-                float x = at;
-                while (CbLevel.InWater(x) && game.level.SupportAt(x, 50f) < -0.6f && x < at + 15f) x += 1f;
-                spots.Add(($"survey11_{(int)x:000}", x, Mathf.Max(0f, game.level.SupportAt(x, 50f))));
-            }
-            yield return TakePictures(spots.ToArray(), 1.4f);
-        }
-
-        /// <summary>
-        /// Not a check: stage 1-2 photographed every 20 metres from start to end, Raja standing on what is there, for
-        /// going over the whole stage for glitches (the user: 1-1 done, on to 1-2).
-        /// </summary>
-        [UnityTest]
-        public IEnumerator ZzSurveyOfTheTreetops()
-        {
-            game = CbGame.Boot();
-            yield return Frames(3);
-            CbStage.Set("1-2");
+            CbStage.Set("1-4");
             game.BuildStage();
             game.StartGame();
             game.SkipFights();
             game.hero.inv = 9999f;
             yield return Frames(2);
             var spots = new List<(string, float, float)>();
-            for (float at = 10f; at < CbWorld.GoalX + 4f; at += 20f)
-            {
-                // (not over a gap between the boughs: on to the next place to stand)
-                float x = at;
-                while (CbLevel.InWater(x) && game.level.SupportAt(x, 50f) < -0.6f && x < at + 15f) x += 1f;
-                spots.Add(($"survey12_{(int)x:000}", x, Mathf.Max(0f, game.level.SupportAt(x, 50f))));
-            }
-            yield return TakePictures(spots.ToArray(), 1.4f);
-            CbStage.Set("1-1");
-        }
-
-        /// <summary>
-        /// Not a check: stage 1-3 photographed every 20 metres from start to end, Raja standing on what is there, for
-        /// going over the whole stage for glitches (the user: stage by stage).
-        /// </summary>
-        [UnityTest]
-        public IEnumerator ZzSurveyOfTheGrove()
-        {
-            game = CbGame.Boot();
-            yield return Frames(3);
-            CbStage.Set("1-3");
-            game.BuildStage();
-            game.StartGame();
-            game.SkipFights();
-            game.hero.inv = 9999f;
-            yield return Frames(2);
-            var spots = new List<(string, float, float)>();
-            for (float at = 10f; at < CbWorld.GoalX + 4f; at += 20f)
-            {
-                float x = at;
-                while (CbLevel.InWater(x) && game.level.SupportAt(x, 50f) < -0.6f && x < at + 15f) x += 1f;
-                spots.Add(($"survey13_{(int)x:000}", x, Mathf.Max(0f, game.level.SupportAt(x, 50f))));
-            }
+            for (float x = 10f; x < CbWorld.GoalX + 4f; x += 40f)
+                spots.Add(($"survey14_{(int)x:000}", x, CbLevel.RiverFloor(x)));
             yield return TakePictures(spots.ToArray(), 1.4f);
             CbStage.Set("1-1");
         }
