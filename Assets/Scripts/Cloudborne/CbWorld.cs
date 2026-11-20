@@ -390,7 +390,6 @@ namespace Cloudborne
             // pictures; its painting comes on down instead)
             else if (!CbStage.River && !CbStage.Grove)
             {
-                // (its own material: on stage 1-1 it changes colour with the painting, ShowPart)
                 var lawnMat = CbArt.NewToon(CbStage.Ember ? CbArt.Hex("#3a2620") : JungleLawn, 0f);
                 lawnMat.SetFloat("_SpecStrength", 0.05f);
                 CbArt.Part(CbMesh.Quad, lawnMat, root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "lawn";
