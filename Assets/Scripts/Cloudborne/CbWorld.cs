@@ -558,10 +558,24 @@ namespace Cloudborne
             var deep = new List<(float a, float b)>();
             foreach (var (x0, x1) in CbLevel.Waters) if (x1 - x0 > 2f) deep.Add((x0 - 0.5f, x1 + 0.5f));
             // (the first right behind the edge: between it and the next, looking straight down, an even pale strip showed)
-            BuildLayer("JungleNear", 0.3f, -3.4f, 3.1f, 0.12f, deep, new Color(0.62f, 0.72f, 0.6f));
-            BuildLayer("JungleNear", 2.5f, -3.8f, 3.2f, 0.3f, deep, new Color(0.8f, 0.9f, 0.8f));
-            BuildLayer("JungleNear", 6.5f, -5.8f, 4.2f, 0.55f, deep, Color.white);
-            BuildLayer("JungleNear", 11f, -7.4f, 4.6f, 0.78f, deep, Color.white);
+            // Each row of leaves has a solid backing just behind it, as deep in shade as the row is far down: through the
+            // leafy tops of the rows (the painting's are see-through) the mist showed in pale strips
+            var rows = new[]
+            {
+                (z: 0.3f, bottom: -3.4f, height: 3.1f, haze: 0.12f, tint: new Color(0.62f, 0.72f, 0.6f), back: -0.7f, shade: new Color(0.14f, 0.26f, 0.19f)),
+                (z: 2.5f, bottom: -3.8f, height: 3.2f, haze: 0.3f, tint: new Color(0.8f, 0.9f, 0.8f), back: -1.0f, shade: new Color(0.24f, 0.38f, 0.32f)),
+                (z: 6.5f, bottom: -5.8f, height: 4.2f, haze: 0.55f, tint: Color.white, back: -2.0f, shade: new Color(0.34f, 0.5f, 0.46f)),
+                (z: 11f, bottom: -7.4f, height: 4.6f, haze: 0.78f, tint: Color.white, back: -3.2f, shade: new Color(0.42f, 0.58f, 0.56f)),
+            };
+            for (int i = 0; i < rows.Length; i++)
+            {
+                var r = rows[i];
+                BuildLayer("JungleNear", r.z, r.bottom, r.height, r.haze, deep, r.tint);
+                var backing = Gradient("rowShade" + i, Color.Lerp(r.shade, DepthMist, 0.5f), r.shade, "#2c4a3a");
+                const float Floor = -12f;
+                foreach (var (a, b) in deep)
+                    CbArt.Part(CbMesh.Quad, backing, root, new Vector3((a + b) / 2, (r.back + Floor) / 2, r.z + 0.06f), new Vector3(b - a, r.back - Floor, 1), shadows: false).name = "rowShade";
+            }
             // shafts of light falling down into the wider gaps
             foreach (var (x0, x1) in CbLevel.Waters)
             {
