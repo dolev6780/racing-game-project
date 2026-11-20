@@ -198,12 +198,26 @@ namespace Cloudborne
                         new Vector3(w1 - w0, top - bottom + 0.35f, 1), shadows: false);
                     sheet.name = "waterfall";
                 }
+                // and down the cliff's face all along, seen at a slant from downstream (between the sheets its rock
+                // showed, far off a pale slab in the haze on the horizon - the survey)
+                Material face = water;
+                if (shader != null && shader.isSupported)
+                {
+                    face = new Material(water) { name = "riverFallsFace" };
+                    face.SetFloat("_X0", f - FaceSpread);
+                    face.SetFloat("_X1", f + FaceSpread);
+                }
+                var fall = CbArt.Part(CbMesh.Quad, face, root, new Vector3(f + 0.04f, (top + bottom) / 2, (FallsSheets[0] + FallsFar) / 2),
+                    new Vector3(FallsFar - FallsSheets[0], top - bottom + 0.35f, 1), Quaternion.Euler(0, -90, 0), shadows: false);
+                fall.name = "fallsFace";
             }
         }
 
         // the sheets of falling water, from the front of the river to its back
         // (all the way back with the cliff: stopping at 45 its rock ran on bare, a pale slab in the haze past them -
         // the survey; far off they close up into one band of white water)
+        // (the face's water drawn as the middle of a sheet this wide: its world x is all one there)
+        const float FaceSpread = 0.9f;
         static readonly float[] FallsSheets = { -1.3f, 2.5f, 7f, 14f, 26f, 45f, 65f, 88f, 112f, 138f };
 
         bool StrikeRiver(float x, float y, int dir, float range, bool staff)

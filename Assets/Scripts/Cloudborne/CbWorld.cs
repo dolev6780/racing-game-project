@@ -94,7 +94,8 @@ namespace Cloudborne
         // stage 1-2: its painting bigger, its foot further down, under the boughs (with no row of jungle trees in front
         // of it, a strip of pale sky showed under it; moved down instead, its top came into view, streaked on up)
         const float TreetopsImageHeight = 58f;
-        static float PaintingHeight => CbStage.Treetops || CbStage.Grove ? TreetopsImageHeight : ImageHeight;
+        // (and stage 1-5's: under it a pale pink strip of lawn lay in the haze between the temple and the bushes - the survey)
+        static float PaintingHeight => CbStage.Treetops || CbStage.Grove || CbStage.Ember ? TreetopsImageHeight : ImageHeight;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         static readonly Color JungleLawn = CbArt.Hex("#3a7a33");
         int shownPart = -1;
@@ -394,9 +395,13 @@ namespace Cloudborne
             else if (CbStage.Grove)
                 CbArt.Part(CbMesh.Quad, Gradient("groveFloor", CbArt.Hex("#2e2b1e"), CbArt.Hex("#423f1e"), "#3a3620"), root,
                     new Vector3(130, -0.3f, 75), new Vector3(700, 130, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "groveFloor";
+            // (the ember temple's likewise: its painting's own scorched brown, the foot of its courtyard)
+            else if (CbStage.Ember)
+                CbArt.Part(CbMesh.Quad, Gradient("emberFloor", CbArt.Hex("#1f1611"), CbArt.Hex("#3a2a1e"), "#2c2018"), root,
+                    new Vector3(130, -0.3f, 75), new Vector3(700, 130, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "emberFloor";
             else if (!CbStage.River)
             {
-                var lawnMat = CbArt.NewToon(CbStage.Ember ? CbArt.Hex("#3a2620") : JungleLawn, 0f);
+                var lawnMat = CbArt.NewToon(JungleLawn, 0f);
                 lawnMat.SetFloat("_SpecStrength", 0.05f);
                 CbArt.Part(CbMesh.Quad, lawnMat, root, new Vector3(130, -0.3f, 68), new Vector3(700, 120, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "lawn";
             }
