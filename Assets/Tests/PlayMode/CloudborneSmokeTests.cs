@@ -1796,6 +1796,32 @@ namespace RacingGame.Tests
             CbStage.Set("1-1");
         }
 
+        /// <summary>
+        /// Not a check: stage 1-3 photographed every 20 metres from start to end, Raja standing on what is there, for
+        /// going over the whole stage for glitches (the user: stage by stage).
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ZzSurveyOfTheGrove()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-3");
+            game.BuildStage();
+            game.StartGame();
+            game.SkipFights();
+            game.hero.inv = 9999f;
+            yield return Frames(2);
+            var spots = new List<(string, float, float)>();
+            for (float at = 10f; at < CbWorld.GoalX + 4f; at += 20f)
+            {
+                float x = at;
+                while (CbLevel.InWater(x) && game.level.SupportAt(x, 50f) < -0.6f && x < at + 15f) x += 1f;
+                spots.Add(($"survey13_{(int)x:000}", x, Mathf.Max(0f, game.level.SupportAt(x, 50f))));
+            }
+            yield return TakePictures(spots.ToArray(), 1.4f);
+            CbStage.Set("1-1");
+        }
+
         [UnityTest]
         public IEnumerator TheTreetopsStageIsBuiltAndPlays()
         {
