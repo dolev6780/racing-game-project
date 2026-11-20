@@ -1770,6 +1770,27 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ZzSurveyOfTheTemple()
+        {
+            // stage 1-5's glitch pass: a picture every 10 m along the way in and the courtyard
+            CbSave.FireAwake = false;
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-5");
+            game.BuildStage();
+            game.StartGame();
+            game.SkipFights();
+            game.hero.inv = 9999f;
+            game.hero.hp = 9999;
+            yield return Frames(2);
+            var spots = new List<(string, float, float)>();
+            for (float x = 2f; x < CbWorld.GoalX + 2f; x += 10f)
+                spots.Add(($"survey15_{(int)x:000}", x, 0f));
+            yield return TakePictures(spots.ToArray(), 1.4f);
+            CbStage.Set("1-1");
+        }
+
+        [UnityTest]
         public IEnumerator TheTreetopsStageIsBuiltAndPlays()
         {
             // stage 1-2 (the user: on to the next stage): built when chosen, its own length, gaps, drones, bridges
