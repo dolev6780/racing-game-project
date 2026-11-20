@@ -180,7 +180,9 @@ namespace Cloudborne
         }
 
         // the sheets of falling water, from the front of the river to its back
-        static readonly float[] FallsSheets = { -1.3f, 2.5f, 7f, 14f, 26f, 45f };
+        // (all the way back with the cliff: stopping at 45 its rock ran on bare, a pale slab in the haze past them -
+        // the survey; far off they close up into one band of white water)
+        static readonly float[] FallsSheets = { -1.3f, 2.5f, 7f, 14f, 26f, 45f, 65f, 88f, 112f, 138f };
 
         bool StrikeRiver(float x, float y, int dir, float range, bool staff)
         {

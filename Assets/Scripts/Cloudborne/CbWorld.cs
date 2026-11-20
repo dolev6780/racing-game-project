@@ -333,8 +333,10 @@ namespace Cloudborne
             var list = new List<(float, float)>();
             float a = GroundFrom;
             // the streams, and the pits hidden in the temple (their spikes below)
-            foreach (var (x0, x1) in CbLevel.Gaps) { list.Add((a, x0)); a = x1; }
-            list.Add((a, GroundTo));
+            // (none where two meet: stage 1-4's river stretches meet at its waterfalls, and a ground box no wider than
+            // nothing stood there, its grass smeared into a tall green wall beside the falling water - the survey)
+            foreach (var (x0, x1) in CbLevel.Gaps) { if (x0 - a > 0.5f) list.Add((a, x0)); a = Mathf.Max(a, x1); }
+            if (GroundTo - a > 0.5f) list.Add((a, GroundTo));
             return list;
         }
 

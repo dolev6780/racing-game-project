@@ -1763,6 +1763,8 @@ namespace RacingGame.Tests
             var spots = new List<(string, float, float)>();
             for (float x = 10f; x < CbWorld.GoalX + 4f; x += 40f)
                 spots.Add(($"survey14_{(int)x:000}", x, CbLevel.RiverFloor(x)));
+            // and each waterfall from just above it
+            foreach (var f in CbLevel.Falls) spots.Add(($"survey14_falls{(int)f}", f - 7f, CbLevel.RiverFloor(f - 7f)));
             yield return TakePictures(spots.ToArray(), 1.4f);
             CbStage.Set("1-1");
         }
