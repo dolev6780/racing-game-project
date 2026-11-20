@@ -557,6 +557,8 @@ namespace Cloudborne
             // treetops into the mist (an even pale floor there read as water: the user asked)
             var deep = new List<(float a, float b)>();
             foreach (var (x0, x1) in CbLevel.Waters) if (x1 - x0 > 2f) deep.Add((x0 - 0.5f, x1 + 0.5f));
+            // (the first right behind the edge: between it and the next, looking straight down, an even pale strip showed)
+            BuildLayer("JungleNear", 0.3f, -3.4f, 3.1f, 0.12f, deep, new Color(0.62f, 0.72f, 0.6f));
             BuildLayer("JungleNear", 2.5f, -3.8f, 3.2f, 0.3f, deep, new Color(0.8f, 0.9f, 0.8f));
             BuildLayer("JungleNear", 6.5f, -5.8f, 4.2f, 0.55f, deep, Color.white);
             BuildLayer("JungleNear", 11f, -7.4f, 4.6f, 0.78f, deep, Color.white);
