@@ -560,21 +560,34 @@ namespace Cloudborne
             // (the first right behind the edge: between it and the next, looking straight down, an even pale strip showed)
             // Each row of leaves has a solid backing just behind it, as deep in shade as the row is far down: through the
             // leafy tops of the rows (the painting's are see-through) the mist showed in pale strips
+            // (their tops just under the path's level: the view runs nearly level, and over lower rows it ran on to the
+            // depths' far floor, an even pale band that read as water)
             var rows = new[]
             {
-                (z: 0.3f, bottom: -3.4f, height: 3.1f, haze: 0.12f, tint: new Color(0.62f, 0.72f, 0.6f), back: -0.7f, shade: new Color(0.14f, 0.26f, 0.19f)),
-                (z: 2.5f, bottom: -3.8f, height: 3.2f, haze: 0.3f, tint: new Color(0.8f, 0.9f, 0.8f), back: -1.0f, shade: new Color(0.24f, 0.38f, 0.32f)),
-                (z: 6.5f, bottom: -5.8f, height: 4.2f, haze: 0.55f, tint: Color.white, back: -2.0f, shade: new Color(0.34f, 0.5f, 0.46f)),
-                (z: 11f, bottom: -7.4f, height: 4.6f, haze: 0.78f, tint: Color.white, back: -3.2f, shade: new Color(0.42f, 0.58f, 0.56f)),
+                (z: 0.3f, top: -0.35f, height: 3.1f, haze: 0.12f, tint: new Color(0.62f, 0.72f, 0.6f), shade: new Color(0.14f, 0.26f, 0.19f)),
+                (z: 2.5f, top: -0.3f, height: 3.2f, haze: 0.3f, tint: new Color(0.8f, 0.9f, 0.8f), shade: new Color(0.24f, 0.38f, 0.32f)),
+                (z: 6.5f, top: -0.3f, height: 4.2f, haze: 0.55f, tint: Color.white, shade: new Color(0.34f, 0.5f, 0.46f)),
+                (z: 11f, top: -0.3f, height: 4.6f, haze: 0.78f, tint: Color.white, shade: new Color(0.42f, 0.58f, 0.56f)),
             };
+            const float Floor = -12f;
             for (int i = 0; i < rows.Length; i++)
             {
                 var r = rows[i];
-                BuildLayer("JungleNear", r.z, r.bottom, r.height, r.haze, deep, r.tint);
+                BuildLayer("JungleNear", r.z, r.top - r.height, r.height, r.haze, deep, r.tint);
+                // (the painting's leaves are solid from about half way down)
+                float back = r.top - r.height * 0.45f;
                 var backing = Gradient("rowShade" + i, Color.Lerp(r.shade, DepthMist, 0.5f), r.shade, "#2c4a3a");
-                const float Floor = -12f;
                 foreach (var (a, b) in deep)
-                    CbArt.Part(CbMesh.Quad, backing, root, new Vector3((a + b) / 2, (r.back + Floor) / 2, r.z + 0.06f), new Vector3(b - a, r.back - Floor, 1), shadows: false).name = "rowShade";
+                    CbArt.Part(CbMesh.Quad, backing, root, new Vector3((a + b) / 2, (back + Floor) / 2, r.z + 0.06f), new Vector3(b - a, back - Floor, 1), shadows: false).name = "rowShade";
+            }
+            // and the forest going on far back down there in the haze, the whole stage long (behind the bushes on the
+            // boughs, seen only down the gaps, wider far back than the gaps are)
+            foreach (var (z, top, height, farHaze) in new[] { (24f, -0.15f, 7f, 0.86f), (50f, 0f, 10f, 0.93f) })
+            {
+                BuildLayer("JungleNear", z, top - height, height, farHaze, null, Color.white);
+                var far = Gradient("farShade" + z, DepthMist, Color.Lerp(DepthMist, Horizon, 0.3f), "#6a9a94");
+                float back = top - height * 0.45f;
+                CbArt.Part(CbMesh.Quad, far, root, new Vector3(130f, (back + Floor) / 2, z + 0.06f), new Vector3(700f, back - Floor, 1), shadows: false).name = "farShade";
             }
             // shafts of light falling down into the wider gaps
             foreach (var (x0, x1) in CbLevel.Waters)
