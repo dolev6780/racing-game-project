@@ -386,9 +386,13 @@ namespace Cloudborne
             // boughs' ends at the gaps' sides)
             if (CbStage.Treetops)
                 CbArt.Part(CbMesh.Quad, DropHaze(), root, new Vector3(130, -11.5f, 68), new Vector3(700, 140, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "depths";
-            // (nor in Baba's grove: a pale strip of it in the haze lay between its painting and the hedge - the survey's
-            // pictures; its painting comes on down instead)
-            else if (!CbStage.River && !CbStage.Grove)
+            // (in Baba's grove the ground going back is its painting's own dark olive, unlit and out of the haze: in the
+            // haze a pale strip of lawn lay between its painting and the hedge, and with none, the sky showed there
+            // when Raja was up on the bells - the survey's pictures)
+            else if (CbStage.Grove)
+                CbArt.Part(CbMesh.Quad, Gradient("groveFloor", CbArt.Hex("#2e2b1e"), CbArt.Hex("#423f1e"), "#3a3620"), root,
+                    new Vector3(130, -0.3f, 75), new Vector3(700, 130, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "groveFloor";
+            else if (!CbStage.River)
             {
                 var lawnMat = CbArt.NewToon(CbStage.Ember ? CbArt.Hex("#3a2620") : JungleLawn, 0f);
                 lawnMat.SetFloat("_SpecStrength", 0.05f);
