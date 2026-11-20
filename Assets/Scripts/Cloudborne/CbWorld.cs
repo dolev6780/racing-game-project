@@ -517,7 +517,7 @@ namespace Cloudborne
         {
             var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = name };
             for (int i = 0; i < 64; i++)
-                tex.SetPixel(0, i, Color.Lerp(bottom, top, Mathf.Pow(i / 63f, 1.6f)));
+                tex.SetPixel(0, i, Color.Lerp(bottom, top, Mathf.Pow(i / 63f, 0.9f)));
             tex.Apply();
             var m = Cutout(tex, 0f, Color.white);
             if (m != null) m.SetFloat("_Cutoff", 0f);
@@ -553,6 +553,13 @@ namespace Cloudborne
             BuildLayer("JungleNear", GroundFront - 0.0135f, -9.8f, 4.2f, 0.78f, gaps, Color.white);
             BuildLayer("JungleNear", GroundFront - 0.014f, -6.6f, 3.6f, 0.48f, gaps, Color.white);
             BuildLayer("JungleNear", GroundFront - 0.0145f, -3.1f, 2.7f, 0.12f, gaps, new Color(0.62f, 0.72f, 0.6f));
+            // and rows of them going back down there, hazier the further: seen down into the gap from above, layers of
+            // treetops into the mist (an even pale floor there read as water: the user asked)
+            var deep = new List<(float a, float b)>();
+            foreach (var (x0, x1) in CbLevel.Waters) if (x1 - x0 > 2f) deep.Add((x0 - 0.5f, x1 + 0.5f));
+            BuildLayer("JungleNear", 2.5f, -3.8f, 3.2f, 0.3f, deep, new Color(0.8f, 0.9f, 0.8f));
+            BuildLayer("JungleNear", 6.5f, -5.8f, 4.2f, 0.55f, deep, Color.white);
+            BuildLayer("JungleNear", 11f, -7.4f, 4.6f, 0.78f, deep, Color.white);
             // shafts of light falling down into the wider gaps
             foreach (var (x0, x1) in CbLevel.Waters)
             {
