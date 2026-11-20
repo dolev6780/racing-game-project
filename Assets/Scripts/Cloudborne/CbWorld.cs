@@ -493,19 +493,42 @@ namespace Cloudborne
         Material DropHaze()
         {
             if (dropHaze != null) return dropHaze;
-            var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = "drop" };
-            for (int i = 0; i < 64; i++)
-                tex.SetPixel(0, i, Color.Lerp(new Color(0.02f, 0.05f, 0.04f), new Color(0.16f, 0.3f, 0.22f), Mathf.Pow(i / 63f, 2.2f)));
-            tex.Apply();
-            dropHaze = Cutout(tex, 0f, Color.white);
-            if (dropHaze != null) dropHaze.SetFloat("_Cutoff", 0f);
-            else dropHaze = CbArt.Toon("#1c3326");
+            dropHaze = Gradient("depths", DepthMist, DepthMist, "#5e8f88");
             return dropHaze;
+        }
+
+        // A drop into the forest far below (the user chose it: in a gap's dark they couldn't tell what was down there,
+        // and asked if it was water): the further down, the thicker the mist, as distance fades things into haze - the
+        // shaded leaves under the bough's edge, the tops of trees below paler and hazier with depth, pale mist at the
+        // bottom, shafts of light falling into it
+        static readonly Color DepthMist = new Color(0.47f, 0.66f, 0.64f), BoughShade = new Color(0.12f, 0.24f, 0.17f);
+        Material dropFace;
+
+        /// <summary>The gap's front: shaded green under the bough's edge, thickening to mist going down.</summary>
+        Material DropFace()
+        {
+            if (dropFace != null) return dropFace;
+            dropFace = Gradient("dropFace", DepthMist, BoughShade, "#2c4a3a");
+            return dropFace;
+        }
+
+        /// <summary>An unlit vertical gradient (bottom to top), no fog; a plain colour where the painted shader is missing.</summary>
+        Material Gradient(string name, Color bottom, Color top, string fallback)
+        {
+            var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, name = name };
+            for (int i = 0; i < 64; i++)
+                tex.SetPixel(0, i, Color.Lerp(bottom, top, Mathf.Pow(i / 63f, 1.6f)));
+            tex.Apply();
+            var m = Cutout(tex, 0f, Color.white);
+            if (m != null) m.SetFloat("_Cutoff", 0f);
+            else m = CbArt.Toon(fallback);
+            return m;
         }
 
         void BuildDrops(Material face)
         {
             var haze = DropHaze();
+            var front = DropFace();
             var mist = CbArt.Glow(new Color(0.75f, 0.85f, 0.8f, 0.14f), CbArt.Mist);
             foreach (var (x0, x1) in CbLevel.Waters)
             {
@@ -514,7 +537,7 @@ namespace Cloudborne
                 // the grass behind the gap read as a lawn going on: the CI's pictures)
                 // (as far back as the view sees down through the gap: the lawn that lay behind it is gone)
                 const float Far = 140f;
-                CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -6f, GroundFront - 0.012f), new Vector3(w + 0.1f, 12f, 1), shadows: false).name = "dropFront";
+                CbArt.Part(CbMesh.Quad, front, root, new Vector3(c, -6f, GroundFront - 0.012f), new Vector3(w + 0.1f, 12f, 1), shadows: false).name = "dropFront";
                 CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -11f, (GroundFront + Far) / 2), new Vector3(w + 0.1f, Far - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropFloor";
                 // (wide: seen down through the gap its sides showed as edges)
                 CbArt.Part(CbMesh.Quad, mist, root, new Vector3(c, -2.5f, (GroundFront + Far) / 2), new Vector3(w + 30f, Far - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropMist";
@@ -522,13 +545,27 @@ namespace Cloudborne
                 BankSlope(face, x0, 1, -3.5f);
                 BankSlope(face, x1, -1, -3.5f);
             }
-            // the tops of the trees below in the gloom, seen down the gap: a band of shaded leaves under the boughs' edge,
-            // a darker one deeper down (a flat dark wall there read as a box, not a drop - the survey's pictures); behind
-            // the soil rounding down at its sides
+            // the tops of the trees below, seen down the gap: shaded leaves under the boughs' edge, then treetops further
+            // down, paler and hazier the deeper they are; behind the soil rounding down at its sides (a flat dark wall
+            // there read as a box, not a drop - the survey's pictures)
             var gaps = new List<(float a, float b)>();
             foreach (var (x0, x1) in CbLevel.Waters) if (x1 - x0 > 3f) gaps.Add((x0 + 1.2f, x1 - 1.2f));
-            BuildLayer("JungleNear", GroundFront - 0.0135f, -3.0f, 2.5f, 0f, gaps, new Color(0.3f, 0.42f, 0.34f));
-            BuildLayer("JungleNear", GroundFront - 0.013f, -6.6f, 3.4f, 0f, gaps, new Color(0.13f, 0.21f, 0.17f));
+            BuildLayer("JungleNear", GroundFront - 0.0135f, -9.8f, 4.2f, 0.78f, gaps, Color.white);
+            BuildLayer("JungleNear", GroundFront - 0.014f, -6.6f, 3.6f, 0.48f, gaps, Color.white);
+            BuildLayer("JungleNear", GroundFront - 0.0145f, -3.1f, 2.7f, 0.12f, gaps, new Color(0.62f, 0.72f, 0.6f));
+            // shafts of light falling down into the wider gaps
+            foreach (var (x0, x1) in CbLevel.Waters)
+            {
+                if (x1 - x0 < 6f) continue;
+                for (float x = x0 + 3f; x < x1 - 2.5f; x += Random.Range(5f, 8f))
+                {
+                    var holder = CbArt.Joint(root, x, -0.2f, GroundFront - 0.02f, "dropShaft");
+                    holder.localRotation = CbArt.Rot(0, 0, Random.Range(0.18f, 0.3f));
+                    var m = CbArt.Glow(new Color(1f, 0.96f, 0.8f, 0.14f), CbArt.Shaft);
+                    CbArt.Part(CbMesh.Quad, m, holder, new Vector3(0, -4.5f, 0), new Vector3(Random.Range(1.1f, 1.9f), 9f, 1), shadows: false);
+                    shafts.Add((holder, m, Random.Range(0f, 6f), Random.Range(0.08f, 0.14f)));
+                }
+            }
         }
 
         /// <summary>
