@@ -94,7 +94,7 @@ namespace Cloudborne
         // stage 1-2: its painting bigger, its foot further down, under the boughs (with no row of jungle trees in front
         // of it, a strip of pale sky showed under it; moved down instead, its top came into view, streaked on up)
         const float TreetopsImageHeight = 58f;
-        static float PaintingHeight => CbStage.Treetops ? TreetopsImageHeight : ImageHeight;
+        static float PaintingHeight => CbStage.Treetops || CbStage.Grove ? TreetopsImageHeight : ImageHeight;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         static readonly Color JungleLawn = CbArt.Hex("#3a7a33");
         int shownPart = -1;
@@ -386,7 +386,9 @@ namespace Cloudborne
             // boughs' ends at the gaps' sides)
             if (CbStage.Treetops)
                 CbArt.Part(CbMesh.Quad, DropHaze(), root, new Vector3(130, -11.5f, 68), new Vector3(700, 140, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "depths";
-            else if (!CbStage.River)
+            // (nor in Baba's grove: a pale strip of it in the haze lay between its painting and the hedge - the survey's
+            // pictures; its painting comes on down instead)
+            else if (!CbStage.River && !CbStage.Grove)
             {
                 // (its own material: on stage 1-1 it changes colour with the painting, ShowPart)
                 var lawnMat = CbArt.NewToon(CbStage.Ember ? CbArt.Hex("#3a2620") : JungleLawn, 0f);
