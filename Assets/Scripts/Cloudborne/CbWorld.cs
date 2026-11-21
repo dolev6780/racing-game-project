@@ -95,6 +95,9 @@ namespace Cloudborne
         // of it, a strip of pale sky showed under it; moved down instead, its top came into view, streaked on up)
         const float TreetopsImageHeight = 58f;
         // (and stage 1-5's: under it a pale pink strip of lawn lay in the haze between the temple and the bushes - the survey)
+        // the part of the painting across that is repeated (stage 1-2's has dark leaves painted into its corners: at its
+        // repeats they met over the bushes in a black shape - the user)
+        static Vector2 PaintingCrop => CbStage.Treetops ? new Vector2(0.24f, 0.87f) : new Vector2(0f, 1f);
         static float PaintingHeight => CbStage.Treetops || CbStage.Grove || CbStage.Ember ? TreetopsImageHeight : ImageHeight;
         readonly List<(Texture2D tex, float from)> paintings = new List<(Texture2D, float)>();
         static readonly Color JungleLawn = CbArt.Hex("#3a7a33");
@@ -594,7 +597,9 @@ namespace Cloudborne
             }
             // and the forest going on far back down there in the haze, the whole stage long (behind the bushes on the
             // boughs, seen only down the gaps, wider far back than the gaps are)
-            foreach (var (z, top, height, farHaze) in new[] { (24f, -0.15f, 7f, 0.86f), (50f, 0f, 10f, 0.93f) })
+            // (their tops low: only over the rows below is the view to be blocked - higher, the far one's pale tops showed
+            // over the bushes on the boughs, ghosts of plants: the user)
+            foreach (var (z, top, height, farHaze) in new[] { (24f, -0.6f, 7f, 0.86f), (50f, -1.5f, 10f, 0.93f) })
             {
                 BuildLayer("JungleNear", z, top - height, height, farHaze, null, Color.white);
                 var far = Gradient("farShade" + z, DepthMist, Color.Lerp(DepthMist, Horizon, 0.3f), "#6a9a94");
@@ -1160,7 +1165,10 @@ namespace Cloudborne
                 paintings.Add((t, from));
             }
             backdropMat = new Material(shader) { mainTexture = tex };
-            float tile = PaintingHeight * tex.width / tex.height * BackdropStretch;
+            var crop = PaintingCrop;
+            backdropMat.SetVector("_Crop", new Vector4(crop.x, crop.y, 0, 0));
+            // (a tile: the cropped part of the painting, at the painting's own scale)
+            float tile = PaintingHeight * tex.width / tex.height * BackdropStretch * (crop.y - crop.x);
             float height = BackdropTop - (ImageTop - PaintingHeight);
             // the quad's bottom is the painting's bottom; above the painting's top the clamped texture repeats its sky
             backdropMat.mainTextureScale = new Vector2(BackdropWidth / tile, height / PaintingHeight);

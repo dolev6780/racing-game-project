@@ -1,6 +1,8 @@
 // The painted far backdrop of a stage: its texture exactly as painted, with no lighting and no fog
 // (the painting already has its own haze). It writes depth, so the sky is not drawn over it.
 // _NextTex is the next part of the stage's painting, cross-faded in by _Blend (0 to 1).
+// Repeated mirrored across, only the part of the painting from _Crop.x to _Crop.y (dark leaves painted into a
+// painting's corners met at its repeats as a black shape over the bushes: the user, stage 1-2).
 Shader "Cloudborne/Backdrop"
 {
     Properties
@@ -8,6 +10,7 @@ Shader "Cloudborne/Backdrop"
         _MainTex ("Texture", 2D) = "white" {}
         _NextTex ("Next", 2D) = "white" {}
         _Blend ("Blend", Range(0, 1)) = 0
+        _Crop ("Crop (u from, u to)", Vector) = (0, 1, 0, 0)
     }
 
     // ---------- Universal Render Pipeline ----------
@@ -25,6 +28,7 @@ Shader "Cloudborne/Backdrop"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
+                float4 _Crop;
                 half _Blend;
             CBUFFER_END
             TEXTURE2D(_MainTex);
@@ -45,8 +49,13 @@ Shader "Cloudborne/Backdrop"
 
             half4 frag (Varyings i) : SV_Target
             {
-                half3 a = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).rgb;
-                half3 b = SAMPLE_TEXTURE2D(_NextTex, sampler_NextTex, i.uv).rgb;
+                // mirrored repeats (0 to 1 and back), within the crop
+                float w = _Crop.y - _Crop.x;
+                float m = 1.0 - abs(frac(i.uv.x * 0.5) * 2.0 - 1.0);
+                float2 uv = float2(_Crop.x + m * w, i.uv.y);
+                float2 dx = ddx(i.uv) * float2(w, 1), dy = ddy(i.uv) * float2(w, 1);
+                half3 a = SAMPLE_TEXTURE2D_GRAD(_MainTex, sampler_MainTex, uv, dx, dy).rgb;
+                half3 b = SAMPLE_TEXTURE2D_GRAD(_NextTex, sampler_NextTex, uv, dx, dy).rgb;
                 return half4(lerp(a, b, _Blend), 1);
             }
             ENDHLSL
@@ -68,6 +77,7 @@ Shader "Cloudborne/Backdrop"
 
             sampler2D _MainTex, _NextTex;
             float4 _MainTex_ST;
+            float4 _Crop;
             half _Blend;
 
             struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
@@ -83,7 +93,11 @@ Shader "Cloudborne/Backdrop"
 
             fixed4 frag (v2f i) : SV_Target
             {
-                return fixed4(lerp(tex2D(_MainTex, i.uv).rgb, tex2D(_NextTex, i.uv).rgb, _Blend), 1);
+                float w = _Crop.y - _Crop.x;
+                float m = 1.0 - abs(frac(i.uv.x * 0.5) * 2.0 - 1.0);
+                float2 uv = float2(_Crop.x + m * w, i.uv.y);
+                float2 dx = ddx(i.uv) * float2(w, 1), dy = ddy(i.uv) * float2(w, 1);
+                return fixed4(lerp(tex2Dgrad(_MainTex, uv, dx, dy).rgb, tex2Dgrad(_NextTex, uv, dx, dy).rgb, _Blend), 1);
             }
             ENDCG
         }
