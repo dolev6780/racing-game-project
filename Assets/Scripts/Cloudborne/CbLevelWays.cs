@@ -48,6 +48,8 @@ namespace Cloudborne
 
         /// <summary>A vine hanging from a branch at (ax, ay), len long, swinging by angle (radians, 0 straight down).</summary>
         public class Vine { public float ax, ay, len, angle, speed, cool; public Transform t; }
+        // a vine let go: the pull swinging it back (as on him), how fast its swing dies away, as far as it can swing
+        const float VineGravity = 30f, VineDrag = 0.8f, VineMaxSwing = 1.1f;
         /// <summary>A bamboo bar at height y from x0 to x1, hung over the water: he hangs from it and moves along.</summary>
         public class Bar { public float x0, x1, y; }
         /// <summary>A rope slid down from (x0, y0) to (x1, y1).</summary>
@@ -1158,11 +1160,18 @@ namespace Cloudborne
                     g.Checkpoint(l.x);
                 }
 
-            // vines sway; the one he swings on follows him (CbHero sets its angle)
+            // vines sway; the one he swings on follows him (CbHero sets its angle). Let go, it swings on by itself to
+            // and fro, a little less each time, until it hangs in the breeze's sway again (it went straight back to it,
+            // the moment he jumped off: the user)
             foreach (var v in vines)
             {
                 v.cool = Mathf.Max(0, v.cool - dt);
-                if (hero.SwingingOn != v) { v.angle = Mathf.Sin(Time.time * 0.9f + v.ax) * 0.12f; v.speed = 0; }
+                if (hero.SwingingOn != v)
+                {
+                    float rest = Mathf.Sin(Time.time * 0.9f + v.ax) * 0.12f;
+                    v.speed = (v.speed - VineGravity / v.len * Mathf.Sin(v.angle - rest) * dt) * (1 - VineDrag * dt);
+                    v.angle = Mathf.Clamp(v.angle + v.speed * dt, -VineMaxSwing, VineMaxSwing);
+                }
                 v.t.localRotation = Quaternion.Euler(0, 0, v.angle * Mathf.Rad2Deg);
             }
             foreach (var l in leaves)
