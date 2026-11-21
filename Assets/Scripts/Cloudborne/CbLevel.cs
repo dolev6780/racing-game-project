@@ -125,6 +125,7 @@ namespace Cloudborne
         // Tools/Blender/flatten_deck.py), drawn a little lower than its own shape (0.6 of its height) so its level
         // deck runs at StoneDeck over the water
         const string LongBridgePath = "Cloudborne/Jungle/LongBridge/LongBridge";
+        const float LongBridgeOutline = CbArt.PropOutline * 0.3f;
         const float LongBridgeHeight = 3.89f * 0.6f, LongBridgeDeck = 3.76f * 0.6f;
         // the mountain: where it stands, its summit's height
         public const float MountainFrom = 137f, MountainTo = 168f, SummitTop = 11.4f;
@@ -309,8 +310,10 @@ namespace Cloudborne
             // the parapets, low enough that the near one hides his feet. The arches overlap a little, their end posts
             // making one pier in the middle.
             var stone = CbArt.Joint(root, StoneBridgeX, 0, 0.15f, "stoneBridge");
+            // (its outline thin: round each of the thin leaves hanging off it, the full one stood out in black shards - the
+            // user's picture)
             bool modelled = Fit(LongBridgePath, stone, new Vector3(-StoneBridgeHalf - 0.2f, StoneDeck - LongBridgeDeck, -1.3f),
-                new Vector3(StoneBridgeHalf + 0.2f, StoneDeck - LongBridgeDeck + LongBridgeHeight, 1.5f)) != null;
+                new Vector3(StoneBridgeHalf + 0.2f, StoneDeck - LongBridgeDeck + LongBridgeHeight, 1.5f), LongBridgeOutline) != null;
             for (int k = 0; k < StoneArches && !modelled; k++)
             {
                 var arch = CbArt.Joint(stone, (k - (StoneArches - 1) * 0.5f) * StoneArchStep, 0, 0, "arch");
@@ -330,59 +333,39 @@ namespace Cloudborne
         const float RampRun = 2.4f, RampFlat = 0.4f, RampBack = 3.2f;
 
         /// <summary>
-        /// A grassy ramp of earth up to a bridge's end at (end, top), outward of it (dir -1: on its left), walked up and
-        /// down; drawn as the ground is - grass on its slope, the ground's earth on its front, its grass edge following
-        /// the slope.
+        /// The way up to a bridge's end at (end, top), outward of it (dir -1: on its left): walked up and down as a
+        /// slope, drawn as steps of the bridge's own mossy stone, each tread level with the slope at its middle (a wedge
+        /// of grass, its painting stretched big up the slope, looked nothing like the bridge: the user).
         /// </summary>
         void BridgeRamp(float end, int dir, float top)
         {
             float flatTo = end, flatFrom = end + dir * RampFlat, foot = flatFrom + dir * RampRun;
             ramps.Add((Mathf.Min(foot, flatFrom), Mathf.Max(foot, flatFrom), dir < 0 ? 0f : top, dir < 0 ? top : 0f));
             ramps.Add((Mathf.Min(flatFrom, flatTo), Mathf.Max(flatFrom, flatTo), top, top));
-            // the ground's own materials, the earth's picture following the slope's edge
-            var grass = CbWorld.GrassMaterial();
-            var face = CbWorld.FaceMaterial();
-            float tileW = CbWorld.FaceTileWidth(face.mainTexture);
-            float zf = CbWorld.GroundFront, zb = RampBack;
-            var xs = new[] { foot, flatFrom, flatTo };
-            var ys = new[] { 0f, top, top };
-            // the slope and the flat on top
-            var tv = new List<Vector3>(); var tuv = new List<Vector2>(); var tt = new List<int>();
-            for (int i = 0; i < 3; i++)
+            stepStone ??= CbArt.Toon(StepStone, CbArt.PropOutline);
+            stepMoss ??= CbArt.Toon(StepMoss);
+            float tread = RampRun / RampSteps, zMid = (StepFront + StepBack) / 2, depth = StepBack - StepFront;
+            for (int k = 0; k <= RampSteps; k++)
             {
-                tv.Add(new Vector3(xs[i], ys[i], zf)); tuv.Add(new Vector2(xs[i] / CbWorld.GrassTile, zf / CbWorld.GrassTile));
-                tv.Add(new Vector3(xs[i], ys[i], zb)); tuv.Add(new Vector2(xs[i] / CbWorld.GrassTile, zb / CbWorld.GrassTile));
+                // the treads up the slope, then the landing level with the deck to the bridge's end
+                float a = foot + dir * k * tread, b = k < RampSteps ? a + dir * tread : flatTo;
+                float h = k < RampSteps ? top * (k + 0.5f) / RampSteps : top;
+                float x0 = Mathf.Min(a, b), x1 = Mathf.Max(a, b);
+                var step = CbArt.Box(stepStone, root, new Vector3((x0 + x1) / 2, h / 2, zMid), new Vector3(x1 - x0, h, depth));
+                step.name = "bridgeStep";
+                // moss over part of each tread, never quite to its edge
+                float cover = Random.Range(0.45f, 0.85f), off = Random.Range(-0.2f, 0.2f) * depth;
+                CbArt.Part(CbMesh.Cube, stepMoss, root, new Vector3((x0 + x1) / 2, h + 0.015f, zMid + off),
+                    new Vector3((x1 - x0) * Random.Range(0.6f, 0.9f), 0.03f, depth * cover), shadows: false).name = "stepMoss";
             }
-            for (int i = 0; i < 2; i++)
-            {
-                int a = 2 * i, b = 2 * i + 2;
-                if (dir < 0) { tt.AddRange(new[] { a, a + 1, b, b, a + 1, b + 1 }); }
-                else { tt.AddRange(new[] { a, b, a + 1, b, b + 1, a + 1 }); }
-            }
-            var topMesh = new Mesh { name = "rampTop", vertices = tv.ToArray(), uv = tuv.ToArray(), triangles = tt.ToArray() };
-            topMesh.RecalculateNormals();
-            topMesh.RecalculateBounds();
-            CbArt.Part(topMesh, grass, root, Vector3.zero, Vector3.one, shadows: true).name = "bridgeRamp";
-            // its front: the earth from the ground's edge up to the slope, the picture's grassy top along the slope
-            var fv = new List<Vector3>(); var fuv = new List<Vector2>(); var ft = new List<int>();
-            for (int i = 0; i < 3; i++)
-            {
-                fv.Add(new Vector3(xs[i], ys[i], zf - 0.005f)); fuv.Add(new Vector2(xs[i] / tileW, 1f));
-                fv.Add(new Vector3(xs[i], 0f, zf - 0.005f)); fuv.Add(new Vector2(xs[i] / tileW, 1f - ys[i] / CbWorld.FaceHeight));
-            }
-            for (int i = 0; i < 2; i++)
-            {
-                int a = 2 * i, b = 2 * i + 2;
-                if (dir < 0) { ft.AddRange(new[] { a, b, a + 1, a + 1, b, b + 1 }); }
-                else { ft.AddRange(new[] { a, a + 1, b, a + 1, b + 1, b }); }
-            }
-            var faceMesh = new Mesh { name = "rampFace", vertices = fv.ToArray(), uv = fuv.ToArray(), triangles = ft.ToArray() };
-            faceMesh.RecalculateNormals();
-            faceMesh.RecalculateBounds();
-            var fm = new Material(face);
-            fm.SetFloat("_Cull", 0f);
-            CbArt.Part(faceMesh, fm, root, Vector3.zero, Vector3.one, shadows: false).name = "bridgeRampFace";
         }
+
+        // the bridge's steps: how many treads up the slope, the stone and moss (the long bridge's own, from its painting),
+        // how far across the path they reach (the bridge's own depth)
+        const int RampSteps = 4;
+        const string StepStone = "#7a7262", StepMoss = "#5a7a38";
+        const float StepFront = -1.25f, StepBack = 1.45f;
+        Material stepStone, stepMoss;
 
         /// <summary>A stepping stone, its top level with the banks; a sinking one shakes and goes under if he stays.</summary>
         void AddStone(float x, bool sinks)
@@ -596,10 +579,10 @@ namespace Cloudborne
         }
 
         /// <summary>A model placed and stretched so its bounds fill the box lo..hi of parent's space; null if missing.</summary>
-        static Transform Fit(string path, Transform parent, Vector3 lo, Vector3 hi)
+        static Transform Fit(string path, Transform parent, Vector3 lo, Vector3 hi, float outline = CbArt.PropOutline)
         {
             var holder = CbArt.Joint(parent, 0, 0, 0, "fit");
-            var model = CbArt.Prop(path, holder, CbArt.PropOutline);
+            var model = CbArt.Prop(path, holder, outline);
             if (model == null) { Object.Destroy(holder.gameObject); return null; }
             // the natural rocks' pale stone washed out to white in the game's light (the stage's pictures): toned down
             if (path == RiverStonePath || path == RiverRockPath || path == CrackedRockPath || path == CliffRockPath)

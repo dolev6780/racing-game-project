@@ -361,6 +361,9 @@ namespace Cloudborne
         // (Following every jump up and down, and swinging across at each turn in a fight, the ground went round the
         // screen in circles: dizzying - the user, stage 1-1.)
         const float JumpFree = 3f, LookTurn = 3f;
+        // how much of the view's half (its height, its width) stays between him and its edge: over his head (the HUD's
+        // band at the top), under his feet (to see where he lands), and either side
+        const float KeepAbove = 0.42f, KeepBelow = 0.45f, KeepSide = 0.6f;
 
         class Shot { public Transform t, glow; public float x, y, vx, life, crackle; }
         /// <summary>The special shot's beam: its layers, how long it has run, where it starts and which way it points.</summary>
@@ -1943,6 +1946,15 @@ namespace Cloudborne
             if (mode == Mode.Scene && scene != null) { tx = camX = scene.camX; ty = camY = scene.camY; dist *= scene.zoom; }
             camX += (tx - camX) * (1 - Mathf.Exp(-3.5f * dt));
             camY += (ty - camY) * (1 - Mathf.Exp(-3 * dt));
+            // never left behind: however fast he jumps, falls or dashes, he stays in the middle of the view, the camera
+            // going with him at its edge (catching up slowly it lost him off the top or the bottom: the user)
+            // (across only outside the fights: their raiders run in from off the screen)
+            if (mode == Mode.Play)
+            {
+                float halfH = dist * tanH, halfW = halfH * cam.aspect;
+                camY = Mathf.Clamp(camY, hero.y + hero.Height + KeepAbove * halfH - halfH, hero.y + halfH - KeepBelow * halfH);
+                if (lockZone == null) camX = Mathf.Clamp(camX, hero.x - KeepSide * halfW, hero.x + KeepSide * halfW);
+            }
             float sh = shake;
             cam.transform.position = new Vector3(camX + Random.Range(-1f, 1f) * sh * 0.4f, camY + CamRise + Random.Range(-1f, 1f) * sh * 0.4f, -dist);
             cam.transform.LookAt(new Vector3(camX, camY, 0));
