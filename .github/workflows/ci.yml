@@ -65,8 +65,9 @@ jobs:
   android-build:
     name: Android build
     needs: [compile-check, unity-tests]
-    # not when the run was cancelled (a newer push): then it only held up the newer run
-    if: ${{ !cancelled() && needs.compile-check.result == 'success' }}
+    # not when the run was cancelled (a newer push): then it only held up the newer run;
+    # nor when the pushed commit's message says [no apk] (tests and pictures only)
+    if: ${{ !cancelled() && needs.compile-check.result == 'success' && !contains(github.event.head_commit.message, '[no apk]') }}
     runs-on: ubuntu-latest
     env:
       UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
