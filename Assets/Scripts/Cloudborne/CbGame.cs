@@ -339,7 +339,7 @@ namespace Cloudborne
         Camera cam;
         Light sun;
         Transform actors;
-        float comboT, camX, camY = CamBase, fovKick, overT, atkHeldT, heavyHeldT, camBack = 1f;
+        float comboT, camX, camY = CamBase, fovKick, overT, atkHeldT, heavyHeldT, camBack = 1f, lookOff;
         int lastScore = -1;
         readonly List<(float at, CbEnemy.Kind kind, float x, Zone zone)> pending = new List<(float, CbEnemy.Kind, float, Zone)>();
         readonly List<Shot> shots = new List<Shot>();
@@ -356,6 +356,11 @@ namespace Cloudborne
         // in the gorge the camera draws back further and looks at its middle, showing its walls and the water below
         // (the user wanted it further out there)
         const float CamGorge = 1.95f;
+        // The view holds still through his jumps: it stays at the height he last stood on until he goes more than
+        // JumpFree over it (a double jump's top), and the look ahead swings round at LookTurn m/s when he turns.
+        // (Following every jump up and down, and swinging across at each turn in a fight, the ground went round the
+        // screen in circles: dizzying - the user, stage 1-1.)
+        const float JumpFree = 3f, LookTurn = 3f;
 
         class Shot { public Transform t, glow; public float x, y, vx, life, crackle; }
         /// <summary>The special shot's beam: its layers, how long it has run, where it starts and which way it points.</summary>
@@ -1901,7 +1906,8 @@ namespace Cloudborne
             if (grakFight) back = Mathf.Max(back, GrakFightBack);
             camBack += (back - camBack) * (1 - Mathf.Exp(-2f * dt));
             dist *= camBack;
-            float tx = hero.x + hero.facing * LookAhead;
+            lookOff = Mathf.MoveTowards(lookOff, hero.facing * LookAhead, LookTurn * dt);
+            float tx = hero.x + lookOff;
             // in the menu Raja stands on the right of the screen, the menu on the left, the camera a little closer
             if (mode == Mode.Title) { tx = hero.x - 3.4f + Mathf.Sin(clock * 0.2f) * 0.3f; dist *= 0.72f; }
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
@@ -1911,13 +1917,18 @@ namespace Cloudborne
             // riding the river: the view well ahead, to see what is coming
             if (CbStage.River && Riding) tx = hero.x + RideLook;
             tx = Mathf.Lerp(tx, CbLevel.GorgeMiddle, gorge * 0.6f);
-            // half his height on the path and in jumps; high up the mountain the camera climbs with him
-            float ty = CamBase + Mathf.Max(hero.y * 0.5f, hero.y - 2.5f);
-            // on the river the view follows it down the falls (and his jumps from his log, half)
+            // half the height he stands at; high up the mountain the camera climbs with him. In a jump, where he took
+            // off from: only past JumpFree over it does the view follow him up (and at once down, off a ledge or into
+            // the water)
+            float over = hero.y - stand;
+            float at = stand + Mathf.Max(0, over - JumpFree) + Mathf.Min(0, over);
+            float ty = CamBase + Mathf.Max(at * 0.5f, at - 2.5f);
+            // on the river the view follows it down the falls (his jumps from his log likewise held)
             if (CbStage.River)
             {
-                float floor = CbLevel.RiverFloor(hero.x);
-                ty = CamBase + floor + Mathf.Max((hero.y - floor) * 0.5f, hero.y - floor - 2.5f);
+                float floor = CbLevel.RiverFloor(hero.x), stood = hero.state == CbHero.State.Swim ? hero.y : hero.StandY, jump = hero.y - stood;
+                float up = stood - floor + Mathf.Max(0, jump - JumpFree) + Mathf.Min(0, jump);
+                ty = CamBase + floor + Mathf.Max(up * 0.5f, up - 2.5f);
             }
             // up high, the view's foot rests just below the ground (as far as it can, him still in view)
             float high = mode == Mode.Play ? Mathf.Clamp01((stand - 0.4f) / 0.8f) : 0f;
