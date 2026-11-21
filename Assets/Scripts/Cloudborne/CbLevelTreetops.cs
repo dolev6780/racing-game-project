@@ -349,24 +349,54 @@ namespace Cloudborne
         public const float HollowX = 221f, HighFruitX = 313.6f, HighFruitY = 7.45f, FruitLedgeX = 306.6f, FruitLedgeTop = 6.2f;
         const float HollowZ = 2.4f, HollowR = 1.5f;
         bool hollowTold, fruitTold;
+        // the hollow trunk's foot, modelled (drawn in Canva, approved, built in Meshy: the one built of a cylinder and
+        // a dark egg didn't look good - the user): this wide, tall and deep, its mouth this far right of its middle and
+        // this high; the column of bark going on up out of sight from inside its top, this thick
+        const string HollowTreePath = "Cloudborne/Treetops/HollowTree/HollowTree";
+        // (at the model's own proportions; set further back than the old trunk, its roots clear of his way)
+        const float HollowFootH = 5.6f, HollowFootW = HollowFootH * 5.70f / 6.2f, HollowFootD = HollowFootH * 5.275f / 6.2f;
+        const float HollowColumnR = 1.3f, HollowModelZ = 3.0f, HollowMouth = 1.75f;
+        // how far in front of the trunk's middle its face is (where the fire burns and the fireflies glow)
+        float hollowFront = HollowR, hollowZ = HollowZ;
 
         void AddFireflyHollow()
         {
-            var t = BarkTrunk(HollowX, HollowZ, HollowR, 1, "hollowTree");
-            // the hollow: a dark mouth in the bark, a lip of lighter wood round it
-            CbArt.Part(CbMesh.Sphere, SoftBark("#8a6a4c"), t, new Vector3(0, 1.25f, -HollowR + 0.05f), new Vector3(1.75f, 2.55f, 0.3f));
-            CbArt.Part(CbMesh.Sphere, SoftBark("#120c08"), t, new Vector3(0, 1.2f, -HollowR - 0.02f), new Vector3(1.45f, 2.3f, 0.3f));
+            var t = CbArt.Joint(root, HollowX, 0f, HollowModelZ, "hollowTree");
+            var foot = Fit(HollowTreePath, t, new Vector3(-HollowFootW / 2, -0.15f, -HollowFootD / 2), new Vector3(HollowFootW / 2, HollowFootH - 0.15f, HollowFootD / 2));
+            if (foot != null)
+            {
+                // (its mouth: in front of its middle by this much, between the roots)
+                hollowZ = HollowModelZ;
+                hollowFront = HollowMouth;
+                // the trunk going on up from inside its foot's top, in bark of its colour, out of sight above
+                var column = SoftBark("#ffffff");
+                column.mainTexture = BarkTexture();
+                column.color = HollowBark;
+                column.mainTextureScale = new Vector2(Mathf.Max(1, Mathf.Round(2 * Mathf.PI * HollowColumnR / BarkTile)), 22f / (BarkTile * 2f));
+                CbArt.Cylinder(column, t, new Vector3(0, HollowFootH - 0.9f + 11f, 0.1f), HollowColumnR, 22f);
+            }
+            else
+            {
+                Object.Destroy(t.gameObject);
+                t = BarkTrunk(HollowX, HollowZ, HollowR, 1, "hollowTree");
+                // the hollow: a dark mouth in the bark, a lip of lighter wood round it
+                CbArt.Part(CbMesh.Sphere, SoftBark("#8a6a4c"), t, new Vector3(0, 1.25f, -HollowR + 0.05f), new Vector3(1.75f, 2.55f, 0.3f));
+                CbArt.Part(CbMesh.Sphere, SoftBark("#120c08"), t, new Vector3(0, 1.2f, -HollowR - 0.02f), new Vector3(1.45f, 2.3f, 0.3f));
+            }
             // the loggers' fire across it: logs crossed, stones round them (the flames and the fireflies: UpdateHollow)
             var log = SoftBark("#3a2a1e");
-            CbArt.Cylinder(log, t, new Vector3(-0.15f, 0.2f, -HollowR - 0.3f), 0.15f, 1.5f, Quaternion.Euler(0, 20f, 90f));
-            CbArt.Cylinder(log, t, new Vector3(0.2f, 0.26f, -HollowR - 0.35f), 0.14f, 1.4f, Quaternion.Euler(0, -25f, 90f));
+            CbArt.Cylinder(log, t, new Vector3(-0.15f, 0.2f, -hollowFront - 0.3f), 0.15f, 1.5f, Quaternion.Euler(0, 20f, 90f));
+            CbArt.Cylinder(log, t, new Vector3(0.2f, 0.26f, -hollowFront - 0.35f), 0.14f, 1.4f, Quaternion.Euler(0, -25f, 90f));
             var stone = SoftBark("#6d6a64");
             for (int i = 0; i < 6; i++)
             {
                 float a = i / 6f * Mathf.PI * 2f;
-                CbArt.Part(CbMesh.Sphere, stone, t, new Vector3(Mathf.Cos(a) * 0.75f, 0.08f, -HollowR - 0.3f + Mathf.Sin(a) * 0.3f), new Vector3(0.28f, 0.2f, 0.24f));
+                CbArt.Part(CbMesh.Sphere, stone, t, new Vector3(Mathf.Cos(a) * 0.75f, 0.08f, -hollowFront - 0.3f + Mathf.Sin(a) * 0.3f), new Vector3(0.28f, 0.2f, 0.24f));
             }
         }
+
+        // the bark of the column over the modelled foot, toned to the model's own
+        static readonly Color HollowBark = new Color(0.62f, 0.6f, 0.62f);
 
         void AddHighFruitVine()
         {
@@ -381,11 +411,11 @@ namespace Cloudborne
         {
             if (Mathf.Abs(hero.x - HollowX) < 22f)
             {
-                var fire = new Vector3(HollowX + Random.Range(-0.45f, 0.45f), 0.35f, HollowZ - HollowR - 0.32f);
+                var fire = new Vector3(HollowX + Random.Range(-0.45f, 0.45f), 0.35f, hollowZ - hollowFront - 0.32f);
                 if (Random.value < 0.75f)
                     CbFx.Spark(fire, Random.value < 0.5f ? CbFx.Fire : CbFx.Flame, 1, 1.2f, Random.Range(0.25f, 0.45f), 0.5f, -5f);
                 if (Random.value < 0.08f)
-                    CbFx.Spark(new Vector3(HollowX + Random.Range(-0.5f, 0.5f), Random.Range(0.6f, 2f), HollowZ - HollowR + 0.05f),
+                    CbFx.Spark(new Vector3(HollowX + Random.Range(-0.5f, 0.5f), Random.Range(0.6f, 2f), hollowZ - hollowFront + 0.05f),
                         new Color(0.85f, 1f, 0.45f) * 2.4f, 1, 0.25f, 0.12f, 1.4f, -0.3f);
             }
             if (!hollowTold && Mathf.Abs(hero.x - HollowX) < 3f)
