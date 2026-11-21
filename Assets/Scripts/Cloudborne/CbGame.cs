@@ -950,20 +950,48 @@ namespace Cloudborne
                 // bridge, never able to step up onto it: the user)
                 if (level != null) e.y = Mathf.Max(e.y, level.SupportAt(e.x, 50f));
                 e.runningIn = true;
+                e.arena = true;
                 e.facing = -1;
                 arenaFoes.Add(e);
                 incoming.RemoveAt(i--);
             }
         }
 
-        /// <summary>His whistle: two raiders run in from the arena's sides.</summary>
+        /// <summary>
+        /// In a fight, an arrow at the side of the screen for any of its soldiers out of view (they were there, out of
+        /// sight, and the player didn't know what to do: the user).
+        /// </summary>
+        void ShowFoesOffScreen()
+        {
+            bool left = false, right = false;
+            if (mode == Mode.Play && lockZone != null && cam != null)
+                foreach (var e in arenaFoes)
+                {
+                    if (e.dead) continue;
+                    float v = cam.WorldToViewportPoint(new Vector3(e.x, e.y + 1f, 0)).x;
+                    if (v < 0.02f) left = true;
+                    else if (v > 0.98f) right = true;
+                }
+            hud.SetFoeArrows(left, right);
+        }
+
+        /// <summary>
+        /// His whistle: two raiders come running in from off the screen, one from either side (they appeared at the
+        /// arena's sides, one of them out of sight, waiting there: the user had to go back to find him).
+        /// </summary>
         public void SummonRaiders()
         {
             if (lockZone == null) return;
-            foreach (var dx in new[] { -9.5f, 9.5f })
+            foreach (int side in new[] { -1, 1 })
             {
-                var e = new CbEnemy(this, CbEnemy.Kind.Hyena, lockZone.x + dx, actors);
-                enemies.Add(e);
+                // (from the right only short of the shrine gate behind him: past it, from the left too, further back)
+                float at = camX + side * RunInFrom;
+                if (at > lockZone.x + 11f) at = camX - RunInFrom - 1.5f;
+                var e = SpawnAt(CbEnemy.Kind.Hyena, at);
+                if (level != null) e.y = Mathf.Max(e.y, level.SupportAt(e.x, 50f));
+                e.runningIn = true;
+                e.arena = true;
+                e.facing = -side;
                 arenaFoes.Add(e);
             }
             hud.Banner("REINFORCEMENTS!", true);
@@ -1874,6 +1902,7 @@ namespace Cloudborne
             world.Update(clock, camX);
             critters.Update(clock, camX, camY, hero.x, hero.y);
             UpdateCamera(raw);
+            ShowFoesOffScreen();
             CbVfx.Update(cam, raw);
             UpdateCloseUp(raw);
             hud.Tick(raw);

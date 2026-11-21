@@ -1069,6 +1069,36 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator AFightsSoldierOutOfSightComesBackAndIsPointedTo()
+        {
+            // in a fight, a soldier out of sight (knocked away, or come in at the far side) is shown by an arrow at that
+            // side of the screen, and comes back for Raja himself (he stood there out of sight, and the player had to
+            // go back to find him: the user)
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            game.hero.inv = 999f;
+            game.Teleport(CbLevel.RopeBridgeX - 6f);
+            game.hero.y = game.level.SupportAt(game.hero.x, 2f);
+            game.hero.vy = 0;
+            yield return Frames(3);
+            Assert.AreEqual(1, game.RopeAmbushWave, "No ambush on the rope bridge");
+            for (float w = 0; w < 3f && !game.AllRunIn; w += Time.deltaTime) yield return null;
+            var foe = game.enemies.Find(e => !e.dead && Mathf.Abs(e.x - CbLevel.RopeBridgeX) < 20f);
+            Assert.IsNotNull(foe, "No raider came for the ambush");
+            // thrown far off to the left, out of sight, standing there
+            foe.x = game.hero.x - 15f;
+            foe.vx = foe.vy = 0;
+            foe.runningIn = false;
+            yield return Frames(3);
+            Assert.IsTrue(game.hud.FoeArrowLeft, "No arrow points to the raider out of sight at the left");
+            float was = Mathf.Abs(foe.x - game.hero.x);
+            yield return new WaitForSeconds(2f);
+            Assert.Less(Mathf.Abs(foe.x - game.hero.x), was - 4f, "A raider out of sight stood there instead of coming back for Raja");
+        }
+
+        [UnityTest]
         public IEnumerator TheRopeBridgeAtTheStartIsAnAmbush()
         {
             // at least five raiders on the rope bridge (the user), in waves; beaten, the way opens. No soldier stands on

@@ -68,6 +68,9 @@ namespace Cloudborne
         public bool asleep;
         /// <summary>Running in from off the screen to a fight (an ambush): he comes for Raja from any distance until he is near.</summary>
         public bool runningIn;
+        // one of a fight's soldiers (an ambush, the sergeant's whistle): he goes for Raja from anywhere in it - knocked
+        // off the screen he stood there out of sight, and the fight wouldn't end until Raja went back to find him: the user
+        public bool arena;
         const float Notice = 10f, WakeAt = 2.2f;
         // Asleep (the user: he didn't look asleep), a soldier with the clip for it dozes on a log at the side of the
         // path (CbGame puts it behind him, a little back from the path), his head nodding, his eyes painted shut (the
@@ -682,7 +685,7 @@ namespace Cloudborne
                         // from afar he charges, up close he comes on in his fighting walk
                         if (dist < Notice) runningIn = false;
                         charging = dist > ChargeFrom && dist < Notice;
-                        want = dist > reach && (Boss || runningIn || dist < Notice) ? Mathf.Sign(dx) * speed * (charging ? ChargeBoost : 1f) : 0;
+                        want = dist > reach && (Boss || runningIn || arena || dist < Notice) ? Mathf.Sign(dx) * speed * (charging ? ChargeBoost : 1f) : 0;
                     }
                     vx += (want + push - vx) * (1 - Mathf.Exp(-8 * dt));
                     if (state != State.Atk && dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)

@@ -24,7 +24,8 @@ namespace Cloudborne
         readonly RectTransform root;
         readonly Image hpFill, kiFill, kiFrame, hurtFlash, slowFx, speedLines, impactFlash;
         float speedT, speedDur, speedStrength, linesFlip, flashT, flashA, flashGap;
-        readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt, stageTxt;
+        readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt, stageTxt, foeLeft, foeRight;
+        float foeT;
         readonly RectTransform comboBox, pads, stickBase, stickKnob, paused, result, pauseBtn, pauseMenuBtn, resultMenuBtn;
         readonly Text resultTitle, resultStats, fpsTxt;
         // the play HUD (hidden in a cinematic) and the cinematic's own layer: black bars, the speech box, SKIP
@@ -154,6 +155,11 @@ namespace Cloudborne
             // (above the swipe's note and the KI button: in the middle it lay over "SWIPE ↔ dodge" - the survey's pictures)
             goTxt = UIKit.Label(play, "GO ▶", 40, Gold, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-32, 78), new Vector2(160, 50), TextAnchor.MiddleRight, true);
             goTxt.gameObject.SetActive(false);
+            // a fight's soldiers out of view: an arrow at that side of the screen, pulsing (above the stick and the buttons)
+            foeLeft = UIKit.Label(play, "◀ !", 54, FoeArrow, new Vector2(0, 0.7f), new Vector2(0, 0.5f), new Vector2(26, 0), new Vector2(140, 70), TextAnchor.MiddleLeft, true);
+            foeRight = UIKit.Label(play, "! ▶", 54, FoeArrow, new Vector2(1, 0.7f), new Vector2(1, 0.5f), new Vector2(-26, 0), new Vector2(140, 70), TextAnchor.MiddleRight, true);
+            foeLeft.gameObject.SetActive(false);
+            foeRight.gameObject.SetActive(false);
 
             // touch pads
             pads = UIKit.Stretch(root, "pads");
@@ -535,6 +541,19 @@ namespace Cloudborne
         }
         public void ShowGo(bool on) => goTxt.gameObject.SetActive(on);
 
+        static readonly Color FoeArrow = CbArt.Hex("#ff5a3a");
+
+        /// <summary>The arrows for a fight's soldiers out of view at either side.</summary>
+        public void SetFoeArrows(bool left, bool right)
+        {
+            if (foeLeft.gameObject.activeSelf != left) foeLeft.gameObject.SetActive(left);
+            if (foeRight.gameObject.activeSelf != right) foeRight.gameObject.SetActive(right);
+        }
+
+        /// <summary>Test hook: which of the arrows for soldiers out of view show.</summary>
+        public bool FoeArrowLeft => foeLeft.gameObject.activeSelf;
+        public bool FoeArrowRight => foeRight.gameObject.activeSelf;
+
         public void SetBars(float hp, float ki)
         {
             SetFill(hpFill, hp / 100f);
@@ -903,6 +922,15 @@ namespace Cloudborne
         /// <summary>Animates popups, banners and flashes. Unscaled time, so it keeps moving during hit-stop.</summary>
         public void Tick(float dt)
         {
+            // the arrows for soldiers out of view pulse, nudging that way
+            if (foeLeft.gameObject.activeSelf || foeRight.gameObject.activeSelf)
+            {
+                foeT += dt;
+                float k = 0.5f + 0.5f * Mathf.Sin(foeT * 9f);
+                foeLeft.rectTransform.anchoredPosition = new Vector2(26 - 10 * k, 0);
+                foeRight.rectTransform.anchoredPosition = new Vector2(-26 + 10 * k, 0);
+                foeLeft.transform.localScale = foeRight.transform.localScale = Vector3.one * (1f + 0.12f * k);
+            }
             // the hints: the finger slides down (or across and back), fading in and out; HOLD pulses
             if (hint != Hint.None)
             {
