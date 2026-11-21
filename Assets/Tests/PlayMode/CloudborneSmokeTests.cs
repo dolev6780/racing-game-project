@@ -1770,6 +1770,28 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ZzTreetopsBridgeAndHollow()
+        {
+            // stage 1-2's first rope bridge close up (its ends on their posts, the bough ends either side, the drop under
+            // it) and the firefly hollow's trunk
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-2");
+            game.BuildStage();
+            game.StartGame();
+            game.SkipFights();
+            game.hero.inv = 9999f;
+            game.hero.hp = 9999;
+            yield return Frames(2);
+            yield return TakePictures(new[]
+            {
+                ("tt_bridge_bank", 21.6f, 0f), ("tt_bridge_end", 23.6f, 0.4f), ("tt_bridge_mid", 27.5f, 0.4f),
+                ("tt_hollow", CbLevel.HollowX - 2.5f, 0f),
+            }, 1.2f);
+            CbStage.Set("1-1");
+        }
+
+        [UnityTest]
         public IEnumerator ZzSurveyOfTheTemple()
         {
             // stage 1-5's glitch pass: a picture every 10 m along the way in and the courtyard

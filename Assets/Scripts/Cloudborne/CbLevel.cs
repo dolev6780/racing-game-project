@@ -76,7 +76,23 @@ namespace Cloudborne
             public float Top(float x)
             {
                 float u = Mathf.Clamp01((x - X0) / Mathf.Max(0.01f, 2 * half));
-                return top - sag * Mathf.Sin(u * Mathf.PI) + bob - dip;
+                return top - sag * Mathf.Sin(u * Mathf.PI) + bob - dip - Weighed(x);
+            }
+
+            // a rope bridge weighed down where he stands (load metres there), easing to nothing at its posts: it springs
+            // under him and back (moved up and down whole, it came away from its posts: the user)
+            public float load, loadV, loadX;
+            public bool wasOn, shaped;
+            public List<(Transform sec, float x0, float x1)> sections;
+            public Mesh ropes;
+            public float ropeA, ropeB, deckTop;
+            public float Weighed(float x)
+            {
+                if (load == 0) return 0;
+                float e0 = X0 - PostOut, e1 = X1 + PostOut, at = Mathf.Clamp(loadX, e0 + 0.1f, e1 - 0.1f);
+                float u = x < at ? (x - e0) / (at - e0) : (e1 - x) / (e1 - at);
+                u = Mathf.Clamp01(u);
+                return load * u * u * (3 - 2 * u);
             }
         }
 
@@ -858,7 +874,11 @@ namespace Cloudborne
                 b.t.gameObject.SetActive(true);
                 b.t.localRotation = Quaternion.identity;
             }
-            foreach (var c in crossings) { c.dip = c.bob = c.dx = c.sunk = c.shake = c.stood = 0; c.phase = 0; }
+            foreach (var c in crossings)
+            {
+                c.dip = c.bob = c.dx = c.sunk = c.shake = c.stood = c.load = c.loadV = 0; c.phase = 0; c.wasOn = false;
+                if (c.shaped) { Reshape(c); c.shaped = false; }
+            }
             foreach (var l in ledges)
             {
                 l.gone = false;
@@ -977,11 +997,14 @@ namespace Cloudborne
             int n = Mathf.Max(1, Mathf.RoundToInt((b - a) / PlankSection));
             float w = (b - a) / n;
             c.holes = new List<(float, float)>();
+            c.sections = new List<(Transform, float, float)>();
+            c.deckTop = deckTop;
             for (int k = 0; k < n; k++)
             {
                 float x0 = a + k * w, x1 = x0 + w;
                 float y0 = c.Top(x0) - deckTop, y1 = c.Top(x1) - deckTop;
                 var sec = CbArt.Joint(t, x0, y0, 0, "section");
+                c.sections.Add((sec, x0, x1));
                 sec.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(y1 - y0, w) * Mathf.Rad2Deg);
                 // the section's start at the joint, along +x, stretched a little to fit
                 var fit = CbArt.Joint(sec, 0, 0, 0, "fit");
@@ -998,6 +1021,9 @@ namespace Cloudborne
         // run this far into their rope bands; how high the planks meet a post over its foot (in its lower band); and
         // about how long a section of planks is (the kit's, drawn out a little)
         const float PostOut = 0.12f, PostTuck = 0.08f, PostDeck = 0.36f, PlankSection = 2.13f;
+        // how far a rope bridge sinks under him, how much more with each step, the spring of it (stiffness, damping), and
+        // the push down as he lands on it
+        const float BridgeLoad = 0.12f, BridgeStep = 0.012f, BridgeSpring = 70f, BridgeDamp = 7f, BridgeLandKick = 0.9f;
         // the model's planks by its post, over its foot (its handrail's height over them comes from these)
         const float EndDeckTop = 0.31f;
         // the ropes: the handrail as high over the planks as the end piece's rope where it is cut (0.87 over its foot),
@@ -1013,6 +1039,31 @@ namespace Cloudborne
         {
             var verts = new List<Vector3>();
             var tris = new List<int>();
+            RopeShape(c, a, b, verts, tris);
+            var mesh = new Mesh { name = "bridgeRopes" };
+            mesh.SetVertices(verts);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            // (its bounds made roomy: it is reshaped as he weighs the bridge down)
+            var bounds = mesh.bounds;
+            bounds.Expand(new Vector3(0, 1f, 0));
+            mesh.bounds = bounds;
+            c.ropes = mesh;
+            c.ropeA = a;
+            c.ropeB = b;
+            var go = new GameObject("ropes");
+            go.transform.SetParent(t, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var rope = CbArt.NewToon(CbArt.Hex("#e6cfa0"), 0.6f);
+            rope.SetFloat("_Cull", 0f);
+            rope.SetFloat("_SpecStrength", 0f);
+            go.AddComponent<MeshRenderer>().sharedMaterial = rope;
+        }
+
+        /// <summary>The ropes' tubes along the deck as it is now (tris left out when null).</summary>
+        static void RopeShape(Crossing c, float a, float b, List<Vector3> verts, List<int> tris)
+        {
             int n = Mathf.CeilToInt((b - a) / 0.25f);
             foreach (float z in new[] { -RopeSide, RopeSide })
             {
@@ -1029,18 +1080,26 @@ namespace Cloudborne
                 for (float x = a + TieEvery / 2; x < b; x += TieEvery)
                     Rope(verts, tris, new[] { new Vector3(x, c.Top(x) - 0.03f, z), new Vector3(x, c.Top(x) + RailOver, z) }, 0.013f);
             }
-            var mesh = new Mesh { name = "bridgeRopes" };
-            mesh.SetVertices(verts);
-            mesh.SetTriangles(tris, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            var go = new GameObject("ropes");
-            go.transform.SetParent(t, false);
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var rope = CbArt.NewToon(CbArt.Hex("#e6cfa0"), 0.6f);
-            rope.SetFloat("_Cull", 0f);
-            rope.SetFloat("_SpecStrength", 0f);
-            go.AddComponent<MeshRenderer>().sharedMaterial = rope;
+        }
+
+        static readonly List<Vector3> ropeVerts = new List<Vector3>();
+
+        /// <summary>The bridge's planks and ropes laid along its deck as it is now (weighed down or springing back).</summary>
+        static void Reshape(Crossing c)
+        {
+            if (c.sections != null)
+                foreach (var (sec, x0, x1) in c.sections)
+                {
+                    float y0 = c.Top(x0) - c.deckTop, y1 = c.Top(x1) - c.deckTop;
+                    sec.localPosition = new Vector3(x0, y0, 0);
+                    sec.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(y1 - y0, x1 - x0) * Mathf.Rad2Deg);
+                }
+            if (c.ropes != null)
+            {
+                ropeVerts.Clear();
+                RopeShape(c, c.ropeA, c.ropeB, ropeVerts, null);
+                c.ropes.SetVertices(ropeVerts);
+            }
         }
 
         /// <summary>A rope (a thin tube of a few sides) through the points, added to a mesh being built.</summary>
@@ -1060,6 +1119,7 @@ namespace Cloudborne
                     verts.Add(pts[i] + (side * Mathf.Cos(ang) + up * Mathf.Sin(ang)) * radius);
                 }
             }
+            if (tris == null) return;
             for (int i = 0; i < pts.Count - 1; i++)
                 for (int k = 0; k < sides; k++)
                 {
@@ -1330,9 +1390,20 @@ namespace Cloudborne
                 bool on = hero.x > c.X0 - HalfWidth * 0.5f && hero.x < c.X1 + HalfWidth * 0.5f && Mathf.Abs(hero.y - c.Top(hero.x)) < 0.04f;
                 if (c.deck)
                 {
-                    // the rope bridge bounces a touch under his steps
-                    c.bob = on ? Mathf.Sin(Time.time * 9f) * 0.015f : 0;
-                    if (c.t != null) c.t.localPosition = c.home + new Vector3(0, c.bob, 0);
+                    // the rope bridge sags under him where he stands, springing as he lands on it and steps along it, and
+                    // back up with a wobble when he leaves it; its ends stay on their posts
+                    if (on)
+                    {
+                        c.loadX = hero.x;
+                        if (!c.wasOn) c.loadV += BridgeLandKick;
+                    }
+                    c.wasOn = on;
+                    float target = on ? BridgeLoad + (Mathf.Abs(hero.vx) > 1f ? BridgeStep * Mathf.Sin(Time.time * 11f) : 0f) : 0f;
+                    c.loadV += ((target - c.load) * BridgeSpring - c.loadV * BridgeDamp) * dt;
+                    c.load += c.loadV * dt;
+                    if (!on && Mathf.Abs(c.load) < 0.0005f && Mathf.Abs(c.loadV) < 0.002f) { c.load = c.loadV = 0; }
+                    if (c.load != 0 || c.shaped) Reshape(c);
+                    c.shaped = c.load != 0;
                     continue;
                 }
                 if (c.drift > 0)
