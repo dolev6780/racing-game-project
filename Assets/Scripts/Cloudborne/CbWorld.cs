@@ -599,10 +599,16 @@ namespace Cloudborne
             // boughs, seen only down the gaps, wider far back than the gaps are)
             // (their tops low: only over the rows below is the view to be blocked - higher, the far one's pale tops showed
             // over the bushes on the boughs, ghosts of plants: the user)
-            foreach (var (z, top, height, farHaze) in new[] { (24f, -0.6f, 7f, 0.86f), (50f, -1.5f, 10f, 0.93f) })
+            // (and green, a little hazy, their backing the green of their leaves: in thick haze, pale blue-grey under a
+            // pale band, they were shadows of plants - the user, looking down from up high)
+            foreach (var (z, top, height, farHaze, tint, low, high) in new[]
             {
-                BuildLayer("JungleNear", z, top - height, height, farHaze, null, Color.white);
-                var far = Gradient("farShade" + z, DepthMist, Color.Lerp(DepthMist, Horizon, 0.3f), "#6a9a94");
+                (24f, -0.6f, 7f, 0.3f, new Color(0.7f, 0.8f, 0.75f), new Color(0.2f, 0.36f, 0.24f), new Color(0.29f, 0.51f, 0.3f)),
+                (50f, -1.5f, 10f, 0.45f, new Color(0.75f, 0.85f, 0.8f), new Color(0.27f, 0.45f, 0.35f), new Color(0.35f, 0.57f, 0.41f)),
+            })
+            {
+                BuildLayer("JungleNear", z, top - height, height, farHaze, null, tint);
+                var far = Gradient("farShade" + z, low, high, "#3f6a4c");
                 float back = top - height * 0.45f;
                 CbArt.Part(CbMesh.Quad, far, root, new Vector3(130f, (back + Floor) / 2, z + 0.06f), new Vector3(700f, back - Floor, 1), shadows: false).name = "farShade";
             }
