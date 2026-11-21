@@ -214,6 +214,8 @@ namespace Cloudborne
             AddLeaf(235.5f, 0.45f);
             // more springy leaves along the stage (the user liked the one in the ravine), each for something
             foreach (var x in LeafXs) AddLeaf(x, 0.45f);
+            // the chase's low branch (CbGameRuns): slid under, it stops the pack after him
+            AddOverhang(CbGame.ChaseBranchX, 0.7f, 0.95f, 1.65f, false);
             // a secret: a springy leaf near the start, its ledge back over the way he came (CbItems: its treasure)
             AddLeaf(StartSecretX + 2.6f, 0.45f);
             AddLedge(StartSecretX, 1.6f, StartSecretTop, false);

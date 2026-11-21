@@ -13,7 +13,7 @@ namespace Cloudborne
     /// runs Raja and the hyenas, the fight zones, hit-stop and slow motion, and the title/pause/result flow.
     /// Started by <see cref="Boot"/> from the bootstrap when the "Cloudborne" scene loads.
     /// </summary>
-    public class CbGame : MonoBehaviour
+    public partial class CbGame : MonoBehaviour
     {
         public enum Mode { Title, Play, Paused, Over, Scene, Loading, Comic }
 
@@ -631,7 +631,7 @@ namespace Cloudborne
             posts.Clear();
             foreach (var (x, kind, range, asleep) in PostPlan)
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
-            sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; Secrets = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
+            sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; Secrets = 0; ResetRuns(); HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false; FireAwakened = false; bossIntroSeen = false;
             // (stage 1-3 has no boss: Baba's trials, then the way on)
             if (CbStage.Grove) bossStarted = bossDone = true;
@@ -1135,6 +1135,7 @@ namespace Cloudborne
             if (CbStage.Grove && lockZone != null) { lockZone = null; level?.LeaveTrial(); hud.ShowGo(true); }
             if (CbStage.River) level?.LeaveSawBarge();
             if (CbStage.Ember) { level?.LeaveGrakFight(); CancelInvoke(nameof(FireAwakens)); }
+            RunsRespawned();
             hero.RespawnAt(checkpointX);
             level?.Respawned(checkpointX);
             lastHp = hero.hp;
@@ -1231,6 +1232,8 @@ namespace Cloudborne
                         p.enemy.minX = lo; p.enemy.maxX = hi;
                     }
                 }
+            // the short runs: the pack's chase in 1-1, the thief in 1-2 (CbGameRuns)
+            UpdateRuns();
             // the stretch's name and a tip as he reaches them
             while (sectionIdx < Sections.Length && hero.x >= Sections[sectionIdx].x) hud.SetWave(Sections[sectionIdx++].name);
             while (tipIdx < Tips.Length && hero.x >= Tips[tipIdx].x) { var tip = Tips[tipIdx++]; hud.SetTip(tip.text ?? Tip(tip.tip)); }
@@ -2268,6 +2271,7 @@ namespace Cloudborne
             foreach (var p in posts) p.spawned = true;
             bossStarted = bossDone = true;
             foreach (var a in Ambushes) a.started = a.done = true;
+            chaseStarted = chaseDone = thiefStarted = thiefDone = true;
             if (CbStage.Grove) trial = CbLevel.Trials;
             level?.OpenGoalGate(true);
             boss = null;

@@ -71,6 +71,13 @@ namespace Cloudborne
         // one of a fight's soldiers (an ambush, the sergeant's whistle): he goes for Raja from anywhere in it - knocked
         // off the screen he stood there out of sight, and the fight wouldn't end until Raja went back to find him: the user
         public bool arena;
+        /// <summary>
+        /// The short runs (CbGameRuns): a chaser of the pack runs faster (speedMul); giving up, he turns back (retreat);
+        /// the thief runs off ahead of Raja with his sack and never fights; gone: taken away at once.
+        /// </summary>
+        public float speedMul = 1f;
+        public bool thief, retreat, gone;
+        public const float ThiefSpeed = 6.2f;
         const float Notice = 10f, WakeAt = 2.2f;
         // Asleep (the user: he didn't look asleep), a soldier with the clip for it dozes on a log at the side of the
         // path (CbGame puts it behind him, a little back from the path), his head nodding, his eyes painted shut (the
@@ -570,6 +577,7 @@ namespace Cloudborne
         {
             if (kind == Kind.Tusk) return UpdateTusk(dt);
             if (kind == Kind.Grak) return UpdateGrak(dt);
+            if (gone) return true;
             t += dt;
             cd -= dt;
             flash = Mathf.Max(0, flash - dt);
@@ -687,6 +695,17 @@ namespace Cloudborne
                     }
                     // jumping up with a start: no blow yet
                     if (wakeT > 0) { wakeT -= dt; vx = 0; break; }
+                    // the thief runs off with his sack; a chaser giving up turns back
+                    if (thief || retreat)
+                    {
+                        float away = thief ? ThiefSpeed : -speed * 1.6f;
+                        vx += (away - vx) * (1 - Mathf.Exp(-6 * dt));
+                        facing = thief ? 1 : -1;
+                        runPh += dt * Mathf.Abs(vx) * 2.1f;
+                        Pose.Run(ref pose, runPh, 0.9f);
+                        charging = thief;
+                        break;
+                    }
                     float push = 0;
                     foreach (var o in g.enemies)
                     {
@@ -712,7 +731,7 @@ namespace Cloudborne
                         // from afar he charges, up close he comes on in his fighting walk
                         if (dist < Notice) runningIn = false;
                         charging = dist > ChargeFrom && dist < Notice;
-                        want = dist > reach && (Boss || runningIn || arena || dist < Notice) ? Mathf.Sign(dx) * speed * (charging ? ChargeBoost : 1f) : 0;
+                        want = dist > reach && (Boss || runningIn || arena || dist < Notice) ? Mathf.Sign(dx) * speed * speedMul * (charging ? ChargeBoost : 1f) : 0;
                     }
                     vx += (want + push - vx) * (1 - Mathf.Exp(-8 * dt));
                     if (state != State.Atk && dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)

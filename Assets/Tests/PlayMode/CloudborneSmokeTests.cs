@@ -236,6 +236,55 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheShortRunsChaseAndThief()
+        {
+            // short runs for a change of pace (the user): in 1-1 a pack bursts in from behind - reaching the lantern,
+            // he has escaped; in 1-2 a thief runs off with a sack - caught, it bursts
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            game.hero.inv = 999f;
+            game.hero.hp = 9999;
+            game.Teleport(CbGame.ChaseFrom + 1f);
+            game.hero.y = 0;
+            yield return Frames(3);
+            Assert.IsTrue(game.ChaseStarted, "No chase on the stretch after the gorge");
+            var pack = game.enemies.FindAll(e => !e.dead && e.x < game.hero.x - 8f);
+            Assert.GreaterOrEqual(pack.Count, 3, "The pack did not burst in from behind");
+            float was = pack[0].x;
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(pack[0].x, was + 1.5f, "The pack did not run after Raja");
+            game.Teleport(CbGame.ChaseTo + 0.5f);
+            game.hero.y = 0;
+            yield return Frames(3);
+            Assert.IsTrue(game.ChaseEscaped, "Reaching the lantern ahead of the pack was no escape");
+            // 1-2: the thief
+            CbStage.Set("1-2");
+            game.BuildStage();
+            game.StartGame();
+            yield return Frames(2);
+            game.hero.inv = 999f;
+            game.Teleport(CbGame.ThiefFrom + 1f);
+            game.hero.y = 0;
+            yield return Frames(3);
+            Assert.IsTrue(game.ThiefStarted, "No thief on the bough");
+            var thief = game.Thief;
+            Assert.IsNotNull(thief);
+            Assert.Greater(thief.x, game.hero.x + 3f, "The thief did not start ahead of Raja");
+            was = thief.x;
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(thief.x, was + 1.5f, "The thief did not run off");
+            yield return TakePictures(new[] { ("run_thief", float.NaN, 0f) }, 0.3f);
+            int items = game.items.ItemCount;
+            game.HurtEnemy(thief, 40, 1, 2, 0, false, false, false, true);
+            yield return Frames(3);
+            Assert.IsTrue(game.ThiefCaught, "Struck down, the thief was not caught");
+            Assert.Greater(game.items.ItemCount, items + 5, "The thief's sack did not burst");
+            CbStage.Set("1-1");
+        }
+
+        [UnityTest]
         public IEnumerator ZzResultsComeIn()
         {
             game = CbGame.Boot();
