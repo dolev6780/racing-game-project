@@ -632,7 +632,7 @@ namespace Cloudborne
             foreach (var (x, kind, range, asleep) in PostPlan)
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; HasKey = false; hurtOnce = false; lastHp = hero.hp;
-            boss = null; bossStarted = bossDone = false; FireAwakened = false;
+            boss = null; bossStarted = bossDone = false; FireAwakened = false; bossIntroSeen = false;
             // (stage 1-3 has no boss: Baba's trials, then the way on)
             if (CbStage.Grove) bossStarted = bossDone = true;
             trial = 0;
@@ -789,6 +789,9 @@ namespace Cloudborne
             bossStarted = true;
             lockZone = BossZone;
             hud.ShowGo(false);
+            // a checkpoint at the boss's arena: beaten, Raja tries again from here, not from a lantern far back (on the
+            // river its own checkpoints run on to the basin)
+            if (!CbStage.River) Checkpoint(BossX - BossRetryBack);
             if (CbStage.Treetops) { SpawnTusk(); return; }
             if (CbStage.Ember) { SpawnGrak(); return; }
             if (CbStage.River)
@@ -800,10 +803,17 @@ namespace Cloudborne
                 BossCutIn("THE SAW BARGE!", level.SawBargeCloseUp);
                 return;
             }
+            // his scene the first time; trying again, straight into the fight
+            if (bossIntroSeen) { SpawnBoss(BossX + 4f); return; }
+            bossIntroSeen = true;
             mode = Mode.Scene;
             hud.SetScreen(CbHud.Screen.Scene);
             scene = CbStory.SnapIntro(this, BossX);
         }
+
+        // how far before the boss's arena Raja comes back to try again; his scene seen once already this run
+        const float BossRetryBack = 9f;
+        bool bossIntroSeen;
 
         /// <summary>The fight with Sergeant Snap begins, with him standing at x.</summary>
         public void SpawnBoss(float x)
