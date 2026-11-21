@@ -362,7 +362,10 @@ namespace Cloudborne
         void AddFireflyHollow()
         {
             var t = CbArt.Joint(root, HollowX, 0f, HollowModelZ, "hollowTree");
-            var foot = Fit(HollowTreePath, t, new Vector3(-HollowFootW / 2, -0.15f, -HollowFootD / 2), new Vector3(HollowFootW / 2, HollowFootH - 0.15f, HollowFootD / 2));
+            // (turned about: as imported its back was to the camera, the hollow out of sight - the CI's pictures)
+            var turn = CbArt.Joint(t, 0, 0, 0, "turn");
+            turn.localRotation = Quaternion.Euler(0, 180f, 0);
+            var foot = Fit(HollowTreePath, turn, new Vector3(-HollowFootW / 2, -0.15f, -HollowFootD / 2), new Vector3(HollowFootW / 2, HollowFootH - 0.15f, HollowFootD / 2));
             if (foot != null)
             {
                 // (its mouth: in front of its middle by this much, between the roots)
@@ -396,7 +399,7 @@ namespace Cloudborne
         }
 
         // the bark of the column over the modelled foot, toned to the model's own
-        static readonly Color HollowBark = new Color(0.62f, 0.6f, 0.62f);
+        static readonly Color HollowBark = new Color(0.52f, 0.48f, 0.5f);
 
         void AddHighFruitVine()
         {
