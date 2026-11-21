@@ -576,9 +576,10 @@ namespace Cloudborne
                 const float Far = 140f;
                 if (artMat != null)
                 {
-                    var m = new Material(artMat) { mainTextureScale = new Vector2((w + 0.1f) / artTile, 1), mainTextureOffset = new Vector2((x0 - 0.05f) / artTile, 0) };
-                    CbArt.Part(CbMesh.Quad, m, root, new Vector3(c, -DropArtHeight / 2, GroundFront - 0.012f), new Vector3(w + 0.1f, DropArtHeight, 1), shadows: false).name = "dropArt";
-                    CbArt.Part(CbMesh.Quad, below, root, new Vector3(c, -(DropArtHeight + DropBottom) / 2, GroundFront - 0.012f), new Vector3(w + 0.1f, DropBottom - DropArtHeight, 1), shadows: false).name = "dropFront";
+                    // (exactly the gap's width: a hair wider, its edge showed as a pale line down the ground's face)
+                    var m = new Material(artMat) { mainTextureScale = new Vector2(w / artTile, 1), mainTextureOffset = new Vector2(x0 / artTile, 0) };
+                    CbArt.Part(CbMesh.Quad, m, root, new Vector3(c, -DropArtHeight / 2, GroundFront - 0.012f), new Vector3(w, DropArtHeight, 1), shadows: false).name = "dropArt";
+                    CbArt.Part(CbMesh.Quad, below, root, new Vector3(c, -(DropArtHeight + DropBottom) / 2, GroundFront - 0.012f), new Vector3(w, DropBottom - DropArtHeight, 1), shadows: false).name = "dropFront";
                 }
                 else CbArt.Part(CbMesh.Quad, front, root, new Vector3(c, -6f, GroundFront - 0.012f), new Vector3(w + 0.1f, 12f, 1), shadows: false).name = "dropFront";
                 CbArt.Part(CbMesh.Quad, haze, root, new Vector3(c, -11f, (GroundFront + Far) / 2), new Vector3(w + 0.1f, Far - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "dropFloor";
