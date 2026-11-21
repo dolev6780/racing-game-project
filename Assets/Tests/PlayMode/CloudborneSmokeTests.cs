@@ -155,6 +155,40 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator SnapBreaksAndFliesIntoARage()
+        {
+            // the first boss made more fun (the user): blows fill his break gauge and break him - dazed, taking more -
+            // and half beaten he flies into a rage
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipToBoss();
+            yield return Frames(2);
+            game.Teleport(CbWorld.GoalX - 20f);
+            yield return WaitForMode(CbGame.Mode.Scene, 3f);
+            game.scene.Skip();
+            yield return Frames(3);
+            var snap = game.boss;
+            Assert.IsNotNull(snap, "Sergeant Snap did not appear");
+            game.hero.hp = 9999;
+            game.hero.inv = 999f;
+            for (int k = 0; k < 20 && !snap.Stunned; k++)
+            {
+                game.HurtEnemy(snap, 12, 1, 2, 0, false, false, false, true);
+                yield return Frames(2);
+            }
+            Assert.IsTrue(snap.Stunned, "Raja's blows never broke Snap");
+            Assert.AreEqual(1, snap.Breaks);
+            float was = snap.hp;
+            game.HurtEnemy(snap, 10, 1, 2, 0, false, false, false, true);
+            Assert.Greater(was - snap.hp, 10f * CbSave.DamageMul * 1.4f, "Broken, Snap took no more from a blow");
+            // half beaten: once his daze wears off, the roar, and the rage
+            snap.hp = snap.max * 0.45f;
+            for (float w = 0; w < 8f && !snap.furious; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(snap.furious, "Half beaten, Snap never flew into a rage");
+        }
+
+        [UnityTest]
         public IEnumerator ZzResultsComeIn()
         {
             game = CbGame.Boot();

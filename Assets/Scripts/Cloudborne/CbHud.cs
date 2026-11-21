@@ -32,8 +32,8 @@ namespace Cloudborne
         readonly RectTransform play, barTop, barBottom, bubble, skipBtn;
         readonly Text whoTxt, lineTxt, nextTxt;
         // a boss's name and health, at the top in the middle
-        readonly RectTransform bossBar;
-        readonly Image bossFill;
+        readonly RectTransform bossBar, breakBar;
+        readonly Image bossFill, breakFill;
         readonly Text bossName;
         string lineFull = "";
         float lineShown, barsK, blipT;
@@ -145,6 +145,11 @@ namespace Cloudborne
             var bossBg = UIKit.Rect(bossFrame, "bg", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(336, 8));
             UIKit.Image(bossBg, UIKit.RoundedSmall, new Color(0.07f, 0.09f, 0.06f, 0.85f));
             bossFill = UIKit.Image(UIKit.Rect(bossBg, "fill", new Vector2(0, 0.5f), new Vector2(0, 0.5f), Vector2.zero, new Vector2(336, 8)), null, Ember);
+            // Sergeant Snap's break gauge, under his health: filling yellow; broken, it flashes and drains as his daze wears off
+            breakBar = UIKit.Rect(bossBar, "break", new Vector2(0.5f, 0), new Vector2(0.5f, 1), new Vector2(0, -3), new Vector2(240, 8));
+            UIKit.Image(breakBar, UIKit.RoundedSmall, new Color(0.07f, 0.09f, 0.06f, 0.85f));
+            breakFill = UIKit.Image(UIKit.Rect(breakBar, "fill", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(2, 0), new Vector2(236, 4)), null, Gold);
+            breakBar.gameObject.SetActive(false);
             bossBar.gameObject.SetActive(false);
 
             // combo, go
@@ -609,11 +614,20 @@ namespace Cloudborne
         }
 
         /// <summary>A boss's name and a full health bar.</summary>
-        public void ShowBoss(string name)
+        public void ShowBoss(string name, bool breakGauge = false)
         {
             bossName.text = name;
             bossBar.gameObject.SetActive(true);
+            breakBar.gameObject.SetActive(breakGauge);
             SetBoss(1);
+            SetBossBreak(0, false);
+        }
+
+        /// <summary>The boss's break gauge (0 to 1); broken, it flashes white and gold as it drains.</summary>
+        public void SetBossBreak(float v, bool broken)
+        {
+            breakFill.rectTransform.localScale = new Vector3(Mathf.Clamp01(v), 1, 1);
+            breakFill.color = broken ? Color.Lerp(Gold, Color.white, 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 18f)) : Gold;
         }
 
         public void SetBoss(float left) => bossFill.rectTransform.localScale = new Vector3(Mathf.Clamp01(left), 1, 1);

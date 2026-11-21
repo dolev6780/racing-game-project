@@ -812,9 +812,9 @@ namespace Cloudborne
             enemies.Add(boss);
             arenaFoes.Clear();
             arenaFoes.Add(boss);
-            hud.ShowBoss("SGT. SNAP");
+            hud.ShowBoss("SGT. SNAP", breakGauge: true);
             hud.SetWave("Defeat Sergeant Snap");
-            hud.SetTip("<color=#ffb03a>Swipe ↔</color> to dodge his three blows, then strike. Purple flash: get away! A <color=#ffb03a>KI</color> move stops his whistle");
+            hud.SetTip("Hit him and dodge his blows to fill the <color=#ffc94a>yellow gauge</color> - full, he's <color=#ffc94a>BROKEN</color>! Purple flash: get away, then strike his stuck cleaver");
             BossCutIn(boss, "SGT. SNAP!");
         }
 
@@ -956,6 +956,51 @@ namespace Cloudborne
                 incoming.RemoveAt(i--);
             }
         }
+
+        /// <summary>Sergeant Snap broken (his gauge full): BREAK!, the moment slowed, coins spilling from his purse.</summary>
+        public void SnapBroken(CbEnemy e)
+        {
+            hud.Banner("BREAK!");
+            hud.ImpactFlash(0.45f);
+            hud.SpeedLines(0.8f, 0.5f);
+            ImpactFrame(0.1f);
+            if (slow <= 0) { slow = 0.45f; hud.SetSlow(true); }
+            shake = Mathf.Max(shake, 0.5f);
+            CbFx.Sfx("perfect");
+            CbFx.Sfx("heavy", 0.8f);
+            var at = new Vector3(e.x, e.HitHeight + 0.4f, -0.4f);
+            CbVfx.Ring(at, CbFx.Hit * 0.5f, 2.6f, 0.35f);
+            CbFx.Spark(at, new Color(1f, 0.85f, 0.3f) * 2f, 24, 8, 0.4f, 0.5f, 4);
+            for (int k = 0; k < SnapBreakCoins; k++) items.Spawn(CbItems.Kind.Coin, new Vector3(e.x, e.y + 1.4f, 0));
+            score += 500;
+            hud.Popup(new Vector3(e.x, e.HitHeight + 1.8f, 0), "+500", CbHud.PopStyle.Big);
+        }
+
+        /// <summary>Sergeant Snap half beaten: his roar - the rage.</summary>
+        public void SnapFurious(CbEnemy e)
+        {
+            hud.Banner("SNAP IS FURIOUS!", true);
+            hud.ImpactFlash(0.3f);
+            shake = Mathf.Max(shake, 0.6f);
+            CbFx.Sfx("heavy");
+            var at = new Vector3(e.x, e.HitHeight, -0.4f);
+            CbVfx.Ring(at, new Color(1f, 0.2f, 0.1f) * 0.6f, 3.2f, 0.45f);
+            CbFx.Puff(at + Vector3.up * 0.8f, new Color(0.95f, 0.9f, 0.88f), 10, 2.5f, 0.9f, 0.6f);
+        }
+
+        /// <summary>Sergeant Snap beaten: K.O.!, slowed, coins bursting from his purse.</summary>
+        void SnapKnockedOut(CbEnemy e)
+        {
+            slow = 1.2f;
+            hud.SetSlow(true);
+            hud.Banner("K.O.!");
+            hud.SpeedLines(1f, 0.9f);
+            shake = Mathf.Max(shake, 0.7f);
+            for (int k = 0; k < SnapKoCoins; k++) items.Spawn(CbItems.Kind.Coin, new Vector3(e.x, e.y + 1.4f, 0));
+        }
+
+        // coins from Snap's purse at each break, and at his K.O.
+        const int SnapBreakCoins = 3, SnapKoCoins = 8;
 
         /// <summary>
         /// In a fight, an arrow at the side of the screen for any of its soldiers out of view (they were there, out of
@@ -1216,6 +1261,7 @@ namespace Cloudborne
             if (lockZone == BossZone)
             {
                 if (boss != null) hud.SetBoss(boss.hp / boss.max);
+                if (boss != null && boss.Boss) hud.SetBossBreak(boss.Stunned ? boss.stunT / CbEnemy.SnapStunTime : boss.breakMeter, boss.Stunned);
                 if (boss != null && boss.dead && ArenaClear) BossBeaten();
                 return;
             }
@@ -1296,6 +1342,10 @@ namespace Cloudborne
             // a ki move (a staff technique, or fire) on the sergeant while he whistles stops the call
             if ((fire || ki) && e.Whistling) e.BreakWhistle();
             if (hero.empower && fromPlayer) { dmg *= 2; hero.empower = false; big = true; }
+            // Sergeant Snap: broken, he takes half as much again; his gauge fills with Raja's blows, twice as fast while
+            // his cleaver is stuck (CbEnemySnap)
+            if (e.Boss && e.Stunned) { dmg *= 1.5f; big = true; }
+            else if (e.Boss && fromPlayer) e.AddBreak(dmg / CbEnemy.SnapBreakHp * (e.Stuck ? 2f : 1f));
             e.hp -= dmg;
             // (Grak can't be beaten before Raja's fire wakes: CbEnemyGrak)
             e.HoldOn();
@@ -1335,6 +1385,8 @@ namespace Cloudborne
             e.Kill(dir);
             // a boss going down: the longest impact frame
             if (e.Big) { impactGap = 0; ImpactFrame(0.14f); }
+            // Sergeant Snap beaten: K.O.! - the moment slowed, his purse bursting
+            if (e.Boss) SnapKnockedOut(e);
             score += e.scoreValue;
             hitstop = Mathf.Max(hitstop, 0.06f);
             shake = Mathf.Max(shake, 0.4f);
@@ -1401,6 +1453,8 @@ namespace Cloudborne
         public void PerfectDodge()
         {
             if (slow > 0) return;
+            // dodging the sergeant's blow fills a third of his break gauge
+            if (boss != null && boss.Boss && !boss.dead && Mathf.Abs(boss.x - hero.x) < 5f) boss.AddBreak(CbEnemy.SnapBreakDodge);
             slow = 1f;
             hero.empower = true;
             hero.inv = Mathf.Max(hero.inv, 0.6f);

@@ -15,7 +15,7 @@ namespace Cloudborne
         public enum Kind { Hyena, Shield, Sergeant, Thrower, Tusk, Grak }
         public enum State { Move, Atk, Hurt, Dying }
         /// <summary>Sergeant Snap's attacks.</summary>
-        public enum BossMove { Combo, Chop, Leap, Whistle }
+        public enum BossMove { Combo, Chop, Leap, Whistle, Roar }
 
         public readonly Kind kind;
         public readonly Rig f;
@@ -264,7 +264,10 @@ namespace Cloudborne
                     else model.Window("Shouting_Angrily", 0f, 1f, t / WhistleTime);
                     break;
                 default:
-                    if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh * WalkPace * paceK / (Mathf.PI * 2));
+                    // dazed, reeling; stuck, bent over his cleaver in the ground, tugging
+                    if (stunT > 0) model.Show("Hit_Reaction", 0.32f + 0.05f * Mathf.Sin(g.clock * 3.2f), 0.15f);
+                    else if (stuckT > 0) model.Show("Charged_Axe_Chop", 0.56f + 0.015f * Mathf.Sin(g.clock * 22f), 0.1f);
+                    else if (Mathf.Abs(vx) > 0.4f) model.Loop("Walk_Fight_Forward", runPh * WalkPace * paceK / (Mathf.PI * 2));
                     else model.LoopSeconds("Combat_Stance", g.clock * (open > 0 ? 1.8f : 1f));
                     break;
             }
@@ -363,8 +366,10 @@ namespace Cloudborne
             if (Boss)
             {
                 // armoured: he takes the blows and keeps going, unless he stands open or a big blow lands
-                if (open <= 0 && state == State.Atk) return;
-                if (open <= 0 && kb < 7) { vx = dir * kb * 0.3f; return; }
+                if (open <= 0 && stunT <= 0 && state == State.Atk) return;
+                if (open <= 0 && stunT <= 0 && kb < 7) { vx = dir * kb * 0.3f; return; }
+                // (stuck, he stays at his cleaver)
+                if (stuckT > 0) { vx = 0; return; }
                 kb *= 0.5f;
                 up = Mathf.Min(up, 3);
             }
@@ -403,6 +408,9 @@ namespace Cloudborne
         /// <summary>Sergeant Snap between attacks: walks up, and picks his next one.</summary>
         void BossThink(ref Pose pose, float dt, CbHero hero, float dx, float dist)
         {
+            // broken: dazed; after a chop: tugging at his cleaver (CbEnemySnap)
+            if (stunT > 0) { Dizzy(ref pose, dt); return; }
+            if (stuckT > 0) { Tug(ref pose, dt); return; }
             if (open > 0)
             {
                 open -= dt;
@@ -419,9 +427,12 @@ namespace Cloudborne
                 StartBossMove(BossMove.Whistle);
                 return;
             }
-            if (can && dist > 5f) { StartBossMove(BossMove.Leap); return; }
+            // half beaten: the rage
+            if (can && !furious && left < 0.5f) { StartBossMove(BossMove.Roar); return; }
+            if (can && leapAgain) { leapAgain = false; secondLeap = true; StartBossMove(BossMove.Leap); return; }
+            if (can && dist > 5f) { secondLeap = false; StartBossMove(BossMove.Leap); return; }
             if (can && dist <= reach + 0.4f) { StartBossMove(Random.value < 0.6f ? BossMove.Combo : BossMove.Chop); return; }
-            float want = dist > reach ? Mathf.Sign(dx) * speed : 0;
+            float want = dist > reach ? Mathf.Sign(dx) * speed * (furious ? FurySpeed : 1f) : 0;
             vx += (want - vx) * (1 - Mathf.Exp(-8 * dt));
             if (Mathf.Abs(vx) > 0.4f) { runPh += dt * Mathf.Abs(vx) * 2.1f; Pose.Run(ref pose, runPh, 0.9f); }
             else pose.bob = Mathf.Sin(g.clock * 3) * 0.02f - 0.05f;
@@ -439,22 +450,24 @@ namespace Cloudborne
             switch (bossMove)
             {
                 case BossMove.Combo:
-                    if (blow < ComboBlows.Length)
+                    if (blow < Blows.Length)
                     {
-                        float next = ComboBlows[blow];
+                        float next = Blows[blow];
                         // a glow rising to the blow (it flickered: the user)
                         if (t > next - 0.28f && t < next) tele = 0.6f * Mathf.InverseLerp(next - 0.28f, next, t);
                         if (t >= next)
                         {
                             vx = facing * 2.5f;
-                            if (ddx > -0.3f && ddx < reach + 0.5f && hero.y < 2f) hero.TakeHit(dmg, facing);
+                            // (in a rage, the fourth blow is the heaviest, and throws him back)
+                            bool last = furious && blow == Blows.Length - 1;
+                            if (ddx > -0.3f && ddx < reach + 0.5f && hero.y < 2f) hero.TakeHit(last ? Mathf.Round(dmg * 1.6f) : dmg, facing, knock: last ? 6f : 0f);
                             CbFx.Sfx("swing", 0.7f);
                             CbFx.Spark(new Vector3(x + facing * 1.2f, 1.2f, -0.4f), CbFx.Grey, 4, 4, 0.3f, 0.2f);
                             blow++;
                         }
                     }
                     vx = Mathf.MoveTowards(vx, 0, 8 * dt);
-                    if (t >= ComboTime) { state = State.Move; open = 0.9f; cd = 1.2f; }
+                    if (t >= ComboLength) { state = State.Move; open = 0.9f; cd = Rest(1.2f); }
                     break;
                 case BossMove.Chop:
                     vx = 0;
@@ -469,7 +482,12 @@ namespace Cloudborne
                         CbFx.Sfx("heavy");
                         if (ddx > -0.3f && ddx < 2.6f && hero.y < 1.6f) hero.TakeHit(20, facing, unblockable: true, knock: 6.5f);
                     }
-                    if (t >= ChopTime) { state = State.Move; open = 1.1f; cd = 1.3f; }
+                    // the cleaver stuck in the ground: he tugs at it (CbEnemySnap.Tug) - the moment to strike
+                    if (t >= ChopTime)
+                    {
+                        state = State.Move; stuckT = SnapStuckTime; open = SnapStuckTime; cd = Rest(1.3f);
+                        g.hud.Popup(new Vector3(x + facing * 1.2f, 2.2f, 0), "STUCK!", CbHud.PopStyle.Big);
+                    }
                     break;
                 case BossMove.Leap:
                     if (!airborne && !hitDone && t > 0.25f)
@@ -494,7 +512,13 @@ namespace Cloudborne
                         CbFx.Sfx("heavy");
                         if (Mathf.Abs(hero.x - x) < 1.9f && hero.y < 0.35f) hero.TakeHit(14, hero.x >= x ? 1 : -1, knock: 5f);
                     }
-                    if (t >= LeapTime && !airborne) { state = State.Move; cd = 1.0f; }
+                    // (in a rage, a second leap straight after the first)
+                    if (t >= LeapTime && !airborne)
+                    {
+                        state = State.Move;
+                        if (furious && !secondLeap) { leapAgain = true; cd = 0.2f; }
+                        else cd = Rest(1.0f);
+                    }
                     break;
                 case BossMove.Whistle:
                     vx = 0;
@@ -505,7 +529,10 @@ namespace Cloudborne
                         g.hud.Popup(new Vector3(x, y + 3f, 0), "!", CbHud.PopStyle.Big);
                     }
                     if (t > 1.2f && !hitDone) { hitDone = true; g.SummonRaiders(); }
-                    if (t >= WhistleTime) { state = State.Move; cd = 0.8f; }
+                    if (t >= WhistleTime) { state = State.Move; cd = Rest(0.8f); }
+                    break;
+                case BossMove.Roar:
+                    Roar(ref pose, hero);
                     break;
             }
         }
@@ -766,6 +793,7 @@ namespace Cloudborne
             // white on a hit; the modelled hyenas take less, or bloom turns them into a white cut-out
             if (flash > 0) f.SetFlash(Color.white, model != null ? 0.45f : 0.9f);
             else if (tele > 0) f.SetFlash(telePurple ? new Color(0.7f, 0.3f, 1f) : Color.white, tele);
+            else if (Boss && FuryGlow(out float fury)) f.SetFlash(new Color(1f, 0.15f, 0.08f), fury);
             else if (burnT > 0) f.SetFlash(new Color(1f, 0.48f, 0.1f), 0.25f);
             else f.SetFlash(Color.black, 0);
             return false;
