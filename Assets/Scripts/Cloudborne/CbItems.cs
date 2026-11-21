@@ -12,7 +12,7 @@ namespace Cloudborne
     /// </summary>
     public class CbItems
     {
-        public enum Kind { Mango, KiCrystal, GoldenFruit, Coin, Scroll, Token, Key }
+        public enum Kind { Mango, KiCrystal, GoldenFruit, Coin, Scroll, Token, Key, Treasure }
 
         class Item
         {
@@ -29,6 +29,10 @@ namespace Cloudborne
             public float x, cooldown;
             public int hp;
             public Kind[] contents;
+            // a hidden stash (a cracked boulder, an old stump): its own stone or wood flies when it breaks, and now and
+            // then it glints, a hint
+            public Material chips;
+            public bool secret;
         }
 
         public const float MangoHeal = 25f, KiCrystalKi = 40f;
@@ -39,13 +43,17 @@ namespace Cloudborne
         // it; its body is the model's, 0.89 m across and 0.95 m tall
         const float CrateBody = 0.445f, CrateTop = 0.95f;
         // a tiger token is a big coin glowing orange
-        static readonly string[] ModelNames = { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll", "Coin", "Key" };
+        // (a secret's treasure: a great gold coin)
+        static readonly string[] ModelNames = { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll", "Coin", "Key", "Coin" };
         static readonly Color[] Glows =
         {
             new Color(1f, 0.55f, 0.25f, 0.5f), new Color(1f, 0.6f, 0.15f, 0.6f), new Color(1f, 0.85f, 0.3f, 0.7f),
             new Color(1f, 0.8f, 0.25f, 0.45f), new Color(1f, 0.35f, 0.25f, 0.6f), new Color(1f, 0.5f, 0.1f, 0.8f), new Color(1f, 0.9f, 0.4f, 0.7f),
+            new Color(1f, 0.92f, 0.45f, 0.9f),
         };
-        static readonly float[] Sizes = { 0.5f, 0.55f, 0.55f, 0.45f, 0.65f, 0.8f, 0.6f };
+        static readonly float[] Sizes = { 0.5f, 0.55f, 0.55f, 0.45f, 0.65f, 0.8f, 0.6f, 1f };
+        /// <summary>What a secret's treasure is worth: points, and coins.</summary>
+        public const int TreasureScore = 1000, TreasureCoins = 10;
 
         readonly CbGame g;
         readonly Transform root;
@@ -140,6 +148,11 @@ namespace Cloudborne
         void LayOutTreetops()
         {
             void C(float x, float y) => Spawn(Kind.Coin, new Vector3(x, y, 0), resting: true);
+            // stage 1-2's secrets: on a high branch over the vine gap (jumped to from the top of a vine's swing, a few
+            // coins showing the way), and in an old stump on the big bough
+            Spawn(Kind.Treasure, new Vector3(CbLevel.VineSecretX, CbLevel.VineSecretTop + 1.1f, 0), resting: true);
+            C(74.4f, 6.4f); C(75.2f, 7.4f);
+            AddStash(CbLevel.StumpStashX, true);
             AddCrate(10f, Kind.Coin, Kind.Coin, Kind.Coin);
             AddCrate(40f, Kind.Mango, Kind.Coin);
             AddCrate(91f, Kind.KiCrystal, Kind.Coin);
@@ -208,6 +221,44 @@ namespace Cloudborne
             Spawn(Kind.KiCrystal, new Vector3(CbLevel.GrakX - 13f, 1.2f, 0), resting: true);
         }
 
+        /// <summary>
+        /// A hidden stash, solid like a crate: a cracked boulder (stone) or an old stump (wood) that breaks after three
+        /// blows, its treasure inside, glinting now and then (the user: secrets to find, worth playing a stage again).
+        /// </summary>
+        void AddStash(float x, bool stump)
+        {
+            var t = CbArt.Joint(root, x, 0, 0.1f, stump ? "stashStump" : "stashBoulder");
+            var chips = stump ? CbArt.Toon("#6b4e38", CbArt.PropOutline) : CbArt.Toon("#6d6a64", CbArt.PropOutline);
+            var fit = CbArt.Joint(t, 0, 0, 0, "fit");
+            var model = CbArt.Prop(stump ? "Cloudborne/Jungle/Log/Log" : "Cloudborne/Jungle/CrackedRock/CrackedRock", fit, CbArt.PropOutline);
+            if (model != null)
+            {
+                // stood up into a stump / squeezed into a boulder the size of a crate
+                if (stump) model.localRotation = Quaternion.Euler(0, 0, 90f) * model.localRotation;
+                FitInto(fit, new Vector3(CrateBody * 2.1f, CrateTop + 0.05f, 1f));
+            }
+            else CbArt.Part(CbMesh.Sphere, chips, t, new Vector3(0, 0.45f, 0), new Vector3(1f, 0.95f, 0.95f));
+            crates.Add(new Crate { t = t, x = x, hp = 3, contents = new[] { Kind.Treasure, Kind.Coin, Kind.Coin }, chips = chips, secret = true });
+        }
+
+        /// <summary>
+        /// Scales the unturned joint fit (a model inside it, turned as it likes) to fill size, its foot on the ground
+        /// under the joint's parent and centred on it.
+        /// </summary>
+        static void FitInto(Transform fit, Vector3 size)
+        {
+            var rs = fit.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return;
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            var k = new Vector3(size.x / Mathf.Max(0.01f, b.size.x), size.y / Mathf.Max(0.01f, b.size.y), size.z / Mathf.Max(0.01f, b.size.z));
+            fit.localScale = Vector3.Scale(fit.localScale, k);
+            b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            var p = fit.parent.position;
+            fit.position += new Vector3(p.x - b.center.x, p.y - b.min.y, p.z - b.center.z);
+        }
+
         void AddCrate(float x, params Kind[] contents)
         {
             // the model sits in a joint that is turned and shaken, so the model's own root rotation (the axis
@@ -234,6 +285,10 @@ namespace Cloudborne
         void LayOutWays()
         {
             void C(float x, float y) => Spawn(Kind.Coin, new Vector3(x, y, 0), resting: true);
+            // stage 1-1's secrets: on the hidden ledge back over the start (a springy leaf throws him up to it), and in a
+            // cracked boulder in the way before the vine ravine
+            Spawn(Kind.Treasure, new Vector3(CbLevel.StartSecretX, CbLevel.StartSecretTop + 1.1f, 0), resting: true);
+            AddStash(CbLevel.BoulderStashX, false);
             // the vine ravine
             foreach (var x in new[] { 204f, 207.8f, 211.5f, 226.8f }) C(x, 3.4f);
             for (float x = 216.5f; x < 223f; x += 1.3f) C(x, 3.6f);
@@ -286,6 +341,7 @@ namespace Cloudborne
             bool lotus = kind == Kind.Token && CbStage.River;
             var model = CbArt.Prop(lotus ? "Cloudborne/River/Lotus/Lotus" : $"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
             if (kind == Kind.Token && model != null && !lotus) model.localScale *= 1.8f;
+            if (kind == Kind.Treasure && model != null) model.localScale *= 2.4f;
             // the key model lies flat: stood up, its face to the camera
             if (kind == Kind.Key && model != null) model.localRotation = Quaternion.Euler(90, 0, 0) * model.localRotation;
             if (kind == Kind.Key && model == null)
@@ -406,11 +462,18 @@ namespace Cloudborne
                 var tex = Resources.Load<Texture2D>("Cloudborne/Items/Crate/Crate_Albedo");
                 crateWood = tex != null ? CbArt.AnimeToon(tex, CbArt.PropOutline) : crateMat ?? CbArt.Toon("#a8783e", CbArt.PropOutline);
             }
+            if (c.secret)
+            {
+                // a stash broken open: a flash of gold, and the hidden treasure
+                CbVfx.Ring(at, new Color(1f, 0.85f, 0.3f) * 0.5f, 2f, 0.4f);
+                g.hud.Popup(new Vector3(c.x, 2.2f, 0), "SOMETHING INSIDE!", CbHud.PopStyle.Big);
+            }
             for (int k = 0; k < 7; k++)
             {
-                // two long boards, the rest thin splinters
-                var size = k < 2 ? new Vector3(0.62f, 0.13f, 0.05f) : new Vector3(Random.Range(0.22f, 0.4f), 0.05f, 0.035f);
-                var chip = CbArt.Part(CbMesh.Box(), crateWood, g.transform, at + Random.insideUnitSphere * 0.3f, size, Random.rotation, shadows: false);
+                // two long boards, the rest thin splinters (a stash: lumps of its stone or wood)
+                var size = c.chips != null ? Vector3.one * Random.Range(0.14f, 0.3f)
+                    : k < 2 ? new Vector3(0.62f, 0.13f, 0.05f) : new Vector3(Random.Range(0.22f, 0.4f), 0.05f, 0.035f);
+                var chip = CbArt.Part(CbMesh.Box(), c.chips ?? crateWood, g.transform, at + Random.insideUnitSphere * 0.3f, size, Random.rotation, shadows: false);
                 g.AddDebris(chip, new Vector3(dir * Random.Range(1f, 5f), Random.Range(3f, 7f), Random.Range(-1f, 1f)), Random.Range(-600f, 600f));
             }
             CbFx.Puff(at, new Color(0.85f, 0.76f, 0.6f), 7, 1.6f, 0.7f, 0.45f);
@@ -425,7 +488,13 @@ namespace Cloudborne
 
         public void Update(float dt, CbHero hero, Camera cam)
         {
-            foreach (var c in crates) c.cooldown = Mathf.Max(0, c.cooldown - dt);
+            foreach (var c in crates)
+            {
+                c.cooldown = Mathf.Max(0, c.cooldown - dt);
+                // a stash glints now and then
+                if (c.secret && Random.value < dt * 0.7f)
+                    CbVfx.Sparkle(new Vector3(c.x + Random.Range(-0.3f, 0.3f), CrateTop + 0.1f, -0.5f), new Color(1f, 0.9f, 0.5f) * 1.6f, 0.5f, 0.2f);
+            }
             for (int i = items.Count - 1; i >= 0; i--)
             {
                 var it = items[i];
@@ -507,6 +576,16 @@ namespace Cloudborne
                     g.score += 1000;
                     CbVfx.Ring(at, CbFx.Fire * 0.5f, 2.2f, 0.45f);
                     CbFx.Spark(at, CbFx.Fire, 24, 5, 0.4f, 0.6f, -3);
+                    break;
+                case Kind.Treasure:
+                    Coins += TreasureCoins;
+                    g.score += TreasureScore;
+                    PlayerPrefs.SetInt(BankKey, PlayerPrefs.GetInt(BankKey, 0) + TreasureCoins);
+                    g.SecretFound();
+                    g.hud.Popup(at + Vector3.up * 1.2f, "+" + TreasureScore, CbHud.PopStyle.Big);
+                    CbVfx.Ring(at, new Color(1f, 0.85f, 0.3f) * 0.6f, 2.6f, 0.5f);
+                    CbFx.Spark(at, CbFx.Flame, 30, 6, 0.45f, 0.7f, -3);
+                    CbVfx.Sparkle(at, new Color(1f, 0.9f, 0.5f) * 1.8f, 2.6f, 0.6f);
                     break;
                 case Kind.Key:
                     g.HasKey = true;

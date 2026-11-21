@@ -189,6 +189,53 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator StageOnesSecretsCanBeFound()
+        {
+            // secrets worth playing a stage again for (the user): stage 1-1's hidden ledge over the start, up from a
+            // springy leaf (bounced on, steered back left), and its cracked boulder, broken open
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            game.hero.inv = 999f;
+            yield return Frames(2);
+            Assert.AreEqual(2, CbGame.SecretsInStage);
+            var hero = game.hero;
+            game.Teleport(CbLevel.StartSecretX + 2.6f);
+            hero.y = 2.2f; hero.vx = hero.vy = 0; hero.state = CbHero.State.Air;
+            bool bounced = false;
+            game.TestInput = i => { if (hero.vy > 5f) bounced = true; if (bounced && hero.x > CbLevel.StartSecretX) i.x = -1f; };
+            for (float w = 0; w < 4f && game.Secrets == 0; w += Time.deltaTime) yield return null;
+            game.TestInput = null;
+            Assert.IsTrue(bounced, "The springy leaf by the start did not throw Raja up");
+            Assert.AreEqual(1, game.Secrets, "The hidden ledge's treasure over the start could not be reached from the leaf");
+            // the boulder: three blows and it breaks, its treasure inside
+            game.Teleport(CbLevel.BoulderStashX - 1.2f);
+            hero.y = 0; hero.facing = 1;
+            yield return Frames(3);
+            int crates = game.items.CrateCount;
+            for (int k = 0; k < 3; k++) { game.items.HitCrates(hero.x, 0.5f, 1, 2f); yield return new WaitForSeconds(0.3f); }
+            Assert.AreEqual(crates - 1, game.items.CrateCount, "Three blows did not break the cracked boulder");
+            // (it pops out and lands near by: walked along beside it)
+            yield return new WaitForSeconds(1.2f);
+            for (float dx = -2.5f; dx <= 2.5f && game.Secrets < 2; dx += 0.4f)
+            {
+                game.Teleport(CbLevel.BoulderStashX + dx);
+                hero.y = 0;
+                yield return Frames(3);
+            }
+            Assert.AreEqual(2, game.Secrets, "The cracked boulder held no treasure");
+            // stage 1-2's: pictures of the high branch over the vine gap and the old stump
+            CbStage.Set("1-2");
+            game.BuildStage();
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            yield return TakePictures(new[] { ("secret_vine", CbLevel.VineSecretX - 2f, 0f), ("secret_stump", CbLevel.StumpStashX - 3f, 0f) }, 1f);
+            CbStage.Set("1-1");
+        }
+
+        [UnityTest]
         public IEnumerator ZzResultsComeIn()
         {
             game = CbGame.Boot();

@@ -35,6 +35,8 @@ namespace Cloudborne
         public const float NestX = 202.5f, NestTop = 9.5f;
         /// <summary>The ambush on the big bough, and the long rope bridge's middle and half length.</summary>
         public const float BoughAmbushX = 230f, LongBridgeX = 269f, LongBridgeHalf = 17.5f;
+        /// <summary>Stage 1-2's secrets: the high branch over the vine gap, the old stump on the big bough.</summary>
+        public const float VineSecretX = 75.8f, VineSecretTop = 7.6f, StumpStashX = 214.5f;
 
         void BuildTreetops()
         {
@@ -50,6 +52,8 @@ namespace Cloudborne
             AddVine(66f, 9f, 5f);
             AddVine(72.5f, 9f, 5f);
             AddVine(79f, 9f, 5f);
+            // a secret: a high branch over the gap, reached from the top of a vine's swing (CbItems: its treasure)
+            AddLedge(VineSecretX, 1.4f, VineSecretTop, false);
 
             // ---- the saw drones: one flying to and fro at head height along the bough
             AddSaw(new Vector2(96f, 1.35f), new Vector2(110f, 1.35f), 5f, 0f);

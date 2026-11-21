@@ -89,6 +89,8 @@ namespace Cloudborne
         // the user): up to a ledge over the old shrine with a ki crystal on it, up the canopy's vine pillar (and the
         // ravine's, up to its token ledge)
         public static readonly float[] LeafXs = { 118f, 371.2f };
+        /// <summary>Stage 1-1's secrets: the hidden ledge over the start (a springy leaf to its right), the cracked boulder.</summary>
+        public const float StartSecretX = 11.4f, StartSecretTop = 6.2f, BoulderStashX = 176f;
         /// <summary>The ledge over the old shrine the springy leaf there throws him up to: its middle and top.</summary>
         public const float ShrineLedgeX = 120.6f, ShrineLedgeTop = 6.2f;
         public static readonly float[] LowLogXs = { 183f };
@@ -212,6 +214,9 @@ namespace Cloudborne
             AddLeaf(235.5f, 0.45f);
             // more springy leaves along the stage (the user liked the one in the ravine), each for something
             foreach (var x in LeafXs) AddLeaf(x, 0.45f);
+            // a secret: a springy leaf near the start, its ledge back over the way he came (CbItems: its treasure)
+            AddLeaf(StartSecretX + 2.6f, 0.45f);
+            AddLedge(StartSecretX, 1.6f, StartSecretTop, false);
             AddLedge(ShrineLedgeX, 1.6f, ShrineLedgeTop, false);
             AddLedge(238f, 1.6f, 6.2f, false);
 
