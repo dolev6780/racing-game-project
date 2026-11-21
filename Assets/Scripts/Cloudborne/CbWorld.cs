@@ -384,7 +384,7 @@ namespace Cloudborne
                 CbArt.Box(behind, root, new Vector3((x0 + x1) / 2, -GroundDepth / 2, (CbLevel.PitBack + GroundBack) / 2), new Vector3(x1 - x0, GroundDepth, GroundBack - CbLevel.PitBack));
             }
             // the streams cross the jungle's ground; in the treetops the gaps between the branches drop away
-            if (CbStage.Treetops) BuildDrops(face);
+            if (CbStage.Treetops) { BuildDrops(face); DropEnds(lip); }
             else BuildStreams(grass, face, far);
             // the lawn running back to the trees (not on the river: it lay over the water, a flat green band; nor in the
             // treetops: seen through the gaps between the boughs it was a pale wall in the fog, not a drop)
@@ -659,6 +659,43 @@ namespace Cloudborne
             mesh.RecalculateBounds();
             CbArt.Part(mesh, new Material(face), root, new Vector3(0, 0, GroundFront - 0.015f), Vector3.one, shadows: false).name = "bankSlope";
         }
+
+        /// <summary>
+        /// Stage 1-2's boughs where they end at a gap: their sides there bark, as the great trunks' are, with the moss of
+        /// the front edge hanging over them, vines and all, from the front back (their ends were the ground's box cut
+        /// square, its grass picture smeared down it - blocks in a building game again: the user).
+        /// </summary>
+        void DropEnds(Material lip)
+        {
+            var bark = CbArt.NewToon(new Color(0.8f, 0.74f, 0.66f), 0f, CbLevel.BarkTexture());
+            bark.SetFloat("_SpecStrength", 0f);
+            float depth = GroundBack - GroundFront, mid = (GroundFront + GroundBack) / 2;
+            // the moss: as the front edge's (LipQuad), most of it below the edge
+            var faceTex = Resources.Load<Texture2D>(GroundFacePath);
+            float mpp = faceTex != null ? FaceHeight / faceTex.height : 0.0055f;
+            float lipH = 0, lipTile = 1, lipBelow = 0;
+            if (lip != null)
+            {
+                var tex = lip.mainTexture;
+                lipH = tex.height * mpp * LipScale;
+                lipTile = tex.width * mpp * LipScale;
+                lipBelow = tex.height * (1 - TreetopsLipAbove) * mpp * LipScale;
+            }
+            foreach (var (x0, x1) in CbLevel.Waters)
+                foreach (var (edge, toGap) in new[] { (x0, 1), (x1, -1) })
+                {
+                    // facing into the gap (a hair out from the ground's own end)
+                    var turn = Quaternion.Euler(0, toGap > 0 ? -90 : 90, 0);
+                    var side = new Material(bark) { mainTextureScale = new Vector2(depth / EndBarkTile, GroundDepth / EndBarkTile) };
+                    CbArt.Part(CbMesh.Quad, side, root, new Vector3(edge + toGap * 0.012f, -GroundDepth / 2, mid), new Vector3(depth, GroundDepth, 1), turn, shadows: false).name = "dropEnd";
+                    if (lip == null) continue;
+                    var moss = new Material(lip) { mainTextureScale = new Vector2(depth / lipTile, 1), mainTextureOffset = new Vector2(edge / lipTile, 0) };
+                    CbArt.Part(CbMesh.Quad, moss, root, new Vector3(edge + toGap * 0.03f, lipH / 2 - lipBelow, mid), new Vector3(depth, lipH, 1), turn, shadows: false).name = "dropEndMoss";
+                }
+        }
+
+        // the bark's repeat on the boughs' ends, in metres
+        const float EndBarkTile = 2.4f;
 
         // the lip: drawn a little smaller than the face, so the leaves rise only a hand's breadth over the path's edge
         const float LipScale = 0.7f, TreetopsLipAbove = 0.3f;

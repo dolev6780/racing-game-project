@@ -244,7 +244,7 @@ namespace Cloudborne
         /// Bark made here: long furrows running up, wandering a little, dark in the grooves and lighter on the ridges,
         /// with a few knots; it wraps round and repeats up the trunk without a seam.
         /// </summary>
-        static Texture2D BarkTexture()
+        internal static Texture2D BarkTexture()
         {
             if (barkTex != null) return barkTex;
             const int W = 128, H = 256;
