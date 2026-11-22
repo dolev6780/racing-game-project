@@ -17,9 +17,14 @@ namespace RacingGame.Tests
     {
         CbGame game;
 
-        // every test starts from a fresh save: no coins, upgrades or opening seen
+        // every test starts from a fresh save: no coins, upgrades or opening seen; the cutscenes off, as in the game
+        // (a test of a cutscene itself turns them on)
         [SetUp]
-        public void FreshSave() => CbSave.ResetProgress();
+        public void FreshSave()
+        {
+            CbSave.ResetProgress();
+            CbStory.Cutscenes = false;
+        }
 
         [UnityTearDown]
         public IEnumerator TearDown()
@@ -106,11 +111,9 @@ namespace RacingGame.Tests
             game.StartGame();
             game.SkipToBoss();
             yield return Frames(2);
-            // near the gate he steps out: a scene, then the fight in a shut arena (his arena stands 14 m before it)
+            // near the gate he steps out, and the fight is on in a shut arena (his arena stands 14 m before it)
             game.Teleport(CbWorld.GoalX - 20f);
-            yield return WaitForMode(CbGame.Mode.Scene, 3f);
-            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "Sergeant Snap's scene did not play");
-            game.scene.Skip();
+            for (float w = 0; w < 3f && game.boss == null; w += Time.deltaTime) yield return null;
             yield return Frames(3);
             Assert.AreEqual(CbGame.Mode.Play, game.mode);
             var snap = game.boss;
@@ -165,8 +168,7 @@ namespace RacingGame.Tests
             game.SkipToBoss();
             yield return Frames(2);
             game.Teleport(CbWorld.GoalX - 20f);
-            yield return WaitForMode(CbGame.Mode.Scene, 3f);
-            game.scene.Skip();
+            for (float w = 0; w < 3f && game.boss == null; w += Time.deltaTime) yield return null;
             yield return Frames(3);
             var snap = game.boss;
             Assert.IsNotNull(snap, "Sergeant Snap did not appear");
@@ -338,58 +340,6 @@ namespace RacingGame.Tests
             CbStage.Set("1-1");
         }
 
-        [UnityTest, Timeout(1800000)]
-        public IEnumerator ZzzOpeningVideo()
-        {
-            // the opening cinematic recorded as a video (the user: show me it moving): every frame of it, 24 a second
-            // of game time, drawn by the game's camera with its HUD into artifacts-video/f_NNNNN.jpg; CI makes them
-            // into an MP4. Named to run last, so the video is at the end of the log.
-            game = CbGame.Boot();
-            yield return Frames(3);
-            game.PlayOpening();
-            yield return Frames(2);
-            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "The opening did not start");
-            var cam = game.GetComponentInChildren<Camera>();
-            Assert.IsNotNull(cam, "No game camera");
-            LogAssert.ignoreFailingMessages = true;
-            var hud = GameObject.Find("HUD")?.GetComponent<Canvas>();
-            if (hud != null) { hud.renderMode = RenderMode.ScreenSpaceCamera; hud.worldCamera = cam; hud.planeDistance = 0.5f; }
-            const int W = 1280, H = 720, Fps = 24;
-            const string Dir = "artifacts-video";
-            if (System.IO.Directory.Exists(Dir)) System.IO.Directory.Delete(Dir, true);
-            System.IO.Directory.CreateDirectory(Dir);
-            var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
-            var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
-            cam.targetTexture = rt;
-            cam.aspect = W / (float)H;
-            // game time goes on a frame at a time, however long each takes to draw and save
-            Time.captureDeltaTime = 1f / Fps;
-            int frame = 0;
-            // a second of the stage after the scene hands over, then stop (five minutes at most)
-            float after = 0;
-            while (after < 1f && frame < Fps * 300)
-            {
-                yield return null;
-                if (game.mode != CbGame.Mode.Scene) after += 1f / Fps;
-                cam.targetTexture = rt;
-                cam.aspect = W / (float)H;
-                var prev = RenderTexture.active;
-                RenderTexture.active = rt;
-                tex.ReadPixels(new Rect(0, 0, W, H), 0, 0);
-                tex.Apply();
-                RenderTexture.active = prev;
-                System.IO.File.WriteAllBytes($"{Dir}/f_{frame:00000}.jpg", tex.EncodeToJPG(90));
-                frame++;
-            }
-            Time.captureDeltaTime = 0f;
-            cam.targetTexture = null;
-            cam.ResetAspect();
-            Object.Destroy(tex);
-            rt.Release();
-            Debug.Log($"VIDEO opening: {frame} frames, {frame / (float)Fps:0.0} s");
-            Assert.AreEqual(CbGame.Mode.Play, game.mode, "The opening never ended by itself");
-        }
-
         [UnityTest]
         public IEnumerator ZzResultsComeIn()
         {
@@ -476,6 +426,8 @@ namespace RacingGame.Tests
         [UnityTest]
         public IEnumerator OpeningSceneTakesKodaAndLeadsIntoTheChase()
         {
+            // (a cutscene: turned on for this test)
+            CbStory.Cutscenes = true;
             game = CbGame.Boot();
             yield return Frames(3);
             // START on the title plays the opening the first time
@@ -564,15 +516,10 @@ namespace RacingGame.Tests
             game.TestInput = null;
             Assert.AreEqual(CbMenu.Page.Main, game.menu.Current, "Back did not return to the main page");
 
-            // PLAY: the opening (skipped), then the stage with 20 more health
+            // PLAY: the stage (the cutscenes off), with 20 more health
             game.PlayStage("1-1");
-            yield return WaitForMode(CbGame.Mode.Comic, 6f);
-            game.comic.Skip();
-            yield return WaitForMode(CbGame.Mode.Scene, 4f);
+            yield return WaitForMode(CbGame.Mode.Play, 6f);
             Assert.IsFalse(game.menu.Visible);
-            Assert.AreEqual(CbGame.Mode.Scene, game.mode);
-            game.scene.Skip();
-            yield return Frames(2);
             Assert.AreEqual(CbGame.Mode.Play, game.mode);
             Assert.AreEqual(120f, game.hero.hp, 0.01f, "Tiger Heart did not raise Raja's health");
 
@@ -2325,11 +2272,9 @@ namespace RacingGame.Tests
                 level.Strike(level.FuelX(i) + 1f, CbLevel.RiverFloor(CbLevel.BasinX) + 0.5f, -1, 1.6f, staff: true);
             Assert.AreEqual(0, level.FuelLeft, "The staff did not knock down the fuel barrels");
             Assert.IsTrue(level.SawBargeBeaten, "With its barrels gone the saw barge did not sink");
-            for (float w = 0; w < 2f && game.mode != CbGame.Mode.Scene; w += Time.deltaTime) yield return null;
-            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "The end of the river did not play");
+            yield return Frames(2);
             Assert.IsTrue(game.Cleared, "Stage 1-4 was not cleared");
-            game.scene.Skip();
-            yield return WaitForMode(CbGame.Mode.Over, 4f);
+            yield return WaitForMode(CbGame.Mode.Over, 6f);
             Assert.AreEqual(CbGame.Mode.Over, game.mode, "Stage 1-4 did not end");
             CbSave.PerfectGuard = false;
             CbStage.Set("1-1");
@@ -2369,8 +2314,7 @@ namespace RacingGame.Tests
         [UnityTest]
         public IEnumerator RajasFireWakesBeforeGraksThreePhases()
         {
-            // stage 1-5: Raja's fire wakes before the fight (the user: he fights Grak with his fire) - in Grak's scene
-            // the crystal is knocked out of his fist and rolls to Raja; then Commander Grak - his armour (charges into the
+            // stage 1-5: Raja's fire wakes before the fight (the user: he fights Grak with his fire); then Commander Grak - his armour (charges into the
             // pillars, his saw), the fire round the arena (beaten back, filling ki), his burning saw (fire, waves); beaten,
             // the end of chapter 1 (drawn)
             CbSave.FireAwake = false;
@@ -2390,25 +2334,11 @@ namespace RacingGame.Tests
             game.Teleport(CbLevel.GrakX - 6.5f);
             hero.y = 0;
             yield return Frames(3);
-            // his scene first: tapped through, the crystal knocked loose and rolling, the drawn moment, the fire awake
-            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "Grak's scene did not play before his fight");
-            Assert.IsFalse(CbSave.FireAwake, "Raja's fire was awake before Grak's scene");
-            bool rolled = false, drawn = false;
-            game.TestInput = i => i.confirm = Time.frameCount % 8 == 0;
-            for (int k = 0; k < 1500 && game.mode != CbGame.Mode.Play; k++)
-            {
-                yield return null;
-                rolled |= level.CrystalRolling;
-                drawn |= game.comic.Playing;
-            }
-            game.TestInput = null;
-            Assert.AreEqual(CbGame.Mode.Play, game.mode, "Grak's scene never handed over to his fight");
-            Assert.IsTrue(rolled, "The crystal was not knocked out of Grak's fist to Raja");
-            Assert.IsTrue(drawn || !CbComic.Available(CbStory.FireWakes), "The drawn moment of his stripes lighting up was not shown");
+            // his fire wakes as the fight begins (the cutscenes off: no scene before it)
+            Assert.AreEqual(CbGame.Mode.Play, game.mode, "Grak's fight did not begin");
             Assert.IsTrue(game.FireAwakened, "Raja's fire did not wake before the fight");
             Assert.IsTrue(CbSave.FireAwake, "Raja's fire woke but was not kept");
             Assert.AreEqual(100f, hero.ki, 0.5f, "His fire woke but his ki is not full");
-            Assert.IsFalse(level.CrystalRolling, "The crystal was left on the ground");
             yield return Frames(2);
             var grak = game.boss;
             Assert.IsNotNull(grak, "Grak did not come");
@@ -2459,10 +2389,8 @@ namespace RacingGame.Tests
             // beaten: then the end of chapter 1 (drawn), and the stage is clear
             game.HurtEnemy(grak, 9999f, 1, 2f, 0f, true, false, fire: true, fromPlayer: true, pierce: true);
             Assert.IsTrue(grak.dead, "Grak could not be beaten");
-            for (float w = 0; w < 8f && game.mode != CbGame.Mode.Comic; w += Time.deltaTime) yield return null;
-            Assert.AreEqual(CbGame.Mode.Comic, game.mode, "The end of chapter 1 was not shown");
+            yield return Frames(2);
             Assert.IsTrue(game.Cleared, "Stage 1-5 was not cleared");
-            game.comic.Skip();
             yield return WaitForMode(CbGame.Mode.Over, 8f);
             Assert.AreEqual(CbGame.Mode.Over, game.mode, "Stage 1-5 did not end");
             CbSave.FireAwake = false;
@@ -2488,10 +2416,6 @@ namespace RacingGame.Tests
             game.SkipToBoss();
             game.Teleport(CbLevel.GrakX - 6.5f);
             game.hero.y = 0;
-            // his scene: Grak holding the crystal up, then (SKIP) the fight, Raja's fire awake
-            yield return TakePictures(new[] { ("grak_intro", float.NaN, 0f) }, 2.2f);
-            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "Grak's scene did not play");
-            game.scene.Skip();
             // his cut-in: the band with his name, his own face close up from a second camera (checked at once: the fire
             // waking slows the game a moment, and a wait in game time outlasted the band)
             yield return Frames(2);
@@ -2716,9 +2640,9 @@ namespace RacingGame.Tests
             game.level.Strike(CbLevel.SecretScrollX - 1f, 0f, 1, 1.5f, staff: false);
             Assert.IsTrue(game.level.SecretFound, "A blow on Baba's scroll did not show what is behind it");
             Assert.Greater(game.score, score, "Finding Baba's secret scored nothing");
+            // (its drawing is a cutscene: off, the game goes on)
             yield return new WaitForSeconds(1.2f);
-            if (CbComic.Available(CbStory.CubInTheClouds))
-                Assert.AreEqual(CbGame.Mode.Comic, game.mode, "The drawing behind Baba's scroll was not shown");
+            Assert.AreEqual(CbGame.Mode.Play, game.mode, "Finding Baba's secret stopped the game");
             CbStage.Set("1-1");
             game.BuildStage();
         }
@@ -2959,11 +2883,9 @@ namespace RacingGame.Tests
             game.hero.y = 0;
             for (float w = 0; w < 3f && !game.Cleared; w += Time.deltaTime) yield return null;
             Assert.IsTrue(game.Cleared, "Stage 1-2 did not clear after Tusk");
-            // Koda's cage: the scene of the empty cage (skipped, it ends the same)
-            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "The empty cage's scene did not play after Tusk");
-            game.scene.Skip();
-            Assert.IsTrue(game.level.KodaCageBroken, "Skipping the scene left Koda's cage whole");
-            yield return WaitForMode(CbGame.Mode.Over, 4f);
+            // Koda's cage: broken, and empty (its scene is a cutscene, off)
+            Assert.IsTrue(game.level.KodaCageBroken, "Koda's cage was left whole");
+            yield return WaitForMode(CbGame.Mode.Over, 6f);
             Assert.AreEqual(CbGame.Mode.Over, game.mode, "Stage 1-2 did not end after the empty cage");
         }
 
@@ -2971,6 +2893,8 @@ namespace RacingGame.Tests
         public IEnumerator ZzTheCageAtTheEndOfTheTreetopsIsEmpty()
         {
             // the end of stage 1-2 (the story doc): Raja breaks Koda's cage, it is empty, he finds the prophecy scroll
+            // (a cutscene: turned on for this test)
+            CbStory.Cutscenes = true;
             game = CbGame.Boot();
             yield return Frames(3);
             CbStage.Set("1-2");

@@ -676,7 +676,9 @@ namespace Cloudborne
                 menu.Hide();
                 BuildStage();
                 // the opening is stage 1-1's; stage 1-2 starts straight away, stage 1-3 with Baba's lesson (drawn)
-                if (CbStage.Grove && CbComic.Available(CbStory.BabaLesson)) PlayLesson();
+                // (the cutscenes off: every stage starts straight away)
+                if (!CbStory.Cutscenes) { introSeen = true; CbSave.IntroSeen = true; StartGame(); }
+                else if (CbStage.Grove && CbComic.Available(CbStory.BabaLesson)) PlayLesson();
                 else if (CbStage.Ember && CbComic.Available(CbStory.CrystalTorn)) PlayDrawnStart(CbStory.CrystalTorn);
                 else if (introSeen || !CbStage.Jungle) StartGame();
                 else if (CbComic.Available(CbStory.Prologue)) PlayPrologue();
@@ -724,7 +726,7 @@ namespace Cloudborne
 
         void ShowSecret()
         {
-            if (mode != Mode.Play || !CbComic.Available(CbStory.CubInTheClouds)) return;
+            if (!CbStory.Cutscenes || mode != Mode.Play || !CbComic.Available(CbStory.CubInTheClouds)) return;
             mode = Mode.Comic;
             hud.SetScreen(CbHud.Screen.Scene);
             comic.Play(CbStory.CubInTheClouds, () => fade.FadeThrough(() =>
@@ -797,6 +799,8 @@ namespace Cloudborne
             if (CbStage.Ember)
             {
                 // the first time, the courtyard's scene: the crystal knocked out of Grak's fist, Raja's fire wakes
+                // (the cutscenes off: his fire wakes as the fight begins)
+                if (!CbStory.Cutscenes) { if (!CbSave.FireAwake) AwakenFire(); SpawnGrak(BossX + 5f); return; }
                 if (bossIntroSeen) { SpawnGrak(BossX + 5f); return; }
                 bossIntroSeen = true;
                 mode = Mode.Scene;
@@ -813,8 +817,8 @@ namespace Cloudborne
                 BossCutIn("THE SAW BARGE!", level.SawBargeCloseUp);
                 return;
             }
-            // his scene the first time; trying again, straight into the fight
-            if (bossIntroSeen) { SpawnBoss(BossX + 4f); return; }
+            // his scene the first time; trying again (or the cutscenes off), straight into the fight
+            if (bossIntroSeen || !CbStory.Cutscenes) { SpawnBoss(BossX + 4f); return; }
             bossIntroSeen = true;
             mode = Mode.Scene;
             hud.SetScreen(CbHud.Screen.Scene);
@@ -899,7 +903,7 @@ namespace Cloudborne
         void ChapterEnd()
         {
             if (mode != Mode.Play) return;
-            if (!CbComic.Available(CbStory.ShipInTheSky)) { StageCleared(); return; }
+            if (!CbStory.Cutscenes || !CbComic.Available(CbStory.ShipInTheSky)) { StageCleared(); return; }
             mode = Mode.Comic;
             hud.SetScreen(CbHud.Screen.Scene);
             comic.Play(CbStory.ShipInTheSky, () => fade.FadeThrough(() =>
@@ -1056,6 +1060,7 @@ namespace Cloudborne
                 hud.Banner("THE SAW BARGE SINKS!");
                 cleared = true;
                 hud.ShowGo(false);
+                if (!CbStory.Cutscenes) { level?.LiftKodaCage(1f); Invoke(nameof(StageCleared), 2.2f); return; }
                 mode = Mode.Scene;
                 hud.SetScreen(CbHud.Screen.Scene);
                 scene = CbStory.RiverEnd(this);
@@ -1289,6 +1294,14 @@ namespace Cloudborne
                 cleared = true;
                 hud.ShowGo(false);
                 // stage 1-2: Koda's cage at the end of the camp - empty (a scene, then the stage is clear)
+                if (CbStage.Treetops && !CbStory.Cutscenes)
+                {
+                    level?.BreakKodaCage();
+                    if (level?.ProphecyScroll != null) level.ProphecyScroll.gameObject.SetActive(false);
+                    hud.Banner("KODA'S CAGE... EMPTY!");
+                    Invoke(nameof(StageCleared), 2.2f);
+                    return;
+                }
                 if (CbStage.Treetops)
                 {
                     mode = Mode.Scene;

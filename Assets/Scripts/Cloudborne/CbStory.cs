@@ -8,6 +8,13 @@ namespace Cloudborne
     /// </summary>
     public static class CbStory
     {
+        /// <summary>
+        /// The cutscenes are off (the user: remove them all for now - animated ones will be made later): the drawn ones
+        /// and the scenes in the engine. Each is skipped as if SKIPped, and what it does to the game still happens (the
+        /// boss comes, Raja's fire wakes, the cage breaks, the stage clears). Their code is kept, to turn back on.
+        /// </summary>
+        public static bool Cutscenes = false;
+
         public static readonly Color RajaCol = CbArt.Hex("#ffb03a"), KodaCol = CbArt.Hex("#9fd0ff"), SnapCol = CbArt.Hex("#ff6a4d"),
             ElderCol = CbArt.Hex("#c9d2de");   // the village elder (in later scenes)
 
