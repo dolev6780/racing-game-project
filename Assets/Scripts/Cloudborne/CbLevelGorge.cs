@@ -65,11 +65,10 @@ namespace Cloudborne
             }
             gate = new Block { x0 = MountainFrom, x1 = GorgeFrom, top = GorgeRim, bottom = GateSlot, t = gateT, smooth = true };
             blocks.Add(gate);
-            // the boulder that drops into the gap behind him (hidden till then)
+            // the boulder that drops into the gap behind him: on top of the cliff till then, damming the stream there
             gateBoulder = CbArt.Joint(gateT, 0, GorgeRim, -0.45f, "sealBoulder");
             if (Fit("Cloudborne/Jungle/Boulder/Boulder", gateBoulder, new Vector3(-half - 0.1f, 0, -0.5f), new Vector3(half + 0.1f, GateSlot + 0.35f, 0.9f)) == null)
                 CbArt.Box(StoneGrey, gateBoulder, new Vector3(0, GateSlot / 2, 0.2f), new Vector3(half * 2, GateSlot + 0.3f, 1.4f));
-            gateBoulder.gameObject.SetActive(false);
 
             // the gorge's back wall, darker, so the ledges and rocks stand out against it
             var back = CbArt.Joint(root, 0, 0, 0, "gorgeBack");
@@ -114,66 +113,83 @@ namespace Cloudborne
             ShowFlood();
         }
 
-        // Where the water comes from (the user: nothing showed where it came from): the boulder dropping into the gap
-        // cracks the cliff Raja came through, and the water held in the rock behind it bursts out of three cracks in its
-        // face, pouring down it into the gorge while the water rises. The cracks: how high, how far back.
-        static readonly (float y, float z)[] Spouts = { (2.6f, 0.9f), (5.2f, 1.7f), (7.6f, 0.2f) };
-        // how wide each stream falls, out from the cliff's face
-        const float SpoutWide = 0.75f;
-        readonly List<(Transform sheet, Material mat, Transform crack, float y, float z)> spouts = new List<(Transform, Material, Transform, float, float)>();
+        // Where the water comes from (the user: nothing showed where it came from; cracks in the cliff didn't say why):
+        // a stream runs over the top of the cliff by the gap, dammed by a great boulder at its edge - a thin trickle
+        // seeps past it down into the gorge. Raja through the gap, the boulder tips off the edge, falls and rolls into
+        // the gap behind him, and the stream it held back pours over the edge where it sat, a waterfall from the
+        // cliff's top filling the gorge.
+        // the waterfall: how far out from the cliff's face it falls, how far forward; the trickle's width
+        const float StreamWide = 1.3f, StreamZ = -0.35f, TrickleWide = 0.22f;
+        // the boulder's fall: how long; off the edge (rolling out over the gorge), down the cliff's face, back into the gap
+        const float BoulderFall = 1.1f, BoulderOut = 2.3f, BoulderFront = -1.25f;
+        Transform stream, trickle;
+        Material streamMat, trickleMat;
 
-        /// <summary>Test hook: how many streams are pouring out of the cliff now.</summary>
-        public int SpoutsPouring { get { int n = 0; foreach (var sp in spouts) if (sp.sheet.gameObject.activeSelf) n++; return n; } }
+        /// <summary>Test hook: how many streams are pouring into the gorge now (the stream over the cliff's edge).</summary>
+        public int SpoutsPouring => stream != null && stream.gameObject.activeSelf ? 1 : 0;
 
         void BuildSpouts()
         {
-            var shader = Resources.Load<Shader>("Shaders/Waterfall");
-            var dark = CbArt.Toon("#1e2224");
-            foreach (var (y, z) in Spouts)
-            {
-                float x0 = GorgeFrom - 0.05f, x1 = GorgeFrom + SpoutWide;
-                Material water;
-                if (shader != null && shader.isSupported)
-                {
-                    water = new Material(shader) { name = "gorgeSpout", renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent };
-                    water.SetFloat("_X0", x0);
-                    water.SetFloat("_X1", x1);
-                    water.SetFloat("_Top", y + 0.1f);
-                    water.SetFloat("_Bottom", 0f);
-                }
-                else water = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.85f), CbArt.Shaft);
-                var sheet = CbArt.Part(CbMesh.Quad, water, root, new Vector3((x0 + x1) / 2, y / 2, z), new Vector3(x1 - x0, y, 1), shadows: false);
-                sheet.name = "gorgeSpout";
-                sheet.gameObject.SetActive(false);
-                // the crack it bursts from: a dark split in the cliff's face, opening when the boulder drops
-                var crack = CbArt.Joint(root, GorgeFrom + 0.02f, y, z, "spoutCrack");
-                CbArt.Part(CbMesh.Cube, dark, crack, Vector3.zero, new Vector3(0.08f, 0.55f, 0.5f), Quaternion.Euler(0, 0, 12f), shadows: false);
-                CbArt.Part(CbMesh.Cube, dark, crack, new Vector3(0, -0.35f, 0.1f), new Vector3(0.08f, 0.35f, 0.25f), Quaternion.Euler(0, 0, -20f), shadows: false);
-                crack.gameObject.SetActive(false);
-                spouts.Add((sheet, water, crack, y, z));
-            }
+            stream = WaterSheet(GorgeFrom - 0.15f, GorgeFrom + StreamWide, "gorgeStream", out streamMat);
+            trickle = WaterSheet(GorgeFrom - 0.05f, GorgeFrom + TrickleWide, "gorgeTrickle", out trickleMat);
         }
 
-        /// <summary>The streams from the cliff: pouring while the water rises (from its top down to the water), else
-        /// gone; spray where each bursts out and where it meets the water.</summary>
+        Transform WaterSheet(float x0, float x1, string name, out Material water)
+        {
+            var shader = Resources.Load<Shader>("Shaders/Waterfall");
+            if (shader != null && shader.isSupported)
+            {
+                water = new Material(shader) { name = name, renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent };
+                water.SetFloat("_X0", x0);
+                water.SetFloat("_X1", x1);
+                water.SetFloat("_Top", GorgeRim + 0.3f);
+                water.SetFloat("_Bottom", 0f);
+            }
+            else water = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.85f), CbArt.Shaft);
+            var t = CbArt.Part(CbMesh.Quad, water, root, new Vector3((x0 + x1) / 2, GorgeRim / 2, StreamZ), new Vector3(x1 - x0, GorgeRim, 1), shadows: false);
+            t.name = name;
+            return t;
+        }
+
+        /// <summary>A sheet of falling water from the cliff's top down to bottom.</summary>
+        static void Pour(Transform sheet, Material mat, float bottom, float wide)
+        {
+            float top = GorgeRim + 0.3f;
+            var p = sheet.localPosition;
+            sheet.localPosition = new Vector3(p.x, (top + bottom) / 2, StreamZ);
+            sheet.localScale = new Vector3(wide, top - bottom, 1);
+            mat.SetFloat("_Bottom", bottom);
+        }
+
+        /// <summary>The trickle past the boulder while it dams the stream; the stream pouring over the edge once it has
+        /// gone and the water rises; spray where it meets the water.</summary>
         void ShowSpouts(bool pouring)
         {
-            foreach (var (sheet, mat, crack, y, z) in spouts)
-            {
-                crack.gameObject.SetActive(gorge != Gorge.Open);
-                sheet.gameObject.SetActive(pouring);
-                if (!pouring) continue;
-                float bottom = Mathf.Max(FloodLevel, -0.2f);
-                if (bottom >= y - 0.2f) { sheet.gameObject.SetActive(false); continue; }
-                var p = sheet.localPosition;
-                sheet.localPosition = new Vector3(p.x, (y + bottom) / 2, z);
-                sheet.localScale = new Vector3(SpoutWide + 0.05f, y - bottom, 1);
-                mat.SetFloat("_Bottom", bottom);
-                if (Random.value < 0.5f)
-                    CbFx.Spark(new Vector3(GorgeFrom + 0.15f, y, z - 0.3f), CbFx.Water, 2, 3.5f, 0.3f, 0.45f, 6, 2.5f);
-                if (Random.value < 0.5f)
-                    CbFx.Spark(new Vector3(GorgeFrom + SpoutWide * 0.5f, bottom + 0.1f, z - 0.3f), CbFx.Water, 2, 3f, 0.3f, 0.5f, 7);
-            }
+            if (stream == null) return;
+            bool dammed = gorge == Gorge.Open;
+            float bottom = Mathf.Max(FloodLevel, -0.2f);
+            trickle.gameObject.SetActive(dammed);
+            if (dammed) Pour(trickle, trickleMat, 0f, TrickleWide + 0.05f);
+            stream.gameObject.SetActive(pouring);
+            if (!pouring) return;
+            Pour(stream, streamMat, bottom, StreamWide + 0.15f);
+            if (Random.value < 0.6f)
+                CbFx.Spark(new Vector3(GorgeFrom + Random.Range(0f, StreamWide), bottom + 0.1f, StreamZ - 0.2f), CbFx.Water, 2, 3.5f, 0.3f, 0.5f, 7);
+            if (Random.value < 0.4f)
+                CbFx.Spark(new Vector3(GorgeFrom + 0.3f, GorgeRim + 0.2f, StreamZ - 0.2f), CbFx.Water, 1, 2f, 0.25f, 0.4f, 4, 1.5f);
+        }
+
+        /// <summary>The boulder at k (0 to 1) of its fall: rolling out off the cliff's edge, down its face, back into the gap.</summary>
+        void PlaceBoulder(float k)
+        {
+            Vector3 rim = new Vector3(0, GorgeRim, -0.45f), edge = new Vector3(BoulderOut * 0.6f, GorgeRim, BoulderFront),
+                foot = new Vector3(BoulderOut, 0, BoulderFront), gap = new Vector3(0, 0, -0.45f);
+            Vector3 at;
+            if (k < 0.2f) at = Vector3.Lerp(rim, edge, k / 0.2f);
+            else if (k < 0.72f) { float u = (k - 0.2f) / 0.52f; at = Vector3.Lerp(edge, foot, u); at.y = Mathf.Lerp(GorgeRim, 0, u * u); }
+            else at = Vector3.Lerp(foot, gap, (k - 0.72f) / 0.28f);
+            gateBoulder.localPosition = at;
+            gateBoulder.localRotation = Quaternion.Euler(0, 0, -k * 540f);
         }
 
         /// <summary>
@@ -272,7 +288,9 @@ namespace Cloudborne
             gorge = Gorge.Flooding;
             gate.bottom = 0;
             sealT = 0;
-            gateBoulder.gameObject.SetActive(true);
+            // (it tips off the cliff's top: the stream it dammed bursts over the edge)
+            CbFx.Spark(new Vector3(GorgeFrom, GorgeRim + 0.3f, -0.6f), CbFx.Water, 14, 4f, 0.4f, 0.6f, 6, 2f);
+            CbFx.Sfx("splash", 0.7f);
             FloodLevel = FloodFloor;
             floodWait = FloodWait;
             floodCaught = false;
@@ -286,7 +304,8 @@ namespace Cloudborne
             FloodLevel = FloodFloor;
             if (gate != null) gate.bottom = GateSlot;
             sealT = -1f;
-            if (gateBoulder != null) gateBoulder.gameObject.SetActive(false);
+            // the boulder back on the cliff's top, damming the stream
+            if (gateBoulder != null) PlaceBoulder(0f);
             RestoreGorgeLedges();
             ShowFlood();
         }
@@ -320,19 +339,20 @@ namespace Cloudborne
             if (sealT >= 0 && sealT < 1f)
             {
                 float before = sealT;
-                sealT += dt / 0.35f;
+                sealT += dt / BoulderFall;
                 float k = Mathf.Clamp01(sealT);
-                gateBoulder.localPosition = new Vector3(0, Mathf.Lerp(GorgeRim * 0.4f, 0, k * k), -0.45f);
-                if (before < 1f && sealT >= 1f)
+                PlaceBoulder(k);
+                // it hits the ground at the cliff's foot, then rolls into the gap
+                if (before < 0.72f && k >= 0.72f)
                 {
-                    float gx = (MountainFrom + GorgeFrom) / 2;
-                    CbFx.Puff(new Vector3(gx + 0.8f, 0.4f, -0.6f), new Color(0.78f, 0.74f, 0.66f), 10, 2.6f, 1.2f, 0.8f);
+                    CbFx.Puff(new Vector3(GorgeFrom + BoulderOut * 0.5f, 0.4f, -0.8f), new Color(0.78f, 0.74f, 0.66f), 10, 2.6f, 1.2f, 0.8f);
                     CbFx.Sfx("heavy", 0.9f);
                     g.shake = Mathf.Max(g.shake, 0.5f);
-                    g.hud.SetTip("The boulder cracked the cliff - water is bursting through! <color=#ffb03a>Climb!</color>");
-                    // the cliff cracks: chips of rock flying out of it where the water bursts through
-                    foreach (var (y, z) in Spouts)
-                        CbFx.Spark(new Vector3(GorgeFrom + 0.1f, y, z - 0.3f), new Color(0.55f, 0.52f, 0.48f), 8, 4f, 0.4f, 0.5f, 6, 3f);
+                }
+                if (before < 1f && sealT >= 1f)
+                {
+                    CbFx.Sfx("heavy", 0.6f);
+                    g.hud.SetTip("The boulder was holding back the stream on the cliff - now it pours into the gorge! <color=#ffb03a>Climb!</color>");
                 }
             }
             switch (gorge)
@@ -365,9 +385,9 @@ namespace Cloudborne
                     if (floodWait > 0)
                     {
                         floodWait -= dt;
-                        // bursting in through the cracks
+                        // the stream bursting over the cliff's edge where the boulder sat
                         if (Random.value < 0.5f)
-                            CbFx.Spark(new Vector3(GorgeFrom + 0.2f, Random.Range(0.2f, 1.6f), Random.Range(-0.6f, 0.6f)), CbFx.Water, 2, 4f, 0.3f, 0.5f, 8, 1f);
+                            CbFx.Spark(new Vector3(GorgeFrom + Random.Range(0f, 0.6f), GorgeRim + 0.2f, StreamZ - 0.2f), CbFx.Water, 2, 4f, 0.3f, 0.5f, 8, 1.5f);
                     }
                     else FloodLevel = Mathf.Min(FloodTop, FloodLevel + dt * (hero.y - FloodLevel > FloodLead ? FloodChase : FloodRise));
                     if (InGorge(hero.x) && hero.y + FloodCatch < FloodLevel && hero.state != CbHero.State.Swim && hero.state != CbHero.State.Dead)
@@ -383,7 +403,8 @@ namespace Cloudborne
                     break;
             }
             ShowFlood();
-            ShowSpouts(gorge == Gorge.Flooding && !floodCaught && sealT >= 1f);
+            // (pouring as soon as the boulder is off the edge)
+            ShowSpouts(gorge == Gorge.Flooding && !floodCaught && sealT >= 0.2f);
         }
 
         /// <summary>The water's front and surface where its level is now; out of sight under the floor.</summary>
