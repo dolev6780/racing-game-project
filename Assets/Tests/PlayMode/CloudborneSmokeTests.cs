@@ -284,21 +284,55 @@ namespace RacingGame.Tests
             CbStage.Set("1-1");
         }
 
-        [UnityTest]
-        public IEnumerator ZzOpeningCinematicShots()
+        [UnityTest, Timeout(1800000)]
+        public IEnumerator ZzzOpeningVideo()
         {
-            // the opening cinematic in the engine (the user approved its dialogue): a picture every 3.5 s of it, its
-            // lines going on by themselves
+            // the opening cinematic recorded as a video (the user: show me it moving): every frame of it, 24 a second
+            // of game time, drawn by the game's camera with its HUD into artifacts-video/f_NNNNN.jpg; CI makes them
+            // into an MP4. Named to run last, so the video is at the end of the log.
             game = CbGame.Boot();
             yield return Frames(3);
             game.PlayOpening();
             yield return Frames(2);
             Assert.AreEqual(CbGame.Mode.Scene, game.mode, "The opening did not start");
-            for (int n = 0; n < 45 && game.mode == CbGame.Mode.Scene; n++)
+            var cam = game.GetComponentInChildren<Camera>();
+            Assert.IsNotNull(cam, "No game camera");
+            LogAssert.ignoreFailingMessages = true;
+            var hud = GameObject.Find("HUD")?.GetComponent<Canvas>();
+            if (hud != null) { hud.renderMode = RenderMode.ScreenSpaceCamera; hud.worldCamera = cam; hud.planeDistance = 0.5f; }
+            const int W = 1280, H = 720, Fps = 24;
+            const string Dir = "artifacts-video";
+            if (System.IO.Directory.Exists(Dir)) System.IO.Directory.Delete(Dir, true);
+            System.IO.Directory.CreateDirectory(Dir);
+            var rt = new RenderTexture(W, H, 24, RenderTextureFormat.ARGB32);
+            var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
+            cam.targetTexture = rt;
+            cam.aspect = W / (float)H;
+            // game time goes on a frame at a time, however long each takes to draw and save
+            Time.captureDeltaTime = 1f / Fps;
+            int frame = 0;
+            // a second of the stage after the scene hands over, then stop (five minutes at most)
+            float after = 0;
+            while (after < 1f && frame < Fps * 300)
             {
-                yield return TakePictures(new[] { ($"opening_{n:00}", float.NaN, 0f) }, 0.1f);
-                for (float w = 0; w < 3.5f && game.mode == CbGame.Mode.Scene; w += Time.deltaTime) yield return null;
+                yield return null;
+                if (game.mode != CbGame.Mode.Scene) after += 1f / Fps;
+                cam.targetTexture = rt;
+                cam.aspect = W / (float)H;
+                var prev = RenderTexture.active;
+                RenderTexture.active = rt;
+                tex.ReadPixels(new Rect(0, 0, W, H), 0, 0);
+                tex.Apply();
+                RenderTexture.active = prev;
+                System.IO.File.WriteAllBytes($"{Dir}/f_{frame:00000}.jpg", tex.EncodeToJPG(90));
+                frame++;
             }
+            Time.captureDeltaTime = 0f;
+            cam.targetTexture = null;
+            cam.ResetAspect();
+            Object.Destroy(tex);
+            rt.Release();
+            Debug.Log($"VIDEO opening: {frame} frames, {frame / (float)Fps:0.0} s");
             Assert.AreEqual(CbGame.Mode.Play, game.mode, "The opening never ended by itself");
         }
 

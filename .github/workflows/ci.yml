@@ -59,6 +59,23 @@ jobs:
         with:
           name: unity-test-results
           path: artifacts
+      # The opening cinematic, recorded frame by frame by the ZzzOpeningVideo test, made into an MP4 and printed
+      # (base64) as the last thing in the log: the artifact storage can't be reached from where the game is made.
+      - name: Opening video
+        if: always() && env.UNITY_LICENSE != ''
+        run: |
+          if ! ls artifacts-video/f_*.jpg >/dev/null 2>&1; then echo "No video frames"; exit 0; fi
+          command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null)
+          for crf in 26 29 32 35; do
+            ffmpeg -y -loglevel error -framerate 24 -i artifacts-video/f_%05d.jpg -c:v libx264 -preset slow -crf $crf \
+              -pix_fmt yuv420p -movflags +faststart opening.mp4
+            size=$(stat -c %s opening.mp4)
+            echo "crf $crf: $size bytes"
+            [ "$size" -lt 9000000 ] && break
+          done
+          echo "VIDEO MP4 START $size"
+          base64 -w 4000 opening.mp4 | sed 's/^/VIDEO MP4 /'
+          echo "VIDEO MP4 END"
 
   # Runs after the tests: a personal Unity license can't be activated by two jobs at the same time.
   # Still builds when a test fails, so there is always an APK to try.
