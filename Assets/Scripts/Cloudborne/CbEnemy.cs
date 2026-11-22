@@ -42,6 +42,14 @@ namespace Cloudborne
         // back after a blow. Seeing Raja he just charges (he stopped to shout with his blade raised: the user didn't
         // like it).
         const float ChargeFrom = 3.6f, ChargeBoost = 1.45f, BackTime = 0.5f;
+        /// <summary>How far past his reach a soldier waits while two others strike (CbGame.MayStrike).</summary>
+        const float WaitRing = 1.3f;
+        /// <summary>How long a soldier winds up his blow (the glint, the warning): struck then, it is a counter.</summary>
+        public const float WindUp = 0.45f;
+        /// <summary>Winding up a blow at Raja (not yet struck): a blow on him now is a counter (CbGame.HurtEnemy).</summary>
+        public bool WindingUp => state == State.Atk && !Boss && !throwing && t < WindUp && kind != Kind.Tusk && kind != Kind.Grak;
+        /// <summary>Striking at Raja (counted against how many may at once).</summary>
+        public bool Striking => state == State.Atk && !Boss && !throwing && !dead;
         const string ChargeClip = "Standard_Forward_Charge_inplace";
         // the charge's and the fighting walk's pace to his speed, so his planted feet hold to the ground (measured in CI,
         // the STRIDE test at 120 frames a second: at the clip's own pace his planted foot ran back at 0.67 of his speed
@@ -650,7 +658,7 @@ namespace Cloudborne
                 }
                 case State.Atk:
                 {
-                    const float wind = 0.45f;
+                    const float wind = WindUp;
                     if (t < wind)
                     {
                         pose.twist = -0.8f; pose.sRx = 0.9f; pose.eR = -1.8f; pose.lean = -0.1f; pose.hLx = -0.4f; pose.kL = 0.5f; pose.bob = -0.08f;
@@ -750,11 +758,21 @@ namespace Cloudborne
                             }
                         }
                         if (hopping && want != 0) want = Mathf.Sign(want) * Mathf.Max(Mathf.Abs(want), HopAcross);
+                        // two already striking at Raja: he waits his turn just out of reach, edging back if he is too
+                        // close (they all struck at once, and there was no fighting back: the user wanted them smarter)
+                        if (!hopping && dist < reach + WaitRing + 0.6f && !g.MayStrike(this))
+                        {
+                            charging = false;
+                            want = dist < reach + WaitRing ? -Mathf.Sign(dx) * speed * 0.45f : 0f;
+                        }
                     }
                     vx += (want + push - vx) * (1 - Mathf.Exp(-8 * dt));
-                    if (state != State.Atk && dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)
+                    if (state != State.Atk && dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play
+                        && g.MayStrike(this))
                     {
                         state = State.Atk; t = 0; hitDone = false; vx = 0; backT = 0; charging = false; throwing = false;
+                        // the warning over his head as he winds up (the glint on his blade alone was easy to miss)
+                        g.hud.Popup(new Vector3(x, HitHeight + 1.15f, 0), "!", CbHud.PopStyle.Hurt);
                     }
                     if (Mathf.Abs(vx) > 0.4f)
                     {

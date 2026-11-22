@@ -1339,6 +1339,20 @@ namespace Cloudborne
         /// A blow on an enemy. breaker: a staff blow (breaks a raised shield); fire: it sets him burning; ki: a ki move
         /// (a staff technique or fire), which stops the sergeant's whistle.
         /// </summary>
+        /// <summary>How many soldiers may strike at Raja at once; the rest wait their turn (CbEnemy).</summary>
+        public const int MaxStrikers = 2;
+
+        /// <summary>May e start a blow at Raja: fewer than MaxStrikers others striking now (the sergeant and the bosses
+        /// fight on their own).</summary>
+        public bool MayStrike(CbEnemy e)
+        {
+            if (e.Boss) return true;
+            int n = 0;
+            foreach (var o in enemies)
+                if (o != e && o.Striking && Mathf.Abs(o.x - hero.x) < 4f) n++;
+            return n < MaxStrikers;
+        }
+
         public bool HurtEnemy(CbEnemy e, float dmg, int dir, float kb, float up, bool big, bool breaker, bool fire, bool fromPlayer, bool ki = false, bool pierce = false)
         {
             if (e.dead) return false;
