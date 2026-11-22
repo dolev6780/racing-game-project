@@ -900,14 +900,17 @@ namespace Cloudborne
         /// The stretch of open path around x a soldier may roam: to the water, a pit or something solid on either
         /// side (as far as reach), so he stops where the path stops, not at a line no one can see.
         /// </summary>
-        public void FreeStretch(float x, float reach, out float lo, out float hi)
+        public void FreeStretch(float x, float reach, out float lo, out float hi, bool hopping = false)
         {
             float l = x - reach, h = x + reach;
-            Stretch(x, ref l, ref h);
+            Stretch(x, ref l, ref h, hopping);
             lo = l; hi = h;
         }
 
-        void Stretch(float x, ref float lo, ref float hi)
+        /// <summary>How high a rock or a log a soldier hops over, chasing Raja (CbEnemy).</summary>
+        public const float SoldierHops = 1.3f;
+
+        void Stretch(float x, ref float lo, ref float hi, bool hopping = false)
         {
             // on a rock in the river: that rock is all he has
             foreach (var b in blocks)
@@ -929,6 +932,8 @@ namespace Cloudborne
             foreach (var b in blocks)
             {
                 if (b.broken || b.bottom > 1f || InWater((b.x0 + b.x1) / 2)) continue;
+                // (hopping, over a low one)
+                if (hopping && b.top <= SoldierHops) continue;
                 if (b.x1 <= x) lo = Mathf.Max(lo, b.x1 + 0.6f);
                 if (b.x0 >= x) hi = Mathf.Min(hi, b.x0 - 0.6f);
             }

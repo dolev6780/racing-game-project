@@ -170,7 +170,9 @@ namespace Cloudborne
             // (the ridge and its four soldiers are gone: the stage was long for a phone - the user)
         };
         readonly List<Post> posts = new List<Post>();
-        const float PostWakes = 13f;
+        // (16: he steps out just off the screen and comes on - at 13, with his notice at 10, he hardly moved until Raja was
+        // on him: the user)
+        const float PostWakes = 16f;
 
         /// <summary>The stretches of the stage, named at the top of the screen as Raja reaches them.</summary>
         static readonly (float x, string name)[] JungleSections =
@@ -1221,13 +1223,17 @@ namespace Cloudborne
                         if (level != null && CbLevel.InWater(p.x)) p.enemy.y = Mathf.Max(0, level.SupportAt(p.x, 50f));
                         enemies.Add(p.enemy);
                     }
-                    // he roams his stretch of open path, and it widens when a wall in it is broken (not a line no one
-                    // can see: the user saw a soldier stop where a box had been, even after it was gone)
+                    // he roams the open path round where he is, and it widens when a wall in it is broken (not a line no
+                    // one can see: the user saw a soldier stop where a box had been, even after it was gone); going for
+                    // Raja he hops over a low rock, a log or a crate in his way - only water, a gap or a low passage
+                    // stops him (he waited behind them until Raja came right up to him: the user)
                     if (p.enemy != null && !p.enemy.dead && level != null)
                     {
-                        level.FreeStretch(p.x, 18f, out float lo, out float hi);
+                        level.FreeStretch(p.enemy.x, 18f, out float lo, out float hi);
                         items?.ClipByCrates(p.enemy.x, p.enemy.w * 0.8f, ref lo, ref hi);
+                        level.FreeStretch(p.enemy.x, 18f, out float hlo, out float hhi, hopping: true);
                         p.enemy.minX = lo; p.enemy.maxX = hi;
+                        p.enemy.hopMinX = hlo; p.enemy.hopMaxX = hhi;
                     }
                 }
             // the short runs: the pack's chase in 1-1, the thief in 1-2 (CbGameRuns)

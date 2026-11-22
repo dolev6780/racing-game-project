@@ -65,6 +65,12 @@ namespace Cloudborne
         /// strikes him.
         /// </summary>
         public float minX = float.NegativeInfinity, maxX = float.PositiveInfinity;
+        /// <summary>His stretch counting what he can hop over (a low rock, a log, a crate: CbGame sets it for a soldier at
+        /// his post; unset, NaN, he doesn't hop), and a hop on.</summary>
+        public float hopMinX = float.NaN, hopMaxX = float.NaN;
+        bool hopping;
+        // the hop: how fast up (about 1.5 m high), how fast across (clearing a crate and himself)
+        const float HopUp = 9.5f, HopAcross = 4.5f;
         public bool asleep;
         /// <summary>Running in from off the screen to a fight (an ambush): he comes for Raja from any distance until he is near.</summary>
         public bool runningIn;
@@ -78,7 +84,8 @@ namespace Cloudborne
         public float speedMul = 1f;
         public bool thief, retreat, gone;
         public const float ThiefSpeed = 6.2f;
-        const float Notice = 10f, WakeAt = 2.2f;
+        // (14: at 10 he stood until Raja was right on him - the user)
+        const float Notice = 14f, WakeAt = 2.2f;
         // Asleep (the user: he didn't look asleep), a soldier with the clip for it dozes on a log at the side of the
         // path (CbGame puts it behind him, a little back from the path), his head nodding, his eyes painted shut (the
         // model's _Asleep texture), a snot bubble swelling and shrinking with his breath and every third breath
@@ -732,6 +739,17 @@ namespace Cloudborne
                         if (dist < Notice) runningIn = false;
                         charging = dist > ChargeFrom && dist < Notice;
                         want = dist > reach && (Boss || runningIn || arena || dist < Notice) ? Mathf.Sign(dx) * speed * speedMul * (charging ? ChargeBoost : 1f) : 0;
+                        // at the end of his stretch, Raja beyond something low in the way: he hops over it
+                        if (!hopping && want != 0 && vy <= 0 && y <= ground + 0.05f)
+                        {
+                            float dir = Mathf.Sign(want), edge = dir > 0 ? maxX : minX, far = dir > 0 ? hopMaxX : hopMinX;
+                            if (!float.IsNaN(far) && Mathf.Abs(x - edge) < 0.2f && (far - edge) * dir > 0.8f && (hero.x - edge) * dir > 0)
+                            {
+                                hopping = true;
+                                vy = HopUp;
+                            }
+                        }
+                        if (hopping && want != 0) want = Mathf.Sign(want) * Mathf.Max(Mathf.Abs(want), HopAcross);
                     }
                     vx += (want + push - vx) * (1 - Mathf.Exp(-8 * dt));
                     if (state != State.Atk && dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play)
@@ -759,8 +777,9 @@ namespace Cloudborne
             if (Boss && g.lockZone != null) x = Mathf.Clamp(x, g.lockZone.x - 10f, g.lockZone.x + 10f);
             else if (!Boss && !fallingIn)
             {
-                // at the end of his stretch he stops (he walked on the spot there: the user)
-                float held = Mathf.Clamp(x, minX, maxX);
+                // at the end of his stretch he stops (he walked on the spot there: the user); in a hop, past what he
+                // hops over
+                float held = hopping ? Mathf.Clamp(x, hopMinX, hopMaxX) : Mathf.Clamp(x, minX, maxX);
                 if (held != x && knocked && g.level != null && g.level.SupportAt(held + Mathf.Sign(x - held) * 0.9f, 0.1f) < -0.6f) held = x;
                 if (held != x && (held - x) * vx < 0) vx = 0;
                 x = held;
@@ -785,6 +804,7 @@ namespace Cloudborne
             if (!float.IsNegativeInfinity(floor)) ground = floor;
             if (y <= floor)
             {
+                if (hopping && vy <= 0) hopping = false;
                 y = floor; vy = 0;
                 if (state != State.Move && state != State.Atk) vx *= 1 - (1 - Mathf.Exp(-6 * dt));
             }

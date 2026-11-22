@@ -1258,6 +1258,49 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator SoldiersComeForRajaAndHopWhatIsInTheirWay()
+        {
+            // the user: the soldiers didn't come for Raja - only right next to him did they fight. At his post a soldier
+            // steps out as Raja comes near and comes at him from well off; at the end of his stretch, Raja beyond a low
+            // rock, a log or a crate, he hops over it
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            var hero = game.hero;
+            hero.hp = 9999;
+            hero.inv = 999f;
+            // the first soldier's post is at 22 m: Raja 11 m short of it
+            game.Teleport(11f);
+            hero.y = 0;
+            CbEnemy e = null;
+            for (float w = 0; w < 1f && e == null; w += Time.deltaTime)
+            {
+                yield return null;
+                e = game.enemies.Find(o => o.kind == CbEnemy.Kind.Hyena && !o.dead);
+            }
+            Assert.IsNotNull(e, "No soldier stepped out at his post as Raja came near");
+            float from = e.x;
+            yield return new WaitForSeconds(2f);
+            Assert.Less(e.x, from - 3f, "The soldier did not come for Raja from 11 m off");
+            // a soldier at the end of his stretch, a crate in his way: he hops it
+            game.SkipFights();
+            var s = new CbEnemy(game, CbEnemy.Kind.Hyena, 30.5f, game.transform)
+                { minX = 29f, maxX = 32f, hopMinX = 20f, hopMaxX = 32f };
+            game.enemies.Add(s);
+            game.Teleport(24f);
+            hero.y = 0;
+            float highest = 0;
+            for (float w = 0; w < 4f && s.x > 28f; w += Time.deltaTime)
+            {
+                yield return null;
+                highest = Mathf.Max(highest, s.y);
+            }
+            Assert.Less(s.x, 28f, "The soldier did not get past the end of his stretch to Raja");
+            Assert.Greater(highest, 0.8f, "The soldier did not hop over what was in his way");
+        }
+
+        [UnityTest]
         public IEnumerator AFightsSoldierOutOfSightComesBackAndIsPointedTo()
         {
             // in a fight, a soldier out of sight (knocked away, or come in at the far side) is shown by an arrow at that
