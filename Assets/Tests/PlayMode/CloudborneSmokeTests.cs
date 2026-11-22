@@ -2492,10 +2492,12 @@ namespace RacingGame.Tests
             yield return TakePictures(new[] { ("grak_intro", float.NaN, 0f) }, 2.2f);
             Assert.AreEqual(CbGame.Mode.Scene, game.mode, "Grak's scene did not play");
             game.scene.Skip();
-            // his cut-in: the band with his name, his own face close up from a second camera
-            yield return TakePictures(new[] { ("grak_cut_in", float.NaN, 0f) }, 0.45f);
+            // his cut-in: the band with his name, his own face close up from a second camera (checked at once: the fire
+            // waking slows the game a moment, and a wait in game time outlasted the band)
+            yield return Frames(2);
             Assert.IsTrue(game.hud.CuttingIn, "Grak came on with no cut-in");
             Assert.IsTrue(game.CloseUpOn, "No close-up of Grak's face in his cut-in");
+            yield return TakePictures(new[] { ("grak_cut_in", float.NaN, 0f) }, 0.1f);
             yield return TakePictures(new[] { ("ember_grak", float.NaN, 0f) }, 0.75f);
             var grak = game.boss;
             Assert.IsNotNull(grak, "Grak did not come");
