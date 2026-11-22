@@ -1238,6 +1238,17 @@ namespace Cloudborne
                 }
             // the short runs: the pack's chase in 1-1, the thief in 1-2 (CbGameRuns)
             UpdateRuns();
+            // the stormy river: lightning now and then, the thunder a moment after
+            if (CbStage.River)
+            {
+                lightningT -= dt;
+                if (lightningT <= 0)
+                {
+                    lightningT = Random.Range(7f, 14f);
+                    hud.ImpactFlash(0.16f);
+                    Invoke(nameof(Thunder), Random.Range(0.3f, 0.9f));
+                }
+            }
             // the stretch's name and a tip as he reaches them
             while (sectionIdx < Sections.Length && hero.x >= Sections[sectionIdx].x) hud.SetWave(Sections[sectionIdx++].name);
             while (tipIdx < Tips.Length && hero.x >= Tips[tipIdx].x) { var tip = Tips[tipIdx++]; hud.SetTip(tip.text ?? Tip(tip.tip)); }
@@ -1339,6 +1350,9 @@ namespace Cloudborne
         /// A blow on an enemy. breaker: a staff blow (breaks a raised shield); fire: it sets him burning; ki: a ki move
         /// (a staff technique or fire), which stops the sergeant's whistle.
         /// </summary>
+        float lightningT = 6f;
+        void Thunder() => CbFx.Sfx("roar", 0.25f);
+
         // a counter's damage, and its points
         const float CounterMul = 1.5f;
         const int CounterBonus = 150;

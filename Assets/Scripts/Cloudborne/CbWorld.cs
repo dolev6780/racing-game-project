@@ -1350,7 +1350,67 @@ namespace Cloudborne
             var r = go.GetComponent<ParticleSystemRenderer>();
             r.sharedMaterial = CbArt.Sparks;
             r.shadowCastingMode = ShadowCastingMode.Off;
+            StageAir(ps, r);
             ps.Play();
+        }
+
+        /// <summary>
+        /// Each stage its own air (the user: more atmosphere): fireflies in the jungle, pollen drifting down through the
+        /// treetops, golden petals in Baba's grove, rain on the stormy river, embers rising round the burning temple.
+        /// </summary>
+        static void StageAir(ParticleSystem ps, ParticleSystemRenderer r)
+        {
+            var main = ps.main;
+            var em = ps.emission;
+            var vel = ps.velocityOverLifetime;
+            var shape = ps.shape;
+            if (CbStage.Treetops)
+            {
+                main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 1f, 0.85f, 1f), new Color(0.85f, 1f, 0.6f, 1f));
+                main.startSize = new ParticleSystem.MinMaxCurve(0.06f, 0.12f);
+                main.startLifetime = 8f;
+                em.rateOverTime = 30f;
+                vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
+                vel.x = new ParticleSystem.MinMaxCurve(0.2f, 0.5f); vel.y = new ParticleSystem.MinMaxCurve(-0.35f, -0.15f); vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+            }
+            else if (CbStage.Grove)
+            {
+                main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.78f, 0.55f, 1f), new Color(1f, 0.92f, 0.5f, 1f));
+                main.startSize = new ParticleSystem.MinMaxCurve(0.08f, 0.15f);
+                main.startLifetime = 9f;
+                em.rateOverTime = 22f;
+                vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
+                vel.x = new ParticleSystem.MinMaxCurve(0.3f, 0.7f); vel.y = new ParticleSystem.MinMaxCurve(-0.45f, -0.2f); vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+            }
+            else if (CbStage.River)
+            {
+                // rain: quick streaks slanting down, over the river and the camera's way ahead
+                main.startColor = new Color(0.8f, 0.9f, 1f, 0.55f);
+                main.startSize = new ParticleSystem.MinMaxCurve(0.03f, 0.05f);
+                main.startLifetime = 0.9f;
+                main.startSpeed = 0f;
+                main.maxParticles = 900;
+                em.rateOverTime = 600f;
+                shape.scale = new Vector3(44, 2, 16);
+                shape.position = new Vector3(0, 8f, 0);
+                var noise = ps.noise; noise.enabled = false;
+                vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
+                vel.x = new ParticleSystem.MinMaxCurve(-2.5f, -2f); vel.y = new ParticleSystem.MinMaxCurve(-17f, -14f); vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+                r.renderMode = ParticleSystemRenderMode.Stretch;
+                r.velocityScale = 0.045f;
+                r.lengthScale = 1f;
+            }
+            else if (CbStage.Ember)
+            {
+                // embers rising from the burning jungle, drifting and winking out
+                main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.55f, 0.15f, 1f), new Color(1f, 0.82f, 0.35f, 1f));
+                main.startSize = new ParticleSystem.MinMaxCurve(0.05f, 0.11f);
+                main.startLifetime = 5f;
+                em.rateOverTime = 45f;
+                shape.position = new Vector3(0, -2.5f, 0);
+                vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
+                vel.x = new ParticleSystem.MinMaxCurve(-0.3f, 0.3f); vel.y = new ParticleSystem.MinMaxCurve(0.6f, 1.3f); vel.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+            }
         }
 
         public void Update(float t, float camX)
@@ -1368,7 +1428,8 @@ namespace Cloudborne
                 if (p.x > camX + 120) p.x = camX - 120;
                 m.localPosition = p;
             }
-            flies.localPosition = new Vector3(camX, 3.2f, 3.5f);
+            // (on the river, with it down the falls)
+            flies.localPosition = new Vector3(camX, 3.2f + (CbStage.River ? CbLevel.RiverFloor(camX) : 0f), 3.5f);
             // the streams flow towards the camera; their cascades pour down
             for (int i = 0; i < waterMats.Count; i++)
                 waterMats[i].mainTextureOffset = new Vector2(0, (i % 2 == 0 ? -0.12f : 0.6f) * t);
