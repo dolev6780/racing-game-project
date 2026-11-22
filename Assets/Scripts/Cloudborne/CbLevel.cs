@@ -389,7 +389,9 @@ namespace Cloudborne
         // how far the landing's rock reaches over the end of the bridge
         const float RampInto = 0.5f;
         const string StepStone = "#7a7262", StepMoss = "#5a7a38";
-        const float StepFront = -1.25f, StepBack = 1.45f;
+        // (behind his line, from just back of it: reaching out in front of the path, the rocks hid him to the neck as he
+        // walked up and down them - the user's picture; he walks up them in front of their faces)
+        const float StepFront = 0.3f, StepBack = 1.45f;
         Material stepStone, stepMoss;
 
         /// <summary>A stepping stone, its top level with the banks; a sinking one shakes and goes under if he stays.</summary>

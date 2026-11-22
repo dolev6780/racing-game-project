@@ -269,7 +269,8 @@ namespace Cloudborne
             BuildChest();
 
             // (the ridge is gone - the stage was long for a phone: the user; its monkey's cage waits by the shrine gate)
-            AddCage(455.5f);
+            // (clear of the stone bridge's steps: it stood against their rock - the user's picture)
+            AddCage(457.5f);
 
             // ---- the shrine gate: across the path, shut until Sergeant Snap is beaten, then it sinks and he walks through
             AddGate(CbWorld.GoalX + 1.2f);
