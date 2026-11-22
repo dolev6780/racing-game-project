@@ -1301,6 +1301,36 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ADodgeCutsABlowShort()
+        {
+            // more precise control (the user): once a paw blow has struck, a dodge cuts the rest of it short
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            game.Teleport(184f);
+            hero.y = 0;
+            yield return Frames(2);
+            bool first = true;
+            game.TestControls = i => { i.atk = first; first = false; };
+            for (int k = 0; k < 60 && hero.state != CbHero.State.Atk; k++) yield return null;
+            game.TestControls = null;
+            Assert.AreEqual(CbHero.State.Atk, hero.state, "No blow");
+            // past its hit (two thirds of a 0.22 s blow)
+            yield return new WaitForSeconds(0.17f);
+            if (hero.state == CbHero.State.Atk)
+            {
+                bool dodge = true;
+                game.TestControls = i => { i.dash = dodge; i.dashDir = 1; dodge = false; };
+                yield return Frames(2);
+                game.TestControls = null;
+                Assert.AreEqual(CbHero.State.Dash, hero.state, "A dodge did not cut the blow short");
+            }
+        }
+
+        [UnityTest]
         public IEnumerator SoldiersTakeTurnsAndACounterHitsHarder()
         {
             // smarter fights (the user): at most two soldiers strike at Raja at once, the rest wait their turn; a blow on

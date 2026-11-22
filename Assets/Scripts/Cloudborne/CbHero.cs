@@ -839,6 +839,14 @@ namespace Cloudborne
             if (!air && (state == State.Run || state == State.Idle) && (input.slide || across)) StartSlide();
             else if (!air && state == State.Run && downNow && !downBefore && Mathf.Abs(vx) > SlideFrom) StartSlide();
             downBefore = downNow;
+            // a cancel: once a paw blow has struck (past its hit), a dodge or a jump cuts the rest of it short (the user:
+            // more precise control - he was stuck in each blow to its end)
+            if (state == State.Atk && combo < Paw.Length && t / Paw[combo].dur > Paw[combo].b && (input.dash || input.jump))
+            {
+                state = air ? State.Air : State.Idle;
+                combo = 0;
+                buffer = 0;
+            }
             bool free = state == State.Idle || state == State.Run || state == State.Air;
             if (free)
             {
