@@ -285,6 +285,24 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator ZzOpeningCinematicShots()
+        {
+            // the opening cinematic in the engine (the user approved its dialogue): a picture every 3.5 s of it, its
+            // lines going on by themselves
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.PlayOpening();
+            yield return Frames(2);
+            Assert.AreEqual(CbGame.Mode.Scene, game.mode, "The opening did not start");
+            for (int n = 0; n < 45 && game.mode == CbGame.Mode.Scene; n++)
+            {
+                yield return TakePictures(new[] { ($"opening_{n:00}", float.NaN, 0f) }, 0.1f);
+                for (float w = 0; w < 3.5f && game.mode == CbGame.Mode.Scene; w += Time.deltaTime) yield return null;
+            }
+            Assert.AreEqual(CbGame.Mode.Play, game.mode, "The opening never ended by itself");
+        }
+
+        [UnityTest]
         public IEnumerator ZzResultsComeIn()
         {
             game = CbGame.Boot();
@@ -390,7 +408,7 @@ namespace RacingGame.Tests
             Assert.IsNotNull(game.scene);
             // tapping through the talk: every line shows, then goes on, and the stage begins
             Time.captureDeltaTime = 1f / 20f;
-            bool sawKoda = false, sawRaiders = false, sawNet = false, sawDrawn = false;
+            bool sawKoda = false, sawRaiders = false, sawNet = false, sawBaba = false, sawKids = false, scarfTied = false;
             int frames = 0;
             game.TestInput = i => i.confirm = Time.frameCount % 8 == 0;
             while (game.mode == CbGame.Mode.Scene && frames++ < 2000)
@@ -401,7 +419,9 @@ namespace RacingGame.Tests
                 sawKoda |= stage.Find("Koda") != null;
                 sawRaiders |= stage.Find("SgtSnap") != null && stage.Find("Raider") != null;
                 sawNet |= stage.Find("Koda/net") != null;
-                sawDrawn |= game.comic.Playing;
+                sawBaba |= stage.Find("Baba") != null;
+                sawKids |= stage.Find("Kid") != null;
+                scarfTied |= game.hero.Staff != null && game.hero.Staff.Find("kodaScarf") != null;
             }
             game.TestInput = null;
             Time.captureDeltaTime = 0f;
@@ -411,7 +431,11 @@ namespace RacingGame.Tests
             Assert.IsTrue(sawKoda, "Koda was not in the opening");
             Assert.IsTrue(sawRaiders, "Sergeant Snap and his raiders never came");
             Assert.IsTrue(sawNet, "Koda was never netted");
-            Assert.IsTrue(sawDrawn, "The opening's drawn panels (Koda boasting, Koda taken) never played");
+            // the opening is a cinematic in the engine now (the user): the village kids, Baba's word, Koda's scarf tied
+            // to the staff
+            Assert.IsTrue(sawKids, "The village kids were not in the opening");
+            Assert.IsTrue(sawBaba, "Baba was not in the opening");
+            Assert.IsTrue(scarfTied, "Raja never tied Koda's scarf to his staff");
             // no powers yet: his fire wakes only at the fire crystal (1-5)
             Assert.IsFalse(CbHero.FireAwake, "Raja's fire woke in the opening");
             Assert.IsNull(game.transform.Find("Opening"), "The scene's cast was left on the path");

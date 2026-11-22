@@ -43,6 +43,13 @@ namespace Cloudborne
         /// <summary>Fire glowing in Raja's fur (0 = none).</summary>
         public float rajaGlow;
 
+        /// <summary>
+        /// A cinematic's lines go on by themselves once there has been time to read them (a tap still hurries them):
+        /// played like a film (the opening).
+        /// </summary>
+        public bool AutoLines;
+        const float ReadBase = 1.4f, ReadPerChar = 0.045f;
+
         /// <summary>Runs every frame from when a beat sets it (e.g. a captive carried along between two raiders).</summary>
         public Action Always;
 
@@ -161,6 +168,7 @@ namespace Cloudborne
                     if (!g.hud.LineDone) g.hud.CompleteLine();
                     else Next();
                 }
+                else if (AutoLines && g.hud.LineDone && t > ReadBase + b.line.Length * ReadPerChar) Next();
             }
             else if (b.comic != null)
             {

@@ -202,55 +202,140 @@ namespace Cloudborne
         };
 
         /// <summary>
-        /// Stage 1-1 opens (scenes 2 and 3 of the script): a morning in the village, Koda boasting that he is the child
-        /// of the prophecy; the Iron Crown raiders believe him and carry him off in a net; Raja, angry but with no powers
-        /// (only his staff), sets out after them, and the chase begins.
+        /// The opening cinematic (the story doc, "The opening cinematic", the user's dialogue): played in the engine
+        /// like a short film, its lines going on by themselves (a tap hurries them). Raja is shy, hesitant and a
+        /// worrier, his little rituals shown but never named (the knot tied again and again, counting before a jump,
+        /// stones set in a row). Shot 1, the prologue, is the drawn one before it (CbGame.PlayPrologue).
+        /// 2. Raja's morning at the village gate: the knot, the stones, Koda bursting in. 3. By the river's stepping
+        /// stones: Koda jumps, Raja counts and doesn't. 4. Koda's boast to the village kids, Raja hiding behind him.
+        /// 5. The wrong cub: the raiders net Koda while Raja freezes behind a log; Koda's scarf falls. 6. Counting to
+        /// three: Baba's word, the scarf tied to the staff, and this time he runs.
         /// </summary>
         public static CbScene Opening(CbGame g)
         {
-            var s = new CbScene(g, "Opening");
-            CbActor koda = null, snap = null, r1 = null, r2 = null;
+            var s = new CbScene(g, "Opening") { AutoLines = true };
+            CbActor koda = null, snap = null, r1 = null, r2 = null, kid1 = null, kid2 = null, baba = null;
             var hero = g.hero;
+            var stones = new Transform[3];
+            Transform scarf = null, hideLog = null;
+            // counting over his head, as he says it
+            void Count(string n, bool big = false) => g.hud.Popup(new Vector3(hero.x, 2.5f, 0), n, big ? CbHud.PopStyle.Big : CbHud.PopStyle.Normal);
+            // a cut to somewhere else, through a quick fade
+            void CutTo(System.Action place) => g.fade.FadeThrough(() => place(), 0.25f, 0.35f);
 
+            // ---- 2. Raja's morning: at the village gate he ties his red headband, unties it, ties it again; sets three
+            // stones in a row before he goes; Koda bursts in
             s.Do(() =>
             {
-                hero.x = -4.5f; hero.facing = 1;
-                koda = s.Cast("Koda", KodaModels, 1.72f, KodaStyle, RigBuilder.WolfCub, -1.6f, -1);
-                koda.Play("Idle");
-                s.Cut(-3f, 1.35f, 0.62f);
-                s.Raja("Punch_Combo");
+                hero.x = GateX; hero.facing = 1;
+                s.Cut(GateX + 0.5f, 1.25f, 0.42f);
+                s.RajaOnce("Power_Gather", 0.05f, 0.3f, 1.1f);
+                hideLog = CbArt.Joint(s.stage, LogX, 0, 0.35f, "hideLog");
+                if (CbArt.Prop("Cloudborne/Jungle/Log/Log", hideLog, CbArt.PropOutline) != null) hideLog.localScale = new Vector3(0.75f, 0.87f, 0.87f);
             });
-            // the morning: Raja trains by the path, Koda shows off (drawn: Koda on a stump)
-            s.Wait(1.6f);
-            s.Comic(KodaBoast);
-            s.Say("KODA", KodaCol, CbComic.Available(KodaBoast) ? "Ever seen a wolf with an ear like this?"
-                    : "The prophecy kid? That's me! Ever seen a wolf with an ear like this?",
-                () => { s.Raja("Combat_Stance"); koda.Play("Show_Both_Arm_Muscles"); },
-                t => { if (koda.model == null) koda.y = t < 1.2f ? Mathf.Abs(Mathf.Sin(t * 7)) * 0.18f : 0; });
-            s.Say("RAJA", RajaCol, "The prophecy kid is supposed to save the whole jungle, Koda. You fell out of a tree yesterday.");
-            // nothing gives Raja away here: no one but Baba knows what he is
-            s.Say("KODA", KodaCol, "That tree attacked me first!", () =>
+            s.Wait(1.3f);
+            s.Wait(1.2f, null, () => { s.RajaOnce("Power_Gather", 0.05f, 0.3f, 1.1f); CbFx.Sfx("swing", 0.3f); });
+            s.Wait(1.8f, u =>
             {
-                koda.Once("Hit_Reaction", 0.1f, 0.7f, 0.6f);
+                for (int k = 0; k < 3; k++)
+                    if (stones[k] == null && u > 0.2f + k * 0.28f)
+                    {
+                        stones[k] = CbArt.Joint(s.stage, GateX + 1.1f + k * 0.32f, 0, -0.45f, "stone");
+                        if (CbArt.Prop("Cloudborne/Jungle/RiverStone/RiverStone", stones[k], CbArt.PropOutline) != null) stones[k].localScale = Vector3.one * 0.16f;
+                        else CbArt.Part(CbMesh.Sphere, CbArt.Toon("#8a8a84"), stones[k], new Vector3(0, 0.07f, 0), new Vector3(0.2f, 0.14f, 0.18f));
+                        CbFx.Sfx("pickup", 0.25f);
+                    }
+            }, () => { s.Raja("Motion_Crouch"); s.Camera(GateX + 1.2f, 0.9f, 0.4f, 2f); });
+            s.Do(() =>
+            {
                 s.Raja("Idle");
+                koda = s.Cast("Koda", KodaModels, 1.72f, KodaStyle, RigBuilder.WolfCub, GateX + 9f, -1);
+                koda.WalkTo(GateX + 2.6f, 6.5f, "RunFast");
+                s.Camera(GateX + 1.6f, 1.35f, 0.6f, 2f);
             });
+            s.Wait(1.0f);
+            s.Say("KODA", KodaCol, "Raja! Get up! Today I show everyone who the prophecy kid is!",
+                () => koda.Play("Show_Both_Arm_Muscles"));
+            s.Say("RAJA", RajaCol, "Wait... one more time. The knot doesn't sit right.",
+                () => s.RajaOnce("Power_Gather", 0.05f, 0.3f, 1.1f));
+            s.Say("KODA", KodaCol, "That's your third knot this morning!", () => koda.Once("Look_Around_Dumbfounded", 0.1f, 0.6f, 1.2f));
+            s.Say("RAJA", RajaCol, "(quietly) Fourth.", () => { s.Raja("Idle"); s.Camera(hero.x + 0.2f, 1.4f, 0.38f, 3f); });
 
-            // the saws: the Iron Crown's raiders come running out of the trees, their sergeant in front
-            s.Wait(1.7f, null, () =>
+            // ---- 3. By the river's stepping stones: Koda jumps without a thought, Raja stands at the edge counting
+            s.Wait(0.6f, null, () => CutTo(() =>
+            {
+                hero.x = RiverBank; hero.facing = 1; s.Raja("Idle");
+                koda.x = RiverBank + 1f; koda.facing = 1; koda.Play("Idle");
+                s.Cut(RiverBank + 2.6f, 1.3f, 0.78f);
+            }));
+            float hopFrom = 0, hopTo = 0;
+            foreach (var to in RiverHops)
+            {
+                float target = to;
+                s.Wait(0.55f, u =>
+                {
+                    koda.x = Mathf.Lerp(hopFrom, hopTo, u);
+                    koda.y = 1.4f * 4f * u * (1 - u);
+                }, () =>
+                {
+                    hopFrom = koda.x; hopTo = target;
+                    koda.Once("Hop_with_Arms_Raised", 0.1f, 0.6f, 0.55f);
+                    CbFx.Sfx("jump", 0.4f);
+                });
+                s.Wait(0.25f, null, () => { koda.y = 0; CbFx.Spark(new Vector3(koda.x, 0.1f, -0.3f), CbFx.Water, 6, 2f, 0.25f, 0.3f, 6); });
+            }
+            s.Do(() => { koda.facing = -1; koda.Play("Idle"); s.Camera(RiverBank + 1.4f, 1.4f, 0.55f, 2f); });
+            s.Say("RAJA", RajaCol, "(whispering) One... two... two and a half...", null, t =>
+            {
+                if (t > 0.3f && t - Time.deltaTime <= 0.3f) Count("1...");
+                if (t > 1.0f && t - Time.deltaTime <= 1.0f) Count("2...");
+                if (t > 1.7f && t - Time.deltaTime <= 1.7f) Count("2½...");
+            });
+            s.Say("KODA", KodaCol, "You always count, and you never jump.");
+            s.Say("RAJA", RajaCol, "What if the rock is slippery? What if I fall? What if...", () => s.RajaOnce("Block1", 0.1f, 0.4f, 0.6f));
+            s.Say("KODA", KodaCol, "(grinning) What if you just jump?", () => koda.Once("Show_Both_Arm_Muscles", 0.1f, 0.7f, 1.2f));
+
+            // ---- 4. Morning in the village: Koda boasts to the kids from the log; when they look at Raja, he hides
+            // behind Koda, blushing
+            s.Wait(0.6f, null, () => CutTo(() =>
+            {
+                s.Raja("Idle");
+                hero.x = GateX + 0.4f; hero.facing = 1;
+                koda.x = LogX; koda.y = 0.62f; koda.facing = -1; koda.Play("Show_Both_Arm_Muscles");
+                kid1 = s.Cast("Kid", KidModels, 0.85f, KodaStyle, null, LogX - 2.4f, 1);
+                kid2 = s.Cast("Kid", KidModels, 0.8f, KodaStyle, null, LogX - 3.2f, 1);
+                kid1.Play("Hop_with_Arms_Raised"); kid2.Play("Hop_with_Arms_Raised");
+                s.Cut(LogX - 1.2f, 1.4f, 0.75f);
+            }));
+            s.Say("KODA", KodaCol, "The prophecy kid? That's me! Ever seen a wolf with an ear like this?");
+            s.Say("RAJA", RajaCol, "The prophecy kid is supposed to save the whole jungle, Koda. You fell out of a tree yesterday.", () =>
+            {
+                // the kids turn to look at him: he slips behind Koda, red in the face
+                kid1.facing = kid2.facing = 1;
+                s.RajaRunTo(LogX + 0.9f, 2.2f);
+                CbFx.Spark(new Vector3(hero.x + 0.15f, 1.5f, -0.5f), new Color(1f, 0.45f, 0.5f) * 1.6f, 4, 0.4f, 0.1f, 0.6f, 0);
+            });
+            s.Say("KODA", KodaCol, "That tree attacked me first!", () => koda.Once("Hit_Reaction", 0.1f, 0.7f, 0.6f));
+
+            // ---- 5. The wrong cub: the raiders come out of the trees; Raja freezes and hides behind the log; the net
+            // takes Koda, and his yellow scarf falls by the log
+            s.Wait(1.6f, null, () =>
             {
                 CbFx.Sfx("saw", 0.8f);
                 g.shake = Mathf.Max(g.shake, 0.3f);
-                s.Camera(1.2f, 1.6f, 0.95f, 1.8f);
-                s.Raja("Combat_Stance");
-                koda.facing = 1;
-                snap = s.Cast("SgtSnap", SnapModels, 2.55f, HyenaStyle(1.2f, 1.15f), RigBuilder.HyenaHead, 15f, -1, Machete);
-                r1 = s.Cast("Raider", RaiderModels, 2.25f, HyenaStyle(1f, 1f), RigBuilder.HyenaHead, 16.6f, -1, Machete);
-                r2 = s.Cast("Raider", RaiderModels, 2.25f, HyenaStyle(1f, 1f), RigBuilder.HyenaHead, 18.2f, -1, Machete);
+                kid1.WalkTo(LogX - 14f, 7f, "RunFast"); kid2.WalkTo(LogX - 14f, 7f, "RunFast");
+                koda.y = 0; koda.x = LogX + 1.6f; koda.facing = 1; koda.Play("Idle");
+                s.RajaRunTo(LogX - 0.8f, 4f);
+                s.Camera(LogX + 3f, 1.6f, 0.95f, 1.8f);
+                snap = s.Cast("SgtSnap", SnapModels, 2.55f, HyenaStyle(1.2f, 1.15f), RigBuilder.HyenaHead, LogX + 17f, -1, Machete);
+                r1 = s.Cast("Raider", RaiderModels, 2.25f, HyenaStyle(1f, 1f), RigBuilder.HyenaHead, LogX + 18.6f, -1, Machete);
+                r2 = s.Cast("Raider", RaiderModels, 2.25f, HyenaStyle(1f, 1f), RigBuilder.HyenaHead, LogX + 20.2f, -1, Machete);
                 foreach (var a in new[] { snap, r1, r2 }) a.Play("Combat_Stance");
-                snap.WalkTo(4.4f, 6.5f);
-                r1.WalkTo(1.8f, 7f);
-                r2.WalkTo(3.1f, 7f);
+                snap.WalkTo(LogX + 6.4f, 6.5f);
+                r1.WalkTo(LogX + 3.8f, 7f);
+                r2.WalkTo(LogX + 5.1f, 7f);
             });
+            s.Do(() => { s.Raja("Motion_Crouch"); hero.facing = 1; });
             s.Say("SGT. SNAP", SnapCol, "Search the village! The prophecy kid is here somewhere!", () =>
             {
                 CbFx.Sfx("whistle", 0.7f);
@@ -260,10 +345,8 @@ namespace Cloudborne
             {
                 snap.Play("Combat_Stance");
                 koda.Play("Show_Both_Arm_Muscles");
-                koda.WalkTo(0.6f, 3f, "Excited_Walk_M");
+                koda.WalkTo(LogX + 2.6f, 3f, "Excited_Walk_M");
             });
-
-            // the net drops over him from above and closes: a rope sack that wraps him whole, curled up inside
             Transform net = null;
             s.Wait(0.5f, u =>
             {
@@ -276,12 +359,19 @@ namespace Cloudborne
                 koda.struggle = true;
                 koda.Play("Head_Hold_in_Pain");
                 r1.Once("Right_Hand_Sword_Slash", 0.1f, 0.5f, 0.4f);
+                // his scarf comes loose and falls by the log
+                scarf = CbArt.Joint(s.stage, koda.x - 0.4f, 1.2f, -0.3f, "kodaScarf");
+                CbArt.Part(CbMesh.Box(), CbArt.Toon("#f2c230", CbArt.PropOutline), scarf, Vector3.zero, new Vector3(0.42f, 0.07f, 0.16f), Quaternion.Euler(0, 0, 18f));
             });
-            s.Say("KODA", KodaCol, "...wait, why the net?!");
-            s.Say("SGT. SNAP", SnapCol, "The wolf comes with us. The General knows what to do with the prophecy kid.",
-                () => snap.Once("Shouting_Angrily", 0.15f, 0.85f, 1.8f));
-
-            // two raiders take him between them on a bamboo pole, the sack hanging from it, and run; Raja runs after them
+            s.Wait(0.6f, u => { if (scarf != null) scarf.localPosition = new Vector3(Mathf.Lerp(koda.x - 0.4f, LogX + 0.6f, u), Mathf.Lerp(1.2f, 0.05f, u * u), -0.3f); });
+            s.Say("KODA", KodaCol, "...wait, why the net?! RAJA!", () => s.Camera(LogX + 0.6f, 1.3f, 0.7f, 2.5f));
+            s.Say("RAJA", RajaCol, "(to himself) I can't. I'm not brave like Koda.", () => s.Camera(hero.x + 0.3f, 1.0f, 0.42f, 3f));
+            s.Say("SGT. SNAP", SnapCol, "The wolf comes with us. The General knows what to do with the prophecy kid.", () =>
+            {
+                snap.Once("Shouting_Angrily", 0.15f, 0.85f, 1.8f);
+                s.Camera(LogX + 3.4f, 1.6f, 0.95f, 2f);
+            });
+            // two raiders carry him off between them on a bamboo pole; Raja stays hidden
             Transform pole = null;
             s.Wait(0.45f, u =>
             {
@@ -295,8 +385,7 @@ namespace Cloudborne
                 CbArt.Cylinder(koda.f.M(CbArt.Hex("#c9a24e")), pole, Vector3.zero, 0.05f, 1f, CbArt.Rot(0, 0, Mathf.PI / 2));
                 pole.localScale = Vector3.zero;
             });
-            bool chasing = false;
-            s.Wait(1.8f, u => { if (u > 0.35f && !chasing) { chasing = true; s.RajaRunTo(-1.8f, 5.5f); } }, () =>
+            s.Wait(2.2f, null, () =>
             {
                 s.Always = () =>
                 {
@@ -307,39 +396,81 @@ namespace Cloudborne
                     pole.localPosition = new Vector3(mid, PoleHeight, 0.05f);
                     pole.localScale = new Vector3(Mathf.Abs(r2.x - r1.x) + 0.7f, 1, 1);
                 };
-                r1.WalkTo(24f, 6.5f);
-                r2.WalkTo(25.7f, 6.5f);
-                snap.WalkTo(27.5f, 7f);
-                s.Camera(0.5f, 1.6f, 0.9f, 2f);
+                r1.WalkTo(LogX + 26f, 6.5f);
+                r2.WalkTo(LogX + 27.7f, 6.5f);
+                snap.WalkTo(LogX + 29.5f, 7f);
             });
-            s.Say("RAJA", RajaCol, "KODA!", () => s.Camera(-1.6f, 1.4f, 0.62f, 3f));
-            // drawn: Koda calling out from the net, Raja's anger
-            s.Comic(KodaTaken);
 
-            // he is angry, and that is all: only a flicker in his eyes (no powers yet), fists tight
-            s.Wait(1.1f, u => s.rajaGlow = 0.3f * Mathf.Sin(u * Mathf.PI), () =>
+            // ---- 6. Counting to three: the forest quiet; Raja picks up the scarf; Baba, yawning, has a word; Raja ties
+            // the scarf to his staff, counts - and this time he runs
+            s.Wait(1.2f, null, () =>
+            {
+                s.Always = null;
+                s.Raja("Idle");
+                s.RajaRunTo(LogX + 0.6f, 1.6f);
+                s.Camera(LogX + 0.8f, 1.1f, 0.5f, 2f);
+            });
+            s.Wait(1.0f, null, () =>
+            {
+                s.RajaOnce("Motion_Crouch", 0f, 1f, 0.8f);
+                if (scarf != null) scarf.gameObject.SetActive(false);
+                baba = s.Cast("Baba", BabaModels, 2.0f, BabaStyle, null, LogX - 3.2f, 1);
+                baba.WalkTo(LogX - 1.4f, 1.4f, "Casual_Walk");
+            });
+            s.Wait(1.2f, null, () => { baba.Play("Idle_02"); s.Camera(LogX - 0.2f, 1.4f, 0.65f, 2f); });
+            s.Say("BABA ORANG", BabaCol, "(yawning) Courage isn't when you're not afraid. It's when you're afraid, and you go anyway.",
+                () => { s.Raja("Idle"); hero.facing = -1; baba.Once("Dozing_Elderly", 0.1f, 0.3f, 1.2f); });
+            s.Wait(1.4f, null, () =>
+            {
+                hero.facing = 1;
+                s.RajaOnce("Power_Gather", 0.05f, 0.35f, 1.3f);
+                // Koda's scarf tied to his staff
+                // (once: played again from the menu, the scarf is already there)
+                var staff = hero.Staff;
+                if (staff != null && staff.Find("kodaScarf") == null)
+                {
+                    var tie = CbArt.Joint(staff, 0, 0.62f, 0, "kodaScarf");
+                    CbArt.Part(CbMesh.Box(), CbArt.Toon("#f2c230", CbArt.PropOutline), tie, new Vector3(0.12f, -0.1f, 0), new Vector3(0.08f, 0.32f, 0.05f), Quaternion.Euler(0, 0, -20f));
+                    CbArt.Part(CbMesh.Box(), CbArt.Toon("#f2c230", CbArt.PropOutline), tie, Vector3.zero, new Vector3(0.12f, 0.08f, 0.12f));
+                }
+                s.Camera(hero.x + 0.2f, 1.35f, 0.4f, 3f);
+            });
+            s.Say("RAJA", RajaCol, "One... two... three.", null, t =>
+            {
+                if (t > 0.3f && t - Time.deltaTime <= 0.3f) Count("1", true);
+                if (t > 0.9f && t - Time.deltaTime <= 0.9f) Count("2", true);
+                if (t > 1.5f && t - Time.deltaTime <= 1.5f) Count("3!", true);
+            });
+            s.Wait(1.6f, null, () =>
             {
                 s.Raja("Combat_Stance");
-                s.Camera(hero.x + 0.4f, 1.5f, 0.5f, 3f);
-                var eyes = new Vector3(hero.x + hero.facing * 0.18f, 1.55f, -0.5f);
-                CbFx.Spark(eyes, CbFx.Fire, 3, 0.6f, 0.12f, 0.4f, -1);
+                s.RajaRunTo(LogX + 9f, 6.5f);
+                s.Camera(LogX + 6f, 1.5f, 1f, 1.6f);
+                g.hud.Banner("1-1 THE JUNGLE GATE");
             });
-            s.Say("RAJA", RajaCol, "Hang on, Koda. I'm coming!", () =>
-            {
-                s.Raja("Combat_Stance");
-                s.Camera(hero.x + 1.6f, 1.5f, 1f, 2f);
-            });
-            // drawn: he sets out with his staff
-            s.Comic(Journey);
 
             s.Finally(() =>
             {
-                hero.x = Mathf.Max(hero.x, -1.8f);
+                hero.x = Mathf.Clamp(hero.x, GateX, LogX + 9f);
+                if (hero.x > 60f) hero.x = GateX;
                 hero.facing = 1;
             });
             s.Then(g.OpeningDone);
             return s;
         }
+
+        // the opening's places: Raja's spot at the village gate, the log he hides behind, the river bank by the
+        // stepping stones (stage 1-1's long river) and Koda's hops across them
+        const float GateX = -4.6f, LogX = -1.2f, RiverBank = 78.3f;
+        static readonly float[] RiverHops = { 80.6f, 82.2f };
+        static readonly string[] KidModels = { "Cloudborne/Monkey/Monkey" };
+        static readonly string[] BabaModels = { "Cloudborne/Baba/Baba" };
+        public static readonly Color BabaCol = CbArt.Hex("#f0a050");
+        static RigStyle BabaStyle => new RigStyle
+        {
+            fur = CbArt.Hex("#c8642a"), paw = CbArt.Hex("#9a4a20"), top = CbArt.Hex("#c8642a"), pants = CbArt.Hex("#6a4a2a"),
+            belt = CbArt.Hex("#3a2a1a"), wrap = CbArt.Hex("#efe6d4"), scale = 1.05f,
+        };
 
         /// <summary>
         /// Before the fight at the end of 1-1 (scene 4 of the script): Sergeant Snap steps out in front of the shrine

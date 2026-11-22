@@ -157,6 +157,8 @@ namespace Cloudborne
         readonly CbGame g;
         readonly Material furMat;
         readonly Transform staff;
+        /// <summary>His bamboo staff (a scene ties things to it: Koda's scarf in the opening).</summary>
+        public Transform Staff => staff;
         bool staffInHand;
         float t, buffer, heavyBuffer, flipT, runPh, staffHold, sinceDash = 9, dashCd, glow, tick, ghostT, blockT, crouchT, walkT, stowT;
         // his model's landing crouch, and the time since he left the ground in a jump (its push off)
