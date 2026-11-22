@@ -449,14 +449,14 @@ namespace Cloudborne
             s.Wait(1.6f, null, () =>
             {
                 s.Raja("Combat_Stance");
-                s.RajaRunTo(LogX + 9f, 6.5f);
-                s.Camera(LogX + 6f, 1.5f, 1f, 1.6f);
+                s.RajaRunTo(RunEnd, 6.5f);
+                s.Camera(RunEnd - 2f, 1.5f, 1f, 1.6f);
                 g.hud.Banner("1-1 THE JUNGLE GATE");
             });
 
             s.Finally(() =>
             {
-                hero.x = Mathf.Clamp(hero.x, GateX, LogX + 9f);
+                hero.x = Mathf.Clamp(hero.x, GateX, RunEnd);
                 if (hero.x > 60f) hero.x = GateX;
                 hero.facing = 1;
             });
@@ -469,6 +469,9 @@ namespace Cloudborne
         const float GateX = -4.6f, LogX = -1.2f, RiverBank = 78.3f;
         // where Koda's scarf lands: on the path past the log's right end
         const float ScarfDrop = 1.5f;
+        // where his run at the end stops: well short of the stage's first crate (at 9 m), which he ran into, and
+        // through, before
+        const float RunEnd = 5.5f;
         static readonly float[] RiverHops = { 80.6f, 82.2f };
         static readonly string[] KidModels = { "Cloudborne/Monkey/Monkey" };
         static readonly string[] BabaModels = { "Cloudborne/Baba/Baba" };
