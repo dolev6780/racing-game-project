@@ -449,6 +449,9 @@ namespace Cloudborne
 
         void EndStaff() { state = air ? State.Air : State.Idle; move = Move.None; staffHold = 0.5f; combo = 0; kiCrash = false; }
 
+        // how much shorter a blow reaches a soldier than a crate or a bell (CbHero.MeleeHits)
+        const float FoeReachCut = 0.45f;
+
         bool MeleeHits(float range, float dmg, float kb, float up, bool big, bool breaker, bool ki = false)
         {
             bool any = false;
@@ -456,7 +459,9 @@ namespace Cloudborne
             {
                 if (e.dead || hitSet.Contains(e)) continue;
                 float dx = (e.x - x) * facing;
-                if (dx > -0.4f - e.w * 0.5f && dx < range + e.w && Mathf.Abs(e.HitHeight - (y + 1.2f)) < 1.5f)
+                // reaching his body's front, not past it (counting his whole width and the full reach, a punch landed on
+                // a soldier a metre and a half off: the user)
+                if (dx > -0.4f - e.w * 0.5f && dx < range - FoeReachCut + e.w * 0.5f && Mathf.Abs(e.HitHeight - (y + 1.2f)) < 1.5f)
                 {
                     hitSet.Add(e);
                     if (g.HurtEnemy(e, dmg, facing, kb, up, big, breaker, fire: false, fromPlayer: true, ki: ki)) any = true;
