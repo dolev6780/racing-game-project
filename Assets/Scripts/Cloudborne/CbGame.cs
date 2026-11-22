@@ -340,7 +340,7 @@ namespace Cloudborne
         Camera cam;
         Light sun;
         Transform actors;
-        float comboT, camX, camY = CamBase, fovKick, overT, atkHeldT, heavyHeldT, camBack = 1f, lookOff;
+        float comboT, camX, camY = CamBase, fovKick, overT, atkHeldT, heavyHeldT, camBack = 1f;
         int lastScore = -1;
         readonly List<(float at, CbEnemy.Kind kind, float x, Zone zone)> pending = new List<(float, CbEnemy.Kind, float, Zone)>();
         readonly List<Shot> shots = new List<Shot>();
@@ -358,13 +358,13 @@ namespace Cloudborne
         // (the user wanted it further out there)
         const float CamGorge = 1.95f;
         // The view holds still through his jumps: it stays at the height he last stood on until he goes more than
-        // JumpFree over it (a double jump's top), and the look ahead swings round at LookTurn m/s when he turns.
-        // (Following every jump up and down, and swinging across at each turn in a fight, the ground went round the
-        // screen in circles: dizzying - the user, stage 1-1.)
-        const float JumpFree = 3f, LookTurn = 3f;
-        // how much of the view's half (its height, its width) stays between him and its edge: over his head (the HUD's
-        // band at the top), under his feet (to see where he lands), and either side
-        const float KeepAbove = 0.42f, KeepBelow = 0.45f, KeepSide = 0.6f;
+        // JumpFree over it (a double jump's top). (Following every jump up and down, the ground went round the screen
+        // in circles: dizzying - the user, stage 1-1.) Across, it follows him as it first did, the look ahead turning
+        // with him at once (swinging round slowly, and held at the view's edge, it was confusing: the user).
+        const float JumpFree = 3f;
+        // how much of the view's half height stays between him and its edge: over his head (the HUD's band at the top)
+        // and under his feet (to see where he lands)
+        const float KeepAbove = 0.42f, KeepBelow = 0.45f;
 
         class Shot { public Transform t, glow; public float x, y, vx, life, crackle; }
         /// <summary>The special shot's beam: its layers, how long it has run, where it starts and which way it points.</summary>
@@ -2022,8 +2022,7 @@ namespace Cloudborne
             if (grakFight) back = Mathf.Max(back, GrakFightBack);
             camBack += (back - camBack) * (1 - Mathf.Exp(-2f * dt));
             dist *= camBack;
-            lookOff = Mathf.MoveTowards(lookOff, hero.facing * LookAhead, LookTurn * dt);
-            float tx = hero.x + lookOff;
+            float tx = hero.x + hero.facing * LookAhead;
             // in the menu Raja stands on the right of the screen, the menu on the left, the camera a little closer
             if (mode == Mode.Title) { tx = hero.x - 3.4f + Mathf.Sin(clock * 0.2f) * 0.3f; dist *= 0.72f; }
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
@@ -2059,14 +2058,12 @@ namespace Cloudborne
             if (mode == Mode.Scene && scene != null) { tx = camX = scene.camX; ty = camY = scene.camY; dist *= scene.zoom; }
             camX += (tx - camX) * (1 - Mathf.Exp(-3.5f * dt));
             camY += (ty - camY) * (1 - Mathf.Exp(-3 * dt));
-            // never left behind: however fast he jumps, falls or dashes, he stays in the middle of the view, the camera
-            // going with him at its edge (catching up slowly it lost him off the top or the bottom: the user)
-            // (across only outside the fights: their raiders run in from off the screen)
+            // never left behind: however fast he jumps or falls, he stays in the view, the camera going with him at its
+            // edge (catching up slowly it lost him off the top or the bottom: the user)
             if (mode == Mode.Play)
             {
-                float halfH = dist * tanH, halfW = halfH * cam.aspect;
+                float halfH = dist * tanH;
                 camY = Mathf.Clamp(camY, hero.y + hero.Height + KeepAbove * halfH - halfH, hero.y + halfH - KeepBelow * halfH);
-                if (lockZone == null) camX = Mathf.Clamp(camX, hero.x - KeepSide * halfW, hero.x + KeepSide * halfW);
             }
             float sh = shake;
             cam.transform.position = new Vector3(camX + Random.Range(-1f, 1f) * sh * 0.4f, camY + CamRise + Random.Range(-1f, 1f) * sh * 0.4f, -dist);
