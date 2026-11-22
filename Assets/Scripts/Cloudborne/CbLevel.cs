@@ -1278,6 +1278,15 @@ namespace Cloudborne
                 if (x0 <= b.x0 - HalfWidth + 0.01f && x1 > b.x0 - HalfWidth) x1 = b.x0 - HalfWidth;
                 else if (x0 >= b.x1 + HalfWidth - 0.01f && x1 < b.x1 + HalfWidth) x1 = b.x1 + HalfWidth;
             }
+            // a spring leaf's pad is solid: walking into it he stops against it, low he goes under it, onto it he
+            // bounces (he walked through it, the pad cutting across his chest: the user's picture)
+            foreach (var l in leaves)
+            {
+                float lo = l.x - l.half, hi = l.x + l.half;
+                if (y >= l.top - 0.05f || y + height <= l.top - LeafPad) continue;
+                if (x0 <= lo - HalfWidth + 0.01f && x1 > lo - HalfWidth) x1 = lo - HalfWidth;
+                else if (x0 >= hi + HalfWidth - 0.01f && x1 < hi + HalfWidth) x1 = hi + HalfWidth;
+            }
             return x1;
         }
 

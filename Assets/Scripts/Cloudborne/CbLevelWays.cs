@@ -55,6 +55,8 @@ namespace Cloudborne
         /// <summary>A rope slid down from (x0, y0) to (x1, y1).</summary>
         public class Zip { public float x0, y0, x1, y1; public float At(float x) => Mathf.Lerp(y0, y1, Mathf.InverseLerp(x0, x1, x)); }
         class Leaf { public float x, half, top, squash; public Transform t; }
+        // a spring leaf: how thick its pad is (under it, low, he passes), how high the modelled one stands
+        const float LeafPad = 0.45f, LeafTop = 1.25f;
         class Draft { public float x0, x1, y0, y1; }
         class Raft { public float x, from, to, speed, sink, baseY; public Transform t; }
         class Lantern { public float x; public bool lit; public Material light; public Renderer window; }
@@ -938,8 +940,14 @@ namespace Cloudborne
                 if (b.x1 <= x) lo = Mathf.Max(lo, b.x1 + 0.6f);
                 if (b.x0 >= x) hi = Mathf.Min(hi, b.x0 - 0.6f);
             }
-            // a soldier can't duck under a low passage
+            // a soldier can't duck under a low passage; a spring leaf's pad he hops over (he walked through it)
             foreach (var o in overhangs) Bound(x, o.x0, o.x1, ref lo, ref hi);
+            if (!hopping || LeafTop > SoldierHops)
+                foreach (var l in leaves)
+                {
+                    if (l.x + l.half <= x) lo = Mathf.Max(lo, l.x + l.half + 0.6f);
+                    if (l.x - l.half >= x) hi = Mathf.Min(hi, l.x - l.half - 0.6f);
+                }
         }
 
         // ---------- low passages ----------
