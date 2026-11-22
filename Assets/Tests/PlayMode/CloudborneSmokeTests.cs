@@ -1457,13 +1457,6 @@ namespace RacingGame.Tests
             yield return Frames(2);
             float leaf = CbLevel.LeafXs[0];
             Assert.That(leaf, Is.InRange(110f, 130f), "No springy leaf at the old shrine");
-            // walking into it he stops against its pad (he walked through it, the pad across his chest: the user)
-            game.Teleport(leaf - 2.5f);
-            game.hero.y = 0;
-            game.TestInput = i => i.x = 1f;
-            yield return new WaitForSeconds(1f);
-            game.TestInput = null;
-            Assert.Less(game.hero.x, leaf - 0.6f, "Raja walked through the springy leaf's pad");
             Assert.AreEqual(CbLevel.ShrineLedgeTop, game.level.SupportAt(CbLevel.ShrineLedgeX, 20f), 0.01f, "No ledge over the old shrine");
             // dropped onto it, he bounces up past the ledge's height
             game.Teleport(leaf);
@@ -1473,6 +1466,16 @@ namespace RacingGame.Tests
             float high = 0;
             for (float w = 0; w < 1.5f; w += Time.deltaTime) { high = Mathf.Max(high, game.hero.y); yield return null; }
             Assert.Greater(high, CbLevel.ShrineLedgeTop + 0.3f, "The springy leaf at the old shrine does not throw him up to its ledge");
+            // walking into it he stops against its pad (he walked through it, the pad across his chest: the user)
+            // (last: up against it, he can be left hanging from its edge)
+            for (float w = 0; w < 3f && game.hero.state != CbHero.State.Idle && game.hero.state != CbHero.State.Run; w += Time.deltaTime) yield return null;
+            game.Teleport(leaf - 2.5f);
+            game.hero.y = 0;
+            game.hero.vx = game.hero.vy = 0;
+            game.TestInput = i => i.x = 1f;
+            yield return new WaitForSeconds(1f);
+            game.TestInput = null;
+            Assert.Less(game.hero.x, leaf - 0.6f, "Raja walked through the springy leaf's pad");
         }
 
         [UnityTest]
