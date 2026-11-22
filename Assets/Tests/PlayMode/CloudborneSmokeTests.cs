@@ -1704,12 +1704,19 @@ namespace RacingGame.Tests
             yield return Frames(2);
             var level = game.level;
             Assert.IsFalse(level.Flooding, "The gorge floods before Raja is in it");
-            // through the gap onto the gorge's floor: a boulder drops into the gap behind him and the water comes
-            game.Teleport(CbLevel.GorgeFrom + 1.5f);
-            game.hero.y = 0;
+            // through the gap and straight up onto the first ledge, never on the gorge's floor (the user: the water
+            // didn't always come): a boulder drops into the gap behind him and the water comes
+            game.Teleport(141.9f);
+            game.hero.y = 2.0f;
+            game.hero.vy = 0;
             yield return Frames(3);
             Assert.IsTrue(level.Flooding, "The gorge did not flood once he was in it");
             yield return new WaitForSeconds(0.5f);
+            // it comes from somewhere: it bursts out of cracks in the cliff behind him (the user: nothing showed where)
+            Assert.Greater(level.SpoutsPouring, 0, "No water poured out of the cliff into the gorge");
+            game.Teleport(CbLevel.GorgeFrom + 1.5f);
+            game.hero.y = 0;
+            yield return Frames(2);
             Assert.AreEqual(CbLevel.GorgeFrom + CbLevel.HalfWidth, level.BlockX(CbLevel.GorgeFrom + 1f, CbLevel.MountainFrom - 2f, 0f, CbLevel.LowHeight), 0.001f,
                 "The gap is still open behind him");
             // the water rises over him where he stands: caught, he loses health, treads water, and is back at the

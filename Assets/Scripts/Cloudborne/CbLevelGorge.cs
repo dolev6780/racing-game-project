@@ -110,7 +110,70 @@ namespace Cloudborne
                 new Vector3(GorgeTo - GorgeFrom, GorgeBack - FloodFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false);
             floodSurface.name = "floodSurface";
 
+            BuildSpouts();
             ShowFlood();
+        }
+
+        // Where the water comes from (the user: nothing showed where it came from): the boulder dropping into the gap
+        // cracks the cliff Raja came through, and the water held in the rock behind it bursts out of three cracks in its
+        // face, pouring down it into the gorge while the water rises. The cracks: how high, how far back.
+        static readonly (float y, float z)[] Spouts = { (2.6f, 0.9f), (5.2f, 1.7f), (7.6f, 0.2f) };
+        // how wide each stream falls, out from the cliff's face
+        const float SpoutWide = 0.75f;
+        readonly List<(Transform sheet, Material mat, Transform crack, float y, float z)> spouts = new List<(Transform, Material, Transform, float, float)>();
+
+        /// <summary>Test hook: how many streams are pouring out of the cliff now.</summary>
+        public int SpoutsPouring { get { int n = 0; foreach (var sp in spouts) if (sp.sheet.gameObject.activeSelf) n++; return n; } }
+
+        void BuildSpouts()
+        {
+            var shader = Resources.Load<Shader>("Shaders/Waterfall");
+            var dark = CbArt.Toon("#1e2224");
+            foreach (var (y, z) in Spouts)
+            {
+                float x0 = GorgeFrom - 0.05f, x1 = GorgeFrom + SpoutWide;
+                Material water;
+                if (shader != null && shader.isSupported)
+                {
+                    water = new Material(shader) { name = "gorgeSpout", renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent };
+                    water.SetFloat("_X0", x0);
+                    water.SetFloat("_X1", x1);
+                    water.SetFloat("_Top", y + 0.1f);
+                    water.SetFloat("_Bottom", 0f);
+                }
+                else water = CbArt.Glow(new Color(0.9f, 0.97f, 1f, 0.85f), CbArt.Shaft);
+                var sheet = CbArt.Part(CbMesh.Quad, water, root, new Vector3((x0 + x1) / 2, y / 2, z), new Vector3(x1 - x0, y, 1), shadows: false);
+                sheet.name = "gorgeSpout";
+                sheet.gameObject.SetActive(false);
+                // the crack it bursts from: a dark split in the cliff's face, opening when the boulder drops
+                var crack = CbArt.Joint(root, GorgeFrom + 0.02f, y, z, "spoutCrack");
+                CbArt.Part(CbMesh.Cube, dark, crack, Vector3.zero, new Vector3(0.08f, 0.55f, 0.5f), Quaternion.Euler(0, 0, 12f), shadows: false);
+                CbArt.Part(CbMesh.Cube, dark, crack, new Vector3(0, -0.35f, 0.1f), new Vector3(0.08f, 0.35f, 0.25f), Quaternion.Euler(0, 0, -20f), shadows: false);
+                crack.gameObject.SetActive(false);
+                spouts.Add((sheet, water, crack, y, z));
+            }
+        }
+
+        /// <summary>The streams from the cliff: pouring while the water rises (from its top down to the water), else
+        /// gone; spray where each bursts out and where it meets the water.</summary>
+        void ShowSpouts(bool pouring)
+        {
+            foreach (var (sheet, mat, crack, y, z) in spouts)
+            {
+                crack.gameObject.SetActive(gorge != Gorge.Open);
+                sheet.gameObject.SetActive(pouring);
+                if (!pouring) continue;
+                float bottom = Mathf.Max(FloodLevel, -0.2f);
+                if (bottom >= y - 0.2f) { sheet.gameObject.SetActive(false); continue; }
+                var p = sheet.localPosition;
+                sheet.localPosition = new Vector3(p.x, (y + bottom) / 2, z);
+                sheet.localScale = new Vector3(SpoutWide + 0.05f, y - bottom, 1);
+                mat.SetFloat("_Bottom", bottom);
+                if (Random.value < 0.5f)
+                    CbFx.Spark(new Vector3(GorgeFrom + 0.15f, y, z - 0.3f), CbFx.Water, 2, 3.5f, 0.3f, 0.45f, 6, 2.5f);
+                if (Random.value < 0.5f)
+                    CbFx.Spark(new Vector3(GorgeFrom + SpoutWide * 0.5f, bottom + 0.1f, z - 0.3f), CbFx.Water, 2, 3f, 0.3f, 0.5f, 7);
+            }
         }
 
         /// <summary>
@@ -266,14 +329,18 @@ namespace Cloudborne
                     CbFx.Puff(new Vector3(gx + 0.8f, 0.4f, -0.6f), new Color(0.78f, 0.74f, 0.66f), 10, 2.6f, 1.2f, 0.8f);
                     CbFx.Sfx("heavy", 0.9f);
                     g.shake = Mathf.Max(g.shake, 0.5f);
-                    g.hud.SetTip("Trapped! The water is rising - <color=#ffb03a>climb!</color>");
+                    g.hud.SetTip("The boulder cracked the cliff - water is bursting through! <color=#ffb03a>Climb!</color>");
+                    // the cliff cracks: chips of rock flying out of it where the water bursts through
+                    foreach (var (y, z) in Spouts)
+                        CbFx.Spark(new Vector3(GorgeFrom + 0.1f, y, z - 0.3f), new Color(0.55f, 0.52f, 0.48f), 8, 4f, 0.4f, 0.5f, 6, 3f);
                 }
             }
             switch (gorge)
             {
                 case Gorge.Open:
-                    // through the gap and onto the gorge's floor: the trap is sprung
-                    if (hero.x > GorgeFrom + 0.8f && hero.x < GorgeTo && hero.y < 0.5f && hero.state != CbHero.State.Dead) Seal();
+                    // through the gap into the gorge, at any height: the trap is sprung (only on its floor, it wasn't when he
+                    // jumped straight from the gap onto the first ledge: the user - the water didn't always come)
+                    if (hero.x > GorgeFrom + 0.6f && hero.x < GorgeTo && hero.state != CbHero.State.Dead) Seal();
                     break;
                 case Gorge.Flooding:
                     // out at the top: the water stops where it got to (it drained away, and it needn't: the user)
@@ -316,6 +383,7 @@ namespace Cloudborne
                     break;
             }
             ShowFlood();
+            ShowSpouts(gorge == Gorge.Flooding && !floodCaught && sealT >= 1f);
         }
 
         /// <summary>The water's front and surface where its level is now; out of sight under the floor.</summary>
