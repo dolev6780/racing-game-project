@@ -25,7 +25,7 @@ namespace Cloudborne
         // how much faster than a soldier walks the pack runs (he runs 7 m/s; they come on at about 6)
         const float ChaseSpeed = 2.2f;
 
-        bool chaseStarted, chaseDone, thiefStarted, thiefDone;
+        bool chaseStarted, chaseDone, thiefStarted, thiefDone, fireRunStarted, fireRunDone;
         readonly List<CbEnemy> chasers = new List<CbEnemy>();
         CbEnemy thiefFoe;
         Transform sack;
@@ -36,11 +36,15 @@ namespace Cloudborne
         public bool ThiefStarted => thiefStarted;
         public bool ThiefCaught { get; private set; }
         public CbEnemy Thief => thiefFoe;
+        public bool FireRunStarted => fireRunStarted;
+        public bool FireRunEscaped { get; private set; }
+        /// <summary>Test hook: after SkipFights, the fire run waits to start again.</summary>
+        public void ArmFireRun() { fireRunStarted = fireRunDone = false; FireRunEscaped = false; }
 
         void ResetRuns()
         {
-            chaseStarted = chaseDone = thiefStarted = thiefDone = false;
-            ChaseEscaped = ThiefCaught = false;
+            chaseStarted = chaseDone = thiefStarted = thiefDone = fireRunStarted = fireRunDone = false;
+            ChaseEscaped = ThiefCaught = FireRunEscaped = false;
             chasers.Clear();
             thiefFoe = null;
             if (sack != null) Destroy(sack.gameObject);
@@ -52,6 +56,7 @@ namespace Cloudborne
         {
             if (chaseStarted && !chaseDone) { chaseStarted = false; chasers.Clear(); }
             if (thiefStarted && !thiefDone) { thiefStarted = false; thiefFoe = null; if (sack != null) Destroy(sack.gameObject); sack = null; }
+            if (fireRunStarted && !fireRunDone) { fireRunStarted = false; level?.StopFireChase(); }
         }
 
         void UpdateRuns()
@@ -60,6 +65,32 @@ namespace Cloudborne
             if (lockZone != null) return;
             if (CbStage.Jungle) UpdateChase();
             else if (CbStage.Treetops) UpdateThief();
+            else if (CbStage.Ember) UpdateFireRun();
+        }
+
+        /// <summary>Stage 1-5, FIRE!: the jungle behind him goes up and the fire comes on after him, to the temple's
+        /// threshold (CbLevelEmberWay).</summary>
+        void UpdateFireRun()
+        {
+            if (!fireRunStarted && hero.x > CbLevel.FireRunFrom && hero.x < CbLevel.FireRunTo - 6f)
+            {
+                fireRunStarted = true;
+                level.StartFireChase(hero.x);
+                hud.Banner("RUN! THE JUNGLE IS BURNING!");
+                hud.SetTip("The fire is right behind you - run for the temple! <color=#ffb03a>Jump</color> the flames, <color=#ffb03a>slide</color> under the burning bough");
+                shake = Mathf.Max(shake, 0.4f);
+            }
+            if (!fireRunStarted || fireRunDone) return;
+            if (hero.x >= CbLevel.FireRunTo)
+            {
+                fireRunDone = true;
+                FireRunEscaped = true;
+                level.StopFireChase();
+                score += RunBonus;
+                hud.Banner("SAFE! +" + RunBonus, true);
+                hud.SpeedLines(0.6f, 0.4f);
+                CbFx.Sfx("perfect", 0.7f);
+            }
         }
 
         void UpdateChase()

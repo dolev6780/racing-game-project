@@ -236,6 +236,60 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheFireRunInTheBurningJungle()
+        {
+            // stage 1-5's way in (it was plain path): fires on the path to jump, and the fire run - the jungle goes up
+            // behind him and the fire comes on after him, burning branches crash down ahead, the temple's threshold
+            // is safe
+            game = CbGame.Boot();
+            yield return Frames(3);
+            CbStage.Set("1-5");
+            game.BuildStage();
+            game.StartGame();
+            yield return Frames(2);
+            game.SkipFights();
+            game.ArmFireRun();
+            var hero = game.hero;
+            hero.hp = 9999;
+            // a fire on the path burns him, and throws him back
+            hero.inv = 0;
+            game.Teleport(CbLevel.EmberPatches[0] - 0.2f);
+            hero.y = 0;
+            yield return Frames(3);
+            Assert.Less(hero.hp, 9999f, "Standing in the fire on the path did not burn Raja");
+            Assert.Less(hero.x, CbLevel.EmberPatches[0] - 0.2f, "The fire did not throw him back");
+            // the fire run: the fire rises behind him and comes on
+            hero.inv = 999f;
+            game.Teleport(CbLevel.FireRunFrom + 1f);
+            hero.y = 0;
+            yield return Frames(3);
+            Assert.IsTrue(game.FireRunStarted, "No fire run past the raiders");
+            Assert.IsTrue(game.level.FireChasing, "The jungle behind him did not go up");
+            Assert.Less(game.level.FireChaseX, hero.x - 5f, "The fire rose on top of him, not behind");
+            float fireWas = game.level.FireChaseX;
+            yield return new WaitForSeconds(0.6f);
+            Assert.Greater(game.level.FireChaseX, fireWas + 2f, "The fire did not come on after him");
+            // standing still, it catches him
+            hero.inv = 0;
+            hero.hp = 9999;
+            for (float w = 0; w < 4f && hero.hp >= 9999f; w += Time.deltaTime) yield return null;
+            Assert.Less(hero.hp, 9999f, "The fire behind him never caught him standing still");
+            // a burning branch crashes down ahead of him as he comes near
+            hero.inv = 999f;
+            game.Teleport(CbLevel.EmberBranches[0] - 4f);
+            hero.y = 0;
+            for (float w = 0; w < 2.5f && game.level.BranchesDown == 0; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(1, game.level.BranchesDown, "The burning branch did not come down ahead of him");
+            // the temple's threshold: safe, the fire dies down
+            game.Teleport(CbLevel.FireRunTo + 0.5f);
+            hero.y = 0;
+            yield return Frames(3);
+            Assert.IsTrue(game.FireRunEscaped, "Reaching the temple's threshold was no escape");
+            Assert.IsFalse(game.level.FireChasing, "The fire went on past the temple's threshold");
+            CbStage.Set("1-1");
+        }
+
+        [UnityTest]
         public IEnumerator TheShortRunsChaseAndThief()
         {
             // short runs for a change of pace (the user): in 1-1 a pack bursts in from behind - reaching the lantern,
@@ -2563,7 +2617,8 @@ namespace RacingGame.Tests
             hero.hp = 9999;
             hero.inv = 999f;
             game.SkipFights();
-            game.Teleport(47f);
+            // (past the last fire on the path: from there to the temple's threshold, open ground)
+            game.Teleport(CbLevel.EmberPatches[3] + 1.5f);
             game.TestControls = i => i.x = 1f;
             yield return new WaitForSeconds(0.5f);
             Transform left = null, right = null;

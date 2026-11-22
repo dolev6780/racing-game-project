@@ -218,6 +218,12 @@ namespace Cloudborne
             for (float x = 28f; x < 31f; x += 1.3f) C(x, 2.2f);
             AddCrate(37f, Kind.KiCrystal, Kind.Coin);
             AddCrate(45.5f, Kind.Mango, Kind.Mango);
+            // coins in an arc over the fires on the path (a jump over one picks them up)
+            foreach (var px in CbLevel.EmberPatches)
+                if (px > 20f && px < 50f) continue;   // (the one at 29 has its row already)
+                else for (int k = -1; k <= 1; k++) C(px + k * 0.9f, 1.9f + (k == 0 ? 0.45f : 0f));
+            // and a mango at the temple's threshold, after the fire run
+            Spawn(Kind.Mango, new Vector3(CbLevel.FireRunTo + 1.5f, 1.2f, 0), resting: true);
             Spawn(Kind.KiCrystal, new Vector3(CbLevel.GrakX - 13f, 1.2f, 0), resting: true);
         }
 

@@ -70,11 +70,12 @@ namespace Cloudborne
         };
         static readonly (float x, string name)[] EmberSections =
         {
-            (0f, "The burning jungle"), (CbLevel.GrakX - 14f, "The Ember Temple"),
+            (0f, "The burning jungle"), (CbLevel.FireRunFrom - 4f, "The jungle goes up"), (CbLevel.GrakX - 14f, "The Ember Temple"),
         };
         static readonly (float x, int tip, string text)[] EmberTips =
         {
             (2f, -1, "The jungle is burning... the Ember Temple is just ahead"),
+            (CbLevel.EmberPatches[0] - 6f, -1, "Fire on the path! <color=#ffb03a>Jump</color> over it - it burns"),
             (CbLevel.GrakX - 16f, -1, "Grak has the fire crystal. Get it back!"),
         };
         static readonly (float x, string name)[] GroveSections =
@@ -2271,7 +2272,7 @@ namespace Cloudborne
             foreach (var p in posts) p.spawned = true;
             bossStarted = bossDone = true;
             foreach (var a in Ambushes) a.started = a.done = true;
-            chaseStarted = chaseDone = thiefStarted = thiefDone = true;
+            chaseStarted = chaseDone = thiefStarted = thiefDone = fireRunStarted = fireRunDone = true;
             if (CbStage.Grove) trial = CbLevel.Trials;
             level?.OpenGoalGate(true);
             boss = null;

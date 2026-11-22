@@ -19,9 +19,10 @@ namespace Cloudborne
     /// </summary>
     public partial class CbLevel
     {
-        public const float EmberMax = 80f, EmberGoal = 77f;
+        // (longer: the way in was 60 m of plain path, the burning jungle and its fire run before the temple now)
+        public const float EmberMax = 122f, EmberGoal = 119f;
         /// <summary>The middle of Grak's arena, and how far from it his charges end (against the pillars).</summary>
-        public const float GrakX = 62f, GrakCrash = 9.4f;
+        public const float GrakX = 104f, GrakCrash = 9.4f;
         static readonly (float x0, float x1)[] EmberWaters = new (float, float)[0];
         const string CrystalPath = "Cloudborne/Ember/FireCrystal/FireCrystal";
         // the fire: where each side starts, how far in it can creep, how fast, how far a blow beats it back, what it gives
@@ -98,6 +99,7 @@ namespace Cloudborne
             // the fire: a row of flames at each side, unlit until Grak sets it going
             fireLeft = FireWall("fireLeft");
             fireRight = FireWall("fireRight");
+            BuildEmberWay();
             ResetEmber();
         }
 
@@ -276,6 +278,7 @@ namespace Cloudborne
         void UpdateEmber(float dt, CbHero hero)
         {
             float time = g.clock;
+            UpdateEmberWay(dt, hero);
             // embers rising all over the courtyard and the burning jungle behind it
             emberT -= dt;
             if (emberT <= 0)
@@ -342,6 +345,7 @@ namespace Cloudborne
             if (fireLeft != null) fireLeft.gameObject.SetActive(false);
             if (fireRight != null) fireRight.gameObject.SetActive(false);
             CrystalTaken();
+            ResetEmberWay();
         }
 
         /// <summary>Raja fell in Grak's fight: the fire goes out (it starts again with the fight).</summary>
