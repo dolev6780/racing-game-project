@@ -1301,6 +1301,51 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator SoldiersTakeTurnsAndACounterHitsHarder()
+        {
+            // smarter fights (the user): at most two soldiers strike at Raja at once, the rest wait their turn; a blow on
+            // one winding up his own is a counter - half as much again
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            hero.hp = 9999;
+            hero.inv = 999f;
+            game.Teleport(184f);
+            hero.y = 0;
+            var foes = new List<CbEnemy>();
+            foreach (float off in new[] { -1.3f, 1.3f, 1.9f, -1.9f })
+            {
+                var e = new CbEnemy(game, CbEnemy.Kind.Hyena, 184f + off, game.transform);
+                game.enemies.Add(e);
+                foes.Add(e);
+            }
+            int most = 0;
+            for (float w = 0; w < 4f; w += Time.deltaTime)
+            {
+                yield return null;
+                int n = foes.FindAll(e => e.Striking).Count;
+                most = Mathf.Max(most, n);
+            }
+            Assert.LessOrEqual(most, CbGame.MaxStrikers, "More soldiers struck at Raja at once than may");
+            Assert.Greater(most, 0, "No soldier struck at Raja");
+            // a counter
+            CbEnemy winding = null;
+            for (float w = 0; w < 4f && winding == null; w += Time.deltaTime)
+            {
+                yield return null;
+                winding = foes.Find(e => e.WindingUp);
+            }
+            Assert.IsNotNull(winding, "No soldier wound up a blow");
+            winding.hp = 100;
+            game.HurtEnemy(winding, 10f, winding.x > hero.x ? 1 : -1, 2f, 0f, false, false, false, true);
+            Assert.AreEqual(1, game.Counters, "A blow on a soldier winding up was no counter");
+            Assert.Less(winding.hp, 100f - 10f * CbSave.DamageMul - 0.01f, "The counter hit no harder");
+        }
+
+        [UnityTest]
         public IEnumerator AFightsSoldierOutOfSightComesBackAndIsPointedTo()
         {
             // in a fight, a soldier out of sight (knocked away, or come in at the far side) is shown by an arrow at that

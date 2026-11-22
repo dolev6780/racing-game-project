@@ -1339,6 +1339,13 @@ namespace Cloudborne
         /// A blow on an enemy. breaker: a staff blow (breaks a raised shield); fire: it sets him burning; ki: a ki move
         /// (a staff technique or fire), which stops the sergeant's whistle.
         /// </summary>
+        // a counter's damage, and its points
+        const float CounterMul = 1.5f;
+        const int CounterBonus = 150;
+
+        /// <summary>Test hook: counters landed this run.</summary>
+        public int Counters { get; private set; }
+
         /// <summary>How many soldiers may strike at Raja at once; the rest wait their turn (CbEnemy).</summary>
         public const int MaxStrikers = 2;
 
@@ -1391,6 +1398,20 @@ namespace Cloudborne
                 CbFx.Sfx("heavy");
             }
             if (fromPlayer) dmg *= CbSave.DamageMul;
+            // a counter: struck as he winds up his blow (after the "!"), half as much again, his blow broken (the user:
+            // more feel in the fighting - timing rewarded)
+            bool counter = fromPlayer && e.WindingUp;
+            if (counter)
+            {
+                dmg *= CounterMul;
+                big = true;
+                kb = Mathf.Max(kb, 5f);
+                hud.Popup(new Vector3(e.x, e.HitHeight + 1.5f, 0), "COUNTER!", CbHud.PopStyle.Big);
+                CbFx.Sfx("perfect", 0.6f);
+                hitstop = Mathf.Max(hitstop, 0.07f);
+                score += CounterBonus;
+                Counters++;
+            }
             // a ki move (a staff technique, or fire) on the sergeant while he whistles stops the call
             if ((fire || ki) && e.Whistling) e.BreakWhistle();
             if (hero.empower && fromPlayer) { dmg *= 2; hero.empower = false; big = true; }
@@ -1416,6 +1437,8 @@ namespace Cloudborne
                 CbVfx.Ring(at, (fire ? CbFx.Fire : CbFx.Hit) * 0.35f, 1.4f, 0.3f);
                 hud.ImpactFlash(0.45f);
                 hud.SpeedLines(0.55f, 0.3f);
+                // the camera punches in a little, and eases back out
+                if (fromPlayer) fovKick = Mathf.Min(fovKick, counter ? -2.4f : -1.5f);
             }
             hud.Popup(new Vector3(e.x, e.HitHeight + 0.9f, 0), Mathf.RoundToInt(dmg).ToString(), big ? CbHud.PopStyle.Big : CbHud.PopStyle.Normal);
             // the biggest blows get an impact frame: a heavy finisher, or a blow on a boss that lands hard
