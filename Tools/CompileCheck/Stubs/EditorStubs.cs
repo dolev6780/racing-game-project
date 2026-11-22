@@ -125,6 +125,7 @@ namespace UnityEditor.TestTools.TestRunner.Api
         ITestAdaptor Test { get; }
         TestStatus TestStatus { get; }
         bool HasChildren { get; }
+        System.Collections.Generic.IEnumerable<ITestResultAdaptor> Children { get; }
         string Message { get; }
         string StackTrace { get; }
         double Duration { get; }

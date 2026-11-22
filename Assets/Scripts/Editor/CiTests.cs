@@ -37,6 +37,18 @@ namespace RacingGame.EditorTools
             return api;
         }
 
+        /// <summary>Logs each failed test under result again (CI FAILURE AGAIN: name, then its message).</summary>
+        static void ReportFailures(ITestResultAdaptor result)
+        {
+            if (result.HasChildren)
+            {
+                foreach (var child in result.Children) ReportFailures(child);
+                return;
+            }
+            if (result.TestStatus == TestStatus.Failed)
+                Debug.Log($"CI FAILURE AGAIN: {result.Test.FullName}\n{result.Message}\n{result.StackTrace}");
+        }
+
         class Callbacks : ICallbacks
         {
             public void RunStarted(ITestAdaptor tests) => Debug.Log($"CI TESTS: running {tests.TestCaseCount} play mode tests");
@@ -56,6 +68,9 @@ namespace RacingGame.EditorTools
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(ResultsPath)));
                 TestRunnerApi.SaveResultToFile(result, ResultsPath);
+                // the failures again at the very end: the log's end is all that can be fetched of a long run (the
+                // pictures the tests take fill the rest), and the first report of a failure is far back in it
+                ReportFailures(result);
                 Debug.Log($"CI TESTS DONE: {result.PassCount} passed, {result.FailCount} failed, {result.SkipCount} skipped");
                 SessionState.SetBool(RunningKey, false);
                 if (Application.isBatchMode) EditorApplication.Exit(result.FailCount > 0 ? 1 : 0);

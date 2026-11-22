@@ -221,7 +221,8 @@ namespace Cloudborne
             // counting over his head, as he says it
             void Count(string n, bool big = false) => g.hud.Popup(new Vector3(hero.x, 2.5f, 0), n, big ? CbHud.PopStyle.Big : CbHud.PopStyle.Normal);
             // a cut to somewhere else, through a quick fade
-            void CutTo(System.Action place) => g.fade.FadeThrough(() => place(), 0.25f, 0.35f);
+            // (SKIPped while the screen is dark, the scene is over: nobody is moved to the next place)
+            void CutTo(System.Action place) => g.fade.FadeThrough(() => { if (!s.Done) place(); }, 0.25f, 0.35f);
 
             // ---- 2. Raja's morning: at the village gate he ties his red headband, unties it, ties it again; sets three
             // stones in a row before he goes; Koda bursts in
@@ -363,7 +364,7 @@ namespace Cloudborne
                 scarf = CbArt.Joint(s.stage, koda.x - 0.4f, 1.2f, -0.3f, "kodaScarf");
                 CbArt.Part(CbMesh.Box(), CbArt.Toon("#f2c230", CbArt.PropOutline), scarf, Vector3.zero, new Vector3(0.42f, 0.07f, 0.16f), Quaternion.Euler(0, 0, 18f));
             });
-            s.Wait(0.6f, u => { if (scarf != null) scarf.localPosition = new Vector3(Mathf.Lerp(koda.x - 0.4f, LogX + 0.6f, u), Mathf.Lerp(1.2f, 0.05f, u * u), -0.3f); });
+            s.Wait(0.6f, u => { if (scarf != null) scarf.localPosition = new Vector3(Mathf.Lerp(koda.x - 0.4f, LogX + ScarfDrop, u), Mathf.Lerp(1.2f, 0.05f, u * u), -0.3f); });
             s.Say("KODA", KodaCol, "...wait, why the net?! RAJA!", () => s.Camera(LogX + 0.6f, 1.3f, 0.7f, 2.5f));
             s.Say("RAJA", RajaCol, "(to himself) I can't. I'm not brave like Koda.", () => s.Camera(hero.x + 0.3f, 1.0f, 0.42f, 3f));
             s.Say("SGT. SNAP", SnapCol, "The wolf comes with us. The General knows what to do with the prophecy kid.", () =>
@@ -407,8 +408,9 @@ namespace Cloudborne
             {
                 s.Always = null;
                 s.Raja("Idle");
-                s.RajaRunTo(LogX + 0.6f, 1.6f);
-                s.Camera(LogX + 0.8f, 1.1f, 0.5f, 2f);
+                // round the end of the log to the scarf, not over the log
+                s.RajaRunTo(LogX + ScarfDrop, 1.6f);
+                s.Camera(LogX + ScarfDrop, 1.1f, 0.5f, 2f);
             });
             s.Wait(1.0f, null, () =>
             {
@@ -429,9 +431,12 @@ namespace Cloudborne
                 var staff = hero.Staff;
                 if (staff != null && staff.Find("kodaScarf") == null)
                 {
-                    var tie = CbArt.Joint(staff, 0, 0.62f, 0, "kodaScarf");
-                    CbArt.Part(CbMesh.Box(), CbArt.Toon("#f2c230", CbArt.PropOutline), tie, new Vector3(0.12f, -0.1f, 0), new Vector3(0.08f, 0.32f, 0.05f), Quaternion.Euler(0, 0, -20f));
-                    CbArt.Part(CbMesh.Box(), CbArt.Toon("#f2c230", CbArt.PropOutline), tie, Vector3.zero, new Vector3(0.12f, 0.08f, 0.12f));
+                    // near the top, a knot and two long tails, big enough to read on a phone
+                    var yellow = CbArt.Toon("#f2c230", CbArt.PropOutline);
+                    var tie = CbArt.Joint(staff, 0, 0.82f, 0, "kodaScarf");
+                    CbArt.Part(CbMesh.Box(), yellow, tie, Vector3.zero, new Vector3(0.17f, 0.12f, 0.17f));
+                    CbArt.Part(CbMesh.Box(), yellow, tie, new Vector3(0.16f, -0.24f, 0), new Vector3(0.11f, 0.5f, 0.04f), Quaternion.Euler(0, 0, -24f));
+                    CbArt.Part(CbMesh.Box(), yellow, tie, new Vector3(0.05f, -0.2f, 0.02f), new Vector3(0.09f, 0.4f, 0.04f), Quaternion.Euler(0, 0, -8f));
                 }
                 s.Camera(hero.x + 0.2f, 1.35f, 0.4f, 3f);
             });
@@ -462,6 +467,8 @@ namespace Cloudborne
         // the opening's places: Raja's spot at the village gate, the log he hides behind, the river bank by the
         // stepping stones (stage 1-1's long river) and Koda's hops across them
         const float GateX = -4.6f, LogX = -1.2f, RiverBank = 78.3f;
+        // where Koda's scarf lands: on the path past the log's right end
+        const float ScarfDrop = 1.5f;
         static readonly float[] RiverHops = { 80.6f, 82.2f };
         static readonly string[] KidModels = { "Cloudborne/Monkey/Monkey" };
         static readonly string[] BabaModels = { "Cloudborne/Baba/Baba" };
