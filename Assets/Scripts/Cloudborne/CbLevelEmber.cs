@@ -236,6 +236,17 @@ namespace Cloudborne
             CbFx.Sfx("bell4", 0.8f);
         }
 
+        /// <summary>Grak beaten: the crystal back on its altar, flaring up.</summary>
+        public void CrystalHome()
+        {
+            if (altarCrystal == null) return;
+            altarCrystal.gameObject.SetActive(true);
+            var at = altarCrystal.position;
+            CbVfx.Burst(at, CbFx.Fire, 3f, 0.3f);
+            CbFx.Spark(at, CbFx.Fire, 30, 6f, 0.5f, 0.7f, -3);
+            CbVfx.Ring(at, CbFx.Fire * 0.5f, 2.6f, 0.45f);
+        }
+
         /// <summary>The crystal is in Raja's hands now (the fire awakens): no longer on the ground.</summary>
         public void CrystalTaken()
         {
@@ -346,6 +357,8 @@ namespace Cloudborne
             if (fireRight != null) fireRight.gameObject.SetActive(false);
             CrystalTaken();
             ResetEmberWay();
+            // (torn out of its altar until Grak is beaten)
+            if (altarCrystal != null) altarCrystal.gameObject.SetActive(false);
         }
 
         /// <summary>Raja fell in Grak's fight: the fire goes out (it starts again with the fight).</summary>

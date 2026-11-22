@@ -794,7 +794,16 @@ namespace Cloudborne
             // river its own checkpoints run on to the basin)
             if (!CbStage.River) Checkpoint(BossX - BossRetryBack);
             if (CbStage.Treetops) { SpawnTusk(); return; }
-            if (CbStage.Ember) { SpawnGrak(); return; }
+            if (CbStage.Ember)
+            {
+                // the first time, the courtyard's scene: the crystal knocked out of Grak's fist, Raja's fire wakes
+                if (bossIntroSeen) { SpawnGrak(BossX + 5f); return; }
+                bossIntroSeen = true;
+                mode = Mode.Scene;
+                hud.SetScreen(CbHud.Screen.Scene);
+                scene = CbStory.GrakIntro(this, BossX);
+                return;
+            }
             if (CbStage.River)
             {
                 level.StartSawBarge();
@@ -845,50 +854,31 @@ namespace Cloudborne
         }
 
         /// <summary>
-        /// Commander Grak's fight (stage 1-5): he waits in the middle of the temple's courtyard, pounds his chest and roars,
-        /// and comes on (CbEnemyGrak).
+        /// Commander Grak's fight (stage 1-5), after his scene (CbStory.GrakIntro): standing at x in the temple's
+        /// courtyard, he pounds his chest and roars, and comes on (CbEnemyGrak). Raja has his fire.
         /// </summary>
-        void SpawnGrak()
+        public void SpawnGrak(float x)
         {
-            boss = new CbEnemy(this, CbEnemy.Kind.Grak, BossX + 5f, actors) { minX = BossX - CbLevel.GrakCrash, maxX = BossX + CbLevel.GrakCrash };
+            boss = new CbEnemy(this, CbEnemy.Kind.Grak, x, actors) { minX = BossX - CbLevel.GrakCrash, maxX = BossX + CbLevel.GrakCrash };
             enemies.Add(boss);
             arenaFoes.Clear();
             arenaFoes.Add(boss);
             hud.ShowBoss("COMMANDER GRAK");
             hud.SetWave("Defeat Commander Grak");
-            hud.SetTip("His iron stops blows from the front. Dodge his saw and strike as it misses; jump or <color=#ffb03a>swipe ↔</color> out of his charge - winded against the pillar, he is open!");
+            hud.SetTip("His iron stops blows from the front - burn him from behind! Dodge his saw, jump or <color=#ffb03a>swipe ↔</color> out of his charge: winded against the pillar, he is open to your <color=#ffb03a>FIRE</color>!");
             BossCutIn(boss, "COMMANDER GRAK!");
         }
 
-        /// <summary>Grak's last slam knocked the crystal out of his armour: it rolls to Raja, and his fire wakes.</summary>
-        public void CrystalLoose() => Invoke(nameof(FireAwakens), CbLevel.CrystalRoll + 0.25f);
-
         /// <summary>
-        /// The crystal reaches Raja (the story doc, "the stripes light up", drawn): he touches it and his fire wakes - his
-        /// stripes gold, his ki full, his moves now fire. Grak, his crystal gone, can be beaten.
+        /// Raja touches the fire crystal (Grak's scene, CbStory.GrakIntro; drawn, "the stripes light up"): his fire wakes -
+        /// his stripes gold, his ki full, his moves now fire.
         /// </summary>
-        void FireAwakens()
-        {
-            if (mode != Mode.Play || !CbStage.Ember) return;
-            if (!CbComic.Available(CbStory.FireWakes)) { AwakenFire(); return; }
-            mode = Mode.Comic;
-            hud.SetScreen(CbHud.Screen.Scene);
-            comic.Play(CbStory.FireWakes, () => fade.FadeThrough(() =>
-            {
-                comic.Hide();
-                mode = Mode.Play;
-                hud.SetScreen(CbHud.Screen.None);
-                AwakenFire();
-            }));
-        }
-
-        void AwakenFire()
+        public void AwakenFire()
         {
             CbSave.FireAwake = true;
             level?.CrystalTaken();
             hero.ki = 100;
             hero.hp = Mathf.Min(hero.MaxHp, hero.hp + 40f);
-            boss?.Awaken();
             FireAwakened = true;
             var at = new Vector3(hero.x, hero.y + 1.2f, -0.4f);
             CbFx.Spark(at, CbFx.Flame, 40, 9, 0.6f, 0.8f, -2);
@@ -896,7 +886,7 @@ namespace Cloudborne
             CbVfx.Ring(at, CbFx.Fire * 0.5f, 3f, 0.5f);
             hud.ImpactFlash(0.6f);
             hud.Banner("THE FIRE AWAKENS!");
-            hud.SetTip("Your fire is awake! <color=#ffb03a>SPECIAL</color>: the tiger flame cannon - finish him!");
+            hud.SetTip("Your fire is awake! <color=#ffb03a>FIRE</color> shoots a fireball, <color=#ffb03a>SPECIAL</color> is the tiger flame cannon");
         }
 
         /// <summary>Raja's fire woke in this fight (test hook).</summary>
@@ -1074,6 +1064,8 @@ namespace Cloudborne
             if (CbStage.Ember)
             {
                 hud.Banner("GRAK DEFEATED!");
+                // the crystal back on its altar
+                level?.CrystalHome();
                 cleared = true;
                 hud.ShowGo(false);
                 Invoke(nameof(ChapterEnd), 2.4f);
@@ -1135,7 +1127,7 @@ namespace Cloudborne
                 if (a.started && !a.done) { a.started = false; a.wave = 0; lockZone = null; hud.ShowGo(true); }
             if (CbStage.Grove && lockZone != null) { lockZone = null; level?.LeaveTrial(); hud.ShowGo(true); }
             if (CbStage.River) level?.LeaveSawBarge();
-            if (CbStage.Ember) { level?.LeaveGrakFight(); CancelInvoke(nameof(FireAwakens)); }
+            if (CbStage.Ember) level?.LeaveGrakFight();
             RunsRespawned();
             hero.RespawnAt(checkpointX);
             level?.Respawned(checkpointX);
@@ -1374,8 +1366,6 @@ namespace Cloudborne
             if (e.Boss && e.Stunned) { dmg *= 1.5f; big = true; }
             else if (e.Boss && fromPlayer) e.AddBreak(dmg / CbEnemy.SnapBreakHp * (e.Stuck ? 2f : 1f));
             e.hp -= dmg;
-            // (Grak can't be beaten before Raja's fire wakes: CbEnemyGrak)
-            e.HoldOn();
             e.flash = 0.12f;
             if (fire) { e.burnT = 3; e.burnTick = 0.4f; }
             combo++;

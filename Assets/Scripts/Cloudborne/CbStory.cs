@@ -173,13 +173,14 @@ namespace Cloudborne
         };
 
         /// <summary>
-        /// Drawn, in the middle of Grak's fight (the story doc, "the stripes light up"): Raja is down, the crystal rolls to
-        /// him; at his touch a flash like a falling star, and his stripes light up gold. Until then he had no powers.
+        /// Drawn, before Grak's fight (the story doc, "the stripes light up"; CbStory.GrakIntro): the crystal knocked out of
+        /// Grak's fist rolls to Raja; at his touch a flash like a falling star, and his stripes light up gold. Until then
+        /// he had no powers.
         /// </summary>
         public static readonly CbComic.Shot[] FireWakes =
         {
             new CbComic.Shot { image = "stripes_ignite", dur = 2.6f, from = new Vector3(0.62f, 0.4f, 1.25f), to = new Vector3(0.58f, 0.42f, 1.1f), fx = "embers",
-                caption = "The crystal rolled to him. He touched it..." },
+                caption = "The crystal rolled to his feet. He touched it..." },
             new CbComic.Shot { image = "stripes_ignite", dur = 3f, from = new Vector3(0.45f, 0.5f, 1.05f), to = new Vector3(0.42f, 0.52f, 1.25f), fx = "sparks",
                 flash = true, shake = true, sfx = "roar", caption = "...and his stripes caught fire. Gold." },
             new CbComic.Shot { image = "stripes_ignite", dur = 3.6f, from = new Vector3(0.36f, 0.55f, 1.25f), to = new Vector3(0.36f, 0.55f, 1.32f), fx = "sparks",
@@ -480,6 +481,93 @@ namespace Cloudborne
         {
             fur = CbArt.Hex("#c8642a"), paw = CbArt.Hex("#9a4a20"), top = CbArt.Hex("#c8642a"), pants = CbArt.Hex("#6a4a2a"),
             belt = CbArt.Hex("#3a2a1a"), wrap = CbArt.Hex("#efe6d4"), scale = 1.05f,
+        };
+
+        /// <summary>
+        /// Before Grak's fight (stage 1-5; the user: Raja gets his fire before the boss, and fights him with it): in the
+        /// temple's courtyard Grak holds the fire crystal up, about to fix it to his armour, and laughs at the cub. Raja
+        /// counts to three, as in the opening, and this time he goes: a blow knocks the crystal out of Grak's fist, it
+        /// rolls to him, and at his touch his stripes light up (drawn). Then the fight.
+        /// </summary>
+        public static CbScene GrakIntro(CbGame g, float arenaX)
+        {
+            var s = new CbScene(g, "GrakIntro");
+            CbActor grak = null;
+            Transform crystal = null;
+            var hero = g.hero;
+            float stand = arenaX + 2.5f;
+            bool awake = false;
+            void Awake()
+            {
+                if (awake) return;
+                awake = true;
+                g.level?.CrystalTaken();
+                g.AwakenFire();
+            }
+            s.Do(() =>
+            {
+                hero.facing = 1;
+                s.Raja("Idle");
+                grak = s.Cast("Grak", GrakModels, CbEnemy.GrakHeight, GrakStyle, null, stand, -1);
+                grak.Once("Charged_Spell_Cast", 0f, 0.45f, 1.4f);
+                // the crystal held up over his head, flaring
+                crystal = CbArt.Joint(s.stage, stand - 0.3f, CbEnemy.GrakHeight + 0.5f, -0.3f, "heldCrystal");
+                if (CbArt.Prop(CrystalModel, crystal, CbArt.PropOutline) is Transform m)
+                {
+                    foreach (var c in m.GetComponentsInChildren<Transform>(true))
+                        if (c.name != "Crystal" && c != m && c.GetComponent<Renderer>() != null) c.gameObject.SetActive(false);
+                    m.localScale = Vector3.one * 0.7f;
+                }
+                else CbArt.Part(CbMesh.Sphere, CbArt.Glow(new Color(1f, 0.4f, 0.1f), CbArt.Shaft), crystal, new Vector3(0, 0.3f, 0), new Vector3(0.3f, 0.6f, 0.3f));
+                s.Camera((hero.x + stand) * 0.5f, 2.2f, 1f, 2f);
+            });
+            s.Wait(1.4f, u =>
+            {
+                if (crystal != null && Random.value < 0.5f) CbFx.Spark(crystal.position, CbFx.Fire, 1, 1.5f, 0.3f, 0.5f, -3);
+            });
+            s.Say("COMMANDER GRAK", GrakCol, "The heart of the Ember Temple. On my armour, it burns the whole jungle down.",
+                () => grak.Once("Chest_Pound_Taunt", 0f, 1f, 1.7f));
+            s.Say("COMMANDER GRAK", GrakCol, "And here comes a little cub to watch. Your wolf friend is already in a cage.");
+            s.Say("RAJA", RajaCol, "(quietly) One... two...", () => { s.Raja("Combat_Stance"); s.Camera(hero.x + 0.6f, 1.4f, 0.55f, 3f); });
+            s.Say("RAJA", RajaCol, "THREE!", () =>
+            {
+                s.RajaRunTo(stand - CbEnemy.GrakHalf - 0.7f, 10f);
+                s.Camera(stand - 2f, 2f, 0.9f, 3f);
+            });
+            // the blow: the crystal knocked out of his fist, rolling across the stones to Raja
+            s.Wait(0.5f, null, () =>
+            {
+                s.RajaOnce("Punch_Combo", 0.15f, 0.5f, 0.5f);
+                grak.Once("Hit_Reaction", 0.1f, 0.6f, 0.6f);
+                CbFx.Sfx("heavy");
+                g.shake = Mathf.Max(g.shake, 0.6f);
+                var at = crystal != null ? crystal.position : new Vector3(stand, 4f, -0.3f);
+                CbVfx.Burst(at, CbFx.Hit, 2.4f, 0.2f);
+                if (crystal != null) crystal.gameObject.SetActive(false);
+                g.level?.RollCrystal(new Vector3(at.x, at.y, -0.2f), hero.x - 1.6f);
+                g.hud.Popup(new Vector3(stand, CbEnemy.GrakHeight + 1f, 0), "THE CRYSTAL!", CbHud.PopStyle.Big);
+            });
+            s.Wait(CbLevel.CrystalRoll + 0.2f, null, () => s.Camera(hero.x - 1f, 1.2f, 0.55f, 2.5f));
+            s.Do(() => { hero.facing = -1; s.RajaOnce("Motion_Crouch", 0f, 1f, 0.6f); });
+            s.Wait(0.6f);
+            if (CbComic.Available(FireWakes)) s.Comic(FireWakes);
+            s.Do(Awake);
+            s.Wait(1.2f, null, () => { hero.facing = 1; s.Raja("Combat_Stance"); s.Camera((hero.x + stand) * 0.5f, 2f, 1f, 2f); });
+            s.Say("COMMANDER GRAK", GrakCol, "That fire is MINE! Give it back, cub!", () => grak.Once("Chest_Pound_Taunt", 0f, 1f, 1.7f));
+            s.Say("RAJA", RajaCol, "Come and take it.");
+            // (SKIPped, his fire wakes all the same)
+            s.Finally(() => { Awake(); hero.facing = 1; });
+            s.Then(() => g.SpawnGrak(stand));
+            return s;
+        }
+
+        static readonly string[] GrakModels = { CbEnemy.GrakPath };
+        const string CrystalModel = "Cloudborne/Ember/FireCrystal/FireCrystal";
+        public static readonly Color GrakCol = CbArt.Hex("#c9a07a");
+        static RigStyle GrakStyle => new RigStyle
+        {
+            fur = CbArt.Hex("#7a7d80"), paw = CbArt.Hex("#5a5d60"), armor = CbArt.Hex("#3d434b"), pants = CbArt.Hex("#3a2e26"),
+            belt = CbArt.Hex("#2a1f1a"), wrap = CbArt.Hex("#4a3a2e"), bulk = 1.5f, scale = 1.3f,
         };
 
         /// <summary>
