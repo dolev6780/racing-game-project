@@ -196,7 +196,8 @@ namespace Cloudborne
             // stone lanterns: where he comes back (the start counts as one)
             // (one just before the gorge: caught there for good, he tries again from its foot, not from the shrine)
             // (one at the stone bridge's foot, for the ambush on it)
-            foreach (var x in new[] { 108f, 133f, 196f, 242f, 284f, 309f, 366f, 423f, 458f }) AddLantern(x);
+            // (the one before the stone bridge stood on its steps: moved back off them)
+            foreach (var x in new[] { 108f, 133f, 196f, 242f, 284f, 309f, 366f, 420.5f, 458f }) AddLantern(x);
             // the ends of the stage: closed gates where he can go no further
             AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);

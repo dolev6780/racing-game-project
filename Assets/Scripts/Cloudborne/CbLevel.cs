@@ -363,10 +363,17 @@ namespace Cloudborne
             float tread = RampRun / RampSteps, zMid = (StepFront + StepBack) / 2, depth = StepBack - StepFront;
             for (int k = 0; k <= RampSteps; k++)
             {
-                // the treads up the slope, then the landing level with the deck to the bridge's end
-                float a = foot + dir * k * tread, b = k < RampSteps ? a + dir * tread : flatTo;
+                // the treads up the slope, then the landing level with the deck to the bridge's end (a little into it,
+                // over the end of its model: close up it looked torn - the user's picture)
+                float a = foot + dir * k * tread, b = k < RampSteps ? a + dir * tread : flatTo - dir * RampInto;
                 float h = k < RampSteps ? top * (k + 0.5f) / RampSteps : top;
                 float x0 = Mathf.Min(a, b), x1 = Mathf.Max(a, b);
+                // rough mossy rock, the mountain's own (plain boxes with a strip of green on top looked very bad: the
+                // user's picture)
+                var rocks = CbArt.Joint(root, (x0 + x1) / 2, 0, 0, "bridgeStep");
+                if (RockPieces(rocks, x0 - (x0 + x1) / 2 - 0.05f, x1 - (x0 + x1) / 2 + 0.05f, -0.3f, h, StepFront, StepBack, Mathf.RoundToInt(x0 * 10) + k))
+                    continue;
+                Object.Destroy(rocks.gameObject);
                 var step = CbArt.Box(stepStone, root, new Vector3((x0 + x1) / 2, h / 2, zMid), new Vector3(x1 - x0, h, depth));
                 step.name = "bridgeStep";
                 // moss over part of each tread, never quite to its edge
@@ -379,6 +386,8 @@ namespace Cloudborne
         // the bridge's steps: how many treads up the slope, the stone and moss (the long bridge's own, from its painting),
         // how far across the path they reach (the bridge's own depth)
         const int RampSteps = 4;
+        // how far the landing's rock reaches over the end of the bridge
+        const float RampInto = 0.5f;
         const string StepStone = "#7a7262", StepMoss = "#5a7a38";
         const float StepFront = -1.25f, StepBack = 1.45f;
         Material stepStone, stepMoss;
