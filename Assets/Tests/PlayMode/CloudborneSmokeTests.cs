@@ -1310,6 +1310,28 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator BirdsOnTheGroundTakeOffAsRajaComes()
+        {
+            // the user: the birds should move when he comes near, like the butterflies
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var critters = game.critters;
+            if (critters.BirdsPerched == 0) { Assert.IsFalse(critters.HasBirds, "No birds on the ground in the jungle"); yield break; }
+            float x = critters.FirstPerchX;
+            game.Teleport(x - 9f);
+            game.hero.y = 0;
+            yield return new WaitForSeconds(1f);
+            Assert.AreEqual(0, critters.BirdsTakenOff, "The birds took off with Raja far away");
+            game.Teleport(x - 1.5f);
+            game.hero.y = 0;
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(critters.BirdsTakenOff, 0, "The birds did not take off as Raja came by");
+        }
+
+        [UnityTest]
         public IEnumerator ADodgeCutsABlowShort()
         {
             // more precise control (the user): once a paw blow has struck, a dodge cuts the rest of it short

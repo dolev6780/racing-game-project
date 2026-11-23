@@ -48,6 +48,17 @@ namespace Cloudborne
         readonly Transform root;
         readonly List<Fly> flies = new List<Fly>();
         readonly List<Bird> birds = new List<Bird>();
+        // Birds on the ground behind the path, a few together, pecking about; Raja coming near (or jumping by them) they
+        // take off, up and away from him, and settle back once he has gone on (the user: the birds should move when
+        // he comes near, like the butterflies)
+        class Perched { public Transform t; public Vector3 home, at, vel; public float ph, flown = -1f; public int dir; public bool shown; }
+        readonly List<Perched> perched = new List<Perched>();
+        const float PerchGap = 24f, PerchFrom = 2.2f, PerchTo = 4.5f, PerchSpan = 0.5f, PerchFright = 4f, PerchJumpFright = 7f,
+            PerchFly = 3.5f, PerchBack = 30f;
+        /// <summary>Test hook: birds on the ground along the stage, and how many are flying off now.</summary>
+        public int BirdsPerched => perched.Count;
+        public float FirstPerchX => perched.Count > 0 ? perched[0].home.x : float.NaN;
+        public int BirdsTakenOff { get { int n = 0; foreach (var p in perched) if (p.flown >= 0) n++; return n; } }
         readonly Material birdMat;
         readonly float birdAspect;
         float nextFlock = 6f, lastT;
@@ -114,6 +125,23 @@ namespace Cloudborne
             // a little hazed: they are far off
             birdMat = CbStage.Ember ? null : CbWorld.Painted(bird, 0.18f);
             if (birdMat != null) birdAspect = bird.width / (float)bird.height;
+            // (on the ground: in the jungle and Baba's grove - not on the treetops' boughs, the river or the burning temple)
+            if (birdMat != null && (CbStage.Jungle || CbStage.Grove))
+                for (float x = CbWorld.LevelMin + 14f; x < CbWorld.LevelMax - 6f; x += R(PerchGap * 0.7f, PerchGap * 1.3f))
+                {
+                    if (CbLevel.InWater(x, 2f) || (x > CbLevel.MountainFrom - 3f && x < CbLevel.MountainTo + 3f)) continue;
+                    int n = rnd.Next(2, 5);
+                    float z = R(PerchFrom, PerchTo);
+                    for (int i = 0; i < n; i++)
+                    {
+                        var b = new Perched { home = new Vector3(x + R(-1f, 1f), 0.12f, z + R(-0.4f, 0.4f)), ph = R(0f, 6f), dir = rnd.Next(2) == 0 ? -1 : 1 };
+                        b.at = b.home;
+                        b.t = CbArt.Part(CbMesh.Quad, birdMat, root, b.home, Vector3.one, shadows: false);
+                        b.t.name = "perchedBird";
+                        b.t.gameObject.SetActive(false);
+                        perched.Add(b);
+                    }
+                }
         }
 
         /// <summary>One wing: half the painting (side -1 the left half, 1 the right), hinged at the body, Span across both.</summary>
@@ -187,6 +215,7 @@ namespace Cloudborne
 
             UpdateFish(t, dt, camX);
             if (birdMat == null) return;
+            UpdatePerched(t, dt, camX, heroX, heroY);
             // now and then a flock sets off from one side of the view to the other
             if (t > nextFlock)
             {
@@ -223,6 +252,54 @@ namespace Cloudborne
                 {
                     Object.Destroy(b.t.gameObject);
                     birds.RemoveAt(i);
+                }
+            }
+        }
+
+        void UpdatePerched(float t, float dt, float camX, float heroX, float heroY)
+        {
+            foreach (var b in perched)
+            {
+                bool near = Mathf.Abs(b.home.x - camX) < Near + 4f;
+                if (b.flown < 0 && near != b.shown) { b.shown = near; b.t.gameObject.SetActive(near); }
+                if (b.flown < 0)
+                {
+                    if (!near) continue;
+                    // a fright: Raja close by, or jumping by not far off
+                    float d = Mathf.Abs(heroX - b.home.x);
+                    if (d < PerchFright || (heroY > 0.8f && d < PerchJumpFright))
+                    {
+                        b.flown = 0;
+                        b.dir = heroX < b.home.x ? 1 : -1;
+                        b.vel = new Vector3(b.dir * Random.Range(3.5f, 5.5f), Random.Range(3f, 4.5f), Random.Range(0.5f, 1.5f));
+                        b.t.gameObject.SetActive(true);
+                        b.shown = true;
+                        continue;
+                    }
+                    // pecking about: a hop now and then, the head dipping
+                    float hop = Mathf.Max(0, Mathf.Sin(t * 1.7f + b.ph * 3f) - 0.92f) * 3f;
+                    b.at = b.home + new Vector3(Mathf.Sin(t * 0.3f + b.ph) * 0.3f, hop, 0);
+                    b.t.localPosition = b.at;
+                    // wings folded: narrow and low
+                    float peck = Mathf.Sin(t * 5f + b.ph) > 0.7f ? 0.85f : 1f;
+                    b.t.localScale = new Vector3(PerchSpan * 0.55f * b.dir, PerchSpan / birdAspect * 0.75f * peck, 1);
+                    if (Mathf.Sin(t * 0.37f + b.ph * 2f) > 0.98f) b.dir = -b.dir;
+                    continue;
+                }
+                // flying off: up and away, wings beating fast, rising faster as it goes
+                b.flown += dt;
+                b.vel.y += 2.5f * dt;
+                b.at += b.vel * dt;
+                b.t.localPosition = b.at;
+                float beat = 0.55f + 0.45f * Mathf.Abs(Mathf.Sin(t * 16f + b.ph));
+                b.t.localScale = new Vector3(PerchSpan * b.dir, PerchSpan / birdAspect * beat, 1);
+                if (b.flown > PerchFly) b.t.gameObject.SetActive(false);
+                // back on the ground once he has gone on
+                if (b.flown > PerchFly && Mathf.Abs(heroX - b.home.x) > PerchBack)
+                {
+                    b.flown = -1f;
+                    b.shown = false;
+                    b.at = b.home;
                 }
             }
         }
