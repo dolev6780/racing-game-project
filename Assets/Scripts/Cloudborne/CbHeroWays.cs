@@ -210,13 +210,14 @@ namespace Cloudborne
             vx = vy = 0;
             barMoving = step != 0;
             if (barMoving) barPh += dt * 1.1f;
-            // thorns on the bar: his hands on them, it hurts and he jerks back (a jump along the bar clears them)
+            // thorns on the bar: his hands on them, it hurts and he jerks back (a jump along the bar clears them). They
+            // stop him even while a blow before keeps him unhurt (he walked through them then)
             foreach (float th in bar.thorns)
-                if (Mathf.Abs(x - th) < CbLevel.ThornWide * 0.5f + 0.1f && inv <= 0)
+                if (Mathf.Abs(x - th) < CbLevel.ThornWide * 0.5f + 0.1f)
                 {
                     int back = x < th ? -1 : 1;
-                    TakeHit(8f, back, unblockable: true);
-                    x = th + back * (CbLevel.ThornWide * 0.5f + 0.45f);
+                    if (inv <= 0) TakeHit(8f, back, unblockable: true);
+                    x = th + back * (CbLevel.ThornWide * 0.5f + (inv > 0 ? 0.12f : 0.45f));
                     state = State.Bars;
                     break;
                 }

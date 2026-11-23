@@ -389,8 +389,8 @@ namespace RacingGame.Tests
             Assert.IsNotNull(game.hero.model, "Raja's model did not load (Resources/Cloudborne/Raja, legacy animation)");
             // 42 in his own file (the slide among them), the dive kick and a first crawl made later on a new rig of the
             // same model (Raja_Clips: its own copy of the slide is not added twice), and the crawl on hands and knees,
-            // hanging from a bar and going along it (Raja_More_Clips)
-            Assert.AreEqual(47, game.hero.model.ClipCount, "Raja's model is missing animation clips");
+            // hanging from a bar and going along it (Raja_More_Clips), and the backflip over a spear (Raja_Dodge_Clips)
+            Assert.AreEqual(48, game.hero.model.ClipCount, "Raja's model is missing animation clips");
             // from Meshy's animation library: catching an edge, pulling up over it, treading water, getting up, cheering;
             // hanging from a vine, climbing it, along a bar, pushing, walking the log; the dive kick from a description
             foreach (var clip in new[] { "Jump_and_Grab_Wall", "Ladder_Climb_Finish", "Swim_Idle", "Stand_Up1", "Victory_Cheer",
@@ -1502,10 +1502,12 @@ namespace RacingGame.Tests
             game.hero.vy = 0;
             yield return Frames(3);
             Assert.AreEqual(1, game.RopeAmbushWave, "No ambush on the rope bridge");
-            // they come running in from off the screen at the right, one after another (the user)
+            // they step out of the tunnels by the bridge's ends, from both sides, one after another (the user)
             var firstIn = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.RopeBridgeX) < 20f);
             Assert.Greater(firstIn.Count, 0, "No raider came for the ambush");
-            Assert.IsTrue(firstIn.TrueForAll(e => e.x > CbLevel.RopeBridgeX + 10.5f), "An ambush's raider appeared on the screen");
+            Assert.IsTrue(firstIn.TrueForAll(e => Mathf.Min(Mathf.Abs(e.x - CbLevel.RopeMouthL), Mathf.Abs(e.x - CbLevel.RopeMouthR)) < 1.5f),
+                "An ambush's raider did not come out of a tunnel by the bridge");
+            Assert.IsTrue(firstIn.TrueForAll(e => e.emergeZ > 0f), "An ambush's raider did not step out from inside the tunnel");
             int raiders = 0;
             for (int wave = 1; wave <= 6 && !game.RopeAmbushDone; wave++)
             {
