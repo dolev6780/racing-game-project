@@ -3371,6 +3371,14 @@ namespace RacingGame.Tests
                 foreach (var (x0, x1, top) in game.level.BlockTops()) spots.Add(("block", (x0 + x1) / 2, top));
                 for (float x = CbWorld.LevelMin + 4f; x < CbWorld.LevelMax - 4f; x += 3f)
                     if (!CbLevel.InWater(x, 0.6f)) spots.Add(("way", x, game.level.SupportAt(x, 40f)));
+                // up the stone bridge's stairs, step by step, at both ends
+                if (stage == "1-1")
+                    foreach (int side in new[] { -1, 1 })
+                        for (float d = 0.2f; d < 3.4f; d += 0.3f)
+                        {
+                            float sx = CbLevel.StoneBridgeX + side * (CbLevel.StoneBridgeHalf + d);
+                            spots.Add(("stairs", sx, game.level.SupportAt(sx, 5f)));
+                        }
                 foreach (var (what, x, top) in spots)
                 {
                     if (top < -1f) continue;
@@ -3382,15 +3390,17 @@ namespace RacingGame.Tests
                     for (float w = 0; w < 0.3f; w += Time.deltaTime) yield return null;
                     if (hero.state != CbHero.State.Idle || !hero.model.Toes(out var l, out var r)) continue;
                     stood++;
-                    var toe = l.y < r.y ? l : r;
-                    // the drawn surface under his lower toe (or over it, if his foot is sunk in it)
-                    if (!Physics.Raycast(toe + Vector3.up * 0.5f, Vector3.down, out var h, 1.2f))
-                        fails.Add($"{stage} {what} x {x:F1}: standing in the air (nothing drawn under his feet)");
-                    else
+                    // each foot (standing, both are down) on the drawn surface under it - not over it, not sunk in it
+                    foreach (var (foot, toe) in new[] { ("left", l), ("right", r) })
                     {
-                        float gap = toe.y - h.point.y;
-                        if (gap > 0.2f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his feet {gap:F2} over what is drawn ({h.collider.name})");
-                        else if (gap < -0.1f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his feet {-gap:F2} into what is drawn ({h.collider.name})");
+                        if (!Physics.Raycast(toe + Vector3.up * 0.5f, Vector3.down, out var h, 1.2f))
+                            fails.Add($"{stage} {what} x {x:F1}: his {foot} foot in the air (nothing drawn under it)");
+                        else
+                        {
+                            float gap = toe.y - h.point.y;
+                            if (gap > 0.16f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {gap:F2} over what is drawn ({h.collider.name})");
+                            else if (gap < -0.08f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {-gap:F2} into what is drawn ({h.collider.name})");
+                        }
                     }
                 }
                 // hanging from every ledge's edges: his hands on the corner; under a ledge his legs hang straight
@@ -3407,7 +3417,7 @@ namespace RacingGame.Tests
                         hung++;
                         var palms = (hero.model.Palm(hero.model.leftHand) + hero.model.Palm(hero.model.rightHand)) * 0.5f;
                         float off = Vector2.Distance(new Vector2(palms.x, palms.y), new Vector2(edge, top));
-                        if (off > 0.25f) fails.Add($"{stage} hanging at x {edge:F1} top {top:F2}: his hands {off:F2} off the edge");
+                        if (off > 0.12f) fails.Add($"{stage} hanging at x {edge:F1} top {top:F2}: his hands {off:F2} off the edge");
                         if (hero.FreeHanging && hero.model.Toes(out var lt, out var rt) && Mathf.Max(Mathf.Abs(lt.x - palms.x), Mathf.Abs(rt.x - palms.x)) > 0.6f)
                             fails.Add($"{stage} hanging at x {edge:F1} top {top:F2}: his legs not straight down under a ledge");
                     }

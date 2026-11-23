@@ -1057,6 +1057,31 @@ namespace Cloudborne
                 if (g.level.SurfaceUnder(tx, y, out float sy)) surface = Mathf.Clamp(sy - y, -CbLevel.SurfaceReach, CbLevel.SurfaceReach);
             }
             model.GroundFeet(grounded ? 1f : 0f, dt, surface);
+            // and each foot, and each hand holding on, where it belongs (CbLimbIK, after the clip is drawn)
+            var ik = model.ik;
+            if (ik == null) return;
+            ik.feet = grounded;
+            ik.floorY = f.root.parent != null ? f.root.parent.TransformPoint(new Vector3(x, y, 0)).y : y;
+            ik.toeLift = model.ToeLift;
+            if (ik.surface == null && g.level != null)
+            {
+                var lv = g.level;
+                var parent = f.root.parent;
+                ik.surface = w =>
+                {
+                    var p = parent != null ? parent.InverseTransformPoint(w) : w;
+                    if (!lv.SurfaceUnder(p.x, p.y, out float sy)) return null;
+                    return parent != null ? parent.TransformPoint(new Vector3(p.x, sy, 0)).y : sy;
+                };
+            }
+            ik.hands = GripPoint(out var at, out bool across);
+            if (ik.hands)
+            {
+                ik.grip = f.root.parent != null ? f.root.parent.TransformPoint(at) : at;
+                ik.handsAcross = across;
+                // along a bar or a zipline his hands are where he is along it
+                if (!across) ik.grip.x = f.root.parent != null ? f.root.parent.TransformPoint(new Vector3(x, 0, 0)).x : x;
+            }
         }
 
         /// <summary>In the staff storm (the special before his fire is awake): its blows break the bamboo dummies (1-3).</summary>

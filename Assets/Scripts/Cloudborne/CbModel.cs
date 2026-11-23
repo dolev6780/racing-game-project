@@ -94,6 +94,10 @@ namespace Cloudborne
 
         /// <summary>How far the model is raised (+) or lowered (-) now to keep its feet on the ground (test hook).</summary>
         public float GroundFix => groundFix;
+        /// <summary>His limbs' solver (null for a model without the usual skeleton).</summary>
+        public CbLimbIK ik;
+        /// <summary>How far his toe bones sit over his soles (world, his model's scale).</summary>
+        public float ToeLift => toeLift * (root.parent != null ? root.parent.lossyScale.y : 1f);
 
         /// <summary>Where the lower of his toes is (world).</summary>
         public bool LowToe(out Vector3 at)
@@ -195,6 +199,15 @@ namespace Cloudborne
             toeLift = (crown - toe) * 0.039f;
             bones.TryGetValue("LeftToeBase", out leftToe);
             bones.TryGetValue("RightToeBase", out rightToe);
+            // his hands and feet put where they belong after each frame's clip (CbLimbIK)
+            ik = go.AddComponent<CbLimbIK>();
+            CbLimbIK.Limb Limb(string up, string low, string end, string tip) =>
+                bones.TryGetValue(up, out var u) && bones.TryGetValue(low, out var l) && bones.TryGetValue(end, out var e)
+                    ? new CbLimbIK.Limb { upper = u, lower = l, end = e, tip = tip != null && bones.TryGetValue(tip, out var t) ? t : null } : null;
+            ik.leftLeg = Limb("LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase");
+            ik.rightLeg = Limb("RightUpLeg", "RightLeg", "RightFoot", "RightToeBase");
+            ik.leftArm = Limb("LeftArm", "LeftForeArm", "LeftHand", null);
+            ik.rightArm = Limb("RightArm", "RightForeArm", "RightHand", null);
             var fitScale = root.localScale;
             if (!TurnsByModel.TryGetValue(path, out clipTurns))
                 TurnsByModel[path] = clipTurns = MeasureClipTurns(parent);
