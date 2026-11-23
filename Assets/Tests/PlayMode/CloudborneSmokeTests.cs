@@ -3284,7 +3284,8 @@ namespace RacingGame.Tests
                     game.Teleport(x);
                     game.hero.y = y;
                     game.hero.vx = game.hero.vy = 0;
-                    if (y > 0) game.hero.state = CbHero.State.Air;
+                    // (whatever he was doing - hanging from an edge held him there, and the pictures after it were all of it)
+                    game.hero.state = y > 0 ? CbHero.State.Air : CbHero.State.Idle;
                 }
                 // the gorge with its water on the way up
                 if (name == "gorge") game.level.StartFlood(2.4f);
@@ -3462,7 +3463,10 @@ namespace RacingGame.Tests
             Assert.Greater(hero.vx, 6f, "Letting go did not fling Raja on");
             Assert.Greater(hero.vy, 7f, "Letting go did not fling Raja up");
             float from = hero.x;
+            // (holding on toward where he is flung, as anyone would)
+            game.TestInput = i => i.x = 1;
             for (float w = 0; w < 2f && hero.state == CbHero.State.Air; w += Time.deltaTime) yield return null;
+            game.TestInput = null;
             Assert.Greater(hero.x, from + 3f, "The pole's fling did not carry Raja on over the river");
         }
 
