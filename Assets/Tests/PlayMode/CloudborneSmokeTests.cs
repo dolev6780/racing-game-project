@@ -2232,7 +2232,7 @@ namespace RacingGame.Tests
             // and the same tunnel with its gate sunk, as for an ambush's raiders
             // (called down every frame while the picture is taken: once, it rose again before the picture)
             game.TestInput = i => game.level.CallTunnel(CbLevel.RopeMouthL);
-            yield return TakePictures(new[] { ("tunnel_open", CbLevel.RopeMouthL - 1.5f, 0f) }, 0.8f);
+            yield return TakePictures(new[] { ("tunnel_open", CbLevel.RopeMouthL - 1.5f, 0f) }, 2.5f);
             game.TestInput = null;
         }
 
