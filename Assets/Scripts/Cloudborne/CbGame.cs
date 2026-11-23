@@ -163,7 +163,9 @@ namespace Cloudborne
             // (the rope bridge has an ambush of its own; the soldier on the rock in the long river is gone: the user)
             (64f, CbEnemy.Kind.Shield, 5f, false), (71f, CbEnemy.Kind.Hyena, 4f, true),
             // waiting together on the far bank of the long river, by the shrine: three at once, the river at their backs
-            (106.5f, CbEnemy.Kind.Hyena, 3f, false), (109.5f, CbEnemy.Kind.Shield, 3f, false), (112.5f, CbEnemy.Kind.Thrower, 3f, false),
+            // (3 m further from the water: they met him as he landed on the bank's edge, and his first knock sent him
+            // back into the river - the user)
+            (109.5f, CbEnemy.Kind.Hyena, 3f, false), (112.5f, CbEnemy.Kind.Shield, 3f, false), (115.5f, CbEnemy.Kind.Thrower, 3f, false),
             (124f, CbEnemy.Kind.Hyena, 5f, false), (193f, CbEnemy.Kind.Hyena, 2.5f, false),
             (238.6f, CbEnemy.Kind.Hyena, 1.2f, true), (259f, CbEnemy.Kind.Hyena, 1.5f, false), (289f, CbEnemy.Kind.Hyena, 3f, false),
             (293f, CbEnemy.Kind.Shield, 3f, false), (297f, CbEnemy.Kind.Thrower, 3f, false), (363f, CbEnemy.Kind.Shield, 2f, false),

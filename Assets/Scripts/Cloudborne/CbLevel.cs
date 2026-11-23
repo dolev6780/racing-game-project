@@ -316,7 +316,9 @@ namespace Cloudborne
             AddStone(86.6f, true);
             // (wide enough for a fight: a soldier guards it - knocked off it, he's in the river)
             AddRock(89f, 2.2f, 1.3f);
-            AddLog(92.6f, 1.2f, 5.2f);
+            // (drifting less far, and a little further from the rock: drifting back it went into the rock - the user's
+            // picture)
+            AddLog(92.9f, 0.7f, 5.2f);
             AddStone(95.2f, true);
             AddStone(97.4f, false);
             AddLog(99.8f, 0, 0);
