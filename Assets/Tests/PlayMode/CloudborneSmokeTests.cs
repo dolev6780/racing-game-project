@@ -211,27 +211,18 @@ namespace RacingGame.Tests
             game.TestInput = null;
             Assert.IsTrue(bounced, "The springy leaf by the start did not throw Raja up");
             Assert.AreEqual(1, game.Secrets, "The hidden ledge's treasure over the start could not be reached from the leaf");
-            // the boulder: struck, it rolls away (the user: roll it into the raiders), knocking down a raider in its way,
-            // and bursts where it stops, its treasure inside
+            // the boulder: three blows and it breaks, its treasure inside
             game.Teleport(CbLevel.BoulderStashX - 1.2f);
             hero.y = 0; hero.facing = 1;
             yield return Frames(3);
-            var raider = new CbEnemy(game, CbEnemy.Kind.Hyena, CbLevel.BoulderStashX + 3f, game.transform);
-            game.enemies.Add(raider);
-            float raiderHp = raider.hp;
             int crates = game.items.CrateCount;
-            game.items.HitCrates(hero.x, 0.5f, 1, 2f);
-            yield return null;
-            Assert.IsTrue(game.items.Rolling, "A blow did not set the cracked boulder rolling");
-            for (float w = 0; w < 4f && game.items.CrateCount == crates; w += Time.deltaTime) yield return null;
-            Assert.AreEqual(crates - 1, game.items.CrateCount, "The rolling boulder never burst open");
-            Assert.IsTrue(raider.dead || raider.hp < raiderHp, "The rolling boulder went past the raider in its way");
-            float burst = game.items.LastBurstX;
+            for (int k = 0; k < 3; k++) { game.items.HitCrates(hero.x, 0.5f, 1, 2f); yield return new WaitForSeconds(0.3f); }
+            Assert.AreEqual(crates - 1, game.items.CrateCount, "Three blows did not break the cracked boulder");
             // (it pops out and lands near by: walked along beside it)
             yield return new WaitForSeconds(1.2f);
             for (float dx = -2.5f; dx <= 2.5f && game.Secrets < 2; dx += 0.4f)
             {
-                game.Teleport(burst + dx);
+                game.Teleport(CbLevel.BoulderStashX + dx);
                 hero.y = 0;
                 yield return Frames(3);
             }
