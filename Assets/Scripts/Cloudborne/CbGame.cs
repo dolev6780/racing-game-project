@@ -2009,7 +2009,8 @@ namespace Cloudborne
             float raw = TestStep > 0 ? TestStep : Mathf.Min(Time.unscaledDeltaTime, 1f / 15f);
             fpsT += Time.unscaledDeltaTime;
             fpsFrames++;
-            if (fpsT >= 1f) { Fps = fpsFrames / fpsT; fpsT = 0; fpsFrames = 0; }
+            worstNow = Mathf.Max(worstNow, Time.unscaledDeltaTime);
+            if (fpsT >= 1f) { Fps = fpsFrames / fpsT; FrameMs = fpsT * 1000f / fpsFrames; WorstFps = 1f / Mathf.Max(0.001f, worstNow); fpsT = 0; fpsFrames = 0; worstNow = 0; }
             clock += raw;
             UpdateImpactFrame(raw);
             WatchSpeed(raw);
@@ -2261,6 +2262,10 @@ namespace Cloudborne
 
         /// <summary>Frames a second over the last second (shown on the pause screen, to see how the phone keeps up).</summary>
         public static float Fps { get; private set; }
+        /// <summary>The mean frame's time (ms) and the slowest frame (as frames a second) over the last second.</summary>
+        public static float FrameMs { get; private set; }
+        public static float WorstFps { get; private set; }
+        float worstNow;
         float fpsT;
         int fpsFrames;
         /// <summary>Test hook: presses the controls themselves (ATTACK held, SKILL), before they are read as moves.</summary>

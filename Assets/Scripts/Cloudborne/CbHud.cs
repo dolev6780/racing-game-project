@@ -27,7 +27,12 @@ namespace Cloudborne
         readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt, stageTxt, foeLeft, foeRight;
         float foeT;
         readonly RectTransform comboBox, pads, stickBase, stickKnob, paused, result, pauseBtn, pauseMenuBtn, resultMenuBtn;
-        readonly Text resultTitle, resultStats, fpsTxt;
+        readonly Text resultTitle, resultStats, fpsTxt, perfTxt;
+        /// <summary>The frame counter at the bottom of the screen while playing (the user: an APK with an FPS counter,
+        /// to see how the phone keeps up): frames a second, the slowest frame of the last second, the mean frame's
+        /// time, the quality level.</summary>
+        public static bool ShowFps = true;
+        float perfT;
         // the play HUD (hidden in a cinematic) and the cinematic's own layer: black bars, the speech box, SKIP
         readonly RectTransform play, barTop, barBottom, bubble, skipBtn;
         readonly Text whoTxt, lineTxt, nextTxt;
@@ -128,6 +133,7 @@ namespace Cloudborne
 
             // score, pause
             UIKit.Label(play, "SCORE", 10, new Color(1, 1, 1, 0.8f), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -14), new Vector2(120, 14), TextAnchor.MiddleRight);
+            perfTxt = UIKit.Label(play, "", 13, new Color(1, 1, 1, 0.85f), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 12), new Vector2(420, 18), TextAnchor.MiddleCenter, true);
             scoreTxt = UIKit.Label(play, "0", 24, Paper, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -28), new Vector2(160, 28), TextAnchor.MiddleRight, true);
             coinTxt = UIKit.Label(play, "COINS 0", 20, Gold, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -58), new Vector2(160, 24), TextAnchor.MiddleRight, true);
             // (they pop about their right ends, where the right-aligned numbers are)
@@ -936,6 +942,14 @@ namespace Cloudborne
         /// <summary>Animates popups, banners and flashes. Unscaled time, so it keeps moving during hit-stop.</summary>
         public void Tick(float dt)
         {
+            perfT -= Time.unscaledDeltaTime;
+            if (perfTxt != null && perfT <= 0)
+            {
+                perfT = 0.5f;
+                perfTxt.gameObject.SetActive(ShowFps);
+                if (ShowFps)
+                    perfTxt.text = $"{Mathf.RoundToInt(CbGame.Fps)} FPS  ·  low {Mathf.RoundToInt(CbGame.WorstFps)}  ·  {CbGame.FrameMs:F1} ms  ·  {CbQuality.Label}";
+            }
             // the arrows for soldiers out of view pulse, nudging that way
             if (foeLeft.gameObject.activeSelf || foeRight.gameObject.activeSelf)
             {
