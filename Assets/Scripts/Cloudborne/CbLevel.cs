@@ -995,7 +995,14 @@ namespace Cloudborne
                 for (int k = 0; k < 3; k++)
                     CbArt.Box(crack, t, new Vector3((k - 1) * width * 0.3f, top - 0.28f, -0.77f), new Vector3(0.05f, 0.4f, 0.02f), CbArt.Rot(0, 0, k % 2 == 0 ? 0.4f : -0.4f));
             }
-            ledges.Add(new Ledge { x0 = x - width / 2, x1 = x + width / 2, top = top, crumbles = crumbles, t = t, home = t.localPosition });
+            // a steady slab of the cliff's kit as wide as it is drawn (its ends taper: he stood out past them)
+            float lx0 = x - width / 2, lx1 = x + width / 2;
+            if (kit != null && !crumbles && !tree)
+            {
+                var cs = Solidify(kit);
+                if (FindTop(cs, x, width / 2 + 0.3f, top, 0.25f, out _, out float mx0, out float mx1)) { lx0 = Mathf.Max(lx0 - 0.1f, mx0); lx1 = Mathf.Min(lx1 + 0.1f, mx1); }
+            }
+            ledges.Add(new Ledge { x0 = lx0, x1 = lx1, top = top, crumbles = crumbles, t = t, home = t.localPosition });
             AddLedgeSupport(x, width, top - (tree ? 0.45f : Mathf.Max(0.34f, width * 0.27f)) + 0.05f, tree);
         }
 

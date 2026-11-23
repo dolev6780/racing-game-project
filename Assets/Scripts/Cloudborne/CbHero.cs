@@ -1059,8 +1059,8 @@ namespace Cloudborne
                 float low = float.MaxValue;
                 foreach (var toe in new[] { lt, rt })
                 {
-                    float tx = x + (toe.x - f.root.position.x);
-                    if (g.level.SurfaceUnder(tx, y, out float sy)) { any = true; low = Mathf.Min(low, sy - y); }
+                    float tx = x + (toe.x - f.root.position.x), tz = toe.z - f.root.position.z;
+                    if (g.level.SurfaceUnder(tx, y, tz, out float sy)) { any = true; low = Mathf.Min(low, sy - y); }
                     else low = Mathf.Min(low, 0f);
                 }
                 if (any) surface = Mathf.Clamp(low, -CbLevel.SurfaceReach, CbLevel.SurfaceReach);
@@ -1079,8 +1079,8 @@ namespace Cloudborne
                 var parent = f.root != null ? f.root.parent : null;
                 if (lv == null || !lv.Alive) return null;
                 var p = parent != null ? parent.InverseTransformPoint(w) : w;
-                if (!lv.SurfaceUnder(p.x, p.y, out float sy)) return null;
-                return parent != null ? parent.TransformPoint(new Vector3(p.x, sy, 0)).y : sy;
+                if (!lv.SurfaceUnder(p.x, p.y, p.z, out float sy)) return null;
+                return parent != null ? parent.TransformPoint(new Vector3(p.x, sy, p.z)).y : sy;
             };
             ik.hands = GripPoint(out var at, out bool across);
             if (ik.hands)

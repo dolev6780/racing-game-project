@@ -139,21 +139,29 @@ namespace Cloudborne
         /// The drawn surface under (x, about y) on his line - the top of a modelled thing his feet are over, from up to
         /// SurfaceReach over y to as far under it - if one is near; for his feet to stand on what is drawn.
         /// </summary>
-        public bool SurfaceUnder(float x, float y, out float sy)
+        public bool SurfaceUnder(float x, float y, out float sy) => SurfaceUnder(x, y, 0f, out sy);
+
+        /// <summary>The drawn surface under (x, about y) at depth z (where his foot is across the path): right under it
+        /// first (a tower's top seen from the front: its rim in front lower than its middle - his foot over the rim stood
+        /// in the air in front of it); if nothing is there, along his line and a little either side, the nearest top.</summary>
+        public bool SurfaceUnder(float x, float y, float z, out float sy)
         {
             sy = y;
+            if (RayDown(x, y, z, out sy)) return true;
             bool found = false;
             float best = float.MaxValue;
-            // along his line and a little either side of it (a thin ledge seen from the front is under him wherever it
-            // lies across the path): the drawn top nearest his floor
-            foreach (float z in ProbeZ)
-            {
-                var from = root.TransformPoint(new Vector3(x, y + SurfaceReach, z));
-                if (!Physics.Raycast(from, -root.up, out var h, 2 * SurfaceReach * root.lossyScale.y) || Vector3.Dot(h.normal, root.up) < 0.6f) continue;
-                float hy = root.InverseTransformPoint(h.point).y;
-                if (Mathf.Abs(hy - y) < best) { best = Mathf.Abs(hy - y); sy = hy; found = true; }
-            }
+            foreach (float pz in ProbeZ)
+                if (RayDown(x, y, pz, out float hy) && Mathf.Abs(hy - y) < best) { best = Mathf.Abs(hy - y); sy = hy; found = true; }
             return found;
+        }
+
+        bool RayDown(float x, float y, float z, out float hy)
+        {
+            hy = y;
+            var from = root.TransformPoint(new Vector3(x, y + SurfaceReach, z));
+            if (!Physics.Raycast(from, -root.up, out var h, 2 * SurfaceReach * root.lossyScale.y) || Vector3.Dot(h.normal, root.up) < 0.6f) return false;
+            hy = root.InverseTransformPoint(h.point).y;
+            return true;
         }
         public const float SurfaceReach = 0.55f;
 

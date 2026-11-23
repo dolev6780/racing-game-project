@@ -3310,7 +3310,8 @@ namespace RacingGame.Tests
                 {
                     if (!rd.isVisible || !rd.enabled) continue;
                     drawn++;
-                    var mesh = rd is SkinnedMeshRenderer sk ? sk.sharedMesh : rd.GetComponent<MeshFilter>()?.sharedMesh;
+                    // (TryGetComponent: a particle system has no mesh filter, and Unity's missing one threw past ?.)
+                    var mesh = rd is SkinnedMeshRenderer sk ? sk.sharedMesh : rd.TryGetComponent<MeshFilter>(out var mfr) ? mfr.sharedMesh : null;
                     if (mesh != null) for (int sm = 0; sm < mesh.subMeshCount; sm++) tris += mesh.GetIndexCount(sm) / 3;
                 }
                 Debug.Log($"PERF {name}: {drawn} drawn, {tris / 1000}k triangles");
@@ -3374,7 +3375,8 @@ namespace RacingGame.Tests
                 while (raja.parent != null && raja.parent != game.transform && raja.parent.parent != game.transform) raja = raja.parent;
                 foreach (var mf in game.GetComponentsInChildren<MeshFilter>())
                     // (not the flat cut-out cards of the birds, fish and sparks: nothing to stand on)
-                    if (mf.sharedMesh != null && mf.sharedMesh.isReadable && mf.sharedMesh != CbMesh.Quad && mf.sharedMesh.name != "Quad" && mf.GetComponent<Collider>() == null && (raja == null || !mf.transform.IsChildOf(raja)))
+                    if (mf.sharedMesh != null && mf.sharedMesh.isReadable && mf.sharedMesh != CbMesh.Quad && mf.sharedMesh.name != "Quad" && !mf.TryGetComponent<Collider>(out _)
+                        && (raja == null || !mf.transform.IsChildOf(raja)) && !UnderLighterCopy(mf.transform))
                         mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
                 Physics.SyncTransforms();
                 hero.inv = 999f;
@@ -3425,13 +3427,14 @@ namespace RacingGame.Tests
                         if (!any)
                         {
                             if (atEdge && ++outOver == 1) continue;
-                            fails.Add($"{stage} {what} x {x:F1}: his {foot} foot in the air (nothing drawn under it)");
+                            fails.Add($"{stage} {what} x {x:F1}: his {foot} foot in the air (nothing drawn under it) (he at {hero.x:F2},{hero.y:F2}; toe at {toe.x:F2},{toe.y:F2},{toe.z:F2})");
                         }
                         else
                         {
                             float gap = toe.y - h.point.y;
-                            if (gap > 0.16f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {gap:F2} over what is drawn ({h.collider.name})");
-                            else if (gap < -0.08f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {-gap:F2} into what is drawn ({h.collider.name})");
+                            string at = $"(he at {hero.x:F2},{hero.y:F2}; toe at {toe.x:F2},{toe.y:F2},{toe.z:F2}; drawn at {h.point.y:F2})";
+                            if (gap > 0.16f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {gap:F2} over what is drawn ({h.collider.name}) {at}");
+                            else if (gap < -0.08f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {-gap:F2} into what is drawn ({h.collider.name}) {at}");
                         }
                     }
                 }
@@ -3464,6 +3467,12 @@ namespace RacingGame.Tests
             Assert.Greater(stood, 60, "Raja was stood at too few places");
             // (all of them in the message: the log's own lines are cut off by the pictures after them)
             Assert.IsEmpty(fails, $"Raja does not touch what he stands on or hangs from ({fails.Count}): " + string.Join(" | ", fails));
+        }
+
+        static bool UnderLighterCopy(Transform t)
+        {
+            for (; t != null; t = t.parent) if (t.name == "lod1") return true;
+            return false;
         }
 
         [UnityTest]
