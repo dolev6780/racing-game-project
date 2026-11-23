@@ -42,6 +42,10 @@ namespace Cloudborne
         // back after a blow. Seeing Raja he just charges (he stopped to shout with his blade raised: the user didn't
         // like it).
         const float ChargeFrom = 3.6f, ChargeBoost = 1.45f, BackTime = 0.5f;
+        /// <summary>Raja's feet within his blade's reach up and down: not up on a ledge over him, nor down below.</summary>
+        bool InReachUp(CbHero hero) => hero.y < y + StrikeUp && hero.y > y - StrikeDown;
+        const float StrikeUp = 1.4f, StrikeDown = 0.9f;
+
         /// <summary>How far past his reach a soldier waits while two others strike (CbGame.MayStrike).</summary>
         const float WaitRing = 1.3f;
         /// <summary>How long a soldier winds up his blow (the glint, the warning): struck then, it is a counter.</summary>
@@ -677,7 +681,7 @@ namespace Cloudborne
                             float ddx = (hero.x - x) * facing;
                             // a raider's slash goes over a ducking Raja; the guard's shield push still hits him
                             bool ducked = kind == Kind.Hyena && hero.Ducking;
-                            if (ddx > -0.3f && ddx < reach + 0.4f && hero.y < 1.8f && !ducked) hero.TakeHit(dmg, facing);
+                            if (ddx > -0.3f && ddx < reach + 0.4f && InReachUp(hero) && !ducked) hero.TakeHit(dmg, facing);
                             CbFx.Sfx("swing", 0.5f);
                         }
                     }
@@ -769,8 +773,9 @@ namespace Cloudborne
                         }
                     }
                     vx += (want + push - vx) * (1 - Mathf.Exp(-8 * dt));
+                    // (only at a Raja his blade can reach: up on a ledge over him, he struck at the air under him - the user)
                     if (state != State.Atk && dist <= reach + 0.2f && cd <= 0 && hero.state != CbHero.State.Dead && g.mode == CbGame.Mode.Play
-                        && g.MayStrike(this))
+                        && InReachUp(hero) && g.MayStrike(this))
                     {
                         state = State.Atk; t = 0; hitDone = false; vx = 0; backT = 0; charging = false; throwing = false;
                         // the warning over his head as he winds up (the glint on his blade alone was easy to miss)
