@@ -1775,6 +1775,32 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator UpAsASpearStrikesIsABackflipOverIt()
+        {
+            // the user: up at the perfect moment as a spear comes, he dodges it - a backflip (Meshy's, his choice)
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            Assert.IsTrue(hero.model == null || hero.model.HasClip("Backflip_inplace"), "Raja has no backflip clip");
+            game.Teleport(184f);
+            hero.y = 0;
+            var e = new CbEnemy(game, CbEnemy.Kind.Thrower, 191f, game.transform);
+            game.enemies.Add(e);
+            hero.hp = 100;
+            float hp = hero.hp;
+            // up as the spear is about to strike
+            game.TestInput = i => { if (hero.state != CbHero.State.Air && (game.level.ThrownComing(hero.x, hero.y, 1, 2.2f))) i.jump = true; };
+            for (float w = 0; w < 6f && hero.SpearsDodged == 0; w += Time.deltaTime) yield return null;
+            yield return new WaitForSeconds(0.5f);
+            game.TestInput = null;
+            Assert.Greater(hero.SpearsDodged, 0, "Up as a spear struck did not dodge it");
+            Assert.AreEqual(hp, hero.hp, 0.01f, "The spear he dodged still hurt him");
+        }
+
+        [UnityTest]
         public IEnumerator ASpearThrowerKeepsHisDistanceAndThrows()
         {
             game = CbGame.Boot();
@@ -1814,7 +1840,7 @@ namespace RacingGame.Tests
             var model = game.hero.model;
             Assert.IsNotNull(model);
             var anim = model.root.GetComponent<Animation>();
-            foreach (var clip in new[] { "Crawl", "MonkeyBars", "Motion_Divekick", "slide_light" })
+            foreach (var clip in new[] { "Crawl", "MonkeyBars", "Motion_Divekick", "slide_light", "Backflip_inplace" })
             {
                 AnimationState state = null;
                 foreach (AnimationState st in anim) if (st.name.EndsWith(clip)) state = st;

@@ -289,6 +289,31 @@ namespace Cloudborne
         // soldier in his way off his feet; under a low passage he can't stand up.
         // No crawl any more (the user: sliding is enough): held down he ducks where he is; down and across slides him;
         // a slide that ends under something low carries on until he is out from under it.
+        // the spear dodge: how near (a spear flies 12 m/s: about a fifth of a second) it must be, the flip's clip and length
+        const float SpearDodgeLook = 2.6f, SpearFlipTime = 0.75f;
+        const string SpearFlipClip = "Backflip_inplace";
+        float spearFlipT;
+
+        /// <summary>A spear (or a dart) about to strike him, from either side.</summary>
+        bool SpearOnHim() => g.level != null && (g.level.ThrownComing(x, y, 1, SpearDodgeLook) || g.level.ThrownComing(x, y, -1, SpearDodgeLook));
+
+        /// <summary>Test hook: spears dodged this run.</summary>
+        public int SpearsDodged { get; private set; }
+
+        /// <summary>A backflip up over the spear, untouchable through it: PERFECT, the moment slowed.</summary>
+        void SpearDodge()
+        {
+            state = State.Air; t = 0; air = true; jumps = 1; cuttable = false; crouching = false;
+            vy = 10f;
+            vx = -facing * 2f;
+            inv = Mathf.Max(inv, SpearFlipTime);
+            spearFlipT = SpearFlipTime;
+            SpearsDodged++;
+            ki = Mathf.Min(100, ki + 10);
+            CbFx.Sfx("jump", 0.7f);
+            g.PerfectDodge();
+        }
+
         const float SlideFrom = 5f, SlideSpeed = 10f, SlideTime = 0.55f, SlideEnd = 2.5f, SlideDmg = 6f;
         // how fast he must be running for down to be a slide (slower, or standing, it is a crouch)
         const float RunToSlide = 3f;
@@ -737,6 +762,7 @@ namespace Cloudborne
             wallLockT = Mathf.Max(0, wallLockT - dt);
             sinceDash += dt;
             if (input.atk) buffer = 0.25f; else buffer = Mathf.Max(0, buffer - dt);
+            spearFlipT = Mathf.Max(0, spearFlipT - dt);
             if (input.heavy) heavyBuffer = 0.25f; else heavyBuffer = Mathf.Max(0, heavyBuffer - dt);
             if (!input.heavyDown) holdUsed = false;
             if (state != State.Dead) ki = Mathf.Min(100, ki + KiRegen * CbSave.KiRegenMul * dt);
@@ -875,7 +901,10 @@ namespace Cloudborne
                 // JUMP pressed with no jump left: kept a moment, for when he lands
                 if (input.jump && air && jumps >= 2 && wallT <= 0) jumpBufT = JumpBuffer;
                 else jumpBufT = Mathf.Max(0, jumpBufT - dt);
-                bool jump = (input.jump || (!air && jumpBufT > 0)) && !low;
+                // up at the very moment a spear is about to strike him: a backflip over it - PERFECT (the user)
+                bool spearDodge = input.jump && !air && !low && SpearOnHim();
+                if (spearDodge) SpearDodge();
+                bool jump = !spearDodge && (input.jump || (!air && jumpBufT > 0)) && !low;
                 if (jump && air && wallT > 0) WallJump();
                 else if (jump && jumps < 2)
                 {
@@ -1141,6 +1170,9 @@ namespace Cloudborne
                 // sliding down a wall: clinging to it, arms up and knees in (the reach of "Jump and Grab Wall")
                 case State.Air when sliding: model.Show("Jump_and_Grab_Wall", 0.62f, 0.1f); break;
                 case State.Air when flipT > 0: model.Window("Backflip_Jump", 0.3f, 0.52f, 1 - flipT / FlipTime, 0.06f); break;
+                // the spear dodge: Meshy's backflip, whole (the user chose it)
+                case State.Air when spearFlipT > 0 && model.HasClip(SpearFlipClip):
+                    model.Window(SpearFlipClip, 0.15f, 0.85f, 1 - spearFlipT / SpearFlipTime, 0.05f); break;
                 // in the air the jump clip follows his rise and fall (it jumped between two poses at the top): the push
                 // off just after leaving the ground (0.22-0.3), rising (0.3), tucked at the top (0.45), legs reaching
                 // down falling (0.56) - its phases measured on its hips and feet in Blender
