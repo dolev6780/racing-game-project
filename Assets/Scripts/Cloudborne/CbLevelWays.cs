@@ -892,7 +892,12 @@ namespace Cloudborne
                 var flat = RockMat(x1 - x0, top, x0, 0, new Color(0.42f, 0.42f, 0.48f));
                 CbArt.Part(CbMesh.Quad, flat, cave, new Vector3((x0 + x1) / 2, top / 2, 1.2f), new Vector3(x1 - x0, top, 1), shadows: false);
             }
-            float w0 = x0 - TerraceBulge - 0.15f, w1 = x1;
+            // where it comes from (the user: it hung in the air, sky behind its top): the mountain rises on behind it,
+            // over the cliff's top, and the river comes down its face from high up, then over the lip and down
+            var mountain = CbArt.Joint(root, 0, 0, 0, "fallsMountain");
+            RockWall(mountain, x0 - 1.4f, x1 + 1.4f, top - 0.6f, top + FallsSource + 0.6f, 1.1f, 3.8f, Mathf.RoundToInt(x0 * 10) + 7, 0.25f, 0.6f, 2.4f);
+            // (from just past the cliff he stands on: over its edge the water was in front of his feet - the user)
+            float w0 = x0 + 0.1f, w1 = x1;
             var shader = Resources.Load<Shader>("Shaders/Waterfall");
             Material water;
             if (shader != null && shader.isSupported)
@@ -910,10 +915,24 @@ namespace Cloudborne
             }
             var sheet = CbArt.Part(CbMesh.Quad, water, root, new Vector3((w0 + w1) / 2, (top + 0.3f) / 2, -1.3f), new Vector3(w1 - w0, top + 0.3f, 1), shadows: false);
             sheet.name = "waterfall";
+            // the upper falls, down the mountain's face behind, from high up to the lip
+            Material upper = water;
+            if (shader != null && shader.isSupported)
+            {
+                upper = new Material(water) { name = "waterfallUpper" };
+                upper.SetFloat("_Top", top + FallsSource);
+                upper.SetFloat("_Bottom", top - 0.3f);
+            }
+            var high = CbArt.Part(CbMesh.Quad, upper, root, new Vector3((w0 + w1) / 2, top + (FallsSource - 0.3f) / 2, 0.95f), new Vector3(w1 - w0, FallsSource + 0.3f, 1), shadows: false);
+            high.name = "waterfallUpper";
             waterfall = new Rect(w0, 0, w1 - w0, top);
+            fallsTop = top;
         }
         Material waterfallMat;
         Rect waterfall;
+        float fallsTop;
+        // how high over the cliff's top the river comes down the mountain's face
+        const float FallsSource = 3.2f;
 
         void BuildChest()
         {
@@ -1511,6 +1530,14 @@ namespace Cloudborne
 
         void UpdateMovers(float dt, CbHero hero)
         {
+            // the waterfall's spray: where it pours over its lip, and where it lands
+            if (waterfall.width > 0 && Mathf.Abs(hero.x - waterfall.center.x) < 18f)
+            {
+                if (Random.value < 0.6f)
+                    CbFx.Spark(new Vector3(Random.Range(waterfall.xMin, waterfall.xMax), fallsTop + 0.05f, -1.2f), CbFx.Water, 1, 1.5f, 0.3f, 0.4f, 5, 0.8f);
+                if (Random.value < 0.9f)
+                    CbFx.Spark(new Vector3(Random.Range(waterfall.xMin, waterfall.xMax), 0.15f, -1.3f), CbFx.Water, 2, 3f, 0.35f, 0.5f, 7);
+            }
             // rafts drift down the river; at its end they sink and come back at the start
             foreach (var r in rafts)
             {
