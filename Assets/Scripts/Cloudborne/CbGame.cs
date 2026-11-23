@@ -958,12 +958,16 @@ namespace Cloudborne
             if (lockZone == null) { incoming.Clear(); return; }
             for (int i = 0; i < incoming.Count; i++)
             {
-                if (incoming[i].at > time) continue;
-                // out of the tunnel on his side (the user: from both sides, out of a tunnel by each end of the bridge)
+                // out of the tunnel on his side (the user: from both sides, out of a tunnel by each end of the bridge).
+                // Its gate is shut until then (no one takes it for a way in: the user): it sinks a moment before he
+                // comes, and he steps out once it is down
                 int side = incoming[i].side;
                 float mouth = float.NaN;
                 foreach (var a in Ambushes) if (a.zone == lockZone) mouth = side < 0 ? a.mouthL : a.mouthR;
                 bool fromMouth = !float.IsNaN(mouth);
+                if (fromMouth && level != null && incoming[i].at - time < TunnelLead) level.CallTunnel(mouth);
+                if (incoming[i].at > time) continue;
+                if (fromMouth && level != null && level.TunnelOpen(mouth) < 0.95f) continue;
                 var e = SpawnAt(incoming[i].kind, fromMouth ? mouth : lockZone.x + side * RunInFrom);
                 if (fromMouth)
                 {
@@ -979,7 +983,13 @@ namespace Cloudborne
                 arenaFoes.Add(e);
                 incoming.RemoveAt(i--);
             }
+            // the gate stays down while one is still stepping out of it, and rises behind the last
+            if (level != null)
+                foreach (var e in arenaFoes) if (!e.dead && e.emergeZ > 0.05f) level.CallTunnel(e.x);
         }
+
+        /// <summary>How long before a raider is due a tunnel's gate starts to sink.</summary>
+        const float TunnelLead = 0.45f;
 
         /// <summary>Sergeant Snap broken (his gauge full): BREAK!, the moment slowed, coins spilling from his purse.</summary>
         public void SnapBroken(CbEnemy e)

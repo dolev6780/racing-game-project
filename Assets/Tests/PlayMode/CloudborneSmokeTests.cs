@@ -1497,14 +1497,25 @@ namespace RacingGame.Tests
             game.StartGame();
             yield return Frames(2);
             game.hero.inv = 999f;
+            // the tunnels' gates are shut: no one takes them for a way in (the user)
+            Assert.AreEqual(0f, game.level.TunnelOpen(CbLevel.RopeMouthL), "A tunnel stood open before its ambush");
+            Assert.AreEqual(0f, game.level.TunnelOpen(CbLevel.RopeMouthR), "A tunnel stood open before its ambush");
             game.Teleport(CbLevel.RopeBridgeX - 6f);
             game.hero.y = game.level.SupportAt(game.hero.x, 2f);
             game.hero.vy = 0;
             yield return Frames(3);
             Assert.AreEqual(1, game.RopeAmbushWave, "No ambush on the rope bridge");
-            // they step out of the tunnels by the bridge's ends, from both sides, one after another (the user)
-            var firstIn = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.RopeBridgeX) < 20f);
+            // they step out of the tunnels by the bridge's ends, from both sides, one after another (the user), each
+            // once his tunnel's gate has sunk
+            List<CbEnemy> firstIn = null;
+            for (float w = 0; w < 2f; w += Time.deltaTime)
+            {
+                firstIn = game.enemies.FindAll(e => !e.dead && Mathf.Abs(e.x - CbLevel.RopeBridgeX) < 20f);
+                if (firstIn.Count > 0) break;
+                yield return null;
+            }
             Assert.Greater(firstIn.Count, 0, "No raider came for the ambush");
+            Assert.IsTrue(firstIn.TrueForAll(e => game.level.TunnelOpen(e.x) > 0.9f), "A raider came out through a shut gate");
             Assert.IsTrue(firstIn.TrueForAll(e => Mathf.Min(Mathf.Abs(e.x - CbLevel.RopeMouthL), Mathf.Abs(e.x - CbLevel.RopeMouthR)) < 1.5f),
                 "An ambush's raider did not come out of a tunnel by the bridge");
             Assert.IsTrue(firstIn.TrueForAll(e => e.emergeZ > 0f), "An ambush's raider did not step out from inside the tunnel");
@@ -1526,6 +1537,10 @@ namespace RacingGame.Tests
             game.hero.y = 0;
             yield return Frames(5);
             Assert.IsFalse(game.enemies.Exists(e => !e.dead && Mathf.Abs(e.x - 89f) < 1.5f), "A soldier still stands on the rock in the long river");
+            // the gates rose again behind the last of them
+            for (float w = 0; w < 3f && (game.level.TunnelOpen(CbLevel.RopeMouthL) > 0 || game.level.TunnelOpen(CbLevel.RopeMouthR) > 0); w += Time.deltaTime) yield return null;
+            Assert.AreEqual(0f, game.level.TunnelOpen(CbLevel.RopeMouthL), "A tunnel's gate stayed down after the ambush");
+            Assert.AreEqual(0f, game.level.TunnelOpen(CbLevel.RopeMouthR), "A tunnel's gate stayed down after the ambush");
         }
 
         [UnityTest]
@@ -2207,7 +2222,11 @@ namespace RacingGame.Tests
             game.SkipFights();
             yield return Frames(2);
             yield return TakePictures(new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("summit", 154f, CbLevel.SummitTop), ("bars", 219f, 4.8f - 1.71f),
-                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 392.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck) });
+                ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 392.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck),
+                ("tunnel", CbLevel.RopeMouthL + 2.5f, 0f) });
+            // and the same tunnel with its gate sunk, as for an ambush's raiders
+            game.level.CallTunnel(CbLevel.RopeMouthL);
+            yield return TakePictures(new[] { ("tunnel_open", CbLevel.RopeMouthL + 2.5f, 0f) }, 0.5f);
         }
 
         /// <summary>

@@ -900,6 +900,7 @@ namespace Cloudborne
         {
             climbTold = false;
             ResetWays();
+            ResetTunnels();
             if (CbStage.Treetops) ResetTreetops();
             else if (CbStage.Grove) ResetGrove();
             else if (CbStage.River) ResetRiver();
@@ -1446,6 +1447,7 @@ namespace Cloudborne
                 g.hud.SetTip("A low gap under the cliff: <color=#ffb03a>stick ↓</color> to slide through");
             }
             UpdateCrossings(dt, hero);
+            UpdateTunnels(dt);
             if (CbStage.Jungle) { UpdateGorge(dt, hero); UpdateBoulder(dt, hero); }
             foreach (var l in ledges)
             {
