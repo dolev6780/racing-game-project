@@ -3295,6 +3295,28 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(0.8f);
             game.TestInput = null;
             Assert.Greater(hero.x, from + 1f, "Raja did not go along the bar");
+            // thorns on the bar (the user): his hands on them hurt; a jump along the bar clears them and he catches on
+            Assert.Greater(bar.thorns.Length, 0, "No thorns on the bar");
+            float th = bar.thorns[0];
+            game.Teleport(th - 1f);
+            hero.y = bar.y - 1.71f;
+            hero.vx = hero.vy = 0;
+            hero.inv = 0;
+            hero.state = CbHero.State.Air;
+            yield return Frames(3);
+            float hp = hero.hp;
+            game.TestInput = i => i.x = 1;
+            yield return new WaitForSeconds(0.7f);
+            game.TestInput = null;
+            Assert.Less(hero.hp, hp, "The thorns on the bar did not hurt");
+            Assert.Less(hero.x, th, "Raja went along the bar through its thorns");
+            yield return new WaitForSeconds(1.2f);
+            bool hop = false;
+            game.TestInput = i => { i.x = 1; if (!hop) { i.jump = true; hop = true; } };
+            for (float w = 0; w < 2f && !(hero.state == CbHero.State.Bars && hero.x > th); w += Time.deltaTime) yield return null;
+            game.TestInput = null;
+            Assert.AreEqual(CbHero.State.Bars, hero.state, "A jump along the bar did not catch it again past the thorns");
+            Assert.Greater(hero.x, th, "A jump along the bar did not clear the thorns");
         }
 
         [UnityTest]

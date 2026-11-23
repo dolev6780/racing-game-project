@@ -47,11 +47,13 @@ namespace Cloudborne
         // ---------- the things ----------
 
         /// <summary>A vine hanging from a branch at (ax, ay), len long, swinging by angle (radians, 0 straight down).</summary>
-        public class Vine { public float ax, ay, len, angle, speed, cool; public Transform t; }
+        public class Vine { public float ax, ay, len, angle, speed, cool, stretch, stretchV; public Transform t; }
         // a vine let go: the pull swinging it back (as on him), how fast its swing dies away, as far as it can swing
         const float VineGravity = 30f, VineDrag = 0.8f, VineMaxSwing = 1.1f;
+        // how springy a vine is (the user: more elastic): its stiffness and damping
+        public const float VineSpring = 55f, VineSpringDamp = 5f;
         /// <summary>A bamboo bar at height y from x0 to x1, hung over the water: he hangs from it and moves along.</summary>
-        public class Bar { public float x0, x1, y; }
+        public class Bar { public float x0, x1, y; public float[] thorns = new float[0]; }
         /// <summary>A rope slid down from (x0, y0) to (x1, y1).</summary>
         public class Zip { public float x0, y0, x1, y1; public float At(float x) => Mathf.Lerp(y0, y1, Mathf.InverseLerp(x0, x1, x)); }
         class Leaf { public float x, half, top, squash; public Transform t; }
@@ -212,7 +214,8 @@ namespace Cloudborne
             // ---- the vine ravine
             AddVine(204f, 9f, 5f);
             AddVine(211.5f, 9f, 5f);
-            AddBar(215.5f, 223f, 4.8f);
+            // (a little longer, thorns on it to hop over - the user)
+            AddBar(214.5f, 224f, 4.8f, 217.6f, 221.2f);
             AddVine(226.8f, 9.4f, 5.4f);
             AddLeaf(235.5f, 0.45f);
             // more springy leaves along the stage (the user liked the one in the ravine), each for something
@@ -319,6 +322,8 @@ namespace Cloudborne
         /// </summary>
         void AddVine(float ax, float ay, float len)
         {
+            // the branch it hangs from grows out of a tree's trunk behind the path (it hung in the air: the user)
+            AddTrunk(ax + 2f, ay + 1.6f);
             var branch = CbArt.Joint(root, ax, ay, 0.3f, "branch");
             CbArt.Cylinder(Wood, branch, new Vector3(0, 0.25f, 0.2f), 0.26f, 4f, Quaternion.Euler(0, 0, 90));
             for (int k = -1; k <= 1; k++)
@@ -400,7 +405,7 @@ namespace Cloudborne
                 }
         }
 
-        void AddBar(float x0, float x1, float y)
+        void AddBar(float x0, float x1, float y, params float[] thorns)
         {
             var t = CbArt.Joint(root, (x0 + x1) / 2, y, 0.05f, "bars");
             // the model: two-metre poles of bamboo lashed end to end (one stretched along the whole bar looked drawn out)
@@ -413,10 +418,39 @@ namespace Cloudborne
                 modelled |= Model("BambooBar", seg, new Vector3(len / n, 0.36f, 0.16f), 180f) != null;
             }
             if (!modelled) CbArt.Cylinder(Bamboo, t, Vector3.zero, 0.07f, len, Quaternion.Euler(0, 0, 90));
-            // hung from the trees by ropes at each end
-            foreach (float e in new[] { x0, x1 })
-                CbArt.Cylinder(VineGreen, t, new Vector3(e - (x0 + x1) / 2, 2f, 0), 0.04f, 4f);
-            bars.Add(new Bar { x0 = x0, x1 = x1, y = y });
+            // hung by ropes at each end from a branch of a tree beside it (they went up into nothing: the user)
+            foreach (int side in new[] { -1, 1 })
+            {
+                float e = side < 0 ? x0 : x1, mid = (x0 + x1) / 2;
+                CbArt.Cylinder(VineGreen, t, new Vector3(e - mid, 1.6f, 0), 0.04f, 3.2f);
+                AddTrunk(e + side * 1.4f, y + 3.6f);
+                CbArt.Cylinder(Wood, root, new Vector3(e + side * 0.6f, y + 3.25f, 0.3f), 0.16f, 2.2f, Quaternion.Euler(0, 0, 90));
+            }
+            // thorns on the pole: a thorny vine wound round it at each, spikes up and down
+            var spike = M("#7a3a2a");
+            var thornVine = M("#2f5a2a");
+            foreach (float th in thorns)
+            {
+                CbArt.Cylinder(thornVine, t, new Vector3(th - (x0 + x1) / 2, 0, 0), 0.11f, ThornWide, Quaternion.Euler(0, 0, 90));
+                for (int k = 0; k < 6; k++)
+                {
+                    float a = k * Mathf.PI / 3f;
+                    CbArt.Cone(spike, t, new Vector3(th - (x0 + x1) / 2 + (k % 3 - 1) * 0.16f, Mathf.Cos(a) * 0.12f, Mathf.Sin(a) * 0.12f), 0.04f, 0.22f,
+                        Quaternion.LookRotation(new Vector3(0, Mathf.Cos(a), Mathf.Sin(a))) * Quaternion.Euler(90, 0, 0), 4);
+                }
+            }
+            bars.Add(new Bar { x0 = x0, x1 = x1, y = y, thorns = thorns });
+        }
+
+        /// <summary>How wide a thorny patch on a bar is.</summary>
+        public const float ThornWide = 0.55f;
+
+        /// <summary>A tree's trunk behind the path at x, from below the ground (or the water) up to top.</summary>
+        void AddTrunk(float x, float top)
+        {
+            var bark = CbArt.NewToon(new Color(0.58f, 0.48f, 0.4f), CbArt.PropOutline, BarkTexture());
+            bark.mainTextureScale = new Vector2(1.5f, (top + 2f) / 2.5f);
+            CbArt.Cylinder(bark, root, new Vector3(x, (top - 2f) / 2f, 1.3f), 0.42f, top + 2f).name = "trunk";
         }
 
         void AddZip(float x0, float y0, float x1, float y1)
@@ -1207,6 +1241,10 @@ namespace Cloudborne
                     v.angle = Mathf.Clamp(v.angle + v.speed * dt, -VineMaxSwing, VineMaxSwing);
                 }
                 v.t.localRotation = Quaternion.Euler(0, 0, v.angle * Mathf.Rad2Deg);
+                // springy: stretched as he swings on it (or drops onto it), and back
+                v.stretchV += (-VineSpring * v.stretch - VineSpringDamp * v.stretchV) * dt;
+                v.stretch = Mathf.Max(-0.05f, v.stretch + v.stretchV * dt);
+                v.t.localScale = new Vector3(1f, 1f + v.stretch / (v.len + VineTail), 1f);
             }
             foreach (var l in leaves)
             {

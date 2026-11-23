@@ -13,7 +13,9 @@ namespace Cloudborne
         // his hands above his feet hanging from a rope or vine, and from a bar (measured on the model at its game size)
         const float RopeReach = 1.48f, BarReach = 1.71f;
         const string BarHangClip = "Bar_Hang_Idle", BarMoveClip = "MonkeyBars";
-        const float MaxSwing = 1.1f, VineClimbSpeed = 2.6f, BarSpeed = 2.4f, ZipTop = 13f, PitDamage = 10f, PushSpeed = 1.6f;
+        // the swing's soft limit, how hard it turns him back past it, and the hard one
+        const float SoftSwing = 0.95f, SwingWall = 40f;
+        const float MaxSwing = 1.3f, VineClimbSpeed = 2.6f, BarSpeed = 2.4f, ZipTop = 13f, PitDamage = 10f, PushSpeed = 1.6f;
 
         CbLevel.Vine swingVine;
         CbLevel.Bar bar;
@@ -61,7 +63,8 @@ namespace Cloudborne
             switch (state)
             {
                 case State.Swing when swingVine != null:
-                    at = new Vector3(swingVine.ax + Mathf.Sin(swingVine.angle) * swingVine.len, swingVine.ay - Mathf.Cos(swingVine.angle) * swingVine.len, 0);
+                    float vl = swingVine.len + swingVine.stretch;
+                    at = new Vector3(swingVine.ax + Mathf.Sin(swingVine.angle) * vl, swingVine.ay - Mathf.Cos(swingVine.angle) * vl, 0);
                     across = true;
                     return true;
                 case State.Bars when bar != null: at = new Vector3(0, bar.y + BarPoleUp, 0); return true;
@@ -102,13 +105,15 @@ namespace Cloudborne
 
         void StartSwing(CbLevel.Vine v)
         {
-            float speed = vx;
+            float speed = vx, vyIn = vy;
             TakeHold();
             state = State.Swing;
             swingVine = v;
             float dx = x - v.ax, dy = v.ay - (y + RopeReach);
             v.angle = Mathf.Clamp(Mathf.Atan2(dx, Mathf.Max(0.5f, dy)), -1.1f, 1.1f);
             v.speed = Mathf.Clamp(speed * Mathf.Cos(v.angle) / v.len, -2.5f, 2.5f);
+            // the vine gives under his weight, stretching and springing back
+            v.stretchV += Mathf.Max(2.5f, -vyIn * 0.45f);
             CbFx.Sfx("staff", 0.5f);
         }
 
@@ -117,14 +122,19 @@ namespace Cloudborne
         {
             var v = swingVine;
             float acc = -(30f / v.len) * Mathf.Sin(v.angle) + input.x * 1.8f;
+            // near the top of the swing a soft limit eases him round and back (a hard one stopped him dead there, and he
+            // stuck: the user)
+            float over = Mathf.Abs(v.angle) - SoftSwing;
+            if (over > 0) acc -= Mathf.Sign(v.angle) * over * SwingWall;
             v.speed = (v.speed + acc * dt) * (1 - 0.15f * dt);
-            // at the top of the swing it stops and comes back (the user found him stuck there a moment: the speed went
-            // on pushing against the limit)
             float next = v.angle + v.speed * dt;
-            if (Mathf.Abs(next) > MaxSwing) { next = Mathf.Sign(next) * MaxSwing; v.speed = 0; }
+            if (Mathf.Abs(next) > MaxSwing) { next = Mathf.Sign(next) * MaxSwing; v.speed = -v.speed * 0.3f; }
             v.angle = next;
-            x = v.ax + Mathf.Sin(v.angle) * v.len;
-            y = v.ay - Mathf.Cos(v.angle) * v.len - RopeReach;
+            // swinging fast, the springy vine stretches a little
+            v.stretchV += v.speed * v.speed * 0.6f * dt;
+            float len = v.len + v.stretch;
+            x = v.ax + Mathf.Sin(v.angle) * len;
+            y = v.ay - Mathf.Cos(v.angle) * len - RopeReach;
             vx = vy = 0;
             if (Mathf.Abs(input.x) > 0.3f) facing = input.x > 0 ? 1 : -1;
             ArmsUp(ref pose);
@@ -200,6 +210,16 @@ namespace Cloudborne
             vx = vy = 0;
             barMoving = step != 0;
             if (barMoving) barPh += dt * 1.1f;
+            // thorns on the bar: his hands on them, it hurts and he jerks back (a jump along the bar clears them)
+            foreach (float th in bar.thorns)
+                if (Mathf.Abs(x - th) < CbLevel.ThornWide * 0.5f + 0.1f && inv <= 0)
+                {
+                    int back = x < th ? -1 : 1;
+                    TakeHit(8f, back, unblockable: true);
+                    x = th + back * (CbLevel.ThornWide * 0.5f + 0.45f);
+                    state = State.Bars;
+                    break;
+                }
             ArmsUp(ref pose);
             if (x < bar.x0 || x > bar.x1 || input.jump || input.y < -0.5f)
             {
