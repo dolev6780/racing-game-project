@@ -73,14 +73,57 @@ namespace Cloudborne
             if (prefab == null) return null;
             var t = Object.Instantiate(prefab, parent, false).transform;
             t.name = prefab.name;
-            var m = AnimeToon(Resources.Load<Texture2D>(path + "_Albedo"), outline);
-            foreach (var r in t.GetComponentsInChildren<Renderer>(true))
+            // one material for every copy of a model (a new one each copy kept them from being drawn together)
+            var key = path + "|" + outline;
+            if (!propMaterials.TryGetValue(key, out var m) || m == null)
+                propMaterials[key] = m = AnimeToon(Resources.Load<Texture2D>(path + "_Albedo"), outline);
+            var near = t.GetComponentsInChildren<Renderer>(true);
+            foreach (var r in near) Skin(r, m);
+            // a lighter copy for when it is seen small (far behind the path, the camera drawn back): path_LOD1
+            var lighter = Resources.Load<GameObject>(path + "_LOD1");
+            if (lighter != null)
             {
-                var mats = new Material[r.sharedMaterials.Length];
-                for (int i = 0; i < mats.Length; i++) mats[i] = m;
-                r.sharedMaterials = mats;
+                var l = Object.Instantiate(lighter, t, false).transform;
+                l.name = "lod1";
+                l.localPosition = Vector3.zero; l.localRotation = Quaternion.identity; l.localScale = Vector3.one;
+                var far = l.GetComponentsInChildren<Renderer>(true);
+                foreach (var r in far) Skin(r, m);
+                var group = t.gameObject.AddComponent<LODGroup>();
+                group.SetLODs(new[] { new LOD(LodNear, near), new LOD(LodFar, far) });
+                group.RecalculateBounds();
             }
             return t;
+        }
+
+        // the share of the screen's height a model must fill to be drawn in full; under it, its lighter copy, and
+        // under LodFar not at all (low: by the path everything is drawn in full - the user wants it at its best)
+        const float LodNear = 0.045f, LodFar = 0.004f;
+        static readonly System.Collections.Generic.Dictionary<string, Material> propMaterials = new System.Collections.Generic.Dictionary<string, Material>();
+
+        /// <summary>A model's look tinted c: a tinted copy of its material, one for each material and colour, so the
+        /// model's other copies keep their own colour (its shared material tinted turned every copy that colour).</summary>
+        public static void Tint(Transform t, Color c)
+        {
+            foreach (var r in t.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    if (mats[i] == null) continue;
+                    var key = (mats[i].GetInstanceID(), c);
+                    if (!tinted.TryGetValue(key, out var m) || m == null) tinted[key] = m = new Material(mats[i]) { color = c };
+                    mats[i] = m;
+                }
+                r.sharedMaterials = mats;
+            }
+        }
+        static readonly System.Collections.Generic.Dictionary<(int, Color), Material> tinted = new System.Collections.Generic.Dictionary<(int, Color), Material>();
+
+        static void Skin(Renderer r, Material m)
+        {
+            var mats = new Material[r.sharedMaterials.Length];
+            for (int i = 0; i < mats.Length; i++) mats[i] = m;
+            r.sharedMaterials = mats;
         }
 
         public static Material NewToon(Color c, float outline, Texture texture = null)

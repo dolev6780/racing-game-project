@@ -3304,6 +3304,16 @@ namespace RacingGame.Tests
                 var tex = new Texture2D(W, H, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, W, H), 0, 0);
                 tex.Apply();
+                // what drawing this picture took: the things drawn and their triangles (to keep the phone fast)
+                int drawn = 0; long tris = 0;
+                foreach (var rd in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                {
+                    if (!rd.isVisible || !rd.enabled) continue;
+                    drawn++;
+                    var mesh = rd is SkinnedMeshRenderer sk ? sk.sharedMesh : rd.GetComponent<MeshFilter>()?.sharedMesh;
+                    if (mesh != null) for (int sm = 0; sm < mesh.subMeshCount; sm++) tris += mesh.GetIndexCount(sm) / 3;
+                }
+                Debug.Log($"PERF {name}: {drawn} drawn, {tris / 1000}k triangles");
                 RenderTexture.active = prev;
                 cam.targetTexture = null;
                 // a blank picture: nothing was drawn

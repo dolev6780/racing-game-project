@@ -207,7 +207,7 @@ namespace Cloudborne
             var holder = CbArt.Joint(parent, 0, 0, 0, "bankStone");
             var model = CbArt.Prop(RiverStonePath, holder, CbArt.PropOutline);
             if (model == null) { Object.Destroy(holder.gameObject); return null; }
-            foreach (var r in model.GetComponentsInChildren<Renderer>()) r.sharedMaterial.color = NaturalRockTone;
+            CbArt.Tint(model, NaturalRockTone);
             model.localRotation = Quaternion.Euler(0, turn, 0) * model.localRotation;
             var b = LocalBounds(model, holder);
             float s = width / Mathf.Max(0.01f, Mathf.Max(b.size.x, b.size.z));
@@ -650,7 +650,7 @@ namespace Cloudborne
             if (model == null) { Object.Destroy(holder.gameObject); return null; }
             // the natural rocks' pale stone washed out to white in the game's light (the stage's pictures): toned down
             if (path == RiverStonePath || path == RiverRockPath || path == CrackedRockPath || path == CliffRockPath)
-                foreach (var r in model.GetComponentsInChildren<Renderer>()) r.sharedMaterial.color = NaturalRockTone;
+                CbArt.Tint(model, NaturalRockTone);
             var b = LocalBounds(model, holder);
             var size = hi - lo;
             var s = new Vector3(size.x / Mathf.Max(0.01f, b.size.x), size.y / Mathf.Max(0.01f, b.size.y), size.z / Mathf.Max(0.01f, b.size.z));

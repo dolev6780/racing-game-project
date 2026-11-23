@@ -28,6 +28,8 @@ namespace RacingGame.EditorTools
             EditorUserBuildSettings.buildAppBundle = false;
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            // ASTC textures (the phones the game is for all read it; set per texture in CharacterImport)
+            EditorUserBuildSettings.androidBuildSubtarget = MobileTextureSubtarget.ASTC;
             PlayerSettings.productName = "Cloudborne";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "com.dolev6780.cloudborne");
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;

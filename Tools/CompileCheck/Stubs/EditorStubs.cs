@@ -45,6 +45,17 @@ namespace UnityEditor
         public int maxTextureSize;
         public bool mipMapsPreserveCoverage;
         public float alphaTestReferenceValue;
+        public TextureImporterPlatformSettings GetPlatformTextureSettings(string platform) => new TextureImporterPlatformSettings { name = platform };
+        public void SetPlatformTextureSettings(TextureImporterPlatformSettings settings) { }
+    }
+    public enum TextureImporterFormat { Automatic = -1, ASTC_4x4 = 48, ASTC_5x5 = 49, ASTC_6x6 = 50, ASTC_8x8 = 51, ASTC_10x10 = 52, ASTC_12x12 = 53 }
+    public class TextureImporterPlatformSettings
+    {
+        public string name;
+        public bool overridden;
+        public int maxTextureSize;
+        public TextureImporterFormat format;
+        public int compressionQuality;
     }
     public class AssetPostprocessor
     {
@@ -77,7 +88,8 @@ namespace UnityEditor
     {
         public static UnityEditor.Build.Reporting.BuildReport BuildPlayer(BuildPlayerOptions options) => null;
     }
-    public static class EditorUserBuildSettings { public static bool buildAppBundle; }
+    public static class EditorUserBuildSettings { public static bool buildAppBundle; public static MobileTextureSubtarget androidBuildSubtarget; }
+    public enum MobileTextureSubtarget { Generic, DXT, PVRTC, ETC, ETC2, ASTC }
     public enum ScriptingImplementation { Mono2x, IL2CPP }
     [System.Flags] public enum AndroidArchitecture { None = 0, ARMv7 = 1, ARM64 = 2 }
     public enum UIOrientation { Portrait, PortraitUpsideDown, LandscapeRight, LandscapeLeft, AutoRotation }

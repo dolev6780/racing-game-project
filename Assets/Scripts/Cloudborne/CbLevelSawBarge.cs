@@ -74,7 +74,7 @@ namespace Cloudborne
                 {
                     b.localScale = Vector3.one * 0.7f;
                     // red: the fuel, the ones to knock down
-                    b.GetComponentInChildren<Renderer>().sharedMaterial.color = new Color(1f, 0.42f, 0.36f);
+                    CbArt.Tint(b, new Color(1f, 0.42f, 0.36f));
                 }
                 else CbArt.Cylinder(CbArt.Toon("#c23a2a", CbArt.PropOutline), fuel[i], new Vector3(0, 0.35f, 0), 0.26f, 0.7f);
             }

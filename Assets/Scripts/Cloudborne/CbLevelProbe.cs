@@ -22,7 +22,8 @@ namespace Cloudborne
             var list = new List<Collider>();
             foreach (var mf in model.GetComponentsInChildren<MeshFilter>())
             {
-                if (mf.sharedMesh == null) continue;
+                // (not its lighter copy: the same surface twice)
+                if (mf.sharedMesh == null || IsLighterCopy(mf.transform)) continue;
                 var mc = mf.gameObject.GetComponent<MeshCollider>();
                 if (mc == null) mc = mf.gameObject.AddComponent<MeshCollider>();
                 mc.sharedMesh = mf.sharedMesh;
@@ -30,6 +31,12 @@ namespace Cloudborne
             }
             Physics.SyncTransforms();
             return list;
+        }
+
+        static bool IsLighterCopy(Transform t)
+        {
+            for (; t != null; t = t.parent) if (t.name == "lod1") return true;
+            return false;
         }
 
         /// <summary>The highest surface facing up among cs at (x, z) of the level, between y0 and y1.</summary>

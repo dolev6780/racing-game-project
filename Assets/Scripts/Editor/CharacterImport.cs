@@ -23,10 +23,11 @@ namespace RacingGame.EditorTools
         const string Lip = Folder + "Jungle/Ground/GroundLip",
             Clump = Folder + "Jungle/Backdrop/BushClump", WaterSide = Folder + "Jungle/Water/WaterSide";
 
-        public override uint GetVersion() => 7;
+        public override uint GetVersion() => 8;
 
         void OnPreprocessTexture()
         {
+            AndroidCompression();
             // the cut-out grass cards and painted jungle layers: their mipmaps keep the painted shape's coverage, so they
             // don't thin out and vanish in the distance; a card doesn't repeat (its base would show at its top)
             if (assetPath.StartsWith(Cards) || assetPath.StartsWith(Layers) || assetPath.StartsWith(Lip)
@@ -44,6 +45,37 @@ namespace RacingGame.EditorTools
             tex.mipmapEnabled = false;
             tex.wrapMode = UnityEngine.TextureWrapMode.Clamp;
             tex.maxTextureSize = 2048;
+        }
+
+        // the characters, whom the camera follows close: their faces and stripes as sharp as can be
+        static readonly string[] Characters = { "Raja/", "Koda/", "Monkey/", "Baba/", "HyenaGuard/", "HyenaRaider/", "HyenaSergeant/", "Ember/Grak" };
+        // far behind the path (the painted layers, the trees): the most squeezed
+        static readonly string[] Far = { "Jungle/Tree/", "Jungle/Banyan/", "Jungle/Kapok/", "Jungle/Palm/", "Jungle/Karst/", "Jungle/Bamboo/" };
+
+        /// <summary>
+        /// The phone's textures (Android): ASTC, as finely as each is seen - the characters 4x4, the painted
+        /// backdrops and story pictures 5x5 (they fill the screen), the cut-out cards and HUD 4x4 (their edges), the
+        /// models by the path 6x6, the trees far behind it 8x8 at half size. Made smaller and lighter than the
+        /// defaults where they are only seen small, kept sharp where they are seen close (the user: top quality, and
+        /// it must run well on the phone).
+        /// </summary>
+        void AndroidCompression()
+        {
+            if (!assetPath.StartsWith(Folder)) return;
+            string rel = assetPath.Substring(Folder.Length);
+            var format = TextureImporterFormat.ASTC_6x6;
+            int max = 2048;
+            if (System.Array.Exists(Characters, c => rel.StartsWith(c))) format = TextureImporterFormat.ASTC_4x4;
+            else if (assetPath.StartsWith(Story) || rel.StartsWith("Jungle/Backdrop/") || rel.Contains("Backdrop")) format = TextureImporterFormat.ASTC_5x5;
+            else if (assetPath.StartsWith(Cards) || assetPath.StartsWith(Critters) || rel.StartsWith("Hud/") || rel.Contains("Lip") || rel.Contains("Clump")) format = TextureImporterFormat.ASTC_4x4;
+            else if (System.Array.Exists(Far, c => rel.StartsWith(c))) { format = TextureImporterFormat.ASTC_8x8; max = 1024; }
+            var tex = (TextureImporter)assetImporter;
+            var android = tex.GetPlatformTextureSettings("Android");
+            android.overridden = true;
+            android.format = format;
+            android.maxTextureSize = max;
+            android.compressionQuality = 100;
+            tex.SetPlatformTextureSettings(android);
         }
 
         void OnPreprocessModel()
