@@ -322,14 +322,27 @@ namespace Cloudborne
         /// thinner toward the end, leaves along it, hanging on a little past where he takes hold (a knot and a soft
         /// glow there, so it reads as a thing to swing on). It was a straight green stick (the user).
         /// </summary>
+        // the vine's tree, as parts of its height: its branch's middle VineTreeBranch up (the vine hangs VineTreeOver under
+        // it), the vine VineTreeAt left of the model's middle (between the branch's tip and the trunk); its width and
+        // depth, drawn a little narrower (VineTreeNarrow) so its trunk stands near the vine
+        const float VineTreeBranch = 0.8f, VineTreeOver = 0.15f, VineTreeAt = 0.25f, VineTreeWide = 0.79f, VineTreeDeep = 0.33f, VineTreeNarrow = 0.6f;
+
         void AddVine(float ax, float ay, float len)
         {
-            // the branch it hangs from grows out of a tree's trunk behind the path (it hung in the air: the user)
-            AddTrunk(ax + 2f, ay + 1.6f);
-            var branch = CbArt.Joint(root, ax, ay, 0.3f, "branch");
-            CbArt.Cylinder(Wood, branch, new Vector3(0, 0.25f, 0.2f), 0.26f, 4f, Quaternion.Euler(0, 0, 90));
-            for (int k = -1; k <= 1; k++)
-                CbArt.Part(CbMesh.Leaf(), LeafMat, branch, new Vector3(k * 1.3f, 0.55f, 0.1f), Vector3.one * 0.5f, Quaternion.Euler(-30, k * 40f, k * 25f), shadows: false);
+            // the branch it hangs from grows out of a tree's trunk behind the path (it hung in the air: the user) - the
+            // kit's mossy tree with its branch reaching out (drawn in Canva, approved, built by Meshy), the vine hanging
+            // from the branch near its tip
+            float th = (ay + VineTreeOver) / VineTreeBranch;
+            var tree = CbArt.Joint(root, ax + VineTreeAt * th * VineTreeNarrow, 0, 0.9f, "vineTree");
+            if (Model("VineTree", tree, new Vector3(VineTreeWide * th * VineTreeNarrow, th, VineTreeDeep * th * VineTreeNarrow), 180f) == null)
+            {
+                Object.Destroy(tree.gameObject);
+                AddTrunk(ax + 2f, ay + 1.6f);
+                var branch = CbArt.Joint(root, ax, ay, 0.3f, "branch");
+                CbArt.Cylinder(Wood, branch, new Vector3(0, 0.25f, 0.2f), 0.26f, 4f, Quaternion.Euler(0, 0, 90));
+                for (int k = -1; k <= 1; k++)
+                    CbArt.Part(CbMesh.Leaf(), LeafMat, branch, new Vector3(k * 1.3f, 0.55f, 0.1f), Vector3.one * 0.5f, Quaternion.Euler(-30, k * 40f, k * 25f), shadows: false);
+            }
             var t = CbArt.Joint(root, ax, ay, 0.05f, "vine");
             float total = len + VineTail;
             var verts = new List<Vector3>();
@@ -1064,6 +1077,20 @@ namespace Cloudborne
         void AddOverhang(float x, float width, float bottom, float top, bool thorny)
         {
             var t = CbArt.Joint(root, x, 0, 0, "lowPassage");
+            // the kit's staked log (drawn in Canva, approved, built by Meshy): on two mossy rocks, staked either side
+            // and lashed with thorny vine, turned to lie across the path (a little slanted, so its length and stakes
+            // show); its log's underside is the passage's roof
+            if (thorny)
+            {
+                float lh = (top - bottom) / (StakedLogTop - StakedLogBottom);
+                var held = CbArt.Joint(t, 0, bottom - StakedLogBottom * lh, 0.1f, "stakedLog");
+                if (Model("StakedLog", held, new Vector3(StakedLogLong * lh, lh, StakedLogDeep * lh), StakedLogYaw) != null)
+                {
+                    overhangs.Add(new Overhang { x0 = x - width / 2, x1 = x + width / 2, bottom = bottom, top = top, thorny = thorny, t = t });
+                    return;
+                }
+                Object.Destroy(held.gameObject);
+            }
             // the jungle's log, turned to lie across the path, as thick as the passage's roof
             var turn = CbArt.Joint(t, 0, bottom, 0, "trunk");
             turn.localRotation = Quaternion.Euler(0, 90, 0);
@@ -1109,6 +1136,10 @@ namespace Cloudborne
                 }
             overhangs.Add(new Overhang { x0 = x - width / 2, x1 = x + width / 2, bottom = bottom, top = top, thorny = thorny, t = t });
         }
+
+        // the staked log model, as parts of its height: its log from StakedLogBottom to StakedLogTop up, its length and
+        // depth; turned StakedLogYaw (across the path, a little slanted)
+        const float StakedLogBottom = 0.47f, StakedLogTop = 0.75f, StakedLogLong = 1.33f, StakedLogDeep = 0.515f, StakedLogYaw = 100f;
 
         /// <summary>Narrows lo..hi around x to the near side of a stretch from x0 to x1 he can't cross.</summary>
         static void Bound(float x, float x0, float x1, ref float lo, ref float hi)

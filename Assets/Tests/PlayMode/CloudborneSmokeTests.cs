@@ -2224,7 +2224,8 @@ namespace RacingGame.Tests
             yield return Frames(2);
             yield return TakePictures(new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("summit", 154f, CbLevel.SummitTop), ("bars", 219f, 4.8f - 1.71f),
                 ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 392.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck),
-                ("tunnel", CbLevel.RopeMouthL + 2.5f, 0f), ("tower", CbLevel.StartSecretX + 3f, 0f), ("tower_climb", CbLevel.StartSecretX - 0.5f, 2.5f) });
+                ("tunnel", CbLevel.RopeMouthL + 2.5f, 0f), ("tower", CbLevel.StartSecretX + 3f, 0f), ("tower_climb", CbLevel.StartSecretX - 0.5f, 2.5f),
+                ("stairs", CbLevel.StoneBridgeX - CbLevel.StoneBridgeHalf - 3f, 0f), ("vine_tree", 199f, 0f) });
             // the high ledges stand on a ruin's tower with ledges up its sides to climb (the climbing kit: the user)
             Assert.AreEqual(3, game.level.TowerLedgesAt(CbLevel.StartSecretX), "The start's high ledge has no ruin tower to climb");
             Assert.AreEqual(CbLevel.StartSecretTop, game.level.SupportAt(CbLevel.StartSecretX, CbLevel.StartSecretTop + 0.5f), 0.01f, "The tower's top is not the ledge");

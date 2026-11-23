@@ -362,6 +362,14 @@ namespace Cloudborne
             float flatTo = end, flatFrom = end + dir * RampFlat, foot = flatFrom + dir * RampRun;
             ramps.Add((Mathf.Min(foot, flatFrom), Mathf.Max(foot, flatFrom), dir < 0 ? 0f : top, dir < 0 ? top : 0f));
             ramps.Add((Mathf.Min(flatFrom, flatTo), Mathf.Max(flatFrom, flatTo), top, top));
+            // the kit's stone stairs (drawn in Canva, approved, built by Meshy; their wide top landing cut off so the
+            // steps rise over the slope he walks): from the foot to a little into the bridge, turned to climb toward it
+            {
+                float from = foot, to = flatTo - dir * RampInto;
+                var st = CbArt.Joint(root, (from + to) / 2, 0, (StepFront + StepBack) / 2, "bridgeStairs");
+                if (Model("StoneStairs", st, new Vector3(StepBack - StepFront, top, Mathf.Abs(to - from)), dir < 0 ? 270f : 90f) != null) return;
+                Object.Destroy(st.gameObject);
+            }
             stepStone ??= CbArt.Toon(StepStone, CbArt.PropOutline);
             stepMoss ??= CbArt.Toon(StepMoss);
             float tread = RampRun / RampSteps, zMid = (StepFront + StepBack) / 2, depth = StepBack - StepFront;

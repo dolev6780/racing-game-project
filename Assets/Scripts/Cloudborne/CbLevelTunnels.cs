@@ -25,7 +25,7 @@ namespace Cloudborne
 
         /// <summary>A tunnel and its gate: shut, so no one takes it for a way in (the user); it sinks into the ground
         /// while an ambush's raiders come out of it, and rises behind them.</summary>
-        class Tunnel { public float x, open, hold; public bool hollow; public Transform gate; public Vector3 home; public Renderer[] rs; }
+        class Tunnel { public float x, open, hold, tall = TunnelGateTall; public bool hollow; public Transform gate; public Vector3 home; public Renderer[] rs; }
         readonly List<Tunnel> tunnels = new List<Tunnel>();
 
         void BuildTunnels()
@@ -39,6 +39,9 @@ namespace Cloudborne
         void AddTunnel(float x, bool hollow)
         {
             var t = CbArt.Joint(root, x, 0, 0, hollow ? "hollow" : "tunnel");
+            // the kit's cave (drawn in Canva, approved, built by Meshy): a temple's arch in a mossy rock, ferns over it,
+            // its opening dark; across it the kit's gate of bamboo bars, which sinks into the ground for an ambush
+            if (!hollow && CaveArch(t, x)) return;
             var dark = CbArt.Toon("#120e0c");
             if (hollow)
             {
@@ -80,6 +83,23 @@ namespace Cloudborne
             tunnels.Add(new Tunnel { x = x, hollow = hollow, gate = gate, home = gate.localPosition, rs = gate.GetComponentsInChildren<Renderer>() });
         }
 
+        // the arch as parts of its height: as tall as CaveTall, its width and depth; its opening CaveDoorWide wide and
+        // CaveDoorHigh high in the middle, its face CaveFace in front of its middle
+        const float CaveTall = 4.3f, CaveWide = 0.973f, CaveDeep = 0.294f, CaveDoorWide = 0.42f, CaveDoorHigh = 0.62f, CaveFace = 0.05f;
+
+        bool CaveArch(Transform t, float x)
+        {
+            var arch = CbArt.Joint(t, 0, -0.05f, MouthZ, "caveArch");
+            if (Model("CaveArch", arch, new Vector3(CaveWide * CaveTall, CaveTall, CaveDeep * CaveTall), 180f) == null) { Object.Destroy(arch.gameObject); return false; }
+            float doorW = CaveDoorWide * CaveTall, doorH = CaveDoorHigh * CaveTall;
+            var gate = CbArt.Joint(t, 0, 0, MouthZ - CaveFace * CaveTall + 0.02f, "tunnelGate");
+            if (Model("CaveGate", gate, new Vector3(doorW, doorH, 0.18f), 180f) == null)
+                for (float bx = -doorW / 2 + 0.15f; bx <= doorW / 2 - 0.1f; bx += 0.3f)
+                    CbArt.Cylinder(Bamboo, gate, new Vector3(bx, doorH / 2, 0), 0.07f, doorH);
+            tunnels.Add(new Tunnel { x = x, gate = gate, home = gate.localPosition, rs = gate.GetComponentsInChildren<Renderer>(), tall = doorH });
+            return true;
+        }
+
         Tunnel TunnelNear(float x)
         {
             foreach (var tn in tunnels) if (Mathf.Abs(tn.x - x) < 1.5f) return tn;
@@ -119,7 +139,7 @@ namespace Cloudborne
         {
             float k = tn.open * tn.open * (3 - 2 * tn.open);
             if (tn.hollow) tn.gate.localScale = new Vector3(1, Mathf.Max(0.02f, 1 - k), 1);
-            else tn.gate.localPosition = tn.home + Vector3.down * k * (TunnelGateTall + 0.1f);
+            else tn.gate.localPosition = tn.home + Vector3.down * k * (tn.tall + 0.1f);
             bool show = tn.open < 0.999f;
             foreach (var r in tn.rs) if (r != null) r.enabled = show;
         }
