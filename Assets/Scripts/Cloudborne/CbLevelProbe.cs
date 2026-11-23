@@ -155,7 +155,7 @@ namespace Cloudborne
             }
             return found;
         }
-        public const float SurfaceReach = 0.35f;
+        public const float SurfaceReach = 0.55f;
 
         /// <summary>Whether this stage's level is still built (not destroyed by a stage built after it).</summary>
         public bool Alive => root != null;
@@ -182,8 +182,17 @@ namespace Cloudborne
         public List<(float x0, float x1, float top)> BlockTops()
         {
             var list = new List<(float, float, float)>();
-            foreach (var b in blocks) if (!b.broken && !b.noTop) list.Add((b.x0, b.x1, b.top));
+            foreach (var b in blocks) if (!b.broken && !b.noTop && !b.smooth) list.Add((b.x0, b.x1, b.top));
             return list;
+        }
+
+        /// <summary>Test hook: whether he is meant to stand at x on the highest thing there - not on a gate's top or a
+        /// thorn bush (blocks he is kept off or thrown off).</summary>
+        public bool StandableAt(float x)
+        {
+            foreach (var b in blocks)
+                if (!b.broken && (b.noTop || b.smooth) && x > b.x0 - HalfWidth && x < b.x1 + HalfWidth) return false;
+            return true;
         }
     }
 }

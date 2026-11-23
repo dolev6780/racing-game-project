@@ -1050,11 +1050,20 @@ namespace Cloudborne
         {
             if (model == null) return;
             bool grounded = !air && !Holding && state != State.Swim && state != State.Dead && state != State.Down && state != State.Hang && state != State.Climb;
+            // the body lowered to the lower of the drawn surfaces under his two feet (a leg can't reach further down
+            // than it is long; the IK then bends the knee of the foot on the higher one)
             float surface = 0;
-            if (grounded && g.level != null && model.LowToe(out var toe))
+            if (grounded && g.level != null && model.Toes(out var lt, out var rt))
             {
-                float tx = x + (toe.x - f.root.position.x);
-                if (g.level.SurfaceUnder(tx, y, out float sy)) surface = Mathf.Clamp(sy - y, -CbLevel.SurfaceReach, CbLevel.SurfaceReach);
+                bool any = false;
+                float low = float.MaxValue;
+                foreach (var toe in new[] { lt, rt })
+                {
+                    float tx = x + (toe.x - f.root.position.x);
+                    if (g.level.SurfaceUnder(tx, y, out float sy)) { any = true; low = Mathf.Min(low, sy - y); }
+                    else low = Mathf.Min(low, 0f);
+                }
+                if (any) surface = Mathf.Clamp(low, -CbLevel.SurfaceReach, CbLevel.SurfaceReach);
             }
             model.GroundFeet(grounded ? 1f : 0f, dt, surface);
             // and each foot, and each hand holding on, where it belongs (CbLimbIK, after the clip is drawn)

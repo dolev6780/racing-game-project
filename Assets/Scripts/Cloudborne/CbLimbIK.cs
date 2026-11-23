@@ -33,7 +33,7 @@ namespace Cloudborne
         public Vector3 grip;
 
         // how far a foot may be moved up or down, how near the floor a toe counts as planted, how fast the limbs ease in
-        const float FootReach = 0.4f, Planted = 0.1f, Ease = 14f, PalmOut = 0.05f;
+        const float FootReach = 0.55f, Planted = 0.1f, Ease = 14f, PalmOut = 0.05f;
 
         void LateUpdate()
         {

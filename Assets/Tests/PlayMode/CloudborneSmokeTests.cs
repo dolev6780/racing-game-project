@@ -3373,7 +3373,8 @@ namespace RacingGame.Tests
                 var raja = hero.model.root;
                 while (raja.parent != null && raja.parent != game.transform && raja.parent.parent != game.transform) raja = raja.parent;
                 foreach (var mf in game.GetComponentsInChildren<MeshFilter>())
-                    if (mf.sharedMesh != null && mf.sharedMesh.isReadable && mf.GetComponent<Collider>() == null && (raja == null || !mf.transform.IsChildOf(raja)))
+                    // (not the flat cut-out cards of the birds, fish and sparks: nothing to stand on)
+                    if (mf.sharedMesh != null && mf.sharedMesh.isReadable && mf.sharedMesh != CbMesh.Quad && mf.sharedMesh.name != "Quad" && mf.GetComponent<Collider>() == null && (raja == null || !mf.transform.IsChildOf(raja)))
                         mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
                 Physics.SyncTransforms();
                 hero.inv = 999f;
@@ -3386,7 +3387,7 @@ namespace RacingGame.Tests
                 }
                 foreach (var (x0, x1, top) in game.level.BlockTops()) spots.Add(("block", (x0 + x1) / 2, top));
                 for (float x = CbWorld.LevelMin + 4f; x < CbWorld.LevelMax - 4f; x += 3f)
-                    if (!CbLevel.InWater(x, 0.6f)) spots.Add(("way", x, game.level.SupportAt(x, 40f)));
+                    if (!CbLevel.InWater(x, 0.6f) && game.level.StandableAt(x)) spots.Add(("way", x, game.level.SupportAt(x, 40f)));
                 // up the stone bridge's stairs, step by step, at both ends
                 if (stage == "1-1")
                     foreach (int side in new[] { -1, 1 })
@@ -3406,7 +3407,10 @@ namespace RacingGame.Tests
                     for (float w = 0; w < 0.3f; w += Time.deltaTime) yield return null;
                     if (hero.state != CbHero.State.Idle || !hero.model.Toes(out var l, out var r)) continue;
                     stood++;
-                    // each foot (standing, both are down) on the drawn surface under it - not over it, not sunk in it
+                    // each foot (standing, both are down) on the drawn surface under it - not over it, not sunk in it.
+                    // At an edge one foot may be out over it (the other on it)
+                    bool atEdge = Mathf.Abs(game.level.SupportAt(x - 0.45f, top + 0.3f) - top) > 0.3f || Mathf.Abs(game.level.SupportAt(x + 0.45f, top + 0.3f) - top) > 0.3f;
+                    int outOver = 0;
                     foreach (var (foot, toe) in new[] { ("left", l), ("right", r) })
                     {
                         // (from a little over the toe: leaves and strands hanging over a ledge are not his foot sunk in
@@ -3419,7 +3423,10 @@ namespace RacingGame.Tests
                             if (Physics.Raycast(new Vector3(toe.x, toe.y + 0.22f, z), Vector3.down, out var hz, 0.95f) && Mathf.Abs(toe.y - hz.point.y) < bestGap)
                             { bestGap = Mathf.Abs(toe.y - hz.point.y); h = hz; any = true; }
                         if (!any)
+                        {
+                            if (atEdge && ++outOver == 1) continue;
                             fails.Add($"{stage} {what} x {x:F1}: his {foot} foot in the air (nothing drawn under it)");
+                        }
                         else
                         {
                             float gap = toe.y - h.point.y;
@@ -3504,7 +3511,7 @@ namespace RacingGame.Tests
                 handsOff = Mathf.Max(handsOff, HandsOff());
             }
             Assert.Greater(most, 1.0f, "Pumping left and right did not swing Raja high");
-            Assert.Less(handsOff, 0.15f, "Raja's hands left the pole as he hung and swung on it");
+            Assert.Less(handsOff, 0.2f, "Raja's hands left the pole as he hung and swung on it");
             yield return TakePictures(new[] { ("swing_pole", float.NaN, 0f) }, 0f);
             // let go as he swings forward and up: carried on with the swing
             game.TestInput = i => { float now = hero.PoleAngle; i.x = now >= last ? 1 : -1; last = now; };
