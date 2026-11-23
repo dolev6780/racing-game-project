@@ -2232,7 +2232,7 @@ namespace RacingGame.Tests
             // and the same tunnel with its gate sunk, as for an ambush's raiders
             // (called down every frame while the picture is taken: once, it rose again before the picture)
             game.TestInput = i => game.level.CallTunnel(CbLevel.RopeMouthL);
-            yield return TakePictures(new[] { ("tunnel_open", CbLevel.RopeMouthL + 2.5f, 0f) }, 0.8f);
+            yield return TakePictures(new[] { ("tunnel_open", CbLevel.RopeMouthL - 1.5f, 0f) }, 0.8f);
             game.TestInput = null;
         }
 
@@ -3450,7 +3450,7 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator ASwingPoleRajaHangsFromAndSwingsOn()
+        public IEnumerator ZzSwingPoleRajaHangsFromAndSwingsOn()
         {
             // the user: catching the pole he just hangs from it; left and right swing him, with reasonable physics, his
             // hands on the pole all the while (not in the air). (None stands in the stages until the user says where:
