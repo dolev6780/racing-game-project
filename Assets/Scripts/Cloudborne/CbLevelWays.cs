@@ -984,12 +984,24 @@ namespace Cloudborne
             var log = CbArt.Prop("Cloudborne/Jungle/Log/Log", turn, CbArt.PropOutline);
             if (log != null) log.localScale = new Vector3(1.8f, (top - bottom) / 0.695f, width / 0.64f);
             else CbArt.Cylinder(Wood, t, new Vector3(0, (bottom + top) / 2, 0), (top - bottom) / 2, 3.6f, Quaternion.Euler(90, 0, 0));
-            // the rocks it rests on, at the path's front and back edges
-            foreach (float z in new[] { -1.55f, 1.7f })
+            // the rocks it rests on, at the path's front and back edges: broad boulders, wider than the trunk and a little
+            // up its sides, so it plainly lies in them (small stones under it, it looked to hang in the air: the user)
+            foreach (float z in new[] { -1.45f, 1.6f })
             {
                 var r = CbArt.Joint(t, 0, 0, z, "rest");
-                if (Fit(RiverStonePath, r, new Vector3(-0.55f, 0, -0.32f), new Vector3(0.55f, bottom + 0.05f, 0.32f)) == null)
-                    CbArt.Box(StoneGrey, r, new Vector3(0, bottom / 2, 0), new Vector3(0.9f, bottom, 0.6f));
+                if (Fit(RiverStonePath, r, new Vector3(-0.8f, -0.1f, -0.48f), new Vector3(0.8f, bottom + 0.28f, 0.48f)) == null)
+                    CbArt.Box(StoneGrey, r, new Vector3(0, bottom / 2, 0), new Vector3(1.3f, bottom + 0.2f, 0.9f));
+            }
+            // and at its far end the roots it was torn up with: a clod of earth, roots reaching out of it
+            var roots = CbArt.Joint(t, 0, bottom + (top - bottom) * 0.5f, 2.15f, "roots");
+            var earthClod = CbArt.Toon("#4a3a2a", CbArt.PropOutline);
+            CbArt.Part(CbMesh.Blob(10, 8), earthClod, roots, Vector3.zero, new Vector3(1.5f, 1.4f, 0.7f), Quaternion.identity);
+            var rootMat = CbArt.Toon("#6b5038", CbArt.PropOutline);
+            for (int k = 0; k < 7; k++)
+            {
+                float a = k * Mathf.PI * 2f / 7f;
+                CbArt.Cone(rootMat, roots, new Vector3(Mathf.Cos(a) * 0.55f, Mathf.Sin(a) * 0.5f, 0.15f), 0.07f, 0.9f,
+                    Quaternion.LookRotation(new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0.6f)) * Quaternion.Euler(90, 0, 0), 5);
             }
             if (thorny)
                 for (float z = -1.2f; z <= 1.21f; z += 0.8f)
