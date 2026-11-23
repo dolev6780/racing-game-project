@@ -612,12 +612,13 @@ namespace RacingGame.Tests
             {
                 // bare rock, no band of grass along the top
                 if (t.name == "terrace" && t.Find("rock") != null && t.Find("lip") == null) rock++;
-                if ((t.name == "ledge" || t.name == "crumblingLedge") && t.Find("fit") != null) kitLedges++;
+                // (a crumbling one the cliff kit's slab; a solid one the climbing kit's ruin pillar or tower)
+                if ((t.name == "ledge" || t.name == "crumblingLedge") && (t.Find("fit") != null || t.Find("ruinLedge") != null || t.Find("ruinTower") != null)) kitLedges++;
             }
             // the long stage's vine pillar and waterfall cliff (the ridge and its shaft are gone; the climb is a gorge:
             // its cliffs are built of rock in rows, CbLevelGorge)
             Assert.AreEqual(2, rock, "The terraces are not bare rock");
-            Assert.Greater(kitLedges, 5, "The gorge's ledges are not the cliff kit's slabs");
+            Assert.Greater(kitLedges, 5, "The gorge's ledges are not the kits' slabs and pillars");
             int cliffs = 0;
             foreach (Transform t in level) if ((t.name == "cliff" || t.name == "gorgeGate") && t.Find("piece") != null) cliffs++;
             Assert.AreEqual(3, cliffs, "The gorge's cliffs are not built of rock");
@@ -2223,7 +2224,10 @@ namespace RacingGame.Tests
             yield return Frames(2);
             yield return TakePictures(new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("summit", 154f, CbLevel.SummitTop), ("bars", 219f, 4.8f - 1.71f),
                 ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 392.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck),
-                ("tunnel", CbLevel.RopeMouthL + 2.5f, 0f) });
+                ("tunnel", CbLevel.RopeMouthL + 2.5f, 0f), ("tower", CbLevel.StartSecretX + 3f, 0f), ("tower_climb", CbLevel.StartSecretX - 0.5f, 2.5f) });
+            // the high ledges stand on a ruin's tower with ledges up its sides to climb (the climbing kit: the user)
+            Assert.AreEqual(3, game.level.TowerLedgesAt(CbLevel.StartSecretX), "The start's high ledge has no ruin tower to climb");
+            Assert.AreEqual(CbLevel.StartSecretTop, game.level.SupportAt(CbLevel.StartSecretX, CbLevel.StartSecretTop + 0.5f), 0.01f, "The tower's top is not the ledge");
             // and the same tunnel with its gate sunk, as for an ambush's raiders
             game.level.CallTunnel(CbLevel.RopeMouthL);
             yield return TakePictures(new[] { ("tunnel_open", CbLevel.RopeMouthL + 2.5f, 0f) }, 0.5f);
