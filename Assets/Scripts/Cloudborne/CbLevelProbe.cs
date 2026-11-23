@@ -146,11 +146,13 @@ namespace Cloudborne
         /// in the air in front of it); if nothing is there, along his line and a little either side, the nearest top.</summary>
         public bool SurfaceUnder(float x, float y, float z, out float sy)
         {
+            // as the camera sees it, from in front: under his foot, or across the path's depth near it (his feet stand
+            // apart across the path; a ledge's top a little behind or in front of a foot, at its height, is what the
+            // foot is seen standing on) - the top nearest his floor
             sy = y;
-            if (RayDown(x, y, z, out sy)) return true;
             bool found = false;
             float best = float.MaxValue;
-            foreach (float pz in ProbeZ)
+            foreach (float pz in new[] { z, 0f, -0.12f, 0.12f, -0.3f, 0.3f })
                 if (RayDown(x, y, pz, out float hy) && Mathf.Abs(hy - y) < best) { best = Mathf.Abs(hy - y); sy = hy; found = true; }
             return found;
         }
@@ -159,7 +161,7 @@ namespace Cloudborne
         {
             hy = y;
             var from = root.TransformPoint(new Vector3(x, y + SurfaceReach, z));
-            if (!Physics.Raycast(from, -root.up, out var h, 2 * SurfaceReach * root.lossyScale.y) || Vector3.Dot(h.normal, root.up) < 0.6f) return false;
+            if (!Physics.Raycast(from, -root.up, out var h, 2 * SurfaceReach * root.lossyScale.y) || Vector3.Dot(h.normal, root.up) < 0.4f) return false;
             hy = root.InverseTransformPoint(h.point).y;
             return true;
         }

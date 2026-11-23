@@ -3306,15 +3306,23 @@ namespace RacingGame.Tests
                 tex.Apply();
                 // what drawing this picture took: the things drawn and their triangles (to keep the phone fast)
                 int drawn = 0; long tris = 0;
+                var heavy = new Dictionary<string, long>();
                 foreach (var rd in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
                 {
                     if (!rd.isVisible || !rd.enabled) continue;
                     drawn++;
                     // (TryGetComponent: a particle system has no mesh filter, and Unity's missing one threw past ?.)
                     var mesh = rd is SkinnedMeshRenderer sk ? sk.sharedMesh : rd.TryGetComponent<MeshFilter>(out var mfr) ? mfr.sharedMesh : null;
-                    if (mesh != null) for (int sm = 0; sm < mesh.subMeshCount; sm++) tris += mesh.GetIndexCount(sm) / 3;
+                    if (mesh == null) continue;
+                    long nt = 0;
+                    for (int sm = 0; sm < mesh.subMeshCount; sm++) nt += mesh.GetIndexCount(sm) / 3;
+                    tris += nt;
+                    // by what it is: the model's name, or the joint it was built in
+                    string what = rd.transform.parent != null ? rd.transform.parent.name + "/" + rd.name : rd.name;
+                    heavy[what] = (heavy.TryGetValue(what, out long h0) ? h0 : 0) + nt;
                 }
-                Debug.Log($"PERF {name}: {drawn} drawn, {tris / 1000}k triangles");
+                var top5 = heavy.OrderByDescending(kv => kv.Value).Take(6).Select(kv => $"{kv.Key} {kv.Value / 1000}k");
+                Debug.Log($"PERF {name}: {drawn} drawn, {tris / 1000}k triangles - most: {string.Join(", ", top5)}");
                 RenderTexture.active = prev;
                 cam.targetTexture = null;
                 // a blank picture: nothing was drawn
@@ -3411,7 +3419,7 @@ namespace RacingGame.Tests
                     stood++;
                     // each foot (standing, both are down) on the drawn surface under it - not over it, not sunk in it.
                     // At an edge one foot may be out over it (the other on it)
-                    bool atEdge = Mathf.Abs(game.level.SupportAt(x - 0.45f, top + 0.3f) - top) > 0.3f || Mathf.Abs(game.level.SupportAt(x + 0.45f, top + 0.3f) - top) > 0.3f;
+                    bool atEdge = Mathf.Abs(game.level.SupportAt(x - 0.6f, top + 0.3f) - top) > 0.3f || Mathf.Abs(game.level.SupportAt(x + 0.6f, top + 0.3f) - top) > 0.3f;
                     int outOver = 0;
                     foreach (var (foot, toe) in new[] { ("left", l), ("right", r) })
                     {
@@ -3421,7 +3429,7 @@ namespace RacingGame.Tests
                         RaycastHit h = default;
                         bool any = false;
                         float bestGap = float.MaxValue;
-                        foreach (float z in new[] { toe.z, 0f, toe.z - 0.15f, toe.z + 0.15f })
+                        foreach (float z in new[] { toe.z, 0f, toe.z - 0.15f, toe.z + 0.15f, -0.3f, 0.3f })
                             if (Physics.Raycast(new Vector3(toe.x, toe.y + 0.22f, z), Vector3.down, out var hz, 0.95f) && Mathf.Abs(toe.y - hz.point.y) < bestGap)
                             { bestGap = Mathf.Abs(toe.y - hz.point.y); h = hz; any = true; }
                         if (!any)

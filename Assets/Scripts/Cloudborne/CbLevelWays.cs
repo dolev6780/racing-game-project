@@ -954,7 +954,9 @@ namespace Cloudborne
 
         void BuildChest()
         {
-            var t = CbArt.Joint(root, ChestX, 0, 0.2f, "chest");
+            // on his line (standing on it, his feet - apart across the path - both on its lid; set back, his front foot
+            // stood in the air in front of it)
+            var t = CbArt.Joint(root, ChestX, 0, 0f, "chest");
             // the model: opened, it glows and bursts with what was inside
             chestModel = Model("Chest", t, new Vector3(1f, 0.81f, 0.88f), 180f);
             if (chestModel != null)
