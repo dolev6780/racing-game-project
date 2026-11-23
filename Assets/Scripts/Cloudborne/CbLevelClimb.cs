@@ -23,7 +23,9 @@ namespace Cloudborne
         bool ClimbKitLedge(Transform t, float x, float width, float top)
         {
             if (!CbStage.Jungle && !CbStage.Treetops) return false;
-            float baseY = Mathf.Max(SupportAt(x, top - 0.3f), -2.5f);
+            // (up the gorge and over the summit the ledges jut from the cliff's rock: its own slabs, no pillars)
+            if (CbStage.Jungle && x > MountainFrom - 1f && x < MountainTo + 1f) return false;
+            float baseY = Mathf.Max(SupportAt(x, top - 0.3f, false), -2.5f);
             float h = top - baseY + 0.2f;
             if (h < 0.6f) return false;
             if (CbStage.Treetops) return TreePlatform(t, x, width, top, baseY);

@@ -1243,7 +1243,12 @@ namespace Cloudborne
         /// a block's top, a ledge's top (only one it was already above: ledges are jumped up through from below), a
         /// bridge's deck (stepped onto from the bank) or a stone or log (landed on from above).
         /// </summary>
-        public float SupportAt(float x, float fromY)
+        public float SupportAt(float x, float fromY) => SupportAt(x, fromY, true);
+
+        /// <summary>The highest thing to stand on at x no higher than fromY; ledgesToo false: what stands on the ground (a
+        /// ledge's support goes down to that, never onto another ledge - a pillar stood on the ledge under it, and on a
+        /// crumbling one it would hang in the air once that fell).</summary>
+        public float SupportAt(float x, float fromY, bool ledgesToo)
         {
             // (stage 1-4: his log on the river, wherever he is)
             float best = CbStage.River ? RiverFloor(x) : InWater(x) ? Deep : 0;
@@ -1262,8 +1267,9 @@ namespace Cloudborne
                 float top = Mathf.Lerp(h0, h1, (x - r0) / Mathf.Max(0.01f, r1 - r0));
                 if (top <= fromY + StepUp && top > best) best = top;
             }
-            foreach (var l in ledges)
-                if (!l.gone && x > l.x0 - HalfWidth * 0.5f && x < l.x1 + HalfWidth * 0.5f && l.top <= fromY + 0.05f && l.top > best) best = l.top;
+            if (ledgesToo)
+                foreach (var l in ledges)
+                    if (!l.gone && x > l.x0 - HalfWidth * 0.5f && x < l.x1 + HalfWidth * 0.5f && l.top <= fromY + 0.05f && l.top > best) best = l.top;
             WaysSupport(x, fromY, ref best);
             return best;
         }

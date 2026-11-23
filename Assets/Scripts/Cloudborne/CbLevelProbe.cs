@@ -151,11 +151,12 @@ namespace Cloudborne
             return false;
         }
 
-        /// <summary>Test hook: every ledge's top (x0, x1, top), as he stands on them.</summary>
+        /// <summary>Test hook: every steady ledge's top (x0, x1, top), as he stands on them (not the crumbling ones:
+        /// they give way under him).</summary>
         public List<(float x0, float x1, float top)> LedgeTops()
         {
             var list = new List<(float, float, float)>();
-            foreach (var l in ledges) if (!l.gone) list.Add((l.x0, l.x1, l.top));
+            foreach (var l in ledges) if (!l.gone && !l.crumbles) list.Add((l.x0, l.x1, l.top));
             return list;
         }
 

@@ -2230,8 +2230,10 @@ namespace RacingGame.Tests
             Assert.AreEqual(3, game.level.TowerLedgesAt(CbLevel.StartSecretX), "The start's high ledge has no ruin tower to climb");
             Assert.AreEqual(CbLevel.StartSecretTop, game.level.SupportAt(CbLevel.StartSecretX, CbLevel.StartSecretTop + 0.5f), 0.01f, "The tower's top is not the ledge");
             // and the same tunnel with its gate sunk, as for an ambush's raiders
-            game.level.CallTunnel(CbLevel.RopeMouthL);
-            yield return TakePictures(new[] { ("tunnel_open", CbLevel.RopeMouthL + 2.5f, 0f) }, 0.5f);
+            // (called down every frame while the picture is taken: once, it rose again before the picture)
+            game.TestInput = i => game.level.CallTunnel(CbLevel.RopeMouthL);
+            yield return TakePictures(new[] { ("tunnel_open", CbLevel.RopeMouthL + 2.5f, 0f) }, 0.8f);
+            game.TestInput = null;
         }
 
         /// <summary>
@@ -3393,7 +3395,8 @@ namespace RacingGame.Tests
                     // each foot (standing, both are down) on the drawn surface under it - not over it, not sunk in it
                     foreach (var (foot, toe) in new[] { ("left", l), ("right", r) })
                     {
-                        if (!Physics.Raycast(toe + Vector3.up * 0.5f, Vector3.down, out var h, 1.2f))
+                        // (from a little over the toe: leaves and strands hanging over a ledge are not his foot sunk in it)
+                        if (!Physics.Raycast(toe + Vector3.up * 0.22f, Vector3.down, out var h, 0.95f))
                             fails.Add($"{stage} {what} x {x:F1}: his {foot} foot in the air (nothing drawn under it)");
                         else
                         {
@@ -3430,7 +3433,8 @@ namespace RacingGame.Tests
             foreach (var f in fails) Debug.Log("TOUCH " + f);
             Debug.Log($"TOUCH stood at {stood} places, hung from {hung} edges, {fails.Count} wrong");
             Assert.Greater(stood, 60, "Raja was stood at too few places");
-            Assert.IsEmpty(fails, $"Raja does not touch what he stands on or hangs from ({fails.Count}): " + string.Join("; ", fails.Take(12)));
+            // (all of them in the message: the log's own lines are cut off by the pictures after them)
+            Assert.IsEmpty(fails, $"Raja does not touch what he stands on or hangs from ({fails.Count}): " + string.Join(" | ", fails));
         }
 
         [UnityTest]
