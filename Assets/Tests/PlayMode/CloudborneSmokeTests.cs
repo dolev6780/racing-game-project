@@ -2104,7 +2104,8 @@ namespace RacingGame.Tests
             int startScore = game.score;
             float t = 0;
             bool sawStaff = false, sawWhirl = false, sawGuard = false;
-            while (t < 9f && game.mode == CbGame.Mode.Play)
+            // a second round of the moves if one was missed (a guard while he was thrown in the air does not rise)
+            while ((t < 9f || (t < 13f && !(sawStaff && sawWhirl && sawGuard && sawSpecial))) && game.mode == CbGame.Mode.Play)
             {
                 t += Time.deltaTime;
                 if (game.hero.state == CbHero.State.Staff) sawStaff = true;
@@ -3343,11 +3344,14 @@ namespace RacingGame.Tests
             hero.state = CbHero.State.Air;
             yield return Frames(3);
             Assert.AreEqual(CbHero.State.Bars, hero.state, "Raja did not take hold of the bar");
-            float from = hero.x;
+            float from = hero.x, hp0 = hero.hp;
+            // (short of the first thorns: a prick there keeps his hands off the bar a moment, GrabRest)
             game.TestInput = i => i.x = 1;
-            yield return new WaitForSeconds(0.8f);
+            yield return new WaitForSeconds(0.55f);
             game.TestInput = null;
             Assert.Greater(hero.x, from + 1f, "Raja did not go along the bar");
+            Assert.AreEqual(hp0, hero.hp, "Raja was hurt going along the bar before its thorns");
+            yield return new WaitForSeconds(0.4f);
             // thorns on the bar (the user): his hands on them hurt; a jump along the bar clears them and he catches on
             Assert.Greater(bar.thorns.Length, 0, "No thorns on the bar");
             float th = bar.thorns[0];
@@ -3357,6 +3361,7 @@ namespace RacingGame.Tests
             hero.inv = 0;
             hero.state = CbHero.State.Air;
             yield return Frames(3);
+            Assert.AreEqual(CbHero.State.Bars, hero.state, "Raja did not take hold of the bar before its thorns");
             float hp = hero.hp;
             game.TestInput = i => i.x = 1;
             yield return new WaitForSeconds(0.7f);
