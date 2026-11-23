@@ -91,6 +91,8 @@ namespace Cloudborne
         /// </summary>
         public float speedMul = 1f;
         public bool thief, retreat, gone;
+        /// <summary>How far behind the path he still is, stepping out of a tunnel's mouth (CbLevel.AddTunnel).</summary>
+        public float emergeZ;
         public const float ThiefSpeed = 6.2f;
         // (14: at 10 he stood until Raja was right on him - the user)
         const float Notice = 14f, WakeAt = 2.2f;
@@ -827,7 +829,9 @@ namespace Cloudborne
                 if (state != State.Move && state != State.Atk) vx *= 1 - (1 - Mathf.Exp(-6 * dt));
             }
             f.Apply(pose, dt, state == State.Atk ? 22 : 12);
-            f.root.localPosition = new Vector3(x, y, seatZ);
+            // stepping out of a tunnel's mouth behind the path, forward onto it
+            emergeZ = Mathf.MoveTowards(emergeZ, 0, dt * 2.6f);
+            f.root.localPosition = new Vector3(x, y, seatZ + emergeZ);
             float target = facing * (90f + (model != null ? 8f : 25f));
             f.body.localRotation = Quaternion.Euler(0, Mathf.LerpAngle(f.body.localEulerAngles.y, target, 1 - Mathf.Exp(-12 * dt)), 0);
             Animate();

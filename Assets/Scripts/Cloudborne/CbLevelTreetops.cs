@@ -40,6 +40,7 @@ namespace Cloudborne
 
         void BuildTreetops()
         {
+            BuildTunnels();
             foreach (var x in new[] { 60f, 118f, 178f, 248f, 318f, 341f }) AddLantern(x);
             AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);

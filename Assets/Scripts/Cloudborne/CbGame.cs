@@ -250,6 +250,8 @@ namespace Cloudborne
             public (CbEnemy.Kind kind, float dx)[][] waves;
             public bool started, done;
             public int wave;
+            // the tunnels its raiders come out of, either side (CbLevelTunnels)
+            public float mouthL = float.NaN, mouthR = float.NaN;
         }
         // On the rope bridge at the start: six raiders in two waves (the user: at least five). On the long stone bridge
         // (the user: a bridge a screen and a half long, with a fight on it): ten in three waves, the last the biggest.
@@ -257,6 +259,7 @@ namespace Cloudborne
         {
             zone = new Zone { x = CbLevel.RopeBridgeX, label = "Ambush on the rope bridge", spawn = new (CbEnemy.Kind, float)[0] },
             from = CbLevel.RopeBridgeX - 8f, to = CbLevel.RopeBridgeX + CbLevel.RopeDeckHalf,
+            mouthL = CbLevel.RopeMouthL, mouthR = CbLevel.RopeMouthR,
             tip = "Raiders on the rope bridge! Shields stop paws: hold <color=#ffb03a>ATTACK</color> for the staff",
             cleared = "BRIDGE CLEARED!",
             waves = new[]
@@ -269,6 +272,7 @@ namespace Cloudborne
         {
             zone = new Zone { x = CbLevel.StoneBridgeX, label = "Ambush on the bridge", spawn = new (CbEnemy.Kind, float)[0] },
             from = CbLevel.StoneBridgeX - 4f, to = CbLevel.StoneBridgeX + CbLevel.StoneBridgeHalf,
+            mouthL = CbLevel.StoneMouthL, mouthR = CbLevel.StoneMouthR,
             tip = "Raiders on the bridge! Hold your ground",
             cleared = "BRIDGE CLEARED!",
             waves = new[]
@@ -283,6 +287,7 @@ namespace Cloudborne
         {
             zone = new Zone { x = CbLevel.BoughAmbushX, label = "Ambush on the big bough", spawn = new (CbEnemy.Kind, float)[0] },
             from = CbLevel.BoughAmbushX - 4f, to = CbLevel.BoughAmbushX + 8f,
+            mouthL = CbLevel.BoughMouthL, mouthR = CbLevel.BoughMouthR,
             tip = "Raiders on the bough! Hold your ground",
             cleared = "BOUGH CLEARED!",
             waves = new[]
@@ -932,12 +937,12 @@ namespace Cloudborne
         /// </summary>
         void SpawnFoes(params (CbEnemy.Kind kind, float dx)[] foes)
         {
-            for (int i = 0; i < foes.Length; i++) incoming.Add((time + i * RunInEvery, foes[i].kind));
+            for (int i = 0; i < foes.Length; i++) incoming.Add((time + i * RunInEvery, foes[i].kind, foes[i].dx < 0 ? -1 : 1));
             SpawnIncoming();
         }
 
         // an ambush's soldiers still to come running in: when, and who
-        readonly List<(float at, CbEnemy.Kind kind)> incoming = new List<(float, CbEnemy.Kind)>();
+        readonly List<(float at, CbEnemy.Kind kind, int side)> incoming = new List<(float, CbEnemy.Kind, int)>();
         // where they start, past the arena's middle: the camera keeps within 3 m of the middle and shows ViewHalfWidth
         // either side, so they start just out of view - still on a bridge the fight is on (the stone bridge ends 12.2 m
         // past its middle); every RunInEvery seconds the next one, from the same place
@@ -952,13 +957,23 @@ namespace Cloudborne
             for (int i = 0; i < incoming.Count; i++)
             {
                 if (incoming[i].at > time) continue;
-                var e = SpawnAt(incoming[i].kind, lockZone.x + RunInFrom);
+                // out of the tunnel on his side (the user: from both sides, out of a tunnel by each end of the bridge)
+                int side = incoming[i].side;
+                float mouth = float.NaN;
+                foreach (var a in Ambushes) if (a.zone == lockZone) mouth = side < 0 ? a.mouthL : a.mouthR;
+                bool fromMouth = !float.IsNaN(mouth);
+                var e = SpawnAt(incoming[i].kind, fromMouth ? mouth : lockZone.x + side * RunInFrom);
+                if (fromMouth)
+                {
+                    e.emergeZ = CbLevel.MouthZ;
+                    CbFx.Puff(new Vector3(mouth, 0.5f, CbLevel.MouthZ - 0.4f), new Color(0.6f, 0.55f, 0.5f), 5, 1.4f, 0.8f, 0.5f);
+                }
                 // on what is there to stand on: the stone bridge's deck (from the ground under it he walked under the
                 // bridge, never able to step up onto it: the user)
                 if (level != null) e.y = Mathf.Max(e.y, level.SupportAt(e.x, 50f));
                 e.runningIn = true;
                 e.arena = true;
-                e.facing = -1;
+                e.facing = -side;
                 arenaFoes.Add(e);
                 incoming.RemoveAt(i--);
             }
