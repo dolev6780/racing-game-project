@@ -931,8 +931,18 @@ namespace Cloudborne
             var t = CbArt.Joint(root, x, 0, 0.1f, crumbles ? "crumblingLedge" : "ledge");
             earth ??= EarthMat();
             grass ??= GrassMat();
-            var kit = Fit(CliffDir + (crumbles ? "CrumblingLedge/CrumblingLedge" : "Ledge/Ledge"), t,
-                new Vector3(-width / 2 - 0.08f, top - Mathf.Max(0.34f, width * 0.27f), -0.7f), new Vector3(width / 2 + 0.08f, top + 0.04f, 0.9f));
+            // (in the trees - the treetops, Baba's grove - a log on its tree's branches, not a slab of stone)
+            bool tree = CbStage.Treetops || CbStage.Grove;
+            Transform kit = null;
+            if (tree)
+            {
+                kit = Fit("Cloudborne/Jungle/Log/Log", t, new Vector3(-width / 2 - 0.1f, top - 0.5f, -0.7f), new Vector3(width / 2 + 0.1f, top + 0.04f, 0.9f));
+                if (kit != null && crumbles)
+                    foreach (var r in kit.GetComponentsInChildren<Renderer>()) r.material.color = new Color(0.62f, 0.5f, 0.42f);
+            }
+            if (kit == null)
+                kit = Fit(CliffDir + (crumbles ? "CrumblingLedge/CrumblingLedge" : "Ledge/Ledge"), t,
+                    new Vector3(-width / 2 - 0.08f, top - Mathf.Max(0.34f, width * 0.27f), -0.7f), new Vector3(width / 2 + 0.08f, top + 0.04f, 0.9f));
             if (kit == null) EarthSlab(t, -width / 2, width / 2, top - 0.55f, top, -0.75f, 0.9f, crumbles ? (crackedEarth ?? earth) : earth, grass);
             if (crumbles && kit == null)
             {
@@ -941,6 +951,41 @@ namespace Cloudborne
                     CbArt.Box(crack, t, new Vector3((k - 1) * width * 0.3f, top - 0.28f, -0.77f), new Vector3(0.05f, 0.4f, 0.02f), CbArt.Rot(0, 0, k % 2 == 0 ? 0.4f : -0.4f));
             }
             ledges.Add(new Ledge { x0 = x - width / 2, x1 = x + width / 2, top = top, crumbles = crumbles, t = t, home = t.localPosition });
+            AddLedgeSupport(x, width, top - (tree ? 0.45f : Mathf.Max(0.34f, width * 0.27f)) + 0.05f, tree);
+        }
+
+        // Nothing hangs in the air (the user: ledges floating with no reason): each rests on something, behind the path
+        // so it never stands in his way - a column of the mountain's rock from the ground (or the water) up under it, or
+        // in the trees a trunk with two branches holding its log. A crumbling one's support stays when it falls.
+        // how far back the support stands (the ledge reaches 0.9 back), how thick a trunk is
+        const float SupportFront = 0.7f, SupportBack = 2.6f, TrunkRadius = 0.3f;
+        static Material supportBark;
+
+        void AddLedgeSupport(float x, float width, float under, bool tree)
+        {
+            // what lies under it: the ground, a rock, another ledge - or water or a gap, then from below their surface
+            float baseY = Mathf.Max(SupportAt(x, under - 0.3f), -2.5f);
+            if (under - baseY < 0.35f) return;
+            var t = CbArt.Joint(root, x, 0, 0, "ledgeSupport");
+            if (tree)
+            {
+                if (supportBark == null)
+                {
+                    supportBark = CbArt.NewToon(new Color(0.62f, 0.52f, 0.44f), CbArt.PropOutline, BarkTexture());
+                    supportBark.SetFloat("_SpecStrength", 0f);
+                }
+                float h = under - baseY + 0.3f;
+                var trunk = CbArt.Cylinder(supportBark, t, new Vector3(0, baseY - 0.3f + h / 2, SupportFront + 0.6f), TrunkRadius, h);
+                trunk.name = "trunk";
+                // two branches reaching forward under the log, from the trunk
+                foreach (int side in new[] { -1, 1 })
+                    CbArt.Cylinder(supportBark, t, new Vector3(side * width * 0.28f, under - 0.18f, SupportFront), 0.09f, 1.5f,
+                        Quaternion.Euler(70f, 0, side * -25f));
+                return;
+            }
+            float w = Mathf.Max(0.8f, width * 0.75f);
+            if (!RockPieces(t, -w / 2, w / 2, baseY - 0.3f, under + 0.12f, SupportFront, SupportBack, Mathf.RoundToInt(x * 10 + under * 7)))
+                CbArt.Box(M("#6e6a5e"), t, new Vector3(0, (baseY + under) / 2, (SupportFront + SupportBack) / 2), new Vector3(w, under - baseY, SupportBack - SupportFront));
         }
 
         /// <summary>A model in a joint of its own (so its import rotation stays), sized, turned about Y, on the level.</summary>
