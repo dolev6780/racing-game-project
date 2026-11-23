@@ -367,7 +367,7 @@ namespace Cloudborne
             {
                 float from = foot, to = flatTo - dir * RampInto;
                 var st = CbArt.Joint(root, (from + to) / 2, 0, (StepFront + StepBack) / 2, "bridgeStairs");
-                if (Model("StoneStairs", st, new Vector3(StepBack - StepFront, top, Mathf.Abs(to - from)), dir < 0 ? 270f : 90f) != null) return;
+                if (Model("StoneStairs", st, new Vector3(StepBack - StepFront, top, Mathf.Abs(to - from)), dir < 0 ? 270f : 90f) != null) { Solidify(st); return; }
                 Object.Destroy(st.gameObject);
             }
             stepStone ??= CbArt.Toon(StepStone, CbArt.PropOutline);

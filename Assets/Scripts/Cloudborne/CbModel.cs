@@ -90,18 +90,36 @@ namespace Cloudborne
         // lowered them more than his legs bent put his feet into the ground.
         Transform leftToe, rightToe;
         float fitY, toeLift, groundFix;
-        const float MaxGroundFix = 0.15f, GroundFixRate = 1.6f;
+        const float MaxGroundFix = 0.15f, GroundFixRate = 3.5f;
 
         /// <summary>How far the model is raised (+) or lowered (-) now to keep its feet on the ground (test hook).</summary>
         public float GroundFix => groundFix;
 
+        /// <summary>Where the lower of his toes is (world).</summary>
+        public bool LowToe(out Vector3 at)
+        {
+            at = default;
+            if (leftToe == null || rightToe == null) return false;
+            at = leftToe.position.y < rightToe.position.y ? leftToe.position : rightToe.position;
+            return true;
+        }
+
+        /// <summary>Test hook: where both his toes are (world).</summary>
+        public bool Toes(out Vector3 left, out Vector3 right)
+        {
+            left = leftToe != null ? leftToe.position : default;
+            right = rightToe != null ? rightToe.position : default;
+            return leftToe != null && rightToe != null;
+        }
+
         /// <summary>Puts the lower foot on the floor (weight 1, on the ground) or eases off (0: in the air, hanging).</summary>
-        public void GroundFeet(float weight, float dt)
+        public void GroundFeet(float weight, float dt, float surface = 0f)
         {
             if (leftToe == null || rightToe == null || root.parent == null) return;
             var p = root.parent;
             float low = Mathf.Min(p.InverseTransformPoint(leftToe.position).y, p.InverseTransformPoint(rightToe.position).y) - groundFix;
-            float want = Mathf.Clamp(toeLift - low, -MaxGroundFix, MaxGroundFix) * weight;
+            // (surface: how far over or under his floor the drawn one under his toes is - he stands on what is drawn)
+            float want = Mathf.Clamp(toeLift + surface - low, -MaxGroundFix - Mathf.Abs(surface), MaxGroundFix + Mathf.Abs(surface)) * weight;
             groundFix = Mathf.MoveTowards(groundFix, want, GroundFixRate * dt);
             var lp = root.localPosition;
             root.localPosition = new Vector3(lp.x, fitY + groundFix, lp.z);

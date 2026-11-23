@@ -93,6 +93,14 @@ namespace Cloudborne
         // the pull-up of "Ladder Climb Finish" (in place; the game lifts him). Measured on the model at its game size,
         // hanging he has his hands HangReach above his feet and HangAhead in front of him.
         public const float HangReach = 1.43f;
+        /// <summary>Test hook: he takes hold of the edge at (edgeX, top), facing dir, as if he had caught it.</summary>
+        public void TestHang(int dir, float edgeX, float top) => StartHang(dir, edgeX, top);
+
+        /// <summary>Hanging from a ledge with nothing under it: his feet that far under the edge, his middle that far out.</summary>
+        public const float FreeHangReach = 1.68f, FreeHangOff = 0.16f;
+        bool freeHang;
+        /// <summary>Whether he hangs at arm's length, his legs straight (nothing under the edge to put his feet on).</summary>
+        public bool FreeHanging => state == State.Hang && freeHang;
         const float HangAhead = 0.38f, ClimbOnto = 0.45f, CatchTime = 0.18f, ClimbTime = 0.6f, GrabRest = 0.35f;
         // how far through the pull-up he has risen, and come forward, by each moment of it (the clip's own hips)
         static readonly float[] ClimbU = { 0f, 0.083f, 0.25f, 0.417f, 0.583f, 0.75f, 0.917f, 1f };
@@ -637,7 +645,10 @@ namespace Cloudborne
         {
             state = State.Hang; t = 0; move = Move.None; combo = 0;
             facing = grabDir = dir; grabX = edgeX; grabTop = top;
-            hangX = edgeX - dir * HangAhead; hangY = top - HangReach;
+            // with a wall under the edge his feet go against it; under a ledge there is none: he hangs at arm's length,
+            // his legs straight (the user: hanging in the air, knees drawn up against nothing)
+            freeHang = g.level != null && !g.level.FaceUnder(edgeX, top);
+            hangX = edgeX - dir * (freeHang ? FreeHangOff : HangAhead); hangY = top - (freeHang ? FreeHangReach : HangReach);
             x = hangX; y = hangY; vx = vy = 0; air = true; jumps = 0; airDashed = false; airHits = 0; flipT = 0;
             CbFx.Spark(new Vector3(edgeX, top + 0.05f, -0.4f), CbFx.Dust, 6, 2, 0.35f, 0.35f, 3);
             CbFx.Sfx("block", 0.4f);
@@ -647,7 +658,8 @@ namespace Cloudborne
         void UpdateHang(ref Pose pose, CbInput input)
         {
             x = hangX; y = hangY; vx = vy = 0;
-            pose.sLx = -2.9f; pose.sRx = -2.9f; pose.eL = -0.2f; pose.eR = -0.2f; pose.hLx = -0.6f; pose.kL = 0.9f; pose.hRx = -0.4f; pose.kR = 0.7f;
+            if (freeHang) { pose.sLx = -2.9f; pose.sRx = -2.9f; pose.eL = -0.1f; pose.eR = -0.1f; pose.hLx = -0.1f; pose.kL = 0.1f; pose.hRx = 0.05f; pose.kR = 0.15f; }
+            else { pose.sLx = -2.9f; pose.sRx = -2.9f; pose.eL = -0.2f; pose.eR = -0.2f; pose.hLx = -0.6f; pose.kL = 0.9f; pose.hRx = -0.4f; pose.kR = 0.7f; }
             // a crumbling ledge gave way under his hands
             if (g.level != null && !g.level.EdgeHolds(grabX, grabTop)) { LetGo(); return; }
             if (t < CatchTime) return;
@@ -671,8 +683,8 @@ namespace Cloudborne
             while (k < ClimbU.Length - 1 && u > ClimbU[k]) k++;
             float s = Mathf.InverseLerp(ClimbU[k - 1], ClimbU[k], u);
             float rise = Mathf.Lerp(ClimbRise[k - 1], ClimbRise[k], s), fwd = Mathf.Lerp(ClimbFwd[k - 1], ClimbFwd[k], s);
-            x = hangX + grabDir * (HangAhead + ClimbOnto) * fwd;
-            y = hangY + HangReach * rise;
+            x = hangX + grabDir * ((grabX - hangX) * grabDir + ClimbOnto) * fwd;
+            y = hangY + (grabTop - hangY) * rise;
             vx = vy = 0;
             pose.lean = 0.45f; pose.sLx = -1.3f; pose.sRx = -1.3f; pose.eL = -0.4f; pose.eR = -0.4f;
             pose.hLx = -1.4f * (1 - u); pose.kL = 1.6f * (1 - u); pose.hRx = 0.2f; pose.kR = 0.6f * (1 - u);
@@ -1025,7 +1037,26 @@ namespace Cloudborne
             UpdateCloth(dt);
             UpdateFire(dt);
             Animate();
+            FeetOnTheGround(dt);
             UpdateThrownStaff(dt);
+        }
+
+        /// <summary>
+        /// Standing, his lower foot on what is drawn under it (the user: wherever he stands - the ground, a rock, a
+        /// ledge, the stairs - he must touch it): the floor he stands on, or the modelled surface under his toes if one
+        /// is near (CbLevel.SurfaceUnder: the steps of a stair, the slab of a ruin), his model raised or lowered to it.
+        /// </summary>
+        void FeetOnTheGround(float dt)
+        {
+            if (model == null) return;
+            bool grounded = !air && !Holding && state != State.Swim && state != State.Dead && state != State.Down && state != State.Hang && state != State.Climb;
+            float surface = 0;
+            if (grounded && g.level != null && model.LowToe(out var toe))
+            {
+                float tx = x + (toe.x - f.root.position.x);
+                if (g.level.SurfaceUnder(tx, y, out float sy)) surface = Mathf.Clamp(sy - y, -CbLevel.SurfaceReach, CbLevel.SurfaceReach);
+            }
+            model.GroundFeet(grounded ? 1f : 0f, dt, surface);
         }
 
         /// <summary>In the staff storm (the special before his fire is awake): its blows break the bamboo dummies (1-3).</summary>
@@ -1252,6 +1283,10 @@ namespace Cloudborne
                 case State.Hurt: model.Window("Hit_Reaction", 0.1f, 0.6f, t / 0.35f); break;
                 // hanging from an edge: the catch of "Jump and Grab Wall" (arms flung up, knees drawn in), then its hang,
                 // swaying a little; the pull-up: "Ladder Climb Finish" from hands on the top (0.25) to standing (0.85)
+                // under a ledge, nothing to put his feet on: hanging at arm's length, legs straight (Bar Hang Idle)
+                case State.Hang when freeHang && model.HasClip("Bar_Hang_Idle"):
+                    model.LoopSeconds("Bar_Hang_Idle", g.clock, 0.12f);
+                    break;
                 case State.Hang:
                     if (t < CatchTime) model.Window("Jump_and_Grab_Wall", 0.45f, 0.75f, t / CatchTime, 0.05f);
                     else model.Show("Jump_and_Grab_Wall", 0.82f + Mathf.PingPong(t * 0.08f, 0.12f));

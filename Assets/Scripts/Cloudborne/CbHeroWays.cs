@@ -71,6 +71,8 @@ namespace Cloudborne
                     return true;
                 case State.Bars when bar != null: at = new Vector3(0, bar.y + BarPoleUp, 0); return true;
                 case State.Pole when pole != null: at = new Vector3(pole.x, pole.y, 0); across = true; return true;
+                // hanging from an edge: his palms on its corner
+                case State.Hang: at = new Vector3(grabX - grabDir * 0.06f, grabTop + 0.02f, 0); across = true; return true;
                 case State.Zip when zip != null: at = new Vector3(0, zip.At(x), 0); return true;
             }
             return false;

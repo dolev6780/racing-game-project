@@ -166,6 +166,8 @@ namespace Cloudborne
         static Material M(string hex) => CbArt.Toon(hex, CbArt.PropOutline);
 
         const string WaysDir = "Cloudborne/Jungle/Ways/";
+        static readonly string[] Leafy = { "RuinWall", "RuinLedge", "VineTree", "CaveArch", "StakedLog", "TreePlatform" };
+        const float LeafyOutline = 0.25f;
 
         /// <summary>
         /// One of the long stage's modelled things (drawn in Canva, approved, built by Meshy), its foot at parent's
@@ -176,7 +178,10 @@ namespace Cloudborne
         {
             var turn = CbArt.Joint(parent, 0, 0, 0, "model");
             turn.localRotation = Quaternion.Euler(0, yaw, 0);
-            var fit = Fit(WaysDir + name + "/" + name, turn, new Vector3(-size.x / 2, 0, -size.z / 2), new Vector3(size.x / 2, size.y, size.z / 2));
+            // the kit's models hung with thin moss, vines and ferns: a thin outline (the full one drew black shards round
+            // every strand - the user's picture of the ruin's tower)
+            float outline = System.Array.IndexOf(Leafy, name) >= 0 ? LeafyOutline : CbArt.PropOutline;
+            var fit = Fit(WaysDir + name + "/" + name, turn, new Vector3(-size.x / 2, 0, -size.z / 2), new Vector3(size.x / 2, size.y, size.z / 2), outline);
             if (fit == null) { Object.Destroy(turn.gameObject); return null; }
             return turn;
         }
@@ -1086,7 +1091,19 @@ namespace Cloudborne
                 var held = CbArt.Joint(t, 0, bottom - StakedLogBottom * lh, 0.1f, "stakedLog");
                 if (Model("StakedLog", held, new Vector3(StakedLogLong * lh, lh, StakedLogDeep * lh), StakedLogYaw) != null)
                 {
-                    overhangs.Add(new Overhang { x0 = x - width / 2, x1 = x + width / 2, bottom = bottom, top = top, thorny = thorny, t = t });
+                    // where it is drawn: its log's underside the passage's roof on his line, its top what he would stand on
+                    var cs = Solidify(held);
+                    float under = float.PositiveInfinity, over = float.NegativeInfinity;
+                    for (float dx = -width / 2; dx <= width / 2 + 0.01f; dx += 0.1f)
+                        foreach (float z in ProbeZ)
+                        {
+                            if (UnderOf(cs, x + dx, z, bottom - 0.8f, bottom + 0.8f, out float u)) under = Mathf.Min(under, u);
+                            if (TopOf(cs, x + dx, z, top - 0.35f, top + 0.3f, out float o)) over = Mathf.Max(over, o);
+                        }
+                    float lift = under < float.PositiveInfinity ? bottom - under : 0f;
+                    if (lift != 0) Shift(held, new Vector3(0, lift, 0));
+                    float logTop = over > float.NegativeInfinity ? over + lift : top;
+                    overhangs.Add(new Overhang { x0 = x - width / 2, x1 = x + width / 2, bottom = bottom, top = logTop, thorny = thorny, t = t });
                     return;
                 }
                 Object.Destroy(held.gameObject);

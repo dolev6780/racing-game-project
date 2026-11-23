@@ -32,7 +32,8 @@ namespace Cloudborne
             float wide = Mathf.Clamp(h * PillarWide, width + 0.2f, width + 0.6f);
             var holder = CbArt.Joint(t, 0, baseY - 0.2f, 0.25f, "ruinLedge");
             if (Model("RuinLedge", holder, new Vector3(wide, h, wide * 0.8f), 180f) == null) { Object.Destroy(holder.gameObject); return false; }
-            ledges.Add(new Ledge { x0 = x - width / 2, x1 = x + width / 2, top = top, t = t, home = t.localPosition });
+            // its slab where it is drawn: on his line, its top at the ledge's height, the ledge as wide as the slab
+            AddMeasuredLedge(t, holder, x, wide / 2 + 0.3f, top, width);
             return true;
         }
 
@@ -42,11 +43,21 @@ namespace Cloudborne
             float H = top - baseY;
             var holder = CbArt.Joint(t, 0, baseY, TowerBack * H, "ruinTower");
             if (Model("RuinWall", holder, new Vector3(TowerWide * H, H, TowerDeep * H), TowerYaw) == null) { Object.Destroy(holder.gameObject); return false; }
-            ledges.Add(new Ledge { x0 = x - Mathf.Max(width / 2, TowerTopHalf * H), x1 = x + Mathf.Max(width / 2, TowerTopHalf * H), top = top, t = t, home = t.localPosition });
+            var cs = Solidify(holder);
+            // its ledges on his line (the first one's depth), its top at the ledge's height
+            var (a, a0, a1) = TowerLedges[0];
+            Shift(holder, new Vector3(0, 0, -BestDepth(cs, x + (a0 + a1) / 2 * H, (a1 - a0) / 2 * H + 0.3f, baseY + a * H, 0.35f * H * 0.2f + 0.3f)));
+            if (FindTop(cs, x, TowerTopHalf * H + 0.3f, top, 0.6f, out float tt, out float tx0, out float tx1))
+                Shift(holder, new Vector3(0, top - tt, 0));
+            else { tx0 = x - width / 2; tx1 = x + width / 2; }
+            ledges.Add(new Ledge { x0 = tx0, x1 = tx1, top = top, t = t, home = t.localPosition });
+            // the ledges up its sides, each where it is drawn
             foreach (var (lt, l0, l1) in TowerLedges)
             {
+                float near = baseY + lt * H, cx = x + (l0 + l1) / 2 * H, half = (l1 - l0) / 2 * H + 0.4f;
+                if (!FindTop(cs, cx, half, near, 0.5f, out float lt2, out float lx0, out float lx1)) { lt2 = near; lx0 = x + l0 * H; lx1 = x + l1 * H; }
                 var side = CbArt.Joint(root, x, 0, 0, "towerLedge");
-                ledges.Add(new Ledge { x0 = x + l0 * H - 0.05f, x1 = x + l1 * H + 0.05f, top = baseY + lt * H, t = side, home = side.localPosition });
+                ledges.Add(new Ledge { x0 = lx0, x1 = lx1, top = lt2, t = side, home = side.localPosition });
             }
             return true;
         }
@@ -57,8 +68,33 @@ namespace Cloudborne
             float wide = width + 0.3f, h = (top - baseY) / PlatformTop;
             var holder = CbArt.Joint(t, 0, baseY, wide * 0.28f, "treePlatform");
             if (Model("TreePlatform", holder, new Vector3(wide, h, wide), 180f) == null) { Object.Destroy(holder.gameObject); return false; }
-            ledges.Add(new Ledge { x0 = x - width / 2, x1 = x + width / 2, top = top, t = t, home = t.localPosition });
+            AddMeasuredLedge(t, holder, x, wide / 2 + 0.3f, top, width);
             return true;
+        }
+
+        /// <summary>
+        /// A ledge on a model's flat top: the model moved so its top lies on his line at `top`, the ledge as wide as the
+        /// top is drawn there (as the stage laid it out, `width`, if the rays find none).
+        /// </summary>
+        void AddMeasuredLedge(Transform t, Transform holder, float x, float half, float top, float width)
+        {
+            var cs = Solidify(holder);
+            float x0 = x - width / 2, x1 = x + width / 2;
+            if (FindTop(cs, x, half, top, 0.8f, out float found, out _, out _))
+            {
+                Shift(holder, new Vector3(0, top - found, 0));
+                FindTop(cs, x, half, top, 0.3f, out _, out x0, out x1);
+            }
+            else
+            {
+                Shift(holder, new Vector3(0, 0, -BestDepth(cs, x, half, top, 0.8f)));
+                if (FindTop(cs, x, half, top, 0.8f, out found, out _, out _))
+                {
+                    Shift(holder, new Vector3(0, top - found, 0));
+                    FindTop(cs, x, half, top, 0.3f, out _, out x0, out x1);
+                }
+            }
+            ledges.Add(new Ledge { x0 = x0, x1 = x1, top = top, t = t, home = t.localPosition });
         }
 
         /// <summary>Test hook: how many ledges stand at x's tower (its top and the ones up its sides), 0 if none.</summary>

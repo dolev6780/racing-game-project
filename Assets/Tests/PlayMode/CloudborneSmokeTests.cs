@@ -3333,6 +3333,95 @@ namespace RacingGame.Tests
 
 
 
+        /// <summary>
+        /// The user: he stood and hung in the air beside the models - wherever he stands (the ground, a rock, a ledge,
+        /// the stairs, a platform) his feet must touch what is drawn, and hanging from an edge his hands must be on it
+        /// (his legs straight under a ledge, against the wall under a block's edge). Every place in stages 1-1 and 1-2.
+        /// </summary>
+        [UnityTest, Timeout(900000)]
+        public IEnumerator RajaTouchesWhatHeStandsOnAndHangsFrom()
+        {
+            var fails = new List<string>();
+            int stood = 0, hung = 0;
+            foreach (var stage in new[] { "1-1", "1-2" })
+            {
+                game = CbGame.Boot();
+                yield return Frames(3);
+                if (stage != "1-1") { CbStage.Set(stage); game.BuildStage(); }
+                game.StartGame();
+                game.SkipFights();
+                yield return Frames(3);
+                var level = game.transform.Find("Level");
+                Assert.IsNotNull(level, "No level");
+                // everything drawn in the stage solid for the rays (the game gives only its modelled kit colliders)
+                foreach (var mf in level.GetComponentsInChildren<MeshFilter>())
+                    if (mf.sharedMesh != null && mf.sharedMesh.isReadable && mf.GetComponent<Collider>() == null)
+                        mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
+                Physics.SyncTransforms();
+                var hero = game.hero;
+                hero.inv = 999f;
+                // where he stands: on every ledge (its middle and near its ends), every block, and along the stage
+                var spots = new List<(string what, float x, float top)>();
+                foreach (var (x0, x1, top) in game.level.LedgeTops())
+                {
+                    spots.Add(("ledge", (x0 + x1) / 2, top));
+                    if (x1 - x0 > 0.9f) { spots.Add(("ledge's end", x0 + 0.3f, top)); spots.Add(("ledge's end", x1 - 0.3f, top)); }
+                }
+                foreach (var (x0, x1, top) in game.level.BlockTops()) spots.Add(("block", (x0 + x1) / 2, top));
+                for (float x = CbWorld.LevelMin + 4f; x < CbWorld.LevelMax - 4f; x += 3f)
+                    if (!CbLevel.InWater(x, 0.6f)) spots.Add(("way", x, game.level.SupportAt(x, 40f)));
+                foreach (var (what, x, top) in spots)
+                {
+                    if (top < -1f) continue;
+                    game.Teleport(x);
+                    hero.y = game.level.SupportAt(x, top + 0.3f);
+                    hero.vx = hero.vy = 0;
+                    hero.state = CbHero.State.Idle;
+                    game.TestInput = i => { };
+                    for (float w = 0; w < 0.3f; w += Time.deltaTime) yield return null;
+                    if (hero.state != CbHero.State.Idle || !hero.model.Toes(out var l, out var r)) continue;
+                    stood++;
+                    var toe = l.y < r.y ? l : r;
+                    // the drawn surface under his lower toe (or over it, if his foot is sunk in it)
+                    if (!Physics.Raycast(toe + Vector3.up * 0.5f, Vector3.down, out var h, 1.2f))
+                        fails.Add($"{stage} {what} x {x:F1}: standing in the air (nothing drawn under his feet)");
+                    else
+                    {
+                        float gap = toe.y - h.point.y;
+                        if (gap > 0.2f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his feet {gap:F2} over what is drawn ({h.collider.name})");
+                        else if (gap < -0.1f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his feet {-gap:F2} into what is drawn ({h.collider.name})");
+                    }
+                }
+                // hanging from every ledge's edges: his hands on the corner; under a ledge his legs hang straight
+                foreach (var (x0, x1, top) in game.level.LedgeTops())
+                {
+                    if (top < 1.7f) continue;
+                    foreach (int dir in new[] { 1, -1 })
+                    {
+                        float edge = dir > 0 ? x0 : x1;
+                        hero.TestHang(dir, edge, top);
+                        game.TestInput = i => { };
+                        for (float w = 0; w < 0.5f; w += Time.deltaTime) yield return null;
+                        if (hero.state != CbHero.State.Hang) continue;
+                        hung++;
+                        var palms = (hero.model.Palm(hero.model.leftHand) + hero.model.Palm(hero.model.rightHand)) * 0.5f;
+                        float off = Vector2.Distance(new Vector2(palms.x, palms.y), new Vector2(edge, top));
+                        if (off > 0.25f) fails.Add($"{stage} hanging at x {edge:F1} top {top:F2}: his hands {off:F2} off the edge");
+                        if (hero.FreeHanging && hero.model.Toes(out var lt, out var rt) && Mathf.Max(Mathf.Abs(lt.x - palms.x), Mathf.Abs(rt.x - palms.x)) > 0.6f)
+                            fails.Add($"{stage} hanging at x {edge:F1} top {top:F2}: his legs not straight down under a ledge");
+                    }
+                }
+                game.TestInput = null;
+                Object.Destroy(game.gameObject);
+                game = null;
+                yield return Frames(2);
+            }
+            foreach (var f in fails) Debug.Log("TOUCH " + f);
+            Debug.Log($"TOUCH stood at {stood} places, hung from {hung} edges, {fails.Count} wrong");
+            Assert.Greater(stood, 60, "Raja was stood at too few places");
+            Assert.IsEmpty(fails, $"Raja does not touch what he stands on or hangs from ({fails.Count}): " + string.Join("; ", fails.Take(12)));
+        }
+
         [UnityTest]
         public IEnumerator ASwingPoleTurnsRajaRoundAndFlingsHimOn()
         {
