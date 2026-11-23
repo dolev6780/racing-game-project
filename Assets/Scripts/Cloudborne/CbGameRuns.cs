@@ -6,10 +6,9 @@ namespace Cloudborne
     /// <summary>
     /// The short runs: a change of pace in the middle of a stage (the user: short runs, like a chase).
     /// <list type="bullet">
-    /// <item>Stage 1-1, RUN!: on the flat stretch after the gorge a pack of raiders bursts in from behind, faster than
-    /// soldiers walk. Raja runs for the lantern ahead - over the cracked boulder, under the low branch (they can't duck
-    /// under it), over the crate. Reaching it with them still after him: ESCAPED!, and they give up. Caught, it is a
-    /// fight.</item>
+    /// <item>Stage 1-1, RUN!: on the flat stretch after the gorge a great boulder comes down off the mountain behind
+    /// him and rolls after him (the user: a boulder to run from, not raiders to fight), smashing the fallen trunks he
+    /// slides under, till it plunges into the river (CbLevelBoulder). Never caught by it: ESCAPED!</item>
     /// <item>Stage 1-2, THIEF!: a raider snatches a sack of loot and runs off along the bough under the saw drone,
     /// a little slower than Raja runs. Caught and struck down, the sack bursts; reaching the end of the bough, he is
     /// gone.</item>
@@ -21,12 +20,9 @@ namespace Cloudborne
         public const float ChaseFrom = 168f, ChaseTo = 196f, ChaseBranchX = 187f;
         /// <summary>Stage 1-2's thief: where he snatches the sack, where he gets away.</summary>
         public const float ThiefFrom = 91f, ThiefTo = 120f;
-        const int ChasePack = 4, RunBonus = 500, SackCoins = 8;
-        // how much faster than a soldier walks the pack runs (he runs 7 m/s; they come on at about 6)
-        const float ChaseSpeed = 2.2f;
+        const int RunBonus = 500, SackCoins = 8;
 
         bool chaseStarted, chaseDone, thiefStarted, thiefDone, fireRunStarted, fireRunDone;
-        readonly List<CbEnemy> chasers = new List<CbEnemy>();
         CbEnemy thiefFoe;
         Transform sack;
 
@@ -45,7 +41,6 @@ namespace Cloudborne
         {
             chaseStarted = chaseDone = thiefStarted = thiefDone = fireRunStarted = fireRunDone = false;
             ChaseEscaped = ThiefCaught = FireRunEscaped = false;
-            chasers.Clear();
             thiefFoe = null;
             if (sack != null) Destroy(sack.gameObject);
             sack = null;
@@ -54,14 +49,13 @@ namespace Cloudborne
         /// <summary>Beaten in a run that wasn't over: it starts over when he comes back past its start.</summary>
         void RunsRespawned()
         {
-            if (chaseStarted && !chaseDone) { chaseStarted = false; chasers.Clear(); }
+            if (chaseStarted && !chaseDone) { chaseStarted = false; level?.StopBoulder(); }
             if (thiefStarted && !thiefDone) { thiefStarted = false; thiefFoe = null; if (sack != null) Destroy(sack.gameObject); sack = null; }
             if (fireRunStarted && !fireRunDone) { fireRunStarted = false; level?.StopFireChase(); }
         }
 
         void UpdateRuns()
         {
-            ClearRetreated();
             if (lockZone != null) return;
             if (CbStage.Jungle) UpdateChase();
             else if (CbStage.Treetops) UpdateThief();
@@ -95,35 +89,29 @@ namespace Cloudborne
 
         void UpdateChase()
         {
+            // a great boulder off the mountain behind him (the user: a boulder to run from, not raiders to fight)
             if (!chaseStarted && hero.x > ChaseFrom && hero.x < ChaseTo - 4f)
             {
                 chaseStarted = true;
-                for (int i = 0; i < ChasePack; i++)
-                {
-                    var e = SpawnAt(CbEnemy.Kind.Hyena, camX - RunInFrom - i * 1.6f);
-                    e.runningIn = e.arena = true;
-                    e.speedMul = ChaseSpeed;
-                    e.facing = 1;
-                    chasers.Add(e);
-                }
-                hud.Banner("RUN!");
-                hud.SetTip("A pack of raiders! Run for the lantern - <color=#ffb03a>slide</color> under the low branch, they can't");
-                shake = Mathf.Max(shake, 0.3f);
-                CbFx.Sfx("whistle", 0.7f);
+                level.StartBoulder(CbLevel.MountainTo - CbLevel.BoulderR, CbLevel.SummitTop);
+                hud.Banner("RUN! A BOULDER!");
+                hud.SetTip("A boulder is rolling down after you - run! <color=#ffb03a>Slide</color> under the trunks, and over the river!");
+                shake = Mathf.Max(shake, 0.5f);
             }
             if (!chaseStarted || chaseDone) return;
-            bool anyLeft = chasers.Exists(e => !e.dead && !e.gone);
-            if (!anyLeft) { chaseDone = true; return; }
-            if (hero.x >= ChaseTo)
+            // into the river: the run is over - escaped, if it never caught him
+            if (level.BoulderSank)
             {
-                // the lantern reached with them still after him: they give up and turn back
                 chaseDone = true;
-                ChaseEscaped = true;
-                foreach (var e in chasers) if (!e.dead) { e.retreat = true; e.arena = e.runningIn = false; }
-                score += RunBonus;
-                hud.Banner("ESCAPED! +" + RunBonus, true);
-                hud.SpeedLines(0.6f, 0.4f);
-                CbFx.Sfx("perfect", 0.7f);
+                if (level.BoulderHits == 0)
+                {
+                    ChaseEscaped = true;
+                    score += RunBonus;
+                    hud.Banner("ESCAPED! +" + RunBonus, true);
+                    hud.SpeedLines(0.6f, 0.4f);
+                    CbFx.Sfx("perfect", 0.7f);
+                }
+                else hud.Banner("PHEW!", true);
             }
         }
 
@@ -172,11 +160,5 @@ namespace Cloudborne
             }
         }
 
-        /// <summary>Called each frame by the enemies' loop: chasers that gave up go once far enough off.</summary>
-        void ClearRetreated()
-        {
-            foreach (var e in chasers)
-                if (e.retreat && !e.dead && Mathf.Abs(e.x - hero.x) > 16f) e.gone = true;
-        }
     }
 }

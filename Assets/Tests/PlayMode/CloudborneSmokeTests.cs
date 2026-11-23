@@ -305,16 +305,21 @@ namespace RacingGame.Tests
             game.Teleport(CbGame.ChaseFrom + 1f);
             game.hero.y = 0;
             yield return Frames(3);
-            Assert.IsTrue(game.ChaseStarted, "No chase on the stretch after the gorge");
-            var pack = game.enemies.FindAll(e => !e.dead && e.x < game.hero.x - 8f);
-            Assert.GreaterOrEqual(pack.Count, 3, "The pack did not burst in from behind");
-            float was = pack[0].x;
-            yield return new WaitForSeconds(0.5f);
-            Assert.Greater(pack[0].x, was + 1.5f, "The pack did not run after Raja");
-            game.Teleport(CbGame.ChaseTo + 0.5f);
+            // a boulder off the mountain behind him (the user: a boulder to run from, not raiders)
+            Assert.IsTrue(game.ChaseStarted, "No run on the stretch after the gorge");
+            Assert.IsTrue(game.level.BoulderRolling, "No boulder came down after Raja");
+            float was = game.level.BoulderX;
+            yield return new WaitForSeconds(1f);
+            Assert.Greater(game.level.BoulderX, was + 3f, "The boulder did not roll after Raja");
+            // out of its way, he watches it smash the fallen trunks and go into the river
+            float logX = CbLevel.LowLogXs[0];
+            game.Teleport(CbGame.ChaseFrom - 6f);
             game.hero.y = 0;
+            for (float w = 0; w < 12f && !game.level.BoulderSank; w += Time.deltaTime) yield return null;
+            Assert.IsTrue(game.level.BoulderSank, "The boulder never went into the river");
+            Assert.IsTrue(float.IsPositiveInfinity(game.level.CeilingAt(logX, 0f)), "The boulder did not smash the fallen trunk in its way");
             yield return Frames(3);
-            Assert.IsTrue(game.ChaseEscaped, "Reaching the lantern ahead of the pack was no escape");
+            Assert.IsTrue(game.ChaseEscaped, "Never caught by the boulder, he had not escaped");
             // 1-2: the thief
             CbStage.Set("1-2");
             game.BuildStage();

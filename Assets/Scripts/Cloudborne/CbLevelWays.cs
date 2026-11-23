@@ -882,7 +882,7 @@ namespace Cloudborne
         {
             // the top of a low passage's trunk is stood on (landed on from above)
             foreach (var o in overhangs)
-                if (x > o.x0 - HalfWidth * 0.5f && x < o.x1 + HalfWidth * 0.5f && o.top <= fromY + 0.05f && o.top > best) best = o.top;
+                if (!o.smashed && x > o.x0 - HalfWidth * 0.5f && x < o.x1 + HalfWidth * 0.5f && o.top <= fromY + 0.05f && o.top > best) best = o.top;
             // an open pit: nothing under him
             foreach (var p in pits)
                 if (p.open && x > p.x0 && x < p.x1 && best <= 0) best = Deep;
@@ -942,7 +942,7 @@ namespace Cloudborne
                 if (b.x0 >= x) hi = Mathf.Min(hi, b.x0 - 0.6f);
             }
             // a soldier can't duck under a low passage; a spring leaf's pad he hops over (he walked through it)
-            foreach (var o in overhangs) Bound(x, o.x0, o.x1, ref lo, ref hi);
+            foreach (var o in overhangs) if (!o.smashed) Bound(x, o.x0, o.x1, ref lo, ref hi);
             if (!hopping || LeafTop > SoldierHops)
                 foreach (var l in leaves)
                 {
@@ -958,7 +958,7 @@ namespace Cloudborne
         /// past it; low (sliding, crawling, ducking) he goes under. Its top can be stood on, but thorns there hurt.
         /// (The user: obstacles to slide or crawl under.)
         /// </summary>
-        public class Overhang { public float x0, x1, bottom, top; public bool thorny; public Transform t; }
+        public class Overhang { public float x0, x1, bottom, top; public bool thorny, smashed; public Transform t; }
         readonly List<Overhang> overhangs = new List<Overhang>();
         /// <summary>How tall Raja stands, and how tall low (ducking, crawling, sliding).</summary>
         public const float StandHeight = 1.55f, LowHeight = 0.8f;
@@ -968,7 +968,7 @@ namespace Cloudborne
         {
             float c = float.PositiveInfinity;
             foreach (var o in overhangs)
-                if (x > o.x0 - HalfWidth && x < o.x1 + HalfWidth && o.bottom >= y - 0.05f && o.bottom < c) c = o.bottom;
+                if (!o.smashed && x > o.x0 - HalfWidth && x < o.x1 + HalfWidth && o.bottom >= y - 0.05f && o.bottom < c) c = o.bottom;
             foreach (var b in blocks)
                 if (!b.broken && b.bottom > 0 && x > b.x0 - HalfWidth && x < b.x1 + HalfWidth && b.bottom >= y - 0.05f && b.bottom < c) c = b.bottom;
             return c;
@@ -1421,7 +1421,7 @@ namespace Cloudborne
             }
             // thorns on a low passage's trunk: landing on them hurts and throws him off
             foreach (var o in overhangs)
-                if (o.thorny && hero.x > o.x0 - HalfWidth * 0.5f && hero.x < o.x1 + HalfWidth * 0.5f && Mathf.Abs(hero.y - o.top) < 0.06f)
+                if (o.thorny && !o.smashed && hero.x > o.x0 - HalfWidth * 0.5f && hero.x < o.x1 + HalfWidth * 0.5f && Mathf.Abs(hero.y - o.top) < 0.06f)
                     hero.TakeHit(6, hero.x < (o.x0 + o.x1) / 2 ? -1 : 1, knock: 5f);
             // swinging logs
             foreach (var p in pendulums)
@@ -1461,6 +1461,7 @@ namespace Cloudborne
 
         void ResetWays()
         {
+            StopBoulder();
             foreach (var l in lanterns) { l.lit = false; CbArt.SetGlow(l.light, new Color(0.15f, 0.12f, 0.1f)); if (l.window != null) l.window.enabled = false; }
             foreach (var th in thorns) { th.hp = 2; th.b.broken = false; th.b.t.gameObject.SetActive(true); }
             foreach (var p in pits) { p.open = false; p.stood = 0; p.cover.gameObject.SetActive(true); }

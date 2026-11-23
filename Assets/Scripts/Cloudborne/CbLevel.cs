@@ -1318,7 +1318,7 @@ namespace Cloudborne
         {
             foreach (var o in overhangs)
             {
-                if (y + height <= o.bottom || y >= o.top - 0.05f) continue;
+                if (o.smashed || y + height <= o.bottom || y >= o.top - 0.05f) continue;
                 if (x0 <= o.x0 - HalfWidth + 0.01f && x1 > o.x0 - HalfWidth) x1 = o.x0 - HalfWidth;
                 else if (x0 >= o.x1 + HalfWidth - 0.01f && x1 < o.x1 + HalfWidth) x1 = o.x1 + HalfWidth;
             }
@@ -1421,7 +1421,7 @@ namespace Cloudborne
                 g.hud.SetTip("A low gap under the cliff: <color=#ffb03a>stick ↓</color> to slide through");
             }
             UpdateCrossings(dt, hero);
-            if (CbStage.Jungle) UpdateGorge(dt, hero);
+            if (CbStage.Jungle) { UpdateGorge(dt, hero); UpdateBoulder(dt, hero); }
             foreach (var l in ledges)
             {
                 if (!l.crumbles) continue;
