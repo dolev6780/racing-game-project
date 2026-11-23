@@ -1078,16 +1078,27 @@ namespace Cloudborne
                 if (Fit(RiverStonePath, r, new Vector3(-0.8f, -0.1f, -0.48f), new Vector3(0.8f, bottom + 0.28f, 0.48f)) == null)
                     CbArt.Box(StoneGrey, r, new Vector3(0, bottom / 2, 0), new Vector3(1.3f, bottom + 0.2f, 0.9f));
             }
-            // and at its far end the roots it was torn up with: a clod of earth, roots reaching out of it
-            var roots = CbArt.Joint(t, 0, bottom + (top - bottom) * 0.5f, 2.15f, "roots");
-            var earthClod = CbArt.Toon("#4a3a2a", CbArt.PropOutline);
-            CbArt.Part(CbMesh.Blob(10, 8), earthClod, roots, Vector3.zero, new Vector3(1.5f, 1.4f, 0.7f), Quaternion.identity);
-            var rootMat = CbArt.Toon("#6b5038", CbArt.PropOutline);
-            for (int k = 0; k < 7; k++)
+            // held so it plainly can't roll off (the user: something to hold it, not chains; the clod of roots at its
+            // far end read as a big round rock behind it - gone): by each rock two stakes driven into the ground either
+            // side of the trunk, crossed over it and lashed there with vine, and a band of vine round trunk and rock
+            float lr = (top - bottom) / 2, mid = bottom + lr;
+            var stake = CbArt.Toon("#7a5a3a", CbArt.PropOutline);
+            var lash = CbArt.Toon("#3f6e32", CbArt.PropOutline);
+            foreach (float z in new[] { -1.2f, 1.35f })
             {
-                float a = k * Mathf.PI * 2f / 7f;
-                CbArt.Cone(rootMat, roots, new Vector3(Mathf.Cos(a) * 0.55f, Mathf.Sin(a) * 0.5f, 0.15f), 0.07f, 0.9f,
-                    Quaternion.LookRotation(new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0.6f)) * Quaternion.Euler(90, 0, 0), 5);
+                float len = top + 0.5f, lean = 11f;
+                foreach (int side in new[] { -1, 1 })
+                {
+                    // from the ground at the trunk's side, leaning in over its top
+                    float footX = side * (lr + 0.18f);
+                    var dir = Quaternion.Euler(0, 0, side * lean) * Vector3.up;
+                    CbArt.Cylinder(stake, t, new Vector3(footX, 0, z) + dir * (len / 2), 0.065f, len, Quaternion.Euler(0, 0, side * lean));
+                    CbArt.Cone(stake, t, new Vector3(footX, 0, z) + dir * (len + 0.06f), 0.065f, 0.14f, Quaternion.Euler(0, 0, side * lean), 6);
+                }
+                // the lashing where they cross over the trunk, and a band of vine round the trunk under it
+                CbArt.Part(CbMesh.Blob(8, 6), lash, t, new Vector3(0, top + 0.12f, z), new Vector3(0.3f, 0.2f, 0.22f), Quaternion.identity);
+                CbArt.Cylinder(lash, t, new Vector3(0, mid, z + 0.22f), lr + 0.035f, 0.1f, Quaternion.Euler(90, 0, 0));
+                CbArt.Cylinder(lash, t, new Vector3(0, mid, z - 0.22f), lr + 0.035f, 0.1f, Quaternion.Euler(90, 0, 0));
             }
             if (thorny)
                 for (float z = -1.2f; z <= 1.21f; z += 0.8f)
