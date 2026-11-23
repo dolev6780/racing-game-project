@@ -1223,7 +1223,9 @@ namespace RacingGame.Tests
             yield return Settle();
             first = true;
             bool slid = false;
-            game.TestControls = i => { i.x = 1; i.slide = first; first = false; };
+            // (running: from a stand, down only crouches - the user)
+            float started = Time.time;
+            game.TestControls = i => { i.x = 1; if (first && Time.time - started > 0.35f) { i.slide = true; first = false; } };
             for (float w = 0; w < 5f && hero.x < trunk + 1.2f; w += Time.deltaTime) { slid |= hero.state == CbHero.State.Slide; yield return null; }
             Assert.IsTrue(slid, "Down on the stick did not slide");
             Assert.AreEqual(CbHud.Hint.None, game.hud.ShownHint, "The stick's hint stays after the slide");
@@ -1329,6 +1331,34 @@ namespace RacingGame.Tests
             game.hero.y = 0;
             yield return new WaitForSeconds(0.5f);
             Assert.Greater(critters.BirdsTakenOff, 0, "The birds did not take off as Raja came by");
+        }
+
+        [UnityTest]
+        public IEnumerator StandingDownCrouchesRunningDownSlides()
+        {
+            // the user: only running does he slide; standing, down crouches
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            game.Teleport(184f);
+            hero.y = 0;
+            yield return new WaitForSeconds(0.3f);
+            bool slid = false, first = true;
+            game.TestControls = i => { i.y = -1; i.slide = first; first = false; };
+            for (int k = 0; k < 20; k++) { slid |= hero.state == CbHero.State.Slide; yield return null; }
+            Assert.IsFalse(slid, "Standing, down slid");
+            Assert.IsTrue(hero.Ducking, "Standing, down did not crouch");
+            game.TestControls = null;
+            yield return new WaitForSeconds(0.2f);
+            float started = Time.time;
+            first = true;
+            game.TestControls = i => { i.x = 1; if (first && Time.time - started > 0.4f) { i.slide = true; first = false; } };
+            for (float w = 0; w < 1.2f && !slid; w += Time.deltaTime) { slid |= hero.state == CbHero.State.Slide; yield return null; }
+            game.TestControls = null;
+            Assert.IsTrue(slid, "Running, down did not slide");
         }
 
         [UnityTest]

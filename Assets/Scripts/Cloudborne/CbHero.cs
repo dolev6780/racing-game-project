@@ -290,6 +290,8 @@ namespace Cloudborne
         // No crawl any more (the user: sliding is enough): held down he ducks where he is; down and across slides him;
         // a slide that ends under something low carries on until he is out from under it.
         const float SlideFrom = 5f, SlideSpeed = 10f, SlideTime = 0.55f, SlideEnd = 2.5f, SlideDmg = 6f;
+        // how fast he must be running for down to be a slide (slower, or standing, it is a crouch)
+        const float RunToSlide = 3f;
         const string SlideClip = "slide_light";
         bool downBefore;
 
@@ -833,10 +835,12 @@ namespace Cloudborne
             // a swipe down: a slide (from a stand too); down at a run: a slide
             bool downNow = input.y < -0.5f;
             // ducking (or stopped under something low), the stick across: a slide that way
-            bool across = Mathf.Abs(input.x) > 0.5f && (state == State.Run || state == State.Idle) && !air &&
-                ((crouching && input.y < -0.3f) || LowCeiling);
+            // (only running does he slide; standing, down crouches - the user. Under something low he still slides on
+            // through, from a stand too: he can't stand up there)
+            bool running = (state == State.Run && Mathf.Abs(vx) > RunToSlide) || g.Riding;
+            bool across = Mathf.Abs(input.x) > 0.5f && (state == State.Run || state == State.Idle) && !air && LowCeiling;
             if (across) facing = input.x > 0 ? 1 : -1;
-            if (!air && (state == State.Run || state == State.Idle) && (input.slide || across)) StartSlide();
+            if (!air && (state == State.Run || state == State.Idle) && ((input.slide && (running || LowCeiling)) || across)) StartSlide();
             else if (!air && state == State.Run && downNow && !downBefore && Mathf.Abs(vx) > SlideFrom) StartSlide();
             downBefore = downNow;
             // a cancel: once a paw blow has struck (past its hit), a dodge or a jump cuts the rest of it short (the user:
