@@ -84,6 +84,29 @@ namespace Cloudborne
             return new CbModel(go, path, height, parent, bones);
         }
 
+        // Feet on the ground (the user: he doesn't quite stand on the ground): after each frame's clip, the model is
+        // raised or lowered a little (MaxGroundFix at most, eased) so the lower of his two feet rests on the floor of
+        // the body it stands in - a clip that bends his knees without lowering his hips left him floating, and one that
+        // lowered them more than his legs bent put his feet into the ground.
+        Transform leftToe, rightToe;
+        float fitY, toeLift, groundFix;
+        const float MaxGroundFix = 0.15f, GroundFixRate = 1.6f;
+
+        /// <summary>How far the model is raised (+) or lowered (-) now to keep its feet on the ground (test hook).</summary>
+        public float GroundFix => groundFix;
+
+        /// <summary>Puts the lower foot on the floor (weight 1, on the ground) or eases off (0: in the air, hanging).</summary>
+        public void GroundFeet(float weight, float dt)
+        {
+            if (leftToe == null || rightToe == null || root.parent == null) return;
+            var p = root.parent;
+            float low = Mathf.Min(p.InverseTransformPoint(leftToe.position).y, p.InverseTransformPoint(rightToe.position).y) - groundFix;
+            float want = Mathf.Clamp(toeLift - low, -MaxGroundFix, MaxGroundFix) * weight;
+            groundFix = Mathf.MoveTowards(groundFix, want, GroundFixRate * dt);
+            var lp = root.localPosition;
+            root.localPosition = new Vector3(lp.x, fitY + groundFix, lp.z);
+        }
+
         CbModel(GameObject go, string path, float height, Transform parent, Dictionary<string, Transform> bones)
         {
             go.name = path.Substring(path.LastIndexOf('/') + 1) + "Model";
@@ -148,6 +171,11 @@ namespace Cloudborne
             baseRotation = root.localRotation;
             // (sampling every clip to measure it must not move the model: a clip that animates its root would carry it off)
             var fitPosition = root.localPosition;
+            fitY = fitPosition.y;
+            // where the soles sit under the toe bones (the toes rest 3.9% of the span over the floor in the bind pose)
+            toeLift = (crown - toe) * 0.039f;
+            bones.TryGetValue("LeftToeBase", out leftToe);
+            bones.TryGetValue("RightToeBase", out rightToe);
             var fitScale = root.localScale;
             if (!TurnsByModel.TryGetValue(path, out clipTurns))
                 TurnsByModel[path] = clipTurns = MeasureClipTurns(parent);

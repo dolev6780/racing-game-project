@@ -1720,6 +1720,9 @@ namespace Cloudborne
             CbArt.SetGlow(model.material, new Color(1f, 0.48f, 0.1f) * fireGlow * 0.35f);
             if (loop) model.LoopSeconds(clip, time);
             else model.Show(clip, time);
+            // his feet on the ground: the lower one on the floor while he stands on it
+            bool grounded = !air && !Holding && state != State.Swim && state != State.Dead && state != State.Down && state != State.Hang && state != State.Climb;
+            model.GroundFeet(grounded ? 1f : 0f, dt);
             PlaceModelStaff(pose, dt);
         }
 
