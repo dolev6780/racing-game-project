@@ -371,30 +371,55 @@ namespace Cloudborne
                 float a = foot + dir * k * tread, b = k < RampSteps ? a + dir * tread : flatTo - dir * RampInto;
                 float h = k < RampSteps ? top * (k + 0.5f) / RampSteps : top;
                 float x0 = Mathf.Min(a, b), x1 = Mathf.Max(a, b);
-                // rough mossy rock, the mountain's own (plain boxes with a strip of green on top looked very bad: the
-                // user's picture)
-                var rocks = CbArt.Joint(root, (x0 + x1) / 2, 0, 0, "bridgeStep");
-                if (RockPieces(rocks, x0 - (x0 + x1) / 2 - 0.05f, x1 - (x0 + x1) / 2 + 0.05f, -0.3f, h, StepFront, StepBack, Mathf.RoundToInt(x0 * 10) + k))
-                    continue;
-                Object.Destroy(rocks.gameObject);
-                var step = CbArt.Box(stepStone, root, new Vector3((x0 + x1) / 2, h / 2, zMid), new Vector3(x1 - x0, h, depth));
+                // a step of cut stone, its blocks and joints drawn on it, moss at its edge (plain boxes looked very bad,
+                // and rough rocks hid him and the chest by the bridge: the user - stairs on both sides)
+                var stair = new Material(StairStone()) { mainTextureScale = new Vector2(Mathf.Max(1f, (x1 - x0) / 0.8f), Mathf.Max(0.5f, h / 0.4f)) };
+                var step = CbArt.Box(stair, root, new Vector3((x0 + x1) / 2, h / 2, zMid), new Vector3(x1 - x0, h, depth));
                 step.name = "bridgeStep";
-                // moss over part of each tread, never quite to its edge
-                float cover = Random.Range(0.45f, 0.85f), off = Random.Range(-0.2f, 0.2f) * depth;
-                CbArt.Part(CbMesh.Cube, stepMoss, root, new Vector3((x0 + x1) / 2, h + 0.015f, zMid + off),
-                    new Vector3((x1 - x0) * Random.Range(0.6f, 0.9f), 0.03f, depth * cover), shadows: false).name = "stepMoss";
             }
         }
 
         // the bridge's steps: how many treads up the slope, the stone and moss (the long bridge's own, from its painting),
         // how far across the path they reach (the bridge's own depth)
-        const int RampSteps = 4;
+        const int RampSteps = 3;
         // how far the landing's rock reaches over the end of the bridge
         const float RampInto = 0.5f;
         const string StepStone = "#7a7262", StepMoss = "#5a7a38";
+        // (across the path, as a stair is: the rough rocks had stood behind his line - they hid him to the neck, out in
+        // front of it - but a stair's treads are what he stands on)
         // (behind his line, from just back of it: reaching out in front of the path, the rocks hid him to the neck as he
         // walked up and down them - the user's picture; he walks up them in front of their faces)
-        const float StepFront = 0.3f, StepBack = 1.45f;
+        const float StepFront = -1.25f, StepBack = 1.45f;
+        static Material stairStone;
+
+        /// <summary>The stairs' stone: courses of grey-gold blocks, dark joints between them, a little moss and wear.</summary>
+        static Material StairStone()
+        {
+            if (stairStone != null) return stairStone;
+            const int S = 64;
+            var tex = new Texture2D(S, S, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Repeat, name = "stairStone" };
+            var px = new Color[S * S];
+            Color stone = CbArt.Hex("#a39a86"), joint = CbArt.Hex("#4e4a40"), moss = CbArt.Hex("#6f8c3c");
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    // two courses of blocks, every other one set half a block along
+                    int row = y / 32;
+                    int bx = (x + row * 16) % 32, by = y % 32;
+                    float n = Mathf.PerlinNoise(x * 0.12f, y * 0.12f) * 0.45f + Mathf.PerlinNoise(x * 0.4f, y * 0.4f) * 0.15f;
+                    var c = Color.Lerp(stone * 0.86f, stone * 1.08f, n);
+                    if (bx < 2 || by < 2) c = joint;
+                    float m = Mathf.PerlinNoise(x * 0.07f + 3f, y * 0.07f + 9f);
+                    if (m > 0.66f && by > 22) c = Color.Lerp(c, moss, (m - 0.66f) * 2.5f);
+                    c.a = 1;
+                    px[y * S + x] = c;
+                }
+            tex.SetPixels(px);
+            tex.Apply();
+            stairStone = CbArt.NewToon(Color.white, CbArt.PropOutline, tex);
+            stairStone.SetFloat("_SpecStrength", 0f);
+            return stairStone;
+        }
         Material stepStone, stepMoss;
 
         /// <summary>A stepping stone, its top level with the banks; a sinking one shakes and goes under if he stays.</summary>
