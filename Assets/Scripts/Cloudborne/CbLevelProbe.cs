@@ -135,12 +135,23 @@ namespace Cloudborne
         public bool SurfaceUnder(float x, float y, out float sy)
         {
             sy = y;
-            var from = root.TransformPoint(new Vector3(x, y + SurfaceReach, 0));
-            if (!Physics.Raycast(from, -root.up, out var h, 2 * SurfaceReach * root.lossyScale.y) || Vector3.Dot(h.normal, root.up) < 0.6f) return false;
-            sy = root.InverseTransformPoint(h.point).y;
-            return true;
+            bool found = false;
+            float best = float.MaxValue;
+            // along his line and a little either side of it (a thin ledge seen from the front is under him wherever it
+            // lies across the path): the drawn top nearest his floor
+            foreach (float z in ProbeZ)
+            {
+                var from = root.TransformPoint(new Vector3(x, y + SurfaceReach, z));
+                if (!Physics.Raycast(from, -root.up, out var h, 2 * SurfaceReach * root.lossyScale.y) || Vector3.Dot(h.normal, root.up) < 0.6f) continue;
+                float hy = root.InverseTransformPoint(h.point).y;
+                if (Mathf.Abs(hy - y) < best) { best = Mathf.Abs(hy - y); sy = hy; found = true; }
+            }
+            return found;
         }
         public const float SurfaceReach = 0.35f;
+
+        /// <summary>Whether this stage's level is still built (not destroyed by a stage built after it).</summary>
+        public bool Alive => root != null;
 
         /// <summary>Whether a wall goes down under the edge at (edgeX, top): a block's side (his feet against it as he
         /// hangs); under a ledge there is none (he hangs from it with his legs straight).</summary>

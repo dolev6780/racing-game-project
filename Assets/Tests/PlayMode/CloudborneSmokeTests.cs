@@ -3356,12 +3356,16 @@ namespace RacingGame.Tests
                 yield return Frames(3);
                 var level = game.transform.Find("Level");
                 Assert.IsNotNull(level, "No level");
-                // everything drawn in the stage solid for the rays (the game gives only its modelled kit colliders)
-                foreach (var mf in level.GetComponentsInChildren<MeshFilter>())
-                    if (mf.sharedMesh != null && mf.sharedMesh.isReadable && mf.GetComponent<Collider>() == null)
+                var hero = game.hero;
+                // everything drawn in the stage solid for the rays - the level and the world's ground (the game gives
+                // only its models colliders) - but not Raja himself or what he carries
+                // (his whole rig: up from his model to just under the game's own containers)
+                var raja = hero.model.root;
+                while (raja.parent != null && raja.parent != game.transform && raja.parent.parent != game.transform) raja = raja.parent;
+                foreach (var mf in game.GetComponentsInChildren<MeshFilter>())
+                    if (mf.sharedMesh != null && mf.sharedMesh.isReadable && mf.GetComponent<Collider>() == null && (raja == null || !mf.transform.IsChildOf(raja)))
                         mf.gameObject.AddComponent<MeshCollider>().sharedMesh = mf.sharedMesh;
                 Physics.SyncTransforms();
-                var hero = game.hero;
                 hero.inv = 999f;
                 // where he stands: on every ledge (its middle and near its ends), every block, and along the stage
                 var spots = new List<(string what, float x, float top)>();
@@ -3395,8 +3399,16 @@ namespace RacingGame.Tests
                     // each foot (standing, both are down) on the drawn surface under it - not over it, not sunk in it
                     foreach (var (foot, toe) in new[] { ("left", l), ("right", r) })
                     {
-                        // (from a little over the toe: leaves and strands hanging over a ledge are not his foot sunk in it)
-                        if (!Physics.Raycast(toe + Vector3.up * 0.22f, Vector3.down, out var h, 0.95f))
+                        // (from a little over the toe: leaves and strands hanging over a ledge are not his foot sunk in
+                        // it; under the toe, on his line and a little either side - seen from the front a thin ledge is
+                        // under his foot wherever it lies across the path: the nearest top)
+                        RaycastHit h = default;
+                        bool any = false;
+                        float bestGap = float.MaxValue;
+                        foreach (float z in new[] { toe.z, 0f, toe.z - 0.15f, toe.z + 0.15f })
+                            if (Physics.Raycast(new Vector3(toe.x, toe.y + 0.22f, z), Vector3.down, out var hz, 0.95f) && Mathf.Abs(toe.y - hz.point.y) < bestGap)
+                            { bestGap = Mathf.Abs(toe.y - hz.point.y); h = hz; any = true; }
+                        if (!any)
                             fails.Add($"{stage} {what} x {x:F1}: his {foot} foot in the air (nothing drawn under it)");
                         else
                         {

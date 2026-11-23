@@ -525,8 +525,19 @@ namespace Cloudborne
                     CbArt.Cone(M("#7a3a2a"), t, new Vector3(Random.Range(-0.6f, 0.6f), Random.Range(0.3f, 2.3f), -0.35f), 0.05f, 0.3f,
                         Quaternion.Euler(Random.Range(-60, 60), 0, Random.Range(-90, 90)), 4);
             }
-            // taller than a jump: cut with the staff (or a double jump)
-            var b = new Block { x0 = x - 0.6f, x1 = x + 0.6f, top = 2.4f, t = t, smooth = true };
+            // taller than a jump: cut with the staff (or a double jump). Its top where the bush is drawn along his line
+            // (he stood 0.3 over it: the touch test)
+            float thornTop = 2.4f;
+            if (t.Find("model") != null)
+            {
+                var cs = Solidify(t);
+                float best = float.NegativeInfinity;
+                for (float dx = -0.5f; dx <= 0.51f; dx += 0.1f)
+                    foreach (float z in ProbeZ)
+                        if (TopOf(cs, x + dx, z, 1.4f, 3.4f, out float h)) best = Mathf.Max(best, h);
+                if (best > 1.6f) thornTop = best;
+            }
+            var b = new Block { x0 = x - 0.6f, x1 = x + 0.6f, top = thornTop, t = t, smooth = true };
             blocks.Add(b);
             thorns.Add(new Thorns { b = b });
         }

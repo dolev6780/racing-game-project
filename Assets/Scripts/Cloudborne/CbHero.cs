@@ -1063,17 +1063,16 @@ namespace Cloudborne
             ik.feet = grounded;
             ik.floorY = f.root.parent != null ? f.root.parent.TransformPoint(new Vector3(x, y, 0)).y : y;
             ik.toeLift = model.ToeLift;
-            if (ik.surface == null && g.level != null)
+            // (the stage as it is now each time: a stage built again left the old one's level destroyed under it)
+            ik.surface ??= w =>
             {
                 var lv = g.level;
-                var parent = f.root.parent;
-                ik.surface = w =>
-                {
-                    var p = parent != null ? parent.InverseTransformPoint(w) : w;
-                    if (!lv.SurfaceUnder(p.x, p.y, out float sy)) return null;
-                    return parent != null ? parent.TransformPoint(new Vector3(p.x, sy, 0)).y : sy;
-                };
-            }
+                var parent = f.root != null ? f.root.parent : null;
+                if (lv == null || !lv.Alive) return null;
+                var p = parent != null ? parent.InverseTransformPoint(w) : w;
+                if (!lv.SurfaceUnder(p.x, p.y, out float sy)) return null;
+                return parent != null ? parent.TransformPoint(new Vector3(p.x, sy, 0)).y : sy;
+            };
             ik.hands = GripPoint(out var at, out bool across);
             if (ik.hands)
             {

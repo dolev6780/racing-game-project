@@ -656,6 +656,9 @@ namespace Cloudborne
             var s = new Vector3(size.x / Mathf.Max(0.01f, b.size.x), size.y / Mathf.Max(0.01f, b.size.y), size.z / Mathf.Max(0.01f, b.size.z));
             holder.localScale = s;
             holder.localPosition = lo - Vector3.Scale(b.min, s);
+            // the rocks and slabs he stands on solid, so his feet find their drawn tops (CbLevel.SurfaceUnder)
+            if (path.StartsWith(CliffDir) || path == RiverRockPath || path == CliffRockPath || path == CrackedRockPath || path == RiverStonePath)
+                Solidify(holder);
             return holder;
         }
 
