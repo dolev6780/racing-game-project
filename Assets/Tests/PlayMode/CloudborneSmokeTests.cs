@@ -1358,6 +1358,31 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheRaftGoesUnderTheFootbridgeAndRajaDoesNot()
+        {
+            // the user: one raft from bank to bank and back, and a low footbridge it passes under - he can't, he must
+            // jump up onto it and back down onto the raft
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var level = game.level;
+            var hero = game.hero;
+            hero.hp = 9999;
+            Time.captureDeltaTime = game.TestStep = 1f / 30f;
+            game.Teleport(level.RaftX);
+            hero.y = 0.1f;
+            hero.vx = hero.vy = 0;
+            yield return Frames(3);
+            float bridge = CbLevel.RaftBridgeX;
+            for (float w = 0; w < 25f && level.RaftX < bridge + 2f; w += Time.deltaTime) yield return null;
+            Time.captureDeltaTime = game.TestStep = 0f;
+            Assert.Greater(level.RaftX, bridge + 2f, "The raft did not go on under the footbridge");
+            Assert.Less(hero.x, bridge, "Raja on the raft went through the footbridge");
+        }
+
+        [UnityTest]
         public IEnumerator ADodgeCutsABlowShort()
         {
             // more precise control (the user): once a paw blow has struck, a dodge cuts the rest of it short

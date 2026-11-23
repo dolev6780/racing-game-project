@@ -60,7 +60,7 @@ namespace Cloudborne
         // a spring leaf: how thick its pad is (under it, low, he passes), how high the modelled one stands
         const float LeafPad = 0.45f, LeafTop = 1.25f;
         class Draft { public float x0, x1, y0, y1; }
-        class Raft { public float x, from, to, speed, sink, baseY; public Transform t; }
+        class Raft { public float x, from, to, speed, sink, baseY; public Transform t; public bool pingPong; public int dir = 1; }
         class Lantern { public float x; public bool lit; public Material light; public Renderer window; }
         class Gate { public Block b; public float open; public bool wantOpen, sinks; public Vector3 home; }
         class Thorns { public Block b; public int hp = 2; public float cool, clang; }
@@ -88,6 +88,8 @@ namespace Cloudborne
         class Cage { public float x; public int hp = 3; public bool freed; public Transform t, animal, model; public float hop, cool; public CbModel monkey; }
 
         const float LeafBounce = 19.5f, RaftTop = 0.1f;
+        // the raft that shuttles from bank to bank, how fast
+        const float RaftShuttle = 2.6f;
         public const float TrunkX = 24.5f;
         // Springy leaves, each for something (the one before the rope bridge and the one past the gorge led nowhere:
         // the user): up to a ledge over the old shrine with a ki crystal on it, up the canopy's vine pillar (and the
@@ -245,10 +247,10 @@ namespace Cloudborne
             // way was a muddle of gadgets - the gong, the mud, the spinning log, the seesaw, the lift: the user)
             AddCage(299f);
 
-            // ---- the raft river: rafts drift down it, a rock island in the middle
-            foreach (var (from, to, offset) in new[] { (311f, 330.5f, 0f), (311f, 330.5f, 10f), (335.8f, 359f, 0f), (335.8f, 359f, 12f) })
-                AddRaft(from, to, offset);
-            AddRock(332.8f, 3.6f, 0.6f);
+            // ---- the raft river (the user): one raft from bank to bank, bumping against each and coming back, and a low
+            // footbridge over the middle - the raft goes under it, he can't: jump up onto it and back down onto the raft
+            AddRaft(311.2f, 358.8f, 0f, pingPong: true);
+            AddFootbridge(RaftBridgeX);
 
             // ---- the canopy and the waterfall
             AddCage(369f);
@@ -730,7 +732,38 @@ namespace Cloudborne
             cages.Add(new Cage { x = x, t = t, animal = animal, model = model, monkey = monkey });
         }
 
-        void AddRaft(float from, float to, float offset)
+        /// <summary>Test hook: where the (first) raft is.</summary>
+        public float RaftX => rafts.Count > 0 ? rafts[0].x : float.NaN;
+
+        /// <summary>Where the low footbridge crosses the raft river.</summary>
+        public const float RaftBridgeX = 334.5f;
+        // its deck: just over a raft with nothing on it, too low for him on it, even ducking
+        const float FootbridgeBottom = RaftTop + 0.7f, FootbridgeTop = FootbridgeBottom + 0.32f, FootbridgeWide = 1.2f;
+
+        /// <summary>A low footbridge across the river at x: plank deck on posts from the river bed, a rope rail each side.
+        /// Solid like a fallen trunk: stood on from above, stopping him at its side, a raft passing under it.</summary>
+        void AddFootbridge(float x)
+        {
+            var t = CbArt.Joint(root, x, 0, 0, "footbridge");
+            float half = FootbridgeWide / 2, zFront = -2.1f, zBack = 2.3f;
+            var plank = M("#8a6a42");
+            // the planks across the river, each a little apart
+            for (float z = zFront; z < zBack; z += 0.42f)
+                CbArt.Box(plank, t, new Vector3(0, (FootbridgeBottom + FootbridgeTop) / 2, z + 0.19f), new Vector3(FootbridgeWide, FootbridgeTop - FootbridgeBottom, 0.36f));
+            // two beams under them, front to back
+            foreach (int side in new[] { -1, 1 })
+                CbArt.Box(Wood, t, new Vector3(side * (half - 0.08f), FootbridgeBottom - 0.06f, (zFront + zBack) / 2), new Vector3(0.14f, 0.14f, zBack - zFront));
+            // posts from the river bed at its corners, a rope rail along each side
+            foreach (int side in new[] { -1, 1 })
+            {
+                foreach (float z in new[] { zFront, zBack })
+                    CbArt.Cylinder(Wood, t, new Vector3(side * half, (WaterLevel - 1.2f + FootbridgeTop + 0.9f) / 2, z), 0.09f, FootbridgeTop + 0.9f - (WaterLevel - 1.2f));
+                CbArt.Cylinder(VineGreen, t, new Vector3(side * half, FootbridgeTop + 0.8f, (zFront + zBack) / 2), 0.035f, zBack - zFront, Quaternion.Euler(90, 0, 0));
+            }
+            overhangs.Add(new Overhang { x0 = x - half, x1 = x + half, bottom = FootbridgeBottom, top = FootbridgeTop, t = t });
+        }
+
+        void AddRaft(float from, float to, float offset, bool pingPong = false)
         {
             var t = CbArt.Joint(root, from, RaftTop - 0.2f, 0.05f, "raft");
             // the model's top is its deck; the stand-in's logs are centred on the joint
@@ -743,7 +776,7 @@ namespace Cloudborne
                 CbArt.Box(VineGreen, t, new Vector3(0.7f, 0.12f, 0), new Vector3(0.08f, 0.06f, 1.5f));
                 CbArt.Box(VineGreen, t, new Vector3(-0.7f, 0.12f, 0), new Vector3(0.08f, 0.06f, 1.5f));
             }
-            var r = new Raft { from = from, to = to, speed = 1.5f, t = t, baseY = baseY };
+            var r = new Raft { from = from, to = to, speed = pingPong ? RaftShuttle : 1.5f, t = t, baseY = baseY, pingPong = pingPong };
             r.x = Mathf.Repeat(offset, to - from) + from;
             rafts.Add(r);
         }
@@ -1486,6 +1519,23 @@ namespace Cloudborne
                 {
                     r.sink += dt;
                     if (r.sink > 1.2f) { r.sink = 0; r.x = r.from; }
+                }
+                else if (r.pingPong)
+                {
+                    // to and fro from bank to bank, a bump against each
+                    float step = r.dir * r.speed * dt;
+                    r.x += step;
+                    // carrying him, unless something stops him (the footbridge: the raft goes on under it without him)
+                    if (on) hero.x = BlockX(hero.x, hero.x + step, hero.y, hero.Ducking ? LowHeight : StandHeight);
+                    if (r.x > r.to || r.x < r.from)
+                    {
+                        r.x = Mathf.Clamp(r.x, r.from, r.to);
+                        r.dir = -r.dir;
+                        var at = new Vector3(r.x + (r.x >= r.to ? 1.1f : -1.1f), RaftTop, -0.4f);
+                        CbFx.Spark(at, CbFx.Water, 10, 3f, 0.35f, 0.4f, 6);
+                        CbFx.Sfx("heavy", 0.35f);
+                        if (on) g.shake = Mathf.Max(g.shake, 0.25f);
+                    }
                 }
                 else
                 {
