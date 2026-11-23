@@ -239,45 +239,65 @@ namespace Cloudborne
         // ---------- a swing pole ----------
 
         CbLevel.Pole pole;
-        float poleAngle, poleSpin;
-        /// <summary>The swing pole he is going round, if he is.</summary>
+        float poleAngle, poleSpeed;
+        /// <summary>The swing pole he hangs from, if he does.</summary>
         public CbLevel.Pole OnPole => state == State.Pole ? pole : null;
-        /// <summary>How fast he goes round a pole (radians a second), and how hard letting go with JUMP flings him.</summary>
-        public const float PoleSpin = 7.5f, PoleFlingX = 8.5f, PoleFlingY = 11f;
+        /// <summary>How far he has swung from hanging straight down (radians, + his feet to the right).</summary>
+        public float PoleAngle => poleAngle;
+        // a pendulum from his hands on the bar: its pull (gravity over the length from his hands to his middle), how hard
+        // the stick pumps it, how it dies away, how fast it can go; the reach from his turning point to his hands
+        const float PolePull = 30f / PoleLength, PoleLength = 1.05f, PolePump = 7f, PoleDrag = 0.35f, PoleMaxSpeed = 7.5f;
+        /// <summary>Letting go with JUMP: the swing's speed carried (from his middle, PoleLength out), and a jump's lift.</summary>
+        public const float PoleLift = 5f;
+        // his hands over the turning point of his model (a metre over his feet), hanging at arm's length
+        const float PoleHands = 0.71f;
 
         void StartPole(CbLevel.Pole p)
         {
+            float vxIn = vx;
             TakeHold();
             state = State.Pole;
             pole = p;
-            // from where he caught it: his middle (a metre over his feet, where he turns) about the pole
-            poleAngle = Mathf.Atan2(x - p.x, p.y - (y + 1f));
-            poleSpin = facing * PoleSpin;
+            // hanging from it as he caught it: leaning the way he came, a little, and swinging on with his speed
+            poleAngle = Mathf.Clamp(Mathf.Atan2(x - p.x, Mathf.Max(0.3f, p.y - (y + 1f))), -0.6f, 0.6f);
+            poleSpeed = Mathf.Clamp(vxIn * Mathf.Cos(poleAngle) / PoleLength, -3f, 3f);
             CbFx.Sfx("staff", 0.5f);
         }
 
-        /// <summary>Round and round the pole the way he faces (the stick the other way turns him round); JUMP lets go,
-        /// flung on and up in a somersault; down drops him.</summary>
+        /// <summary>
+        /// Hanging from a swing pole (the user: catch it and hang; left and right swing him, with reasonable physics;
+        /// his hands on the pole): a pendulum from his hands - the stick pumps it the way it is pushed, the swing dies
+        /// away by itself; JUMP lets go, carried on along the swing with a jump's lift; down drops him.
+        /// </summary>
         void UpdatePole(ref Pose pose, CbInput input, float dt)
         {
-            if (t > 0.2f && Mathf.Abs(input.x) > 0.3f && (input.x > 0 ? 1 : -1) != facing) facing = -facing;
-            poleSpin = Mathf.MoveTowards(poleSpin, facing * PoleSpin, dt * 20f);
-            poleAngle += poleSpin * dt;
-            float d = RopeReach - 1f;
-            x = pole.x + d * Mathf.Sin(poleAngle);
-            y = pole.y - d * Mathf.Cos(poleAngle) - 1f;
+            float acc = -PolePull * Mathf.Sin(poleAngle) + input.x * PolePump - poleSpeed * PoleDrag;
+            poleSpeed = Mathf.Clamp(poleSpeed + acc * dt, -PoleMaxSpeed, PoleMaxSpeed);
+            poleAngle += poleSpeed * dt;
+            // all the way over the bar and round (a giant swing) is allowed; the angle kept in -pi..pi
+            if (poleAngle > Mathf.PI) poleAngle -= 2 * Mathf.PI;
+            if (poleAngle < -Mathf.PI) poleAngle += 2 * Mathf.PI;
+            // his hands on the bar: his turning point under it along the swing
+            x = pole.x + PoleHands * Mathf.Sin(poleAngle);
+            y = pole.y - PoleHands * Mathf.Cos(poleAngle) - 1f;
             vx = vy = 0;
+            if (Mathf.Abs(input.x) > 0.3f) facing = input.x > 0 ? 1 : -1;
             ArmsUp(ref pose);
-            pose.kL = pose.kR = 0.2f;
-            if (t > 0.2f && (input.jump || input.y < -0.5f))
+            // legs: swung forward up the swing (the body leads), trailing back down it
+            float lead = Mathf.Clamp(poleSpeed * 0.12f, -0.6f, 0.6f) * facing;
+            pose.hLx = pose.hRx = -0.2f - Mathf.Max(0, lead);
+            pose.kL = pose.kR = 0.15f + Mathf.Max(0, -lead) * 0.5f;
+            if (t > 0.15f && (input.jump || input.y < -0.5f))
             {
                 bool fling = input.jump;
-                vx = facing * (fling ? PoleFlingX : 1.5f);
-                vy = fling ? PoleFlingY : 0f;
+                // the swing's own speed at his middle, along the swing
+                float v = poleSpeed * PoleLength;
+                vx = v * Mathf.Cos(poleAngle);
+                vy = v * Mathf.Sin(poleAngle) + (fling ? PoleLift : 0f);
+                if (Mathf.Abs(vx) > 0.5f) facing = vx > 0 ? 1 : -1;
                 pole.cool = 0.5f;
                 state = State.Air; t = 0; air = true; jumps = 1; grabCd = 0.3f;
-                // upright again as he flies (the turn about the pole is undone; a somersault off it)
-                if (fling) { flipT = FlipTime; CbFx.Sfx("jump", 0.7f); }
+                if (fling) CbFx.Sfx("jump", 0.7f);
             }
         }
 

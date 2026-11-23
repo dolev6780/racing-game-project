@@ -110,17 +110,16 @@ namespace Cloudborne
         /// <summary>A pole sticking out of a ruin's pillar: he catches it, swings round it and lets go flying on.</summary>
         public class Pole { public float x, y, cool; public Transform t; }
         readonly List<Pole> poles = new List<Pole>();
-        /// <summary>The pole over the long river, off a pillar after the rock (another way across: from the rock to it,
-        /// round it, and on to the stones past the drifting log).</summary>
-        public const float RiverPoleX = 91.9f, RiverPoleY = 3.6f;
+
         // the model's bar is PoleBarAt of its height up; turned PoleYaw it points mostly out of the screen, a little
         // slanted so its length shows; its middle stands PoleBack behind the path, the far end in the pillar
-        const float PoleBarAt = 0.8f, PoleYaw = 115f, PoleBack = 0.75f, PoleLong = 1.5f;
+        const float PoleBarAt = 0.8f, PoleYaw = 115f, PoleBack = 0.75f, PoleLong = 1.5f, PoleBarRadius = 0.06f;
 
-        void BuildPoles()
-        {
-            if (CbStage.Jungle) AddPole(RiverPoleX, RiverPoleY);
-        }
+        // (none for now: the user takes them out of the river and will say where they go)
+        void BuildPoles() { }
+
+        /// <summary>Test hook: a swing pole at (x, y), its bar's middle there.</summary>
+        public void TestAddPole(float x, float y) => AddPole(x, y);
 
         void AddPole(float x, float y)
         {
@@ -133,9 +132,21 @@ namespace Cloudborne
                 CbArt.Box(StoneGrey, pil, new Vector3(0, 1.8f, 0), new Vector3(1.48f, 3.6f, 1.5f));
             float h = PoleLong / 1.18f;
             var bar = CbArt.Joint(t, 0, y - PoleBarAt * h, PoleBack, "pole");
+            float py = y;
             if (Model("SwingPole", bar, new Vector3(PoleLong, h, PoleLong * 0.28f), PoleYaw) == null)
                 CbArt.Cylinder(Bamboo, bar, new Vector3(0, PoleBarAt * h, 0), 0.07f, PoleLong, Quaternion.Euler(90, 0, 0));
-            poles.Add(new Pole { x = x, y = y, t = t });
+            else
+            {
+                // his hands on the bar itself (the user: touching the pole, not in the air): the bar found where it is
+                // drawn, across his line, his hands' height its middle
+                var cs = Solidify(bar);
+                Shift(bar, new Vector3(0, 0, -BestDepth(cs, x, 0.15f, y, 0.4f)));
+                float top = float.NegativeInfinity;
+                foreach (float z in ProbeZ)
+                    if (TopOf(cs, x, z, y - 0.4f, y + 0.4f, out float tz)) top = Mathf.Max(top, tz);
+                if (top > float.NegativeInfinity) py = top - PoleBarRadius;
+            }
+            poles.Add(new Pole { x = x, y = py, t = t });
         }
 
         /// <summary>The pole his hands reach at (hx, hy), if one does and it isn't just let go of.</summary>

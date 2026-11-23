@@ -3424,50 +3424,69 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator ASwingPoleTurnsRajaRoundAndFlingsHimOn()
+        public IEnumerator ASwingPoleRajaHangsFromAndSwingsOn()
         {
-            // the user: a pole like the one in his picture, to swing round and fling off (over the long river, after the rock)
+            // the user: catching the pole he just hangs from it; left and right swing him, with reasonable physics, his
+            // hands on the pole all the while (not in the air). (None stands in the stages until the user says where:
+            // one put up here for the test.)
             game = CbGame.Boot();
             yield return Frames(3);
             game.StartGame();
             game.SkipFights();
             yield return Frames(2);
+            const float PX = 70f, PY = 3.4f;
+            Assert.Less(game.level.SupportAt(PX, 10f), 0.5f, "Something stands where the test puts its pole");
+            game.level.TestAddPole(PX, PY);
+            yield return Frames(2);
             var hero = game.hero;
             hero.inv = 999f;
             // reaching it in a jump he takes hold
-            game.Teleport(CbLevel.RiverPoleX - 0.2f);
-            hero.y = CbLevel.RiverPoleY - 1.48f;
-            hero.vx = 3f; hero.vy = 1f;
-            hero.facing = 1;
+            game.Teleport(PX - 0.1f);
+            hero.y = PY - 1.71f;
+            hero.vx = 0.5f; hero.vy = 0.5f;
             hero.state = CbHero.State.Air;
             yield return Frames(3);
             Assert.AreEqual(CbHero.State.Pole, hero.state, "Raja did not take hold of the swing pole");
-            // round and round it: to either side of it, over it and under it
-            float lo = 99, hi = -99, top = -99;
-            for (float w = 0; w < 1.2f; w += Time.deltaTime)
+            float handsOff = 0;
+            float HandsOff()
             {
-                lo = Mathf.Min(lo, hero.x); hi = Mathf.Max(hi, hero.x); top = Mathf.Max(top, hero.y);
-                yield return null;
+                var palms = (hero.model.Palm(hero.model.leftHand) + hero.model.Palm(hero.model.rightHand)) * 0.5f;
+                var bar = hero.OnPole;
+                return bar == null ? 0 : Vector2.Distance(new Vector2(palms.x, palms.y), new Vector2(bar.x, bar.y));
             }
+            // left alone he just hangs: the swing dies away
+            for (float w = 0; w < 2.5f; w += Time.deltaTime) { yield return null; if (w > 0.3f) handsOff = Mathf.Max(handsOff, HandsOff()); }
             Assert.AreEqual(CbHero.State.Pole, hero.state, "Raja let go of the pole by himself");
-            Assert.Less(lo, CbLevel.RiverPoleX - 0.3f, "Raja did not swing round to the pole's near side");
-            Assert.Greater(hi, CbLevel.RiverPoleX + 0.3f, "Raja did not swing round to the pole's far side");
-            Assert.Greater(top, CbLevel.RiverPoleY - 1f - 0.2f, "Raja did not go up over the pole");
+            Assert.Less(Mathf.Abs(hero.PoleAngle), 0.25f, "Left alone on the pole, Raja's swing did not die away");
+            // pushed left and right with the swing, it grows
+            float last = hero.PoleAngle, most = 0;
+            game.TestInput = i => { float now = hero.PoleAngle; i.x = now >= last ? 1 : -1; last = now; };
+            for (float w = 0; w < 5f; w += Time.deltaTime)
+            {
+                yield return null;
+                most = Mathf.Max(most, Mathf.Abs(hero.PoleAngle));
+                handsOff = Mathf.Max(handsOff, HandsOff());
+            }
+            Assert.Greater(most, 1.0f, "Pumping left and right did not swing Raja high");
+            Assert.Less(handsOff, 0.15f, "Raja's hands left the pole as he hung and swung on it");
             yield return TakePictures(new[] { ("swing_pole", float.NaN, 0f) }, 0f);
-            // JUMP: flung on and up
+            // let go as he swings forward and up: carried on with the swing
+            game.TestInput = i => { float now = hero.PoleAngle; i.x = now >= last ? 1 : -1; last = now; };
+            float prevA = hero.PoleAngle;
+            for (float w = 0; w < 3f; w += Time.deltaTime)
+            {
+                yield return null;
+                float a = hero.PoleAngle;
+                if (a > 0.3f && a > prevA) break;
+                prevA = a;
+            }
             bool let = false;
             game.TestInput = i => { if (!let) { i.jump = true; let = true; } };
             yield return Frames(2);
             game.TestInput = null;
             Assert.AreEqual(CbHero.State.Air, hero.state, "JUMP did not let go of the pole");
-            Assert.Greater(hero.vx, 6f, "Letting go did not fling Raja on");
-            Assert.Greater(hero.vy, 7f, "Letting go did not fling Raja up");
-            float from = hero.x;
-            // (holding on toward where he is flung, as anyone would)
-            game.TestInput = i => i.x = 1;
-            for (float w = 0; w < 2f && hero.state == CbHero.State.Air; w += Time.deltaTime) yield return null;
-            game.TestInput = null;
-            Assert.Greater(hero.x, from + 3f, "The pole's fling did not carry Raja on over the river");
+            Assert.Greater(hero.vx, 2f, "Letting go on the forward swing did not carry Raja on");
+            Assert.Greater(hero.vy, 3f, "Letting go on the forward swing did not carry Raja up");
         }
 
         [UnityTest]
