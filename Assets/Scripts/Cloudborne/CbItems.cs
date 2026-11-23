@@ -33,7 +33,19 @@ namespace Cloudborne
             // then it glints, a hint
             public Material chips;
             public bool secret;
+            // a boulder rolls when struck (the user: roll it into the raiders): how fast, how far it has gone, whom it
+            // has hit
+            public bool rolls;
+            public float vx, rolled;
+            public readonly List<CbEnemy> hit = new List<CbEnemy>();
         }
+
+        // the rolling boulder: how fast, how far before it breaks open, how hard it hits
+        const float RollSpeed = 8.5f, RollMax = 16f, RollDamage = 30f, RollRadius = 0.48f;
+
+        /// <summary>Test hooks: a boulder rolling now; where the last crate or stash broke open.</summary>
+        public bool Rolling { get { foreach (var c in crates) if (c.vx != 0) return true; return false; } }
+        public float LastBurstX { get; private set; }
 
         public const float MangoHeal = 25f, KiCrystalKi = 40f;
         const float PickupX = 0.75f, PickupY = 1.7f, CrateHalfWidth = 0.55f;
@@ -244,7 +256,7 @@ namespace Cloudborne
                 FitInto(fit, new Vector3(CrateBody * 2.1f, CrateTop + 0.05f, 1f));
             }
             else CbArt.Part(CbMesh.Sphere, chips, t, new Vector3(0, 0.45f, 0), new Vector3(1f, 0.95f, 0.95f));
-            crates.Add(new Crate { t = t, x = x, hp = 3, contents = new[] { Kind.Treasure, Kind.Coin, Kind.Coin }, chips = chips, secret = true });
+            crates.Add(new Crate { t = t, x = x, hp = 3, contents = new[] { Kind.Treasure, Kind.Coin, Kind.Coin }, chips = chips, secret = true, rolls = !stump });
         }
 
         /// <summary>
@@ -263,6 +275,50 @@ namespace Cloudborne
             foreach (var r in rs) b.Encapsulate(r.bounds);
             var p = fit.parent.position;
             fit.position += new Vector3(p.x - b.center.x, p.y - b.min.y, p.z - b.center.z);
+        }
+
+        /// <summary>A rolling boulder goes on, turning over and over, knocking down every raider in its way (once each);
+        /// at a wall, the edge of the path, another crate or the end of its run it bursts open.</summary>
+        void Roll(float dt)
+        {
+            for (int i = crates.Count - 1; i >= 0; i--)
+            {
+                var c = crates[i];
+                if (c.vx == 0) continue;
+                int dir = c.vx > 0 ? 1 : -1;
+                float to = c.x + c.vx * dt;
+                bool stop = c.rolled > RollMax;
+                if (g.level != null)
+                {
+                    // a wall or a rock in its way; the path ending (water, a gap)
+                    float edge = dir * (RollRadius + 0.05f);
+                    if (Mathf.Abs(g.level.BlockX(c.x + edge, to + edge, 0.1f, 0.8f) - (to + edge)) > 0.001f) stop = true;
+                    if (g.level.SupportAt(to + edge, 0.5f) < -0.5f) stop = true;
+                }
+                foreach (var o in crates)
+                    if (o != c && o.hp > 0 && Mathf.Abs(o.x - to) < CrateBody + RollRadius) stop = true;
+                if (stop)
+                {
+                    c.vx = 0;
+                    Break(i, dir, wholly: true);
+                    continue;
+                }
+                c.rolled += Mathf.Abs(to - c.x);
+                c.x = to;
+                var p = c.t.localPosition;
+                c.t.localPosition = new Vector3(c.x, p.y, p.z);
+                // turning over and over about its middle (the stash's model sits in its first child)
+                var spin = c.t.childCount > 0 ? c.t.GetChild(0) : c.t;
+                spin.RotateAround(c.t.position + Vector3.up * RollRadius, Vector3.forward, -c.vx * dt / RollRadius * Mathf.Rad2Deg);
+                if (Random.value < 0.5f) CbFx.Spark(new Vector3(c.x - dir * 0.3f, 0.08f, -0.3f), CbFx.Dust, 1, 2f, 0.3f, 0.35f, 1, -dir);
+                foreach (var e in g.enemies)
+                {
+                    if (e.dead || c.hit.Contains(e) || Mathf.Abs(e.x - c.x) > RollRadius + e.w * 0.5f || e.y > 1.2f) continue;
+                    c.hit.Add(e);
+                    g.HurtEnemy(e, RollDamage, dir, 10f, 6f, true, true, false, true);
+                    g.shake = Mathf.Max(g.shake, 0.3f);
+                }
+            }
         }
 
         void AddCrate(float x, params Kind[] contents)
@@ -411,6 +467,18 @@ namespace Cloudborne
                 if (c.cooldown > 0) continue;
                 any = true;
                 c.cooldown = 0.2f;
+                // a boulder struck: it rolls away from the blow, over any raider in its way, and bursts where it stops
+                if (c.rolls && !wholly)
+                {
+                    if (c.vx == 0)
+                    {
+                        c.vx = dir * RollSpeed;
+                        g.hud.Popup(new Vector3(c.x, 2f, 0), "ROLL!", CbHud.PopStyle.Big);
+                        CbFx.Sfx("heavy", 0.7f);
+                        CbFx.Spark(new Vector3(c.x, 0.3f, -0.4f), CbFx.Dust, 10, 4f, 0.4f, 0.4f, 4, dir * 2f);
+                    }
+                    continue;
+                }
                 Break(i, dir, wholly);
             }
             return any;
@@ -452,6 +520,7 @@ namespace Cloudborne
         void Break(int i, int dir, bool wholly)
         {
             var c = crates[i];
+            LastBurstX = c.x;
             c.hp = wholly ? 0 : c.hp - 1;
             var at = new Vector3(c.x, 0.5f, -0.4f);
             CbFx.Spark(at, CbFx.Dust, 8, 4, 0.4f, 0.4f, 6);
@@ -494,6 +563,7 @@ namespace Cloudborne
 
         public void Update(float dt, CbHero hero, Camera cam)
         {
+            Roll(dt);
             foreach (var c in crates)
             {
                 c.cooldown = Mathf.Max(0, c.cooldown - dt);
