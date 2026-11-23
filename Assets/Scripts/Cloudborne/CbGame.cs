@@ -2257,7 +2257,7 @@ namespace Cloudborne
         public System.Action<CbInput> TestControls;
 
         // a pad's stick (or its d-pad) pushed down: a slide, once per push
-        bool padDown;
+        bool padDown, padUp;
 
         /// <summary>
         /// The keyboard and a pad, laid out like the phone's controls: move, JUMP, ATTACK (held: the staff), SKILL,
@@ -2296,9 +2296,18 @@ namespace Cloudborne
                 if (Mathf.Abs(s.x) > 0.2f) inp.x += s.x;
                 if (pad.dpad.left.isPressed) inp.x -= 1;
                 if (pad.dpad.right.isPressed) inp.x += 1;
+                // up and down like the keyboard's W and S (they were never read from a pad: no crouch, no climbing,
+                // no backflip over a spear - the user): held, the stick's up and down; pushed up, a jump
+                if (Mathf.Abs(s.y) > 0.2f) inp.y += s.y;
+                if (pad.dpad.up.isPressed) inp.y += 1;
+                if (pad.dpad.down.isPressed) inp.y -= 1;
                 bool down = s.y < -0.6f || pad.dpad.down.isPressed;
                 if (down && !padDown) inp.slide = true;
                 padDown = down;
+                bool up = s.y > 0.6f || pad.dpad.up.isPressed;
+                if (up && !padUp) { inp.jump = true; inp.stickJump = true; }
+                if (up) inp.jumpHeld = true;
+                padUp = up;
                 if (pad.buttonSouth.wasPressedThisFrame) { inp.jump = true; inp.confirm = true; }
                 if (pad.buttonSouth.isPressed) inp.jumpHeld = true;
                 if (pad.buttonWest.wasPressedThisFrame) inp.atk = true;
