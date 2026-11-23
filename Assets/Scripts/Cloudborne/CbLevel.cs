@@ -303,6 +303,7 @@ namespace Cloudborne
         void BuildCrossings()
         {
             BuildTunnels();
+            BuildPoles();
             // the rope bridge over the first stream: its planks just above the banks at the ends, sagging in the middle,
             // a few stretches without planks to fall through
             var bridge = new Crossing { cx = RopeBridgeX, half = RopeDeckHalf, top = 0.145f, sag = RopeSag, deck = true };
@@ -1452,6 +1453,7 @@ namespace Cloudborne
             }
             UpdateCrossings(dt, hero);
             UpdateTunnels(dt);
+            UpdatePoles(dt);
             if (CbStage.Jungle) { UpdateGorge(dt, hero); UpdateBoulder(dt, hero); }
             foreach (var l in ledges)
             {

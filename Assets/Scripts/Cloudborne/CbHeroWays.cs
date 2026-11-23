@@ -38,6 +38,8 @@ namespace Cloudborne
             // pushing into it is enough (there is no up on the controls now)
             if (into != 0 && input.y > -0.3f && lv.VineWallAt(x, y, into, out float edgeX, out float top)) { StartVine(into, edgeX, top); return true; }
             if (state != State.Air || grabCd > 0) return false;
+            var po = lv.PoleNear(x, y + RopeReach);
+            if (po != null && vy < 6f) { StartPole(po); return true; }
             var v = lv.VineNear(x, y + RopeReach);
             if (v != null) { StartSwing(v); return true; }
             var b = lv.BarNear(x, y + BarReach);
@@ -68,6 +70,7 @@ namespace Cloudborne
                     across = true;
                     return true;
                 case State.Bars when bar != null: at = new Vector3(0, bar.y + BarPoleUp, 0); return true;
+                case State.Pole when pole != null: at = new Vector3(pole.x, pole.y, 0); across = true; return true;
                 case State.Zip when zip != null: at = new Vector3(0, zip.At(x), 0); return true;
             }
             return false;
@@ -231,6 +234,51 @@ namespace Cloudborne
             }
         }
 
+        // ---------- a swing pole ----------
+
+        CbLevel.Pole pole;
+        float poleAngle, poleSpin;
+        /// <summary>The swing pole he is going round, if he is.</summary>
+        public CbLevel.Pole OnPole => state == State.Pole ? pole : null;
+        /// <summary>How fast he goes round a pole (radians a second), and how hard letting go with JUMP flings him.</summary>
+        public const float PoleSpin = 7.5f, PoleFlingX = 8.5f, PoleFlingY = 11f;
+
+        void StartPole(CbLevel.Pole p)
+        {
+            TakeHold();
+            state = State.Pole;
+            pole = p;
+            // from where he caught it: his middle (a metre over his feet, where he turns) about the pole
+            poleAngle = Mathf.Atan2(x - p.x, p.y - (y + 1f));
+            poleSpin = facing * PoleSpin;
+            CbFx.Sfx("staff", 0.5f);
+        }
+
+        /// <summary>Round and round the pole the way he faces (the stick the other way turns him round); JUMP lets go,
+        /// flung on and up in a somersault; down drops him.</summary>
+        void UpdatePole(ref Pose pose, CbInput input, float dt)
+        {
+            if (t > 0.2f && Mathf.Abs(input.x) > 0.3f && (input.x > 0 ? 1 : -1) != facing) facing = -facing;
+            poleSpin = Mathf.MoveTowards(poleSpin, facing * PoleSpin, dt * 20f);
+            poleAngle += poleSpin * dt;
+            float d = RopeReach - 1f;
+            x = pole.x + d * Mathf.Sin(poleAngle);
+            y = pole.y - d * Mathf.Cos(poleAngle) - 1f;
+            vx = vy = 0;
+            ArmsUp(ref pose);
+            pose.kL = pose.kR = 0.2f;
+            if (t > 0.2f && (input.jump || input.y < -0.5f))
+            {
+                bool fling = input.jump;
+                vx = facing * (fling ? PoleFlingX : 1.5f);
+                vy = fling ? PoleFlingY : 0f;
+                pole.cool = 0.5f;
+                state = State.Air; t = 0; air = true; jumps = 1; grabCd = 0.3f;
+                // upright again as he flies (the turn about the pole is undone; a somersault off it)
+                if (fling) { flipT = FlipTime; CbFx.Sfx("jump", 0.7f); }
+            }
+        }
+
         // ---------- a zipline ----------
 
         void StartZip(CbLevel.Zip z)
@@ -299,6 +347,9 @@ namespace Cloudborne
                 // hanging from a vine, a rope or the zipline
                 case State.Swing:
                 case State.Zip: model.Show("Rope_Hang_Idle", 0.5f, 0.1f); return true;
+                // round a swing pole: hanging by both hands, arms straight up, turned about it (CbHero.Update)
+                case State.Pole when model.HasClip(BarHangClip): model.LoopSeconds(BarHangClip, g.clock, 0.15f); return true;
+                case State.Pole: model.Show("Rope_Hang_Idle", 0.5f, 0.1f); return true;
                 case State.Vine: model.Loop("Climb_Up_Rope", climbPh); return true;
                 // the bar: hanging from it by both hands, arms straight up (Meshy's "Bar Hang Idle"), and along it hand
                 // over hand, facing the way he goes, legs swinging (made in Meshy from a description); the shimmy he

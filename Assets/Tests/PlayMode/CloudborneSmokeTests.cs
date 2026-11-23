@@ -3333,6 +3333,50 @@ namespace RacingGame.Tests
 
 
         [UnityTest]
+        public IEnumerator ASwingPoleTurnsRajaRoundAndFlingsHimOn()
+        {
+            // the user: a pole like the one in his picture, to swing round and fling off (over the long river, after the rock)
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            hero.inv = 999f;
+            // reaching it in a jump he takes hold
+            game.Teleport(CbLevel.RiverPoleX - 0.2f);
+            hero.y = CbLevel.RiverPoleY - 1.48f;
+            hero.vx = 3f; hero.vy = 1f;
+            hero.facing = 1;
+            hero.state = CbHero.State.Air;
+            yield return Frames(3);
+            Assert.AreEqual(CbHero.State.Pole, hero.state, "Raja did not take hold of the swing pole");
+            // round and round it: to either side of it, over it and under it
+            float lo = 99, hi = -99, top = -99;
+            for (float w = 0; w < 1.2f; w += Time.deltaTime)
+            {
+                lo = Mathf.Min(lo, hero.x); hi = Mathf.Max(hi, hero.x); top = Mathf.Max(top, hero.y);
+                yield return null;
+            }
+            Assert.AreEqual(CbHero.State.Pole, hero.state, "Raja let go of the pole by himself");
+            Assert.Less(lo, CbLevel.RiverPoleX - 0.3f, "Raja did not swing round to the pole's near side");
+            Assert.Greater(hi, CbLevel.RiverPoleX + 0.3f, "Raja did not swing round to the pole's far side");
+            Assert.Greater(top, CbLevel.RiverPoleY - 1f - 0.2f, "Raja did not go up over the pole");
+            yield return TakePictures(new[] { ("swing_pole", float.NaN, 0f) }, 0f);
+            // JUMP: flung on and up
+            bool let = false;
+            game.TestInput = i => { if (!let) { i.jump = true; let = true; } };
+            yield return Frames(2);
+            game.TestInput = null;
+            Assert.AreEqual(CbHero.State.Air, hero.state, "JUMP did not let go of the pole");
+            Assert.Greater(hero.vx, 6f, "Letting go did not fling Raja on");
+            Assert.Greater(hero.vy, 7f, "Letting go did not fling Raja up");
+            float from = hero.x;
+            for (float w = 0; w < 2f && hero.state == CbHero.State.Air; w += Time.deltaTime) yield return null;
+            Assert.Greater(hero.x, from + 3f, "The pole's fling did not carry Raja on over the river");
+        }
+
+        [UnityTest]
         public IEnumerator VinesAndBars()
         {
             game = CbGame.Boot();

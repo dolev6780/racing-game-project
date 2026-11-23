@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Cloudborne
@@ -66,6 +67,51 @@ namespace Cloudborne
             int n = 0;
             foreach (var l in ledges) if (l.x0 < x + 2f && l.x1 > x - 2f && l.t != null && l.t.name == "towerLedge") n++;
             return n;
+        }
+
+        // ---------- a swing pole (the user: like the one in his picture, to swing round and fling off) ----------
+
+        /// <summary>A pole sticking out of a ruin's pillar: he catches it, swings round it and lets go flying on.</summary>
+        public class Pole { public float x, y, cool; public Transform t; }
+        readonly List<Pole> poles = new List<Pole>();
+        /// <summary>The pole over the long river, off a pillar after the rock (another way across: from the rock to it,
+        /// round it, and on to the stones past the drifting log).</summary>
+        public const float RiverPoleX = 91.9f, RiverPoleY = 3.6f;
+        // the model's bar is PoleBarAt of its height up; turned PoleYaw it points mostly out of the screen, a little
+        // slanted so its length shows; its middle stands PoleBack behind the path, the far end in the pillar
+        const float PoleBarAt = 0.8f, PoleYaw = 115f, PoleBack = 0.75f, PoleLong = 1.5f;
+
+        void BuildPoles()
+        {
+            if (CbStage.Jungle) AddPole(RiverPoleX, RiverPoleY);
+        }
+
+        void AddPole(float x, float y)
+        {
+            var t = CbArt.Joint(root, x, 0, 0, "swingPole");
+            // the pillar it comes out of, from below the water up past it, behind the path
+            var pil = CbArt.Joint(t, 0, -2f, PoleBack + 0.75f, "pillar");
+            float ph = y + 2.9f;
+            pil.localScale = new Vector3(0.9f / 1.48f, ph / 3.6f, 0.9f / 1.5f);
+            if (CbArt.Prop("Cloudborne/Jungle/Pillar/Pillar", pil, CbArt.PropOutline) == null)
+                CbArt.Box(StoneGrey, pil, new Vector3(0, 1.8f, 0), new Vector3(1.48f, 3.6f, 1.5f));
+            float h = PoleLong / 1.18f;
+            var bar = CbArt.Joint(t, 0, y - PoleBarAt * h, PoleBack, "pole");
+            if (Model("SwingPole", bar, new Vector3(PoleLong, h, PoleLong * 0.28f), PoleYaw) == null)
+                CbArt.Cylinder(Bamboo, bar, new Vector3(0, PoleBarAt * h, 0), 0.07f, PoleLong, Quaternion.Euler(90, 0, 0));
+            poles.Add(new Pole { x = x, y = y, t = t });
+        }
+
+        /// <summary>The pole his hands reach at (hx, hy), if one does and it isn't just let go of.</summary>
+        public Pole PoleNear(float hx, float hy)
+        {
+            foreach (var p in poles) if (p.cool <= 0 && Mathf.Abs(hx - p.x) < 0.6f && Mathf.Abs(hy - p.y) < 0.55f) return p;
+            return null;
+        }
+
+        void UpdatePoles(float dt)
+        {
+            foreach (var p in poles) p.cool = Mathf.Max(0, p.cool - dt);
         }
     }
 }

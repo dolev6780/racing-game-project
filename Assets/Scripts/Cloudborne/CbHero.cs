@@ -41,7 +41,7 @@ namespace Cloudborne
     /// </summary>
     public partial class CbHero
     {
-        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo, Hang, Climb, Swim, Down, Victory, Swing, Vine, Bars, Zip, Kick, Slide }
+        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo, Hang, Climb, Swim, Down, Victory, Swing, Vine, Bars, Zip, Kick, Slide, Pole }
         public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash, FireWhirl, BlazePalm, Lunge, Cyclone, Throw }
 
         struct Attack { public float dur, a, b, range, dmg, kb, up; public bool fin; }
@@ -787,6 +787,7 @@ namespace Cloudborne
                 case State.Vine: UpdateVine(ref pose, input, dt); break;
                 case State.Bars: UpdateBars(ref pose, input, dt); break;
                 case State.Zip: UpdateZip(ref pose, input, dt); break;
+                case State.Pole: UpdatePole(ref pose, input, dt); break;
                 case State.Climb: UpdateClimb(ref pose); break;
                 case State.Swim: UpdateSwim(ref pose, dt); break;
                 case State.Down: UpdateDown(ref pose, input, dt); break;
@@ -1013,6 +1014,8 @@ namespace Cloudborne
             else f.flip.localRotation = Quaternion.identity;
             // swinging on a vine he leans with it
             if (state == State.Swing && swingVine != null) f.flip.localRotation = CbArt.Rot(0, 0, swingVine.angle);
+            // round a swing pole he turns about it
+            if (state == State.Pole && pole != null) f.flip.localRotation = CbArt.Rot(0, 0, poleAngle);
             // the dive kick: tipped forward so the leg he kicks with points down the way he dives
             if (state == State.Kick && !kickLanded) f.flip.localRotation = CbArt.Rot(0, 0, -facing * KickTilt * Mathf.Clamp01(t / KickHang));
 
@@ -1029,7 +1032,7 @@ namespace Cloudborne
         public bool Storming => state == State.Special && !FireAwake;
 
         /// <summary>Holding on to a vine, a vine wall, a bar or a zipline: the game places him itself.</summary>
-        bool Holding => state == State.Swing || state == State.Vine || state == State.Bars || state == State.Zip;
+        bool Holding => state == State.Swing || state == State.Vine || state == State.Bars || state == State.Zip || state == State.Pole;
 
         /// <summary>
         /// The height he stands (or hangs, or clings) at: his own while on something, the last one in a jump or a fall,
