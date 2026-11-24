@@ -108,7 +108,8 @@ namespace Cloudborne
         // (the swinging logs are gone - the stage was long for a phone: the user - and the race from the lever through
         // its gate, past the low log, is shorter)
         public const float LeverX = 259.5f, RaceGateX = 265.5f, RaceLogX = 262.4f, LeverOpenTime = 4f;
-        const float ChestX = 421.5f, ChestStand = 1.0f;
+        // the chest's lid: how wide along his line and how deep across the path he needs it to stand on it
+        const float ChestX = 421.5f, ChestStand = 1.0f, ChestDeep = 0.9f;
         // the darts fly from the guardian's mouth: over a ducking Raja, into a standing one
         const float DartY = 1.35f;
 
@@ -140,6 +141,8 @@ namespace Cloudborne
         Quaternion chestLidRest;
         Vector3 chestHinge;
         float chestLidAngle, chestOpenT;
+        // the chest model's turn as fitted to where he stands (the reset puts it back to this)
+        Vector3 chestScale = Vector3.one, chestPos;
         // the lever's handle (its own part of the model, turning about where it meets the base): how far it is thrown
         // (0 at rest, 1 across), its turn at rest and the turn that throws it across; the block on the plate settling
         // into it, and the plate
@@ -975,15 +978,22 @@ namespace Cloudborne
                 float lidTop = 0.81f;
                 var cs = Solidify(chestModel);
                 if (TopOf(cs, ChestX, 0f, 0.2f, 1.4f, out float lt) || TopOf(cs, ChestX, 0.12f, 0.2f, 1.4f, out lt)) lidTop = lt;
-                // its lid as wide as the place he stands on it (his feet stood past a narrower lid, in the air: the
-                // touch test) - the model widened to it if its lid is drawn narrower
+                // its lid as wide and as deep as the place he stands on it (his feet - 0.36 either side of his line -
+                // stood past a lid drawn shallower, in the air: the touch test) - the model widened and deepened to it,
+                // and its lid centred on his line
                 if (FindTop(cs, ChestX, 0.8f, lidTop, 0.25f, out _, out float c0, out float c1) && c1 - c0 < ChestStand)
+                    chestModel.localScale = Vector3.Scale(chestModel.localScale, new Vector3(Mathf.Min(1.6f, ChestStand / Mathf.Max(0.3f, c1 - c0)), 1, 1));
+                Physics.SyncTransforms();
+                if (LidDepth(cs, lidTop, out float z0, out float z1))
                 {
-                    float k = Mathf.Min(1.6f, ChestStand / Mathf.Max(0.3f, c1 - c0));
+                    float kz = Mathf.Clamp(ChestDeep / Mathf.Max(0.2f, z1 - z0), 1f, 2f), zc = (z0 + z1) / 2;
                     var sc = chestModel.localScale;
-                    chestModel.localScale = new Vector3(sc.x * k, sc.y, sc.z * k);
+                    chestModel.localScale = new Vector3(sc.x, sc.y, sc.z * kz);
+                    var lp = chestModel.localPosition;
+                    chestModel.localPosition = new Vector3(lp.x, lp.y, lp.z - zc * kz);
                     Physics.SyncTransforms();
                 }
+                chestScale = chestModel.localScale; chestPos = chestModel.localPosition;
                 blocks.Add(new Block { x0 = ChestX - 0.5f, x1 = ChestX + 0.5f, top = lidTop, t = t });
                 return;
             }
@@ -992,6 +1002,34 @@ namespace Cloudborne
             chestLid = CbArt.Joint(t, 0, 0.6f, 0.35f, "lid");
             CbArt.Box(M("#9a6a3a"), chestLid, new Vector3(0, 0.1f, -0.35f), new Vector3(1.04f, 0.2f, 0.74f));
             blocks.Add(new Block { x0 = ChestX - 0.5f, x1 = ChestX + 0.5f, top = 0.6f, t = t });
+        }
+
+        /// <summary>
+        /// How deep across the path the chest's lid is where his feet stand on it: the longest run of z (through his line)
+        /// where its top is at lidTop at his front foot, his middle and his back foot.
+        /// </summary>
+        bool LidDepth(List<Collider> cs, float lidTop, out float z0, out float z1)
+        {
+            z0 = z1 = 0;
+            const float step = 0.04f, reach = 0.9f;
+            int n = Mathf.RoundToInt(2 * reach / step), from = -1, bestFrom = -1, bestLen = 0;
+            for (int i = 0; i <= n + 1; i++)
+            {
+                bool on = i <= n;
+                float z = -reach + i * step;
+                if (on)
+                    foreach (float dx in new[] { -0.25f, 0f, 0.35f })
+                        if (!TopOf(cs, ChestX + dx, z, lidTop - 0.15f, lidTop + 0.3f, out float y) || Mathf.Abs(y - lidTop) > 0.12f) { on = false; break; }
+                if (on && from < 0) from = i;
+                if (!on && from >= 0)
+                {
+                    if (i - from > bestLen) { bestLen = i - from; bestFrom = from; }
+                    from = -1;
+                }
+            }
+            if (bestLen < 2) return false;
+            z0 = -reach + bestFrom * step; z1 = -reach + (bestFrom + bestLen - 1) * step;
+            return true;
         }
 
         // ---------- what the hero's physics asks ----------
@@ -1677,7 +1715,7 @@ namespace Cloudborne
             }
 
             if (chestLid != null) chestLid.localRotation = Quaternion.identity;
-            if (chestModel != null) chestModel.localScale = Vector3.one;
+            if (chestModel != null) { chestModel.localScale = chestScale; chestModel.localPosition = chestPos; }
             chestOpenT = 0;
             if (chestLidPart != null) chestLidPart.rotation = chestLidRest;
             foreach (var r in rafts) r.sink = 0;

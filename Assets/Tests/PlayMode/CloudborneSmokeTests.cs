@@ -2108,7 +2108,8 @@ namespace RacingGame.Tests
                     case 3: i.dash = At(0.05f); i.heavy = At(0.12f); break;                 // dash, then thrust
                     case 4: i.jump = At(0); i.heavy = At(0.3f); break;                      // slam
                     case 5: game.hero.ki = 100; i.kiTap = At(0.1f) || At(0.5f); break;      // KI: staff lunges
-                    case 6: i.guard = pt < 0.6f; break;                                     // guard
+                    // guard: held the whole phase (a staff lunge or a blow still on him at its start ate a shorter press)
+                    case 6: i.guard = true; break;
                     // special: the staff storm, pressed until it starts (a hyena behind him may have him reeling)
                     case 7: game.hero.ki = 100; i.skill = pt >= 0.1f && !sawSpecial; break;
                 }
@@ -2117,6 +2118,7 @@ namespace RacingGame.Tests
             int startScore = game.score;
             float t = 0;
             bool sawStaff = false, sawWhirl = false, sawGuard = false;
+            var guardStates = new List<string>();
             // a second round of the moves if one was missed (a guard while he was thrown in the air does not rise)
             while ((t < 9f || (t < 19.5f && !(sawStaff && sawWhirl && sawGuard && sawSpecial))) && game.mode == CbGame.Mode.Play)
             {
@@ -2125,13 +2127,16 @@ namespace RacingGame.Tests
                 if (game.hero.move == CbHero.Move.Whirl) sawWhirl = true;
                 if (game.hero.state == CbHero.State.Guard) sawGuard = true;
                 if (game.hero.state == CbHero.State.Special) sawSpecial = true;
+                // what he was doing while GUARD was held (to see what kept it down, if it did)
+                string was = game.hero.state + (game.hero.InAir ? " (air)" : "");
+                if ((int)((Time.time - t0) / 0.8f) % 8 == 6 && !guardStates.Contains(was)) guardStates.Add(was);
                 yield return null;
             }
             game.TestInput = null;
             Assert.Greater(game.score, startScore, "No hit landed");
             Assert.IsTrue(sawStaff, "No staff move was used");
             Assert.IsTrue(sawWhirl, "Holding HEAVY did not whirl the staff");
-            Assert.IsTrue(sawGuard, "GUARD did not raise Raja's guard");
+            Assert.IsTrue(sawGuard, "GUARD did not raise Raja's guard (while it was held he was: " + string.Join(", ", guardStates) + ")");
             Assert.IsTrue(sawSpecial, "SPECIAL did not start the staff storm");
             Assert.IsNull(game.lockZone, "A soldier on his own shut an arena");
         }
