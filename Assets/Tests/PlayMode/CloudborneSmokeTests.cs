@@ -3466,6 +3466,7 @@ namespace RacingGame.Tests
                     }
                 }
                 game.TestInput = null;
+                Debug.Log($"TOUCH {stage}: {game.level.RockSteps} steps drawn on the rocks made standable");
                 Object.Destroy(game.gameObject);
                 game = null;
                 yield return Frames(2);

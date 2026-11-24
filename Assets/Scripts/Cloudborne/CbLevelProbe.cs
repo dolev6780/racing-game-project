@@ -179,6 +179,80 @@ namespace Cloudborne
             return false;
         }
 
+        // the rocks' own colliders (the cliffs, terraces, river rocks and stones), for finding their steps
+        static readonly List<Collider> rockSolids = new List<Collider>();
+        const float RockStepMin = 0.5f, RockStepRise = 0.06f, RockStepSpread = 0.25f;
+
+        /// <summary>
+        /// Every step drawn on a rock can be stood on (the user: a step or two on a rock that looks like one to step on,
+        /// and he fell through it): along the whole stage the rocks' tops are looked for on his line (and a little either
+        /// side), each with room over it to stand; a run of them at least RockStepMin long and near level is a step. A
+        /// step that what he already stands on there does not cover becomes a ledge of its own (to stand on, and to
+        /// catch the edge of).
+        /// </summary>
+        void AddRockSteps()
+        {
+            rockSolids.RemoveAll(c => c == null);
+            if (rockSolids.Count == 0) return;
+            Physics.SyncTransforms();
+            float x0 = float.MaxValue, x1 = float.MinValue, y1 = float.MinValue;
+            foreach (var c in rockSolids)
+            {
+                var b = c.bounds;
+                var lo = root.InverseTransformPoint(b.min);
+                var hi = root.InverseTransformPoint(b.max);
+                x0 = Mathf.Min(x0, Mathf.Min(lo.x, hi.x)); x1 = Mathf.Max(x1, Mathf.Max(lo.x, hi.x)); y1 = Mathf.Max(y1, Mathf.Max(lo.y, hi.y));
+            }
+            var solid = new HashSet<Collider>(rockSolids);
+            // open runs of tops, step by step along x: (from, last height, sum, count)
+            var open = new List<(float from, float last, float sum, int n, float lowest, float highest)>();
+            var steps = new List<(float from, float to, float top)>();
+            for (float x = x0; x <= x1 + ProbeStep; x += ProbeStep * 2)
+            {
+                var heights = new List<float>();
+                if (x <= x1)
+                    foreach (float z in ProbeZ)
+                    {
+                        var from = root.TransformPoint(new Vector3(x, y1 + 1f, z));
+                        foreach (var h in Physics.RaycastAll(from, -root.up, (y1 + 4f) * root.lossyScale.y))
+                        {
+                            if (!solid.Contains(h.collider) || Vector3.Dot(h.normal, root.up) < 0.6f) continue;
+                            float hy = root.InverseTransformPoint(h.point).y;
+                            if (hy < WaterLevel + 0.2f) continue;
+                            // room over it to stand
+                            if (Physics.Raycast(h.point + root.up * 0.05f, root.up, StandHeight * root.lossyScale.y)) continue;
+                            if (!heights.Exists(k => Mathf.Abs(k - hy) < 0.05f)) heights.Add(hy);
+                        }
+                    }
+                var next = new List<(float from, float last, float sum, int n, float lowest, float highest)>();
+                foreach (float h in heights)
+                {
+                    int i = open.FindIndex(r => Mathf.Abs(r.last - h) < RockStepRise && Mathf.Max(r.highest, h) - Mathf.Min(r.lowest, h) < RockStepSpread);
+                    if (i >= 0) { var r = open[i]; open.RemoveAt(i); next.Add((r.from, h, r.sum + h, r.n + 1, Mathf.Min(r.lowest, h), Mathf.Max(r.highest, h))); }
+                    else next.Add((x, h, h, 1, h, h));
+                }
+                // the runs that did not go on are done
+                foreach (var r in open)
+                {
+                    float to = x - ProbeStep * 2;
+                    if (to - r.from >= RockStepMin) steps.Add((r.from, to, r.sum / r.n));
+                }
+                open = next;
+            }
+            foreach (var (a, b, top) in steps)
+            {
+                float mid = (a + b) / 2;
+                // what he already stands on there covers it
+                if (Mathf.Abs(SupportAt(mid, top + 0.25f) - top) < 0.15f) continue;
+                var t = CbArt.Joint(root, mid, 0, 0, "rockStep");
+                ledges.Add(new Ledge { x0 = a, x1 = b, top = top, t = t, home = t.localPosition });
+                RockSteps++;
+            }
+        }
+
+        /// <summary>How many steps drawn on the rocks were found that nothing else let him stand on.</summary>
+        public int RockSteps { get; private set; }
+
         /// <summary>Test hook: every steady ledge's top (x0, x1, top), as he stands on them (not the crumbling ones:
         /// they give way under him).</summary>
         public List<(float x0, float x1, float top)> LedgeTops()

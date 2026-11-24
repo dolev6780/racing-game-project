@@ -168,6 +168,7 @@ namespace Cloudborne
             g = game;
             root = new GameObject("Level").transform;
             root.SetParent(parent, false);
+            rockSolids.Clear();
             if (CbStage.Treetops) BuildTreetops();
             else if (CbStage.Grove) BuildGrove();
             else if (CbStage.River) BuildRiver();
@@ -178,6 +179,8 @@ namespace Cloudborne
                 BuildWays();
                 DressBanks();
             }
+            // every step drawn on a rock can be stood on (CbLevelProbe)
+            AddRockSteps();
         }
 
         /// <summary>Takes the stage's level away (another stage is built in its place).</summary>
@@ -658,7 +661,7 @@ namespace Cloudborne
             holder.localPosition = lo - Vector3.Scale(b.min, s);
             // the rocks and slabs he stands on solid, so his feet find their drawn tops (CbLevel.SurfaceUnder)
             if (path.StartsWith(CliffDir) || path == RiverRockPath || path == CliffRockPath || path == CrackedRockPath || path == RiverStonePath)
-                Solidify(holder);
+                rockSolids.AddRange(Solidify(holder));
             return holder;
         }
 
