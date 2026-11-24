@@ -1196,7 +1196,7 @@ namespace Cloudborne
 
         /// <summary>Secrets found this run, of the stage's SecretsInStage.</summary>
         public int Secrets { get; private set; }
-        public static int SecretsInStage => CbStage.Jungle || CbStage.Treetops ? 2 : 0;
+        public static int SecretsInStage => CbStage.Jungle ? 1 : CbStage.Treetops ? 2 : 0;
 
         /// <summary>A secret's treasure found (CbItems): SECRET FOUND!</summary>
         public void SecretFound()

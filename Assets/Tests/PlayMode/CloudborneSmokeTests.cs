@@ -201,16 +201,9 @@ namespace RacingGame.Tests
             game.SkipFights();
             game.hero.inv = 999f;
             yield return Frames(2);
-            Assert.AreEqual(2, CbGame.SecretsInStage);
+            // (one: the hidden ledge over the start, its tower and its springy leaf, are gone - the user)
+            Assert.AreEqual(1, CbGame.SecretsInStage);
             var hero = game.hero;
-            game.Teleport(CbLevel.StartSecretX + 2.6f);
-            hero.y = 2.2f; hero.vx = hero.vy = 0; hero.state = CbHero.State.Air;
-            bool bounced = false;
-            game.TestInput = i => { if (hero.vy > 5f) bounced = true; if (bounced && hero.x > CbLevel.StartSecretX) i.x = -1f; };
-            for (float w = 0; w < 4f && game.Secrets == 0; w += Time.deltaTime) yield return null;
-            game.TestInput = null;
-            Assert.IsTrue(bounced, "The springy leaf by the start did not throw Raja up");
-            Assert.AreEqual(1, game.Secrets, "The hidden ledge's treasure over the start could not be reached from the leaf");
             // the boulder: three blows and it breaks, its treasure inside
             game.Teleport(CbLevel.BoulderStashX - 1.2f);
             hero.y = 0; hero.facing = 1;
@@ -220,13 +213,13 @@ namespace RacingGame.Tests
             Assert.AreEqual(crates - 1, game.items.CrateCount, "Three blows did not break the cracked boulder");
             // (it pops out and lands near by: walked along beside it)
             yield return new WaitForSeconds(1.2f);
-            for (float dx = -2.5f; dx <= 2.5f && game.Secrets < 2; dx += 0.4f)
+            for (float dx = -2.5f; dx <= 2.5f && game.Secrets < 1; dx += 0.4f)
             {
                 game.Teleport(CbLevel.BoulderStashX + dx);
                 hero.y = 0;
                 yield return Frames(3);
             }
-            Assert.AreEqual(2, game.Secrets, "The cracked boulder held no treasure");
+            Assert.AreEqual(1, game.Secrets, "The cracked boulder held no treasure");
             // stage 1-2's: pictures of the high branch over the vine gap and the old stump
             CbStage.Set("1-2");
             game.BuildStage();
@@ -2224,11 +2217,14 @@ namespace RacingGame.Tests
             yield return Frames(2);
             yield return TakePictures(new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("summit", 154f, CbLevel.SummitTop), ("bars", 219f, 4.8f - 1.71f),
                 ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 392.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck),
-                ("tunnel", CbLevel.RopeMouthL + 2.5f, 0f), ("tower", CbLevel.StartSecretX + 3f, 0f), ("tower_climb", CbLevel.StartSecretX - 0.5f, 2.5f),
+                ("tunnel", CbLevel.RopeMouthL + 2.5f, 0f), ("tower", CbLevel.ShrineLedgeX + 3f, 0f), ("tower_climb", CbLevel.ShrineLedgeX - 0.5f, 2.5f),
                 ("stairs", CbLevel.StoneBridgeX - CbLevel.StoneBridgeHalf - 3f, 0f), ("vine_tree", 199f, 0f) });
             // the high ledges stand on a ruin's tower with ledges up its sides to climb (the climbing kit: the user)
-            Assert.AreEqual(3, game.level.TowerLedgesAt(CbLevel.StartSecretX), "The start's high ledge has no ruin tower to climb");
-            Assert.AreEqual(CbLevel.StartSecretTop, game.level.SupportAt(CbLevel.StartSecretX, CbLevel.StartSecretTop + 0.5f), 0.01f, "The tower's top is not the ledge");
+            Assert.AreEqual(3, game.level.TowerLedgesAt(CbLevel.ShrineLedgeX), "The shrine's high ledge has no ruin tower to climb");
+            Assert.AreEqual(CbLevel.ShrineLedgeTop, game.level.SupportAt(CbLevel.ShrineLedgeX, CbLevel.ShrineLedgeTop + 0.5f), 0.01f, "The tower's top is not the ledge");
+            // nothing at the start: its tower and springy leaf are gone (the user)
+            Assert.AreEqual(0, game.level.TowerLedgesAt(11.4f), "The tower at the start is still there");
+            Assert.IsFalse(System.Array.Exists(CbLevel.LeafXs, x => x < 30f), "A springy leaf is still at the start");
             // and the same tunnel with its gate sunk, as for an ambush's raiders
             // (called down every frame while the picture is taken: once, it rose again before the picture)
             game.TestInput = i => game.level.CallTunnel(CbLevel.RopeMouthL);

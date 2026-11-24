@@ -96,7 +96,8 @@ namespace Cloudborne
         // ravine's, up to its token ledge)
         public static readonly float[] LeafXs = { 118f, 371.2f };
         /// <summary>Stage 1-1's secrets: the hidden ledge over the start (a springy leaf to its right), the cracked boulder.</summary>
-        public const float StartSecretX = 11.4f, StartSecretTop = 6.2f, BoulderStashX = 176f;
+        // (the start's hidden ledge on its ruin's tower and its springy leaf are gone: the user)
+        public const float BoulderStashX = 176f;
         /// <summary>The ledge over the old shrine the springy leaf there throws him up to: its middle and top.</summary>
         public const float ShrineLedgeX = 120.6f, ShrineLedgeTop = 6.2f;
         public static readonly float[] LowLogXs = { 183f };
@@ -229,9 +230,6 @@ namespace Cloudborne
             foreach (var x in LeafXs) AddLeaf(x, 0.45f);
             // the chase's low branch (CbGameRuns): slid under, it stops the pack after him
             AddOverhang(CbGame.ChaseBranchX, 0.7f, 0.95f, 1.65f, false);
-            // a secret: a springy leaf near the start, its ledge back over the way he came (CbItems: its treasure)
-            AddLeaf(StartSecretX + 2.6f, 0.45f);
-            AddLedge(StartSecretX, 1.6f, StartSecretTop, false);
             AddLedge(ShrineLedgeX, 1.6f, ShrineLedgeTop, false);
             AddLedge(238f, 1.6f, 6.2f, false);
 

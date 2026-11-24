@@ -291,9 +291,8 @@ namespace Cloudborne
         void LayOutWays()
         {
             void C(float x, float y) => Spawn(Kind.Coin, new Vector3(x, y, 0), resting: true);
-            // stage 1-1's secrets: on the hidden ledge back over the start (a springy leaf throws him up to it), and in a
-            // cracked boulder in the way before the vine ravine
-            Spawn(Kind.Treasure, new Vector3(CbLevel.StartSecretX, CbLevel.StartSecretTop + 1.1f, 0), resting: true);
+            // stage 1-1's secret: in a cracked boulder in the way before the vine ravine (the hidden ledge over the start,
+            // its tower and its springy leaf, are gone: the user)
             AddStash(CbLevel.BoulderStashX, false);
             // the vine ravine
             foreach (var x in new[] { 204f, 207.8f, 211.5f, 226.8f }) C(x, 3.4f);
