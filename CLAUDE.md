@@ -87,8 +87,8 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   - `CbLevelClimb`: the climbing kit, the swing pole.
   - `CbLevelProbe`: probes surfaces from the meshes.
 - **Meshy kits (approved drawings):**
-  - In `Jungle/Ways`: RuinLedge (pillar under a ledge), RuinWall (towers with side ledges for ledges 4.5 m or more
-    over the ground), TreePlatform (1-2's ledges), SwingPole, StakedLog (thorny low passages), CaveArch + CaveGate
+  - In `Jungle/Ways`: RuinLedge (pillar under a ledge), RuinWall (towers; taken out of the stages by the user),
+    TreePlatform (1-2's ledges), SwingPole, StakedLog (thorny low passages), CaveArch + CaveGate
     (the ambush tunnels; the gate sinks while raiders come out), StoneStairs (stone bridge), VineTree.
   - Leafy models get a thin outline (`Leafy` in `CbLevelWays`).
 - **Touching what is drawn (`CbLevelProbe`).**
@@ -129,8 +129,12 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   held through its whole phase, and the failure message lists his states while it was held (local, not yet run).
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
-- **The lip hang's picture** (run 286): one frame of the hang-and-climb clip shows him nearly horizontal, legs
-  swung up; check with the user whether it reads well.
+- **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body
+  rising). Every hang is now `Bar_Hang_Idle`, still, arms straight (`FreeHangReach`), at a wall too (`BracedOff`).
+  The 446/447 hang-and-climb clips are loaded but unused (they lift him 0.45 m and swing his legs up).
+- **Towers:** all ruin towers (RuinWall) are out (the user). The stage will be laid out anew from a Canva plan
+  (a presentation, one slide per section) that the user edits and approves. A ledge too high for a pillar is the
+  cliff kit's slab on its column of rock.
 - **Animations.** The user chose Meshy 94, 132, 446, 447, 448, 449, 450 and 485; they are in:
   - Air fist: 94.
   - Ki-ball cast: 132.
@@ -141,8 +145,7 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   The pull-up over an edge still uses the end of "Ladder Climb Finish"; I suggested making a mantle in Text to Motion.
 - **Rocks.** The user said climbing on the rocks "doesn't render well". Steps on them are now standable
   (`AddRockSteps`). Still waiting for a screenshot of the render problem.
-- **FPS.** An APK with the FPS line was built (run 283). Waiting for the user's FPS screenshots from the phone. The
-  PERF counter was fixed to count static-batch pieces correctly; read the real numbers in the next run.
+- **FPS:** the user says it is fine (run 288's APK).
 - **Stage 1-1.**
   - The start's tower and springy leaf were removed by the user, so 1-1 has one secret (the cracked boulder).
   - The swing pole was removed from the river, to be placed where the user says.
