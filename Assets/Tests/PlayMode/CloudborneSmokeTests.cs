@@ -3491,7 +3491,7 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
-        public IEnumerator ZzHeHangsAlongALedgesLipAndPullsHimselfUp()
+        public IEnumerator ZzWhenShortOfALedgeHeHangsAlongItsLip()
         {
             // the user chose Meshy's hang and climb left and right: falling short of a ledge he catches its front edge,
             // hangs from it facing it, goes along it either way and pulls himself up onto it
