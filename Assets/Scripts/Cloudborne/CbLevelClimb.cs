@@ -5,18 +5,15 @@ namespace Cloudborne
 {
     /// <summary>
     /// The climbing kit (the user: something reasonable to stand on and climb, tied to the jungle, for many stages -
-    /// drawn in Canva, approved, built by Meshy): a ruin's pillar with a slab on top (RuinLedge), a ruin's tower with
-    /// ledges up its sides (RuinWall), a platform of planks round a trunk with a rope ladder (TreePlatform). Each
-    /// stands behind the path, its top the ledge he lands on; without the models the old slab and its support show.
+    /// drawn in Canva, approved, built by Meshy): a ruin's pillar with a slab on top (RuinLedge), a platform of planks
+    /// round a trunk with a rope ladder (TreePlatform). Each stands behind the path, its top the ledge he lands on; without the models the old slab and its support show.
     /// </summary>
     public partial class CbLevel
     {
-        // the tower turned TowerYaw (as drawn: its ledges to either side), measured from the model: each ledge's top and
-        // its span across the screen, and the top's, as parts of its height; how far back its middle stands
-        const float TowerYaw = 225f, TowerAt = 4.5f, TowerTopHalf = 0.16f, TowerBack = 0.12f;
-        static readonly (float top, float x0, float x1)[] TowerLedges = { (0.40f, -0.18f, 0.01f), (0.655f, -0.01f, 0.197f), (0.81f, -0.20f, 0.01f) };
+        // the tallest ledge a ruin's pillar stands under (the ruin towers over the higher ones are gone: the user)
+        const float TowerAt = 4.5f;
         // the model's own size, as parts of its height
-        const float TowerWide = 0.336f, TowerDeep = 0.341f, PillarWide = 0.49f, PlatformTop = 0.70f, PlatformWide = 0.5f;
+        const float PillarWide = 0.49f, PlatformTop = 0.70f, PlatformWide = 0.5f;
 
         /// <summary>The ledge at x (top, width) built from the climbing kit; false if this stage or this ledge has none
         /// (then the old slab is built).</summary>
@@ -29,38 +26,15 @@ namespace Cloudborne
             float h = top - baseY + 0.2f;
             if (h < 0.6f) return false;
             if (CbStage.Treetops) return TreePlatform(t, x, width, top, baseY);
-            if (h >= TowerAt && RuinTower(t, x, width, top, baseY)) return true;
+            // (no ruin towers: the user took them all out, the stage to be laid out anew from a Canva plan - a ledge too
+            // high for a pillar is the cliff's slab on its column of rock)
+            if (h >= TowerAt) return false;
             // a pillar: as tall as it must be, about as wide as it is drawn for that, its slab a little wider than the ledge
             float wide = Mathf.Clamp(h * PillarWide, width + 0.2f, width + 0.6f);
             var holder = CbArt.Joint(t, 0, baseY - 0.2f, 0.25f, "ruinLedge");
             if (Model("RuinLedge", holder, new Vector3(wide, h, wide * 0.8f), 180f) == null) { Object.Destroy(holder.gameObject); return false; }
             // its slab where it is drawn: on his line, its top at the ledge's height, the ledge as wide as the slab
             AddMeasuredLedge(t, holder, x, wide / 2 + 0.3f, top, width);
-            return true;
-        }
-
-        /// <summary>A ruin's tower up to a high ledge, three ledges up its sides (left, right, left) to climb it by.</summary>
-        bool RuinTower(Transform t, float x, float width, float top, float baseY)
-        {
-            float H = top - baseY;
-            var holder = CbArt.Joint(t, 0, baseY, TowerBack * H, "ruinTower");
-            if (Model("RuinWall", holder, new Vector3(TowerWide * H, H, TowerDeep * H), TowerYaw) == null) { Object.Destroy(holder.gameObject); return false; }
-            var cs = Solidify(holder);
-            // its ledges on his line (the first one's depth), its top at the ledge's height
-            var (a, a0, a1) = TowerLedges[0];
-            Shift(holder, new Vector3(0, 0, -BestDepth(cs, x + (a0 + a1) / 2 * H, (a1 - a0) / 2 * H + 0.3f, baseY + a * H, 0.35f * H * 0.2f + 0.3f)));
-            if (FindTop(cs, x, TowerTopHalf * H + 0.3f, top, 0.6f, out float tt, out float tx0, out float tx1))
-                Shift(holder, new Vector3(0, top - tt, 0));
-            else { tx0 = x - width / 2; tx1 = x + width / 2; }
-            ledges.Add(new Ledge { x0 = tx0, x1 = tx1, top = top, t = t, home = t.localPosition });
-            // the ledges up its sides, each where it is drawn
-            foreach (var (lt, l0, l1) in TowerLedges)
-            {
-                float near = baseY + lt * H, cx = x + (l0 + l1) / 2 * H, half = (l1 - l0) / 2 * H + 0.4f;
-                if (!FindTop(cs, cx, half, near, 0.5f, out float lt2, out float lx0, out float lx1)) { lt2 = near; lx0 = x + l0 * H; lx1 = x + l1 * H; }
-                var side = CbArt.Joint(root, x, 0, 0, "towerLedge");
-                ledges.Add(new Ledge { x0 = lx0, x1 = lx1, top = lt2, t = side, home = side.localPosition });
-            }
             return true;
         }
 
@@ -97,14 +71,6 @@ namespace Cloudborne
                 }
             }
             ledges.Add(new Ledge { x0 = x0, x1 = x1, top = top, t = t, home = t.localPosition });
-        }
-
-        /// <summary>Test hook: how many ledges stand at x's tower (its top and the ones up its sides), 0 if none.</summary>
-        public int TowerLedgesAt(float x)
-        {
-            int n = 0;
-            foreach (var l in ledges) if (l.x0 < x + 2f && l.x1 > x - 2f && l.t != null && l.t.name == "towerLedge") n++;
-            return n;
         }
 
         // ---------- a swing pole (the user: like the one in his picture, to swing round and fling off) ----------

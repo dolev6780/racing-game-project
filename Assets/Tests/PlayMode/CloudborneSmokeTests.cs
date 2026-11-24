@@ -609,8 +609,8 @@ namespace RacingGame.Tests
             {
                 // bare rock, no band of grass along the top
                 if (t.name == "terrace" && t.Find("rock") != null && t.Find("lip") == null) rock++;
-                // (a crumbling one the cliff kit's slab; a solid one the climbing kit's ruin pillar or tower)
-                if ((t.name == "ledge" || t.name == "crumblingLedge") && (t.Find("fit") != null || t.Find("ruinLedge") != null || t.Find("ruinTower") != null)) kitLedges++;
+                // (a crumbling one the cliff kit's slab; a solid one the climbing kit's ruin pillar)
+                if ((t.name == "ledge" || t.name == "crumblingLedge") && (t.Find("fit") != null || t.Find("ruinLedge") != null)) kitLedges++;
             }
             // the long stage's vine pillar and waterfall cliff (the ridge and its shaft are gone; the climb is a gorge:
             // its cliffs are built of rock in rows, CbLevelGorge)
@@ -2226,13 +2226,14 @@ namespace RacingGame.Tests
             yield return Frames(2);
             yield return TakePictures(new[] { ("start", 6f, 0f), ("trunk", 21.5f, 0f), ("bridge", 40f, 0f), ("river", 75f, 0f), ("gate", 133f, 0f), ("gorge", 145.1f, 5.4f), ("summit", 154f, CbLevel.SummitTop), ("bars", 219f, 4.8f - 1.71f),
                 ("thorns", 243f, 0f), ("temple", 266f, 0f), ("waterfall", 392.5f, 0f), ("stonebridge", CbLevel.StoneBridgeX - 6f, CbLevel.StoneDeck),
-                ("tunnel", CbLevel.RopeMouthL + 2.5f, 0f), ("tower", CbLevel.ShrineLedgeX + 3f, 0f), ("tower_climb", CbLevel.ShrineLedgeX - 0.5f, 2.5f),
+                ("tunnel", CbLevel.RopeMouthL + 2.5f, 0f), ("shrine_ledge", CbLevel.ShrineLedgeX + 3f, 0f),
                 ("stairs", CbLevel.StoneBridgeX - CbLevel.StoneBridgeHalf - 3f, 0f), ("vine_tree", 199f, 0f) });
-            // the high ledges stand on a ruin's tower with ledges up its sides to climb (the climbing kit: the user)
-            Assert.AreEqual(3, game.level.TowerLedgesAt(CbLevel.ShrineLedgeX), "The shrine's high ledge has no ruin tower to climb");
-            Assert.AreEqual(CbLevel.ShrineLedgeTop, game.level.SupportAt(CbLevel.ShrineLedgeX, CbLevel.ShrineLedgeTop + 0.5f), 0.01f, "The tower's top is not the ledge");
-            // nothing at the start: its tower and springy leaf are gone (the user)
-            Assert.AreEqual(0, game.level.TowerLedgesAt(11.4f), "The tower at the start is still there");
+            // no ruin towers anywhere (the user took them all out: the stage is to be laid out anew from a Canva plan) -
+            // the shrine's high ledge is still there, on its column of rock
+            Assert.IsFalse(System.Array.Exists(game.level.Root.GetComponentsInChildren<Transform>(true), t => t.name == "ruinTower" || t.name == "towerLedge"),
+                "A ruin tower is still in the stage");
+            Assert.AreEqual(CbLevel.ShrineLedgeTop, game.level.SupportAt(CbLevel.ShrineLedgeX, CbLevel.ShrineLedgeTop + 0.5f), 0.01f, "The shrine's high ledge is gone");
+            // nothing at the start: its springy leaf is gone (the user)
             Assert.IsFalse(System.Array.Exists(CbLevel.LeafXs, x => x < 30f), "A springy leaf is still at the start");
             // and the same tunnel with its gate sunk, as for an ambush's raiders
             // (called down every frame while the picture is taken: once, it rose again before the picture)
@@ -3481,8 +3482,9 @@ namespace RacingGame.Tests
                         var palms = (hero.model.Palm(hero.model.leftHand) + hero.model.Palm(hero.model.rightHand)) * 0.5f;
                         float off = Vector2.Distance(new Vector2(palms.x, palms.y), new Vector2(edge, top));
                         if (off > 0.12f) fails.Add($"{stage} hanging at x {edge:F1} top {top:F2}: his hands {off:F2} off the edge");
-                        if (hero.FreeHanging && hero.model.Toes(out var lt, out var rt) && Mathf.Max(Mathf.Abs(lt.x - palms.x), Mathf.Abs(rt.x - palms.x)) > 0.6f)
-                            fails.Add($"{stage} hanging at x {edge:F1} top {top:F2}: his legs not straight down under a ledge");
+                        // (every hang a still one at arm's length, at a wall too: the user)
+                        if (hero.model.Toes(out var lt, out var rt) && Mathf.Max(Mathf.Abs(lt.x - palms.x), Mathf.Abs(rt.x - palms.x)) > 0.6f)
+                            fails.Add($"{stage} hanging at x {edge:F1} top {top:F2}: his legs not straight down");
                     }
                 }
                 game.TestInput = null;
@@ -3507,8 +3509,8 @@ namespace RacingGame.Tests
         [UnityTest]
         public IEnumerator ZzWhenShortOfALedgeHeHangsAlongItsLip()
         {
-            // the user chose Meshy's hang and climb left and right: falling short of a ledge he catches its front edge,
-            // hangs from it facing it, goes along it either way and pulls himself up onto it
+            // falling short of a ledge he catches its front edge, hangs from it facing it (still, at arm's length), goes
+            // along it either way and pulls himself up onto it
             game = CbGame.Boot();
             yield return Frames(3);
             game.StartGame();
@@ -3528,8 +3530,17 @@ namespace RacingGame.Tests
             yield return new WaitForSeconds(0.4f);
             var palms = (hero.model.Palm(hero.model.leftHand) + hero.model.Palm(hero.model.rightHand)) * 0.5f;
             Assert.Less(Mathf.Abs(palms.y - ledge.top), 0.15f, "Raja's hands are not on the ledge's lip");
+            // going along it he just hangs there: his body does not rise and fall (the user: Meshy's hang-and-climb lifted
+            // him and swung his legs up at every step - it looked like climbing)
             game.TestInput = i => i.x = 1;
-            yield return new WaitForSeconds(0.5f);
+            float chestLo = float.MaxValue, chestHi = float.MinValue;
+            for (float w = 0; w < 0.5f; w += Time.deltaTime)
+            {
+                float c = hero.model.chest.position.y;
+                chestLo = Mathf.Min(chestLo, c); chestHi = Mathf.Max(chestHi, c);
+                yield return null;
+            }
+            Assert.Less(chestHi - chestLo, 0.12f, "Going along the lip, Raja's body rises and falls as if climbing");
             Assert.IsTrue(hero.OnLip, "Going along the lip, Raja let go");
             Assert.Greater(hero.x, mid + 0.3f, "Raja did not go along the lip to the right");
             float right = hero.x;

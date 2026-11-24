@@ -432,10 +432,9 @@ namespace Cloudborne
                 // the bar: hanging from it by both hands, arms straight up (Meshy's "Bar Hang Idle"), and along it hand
                 // over hand, facing the way he goes, legs swinging (made in Meshy from a description); the shimmy he
                 // had looked like clinging to a wall, not a pole (the user)
-                // along a ledge's lip, facing it: Meshy's hang-and-climb to the side he goes; still, its hang
-                case State.Lip when lipMoving != 0 && model.HasClip(LipLeftClip):
-                    model.Loop(lipMoving < 0 ? LipLeftClip : LipRightClip, lipPh, 0.12f); return true;
-                case State.Lip when model.HasClip(LipLeftClip): model.Show(LipLeftClip, 0f, 0.12f); return true;
+                // along a ledge's lip, facing it: hanging still at arm's length (Bar Hang Idle), moving or not - Meshy's
+                // hang-and-climb swung his legs up and lifted him half a metre each step: it looked like climbing (the user)
+                case State.Lip when model.HasClip(BarHangClip): model.LoopSeconds(BarHangClip, g.clock, 0.12f); return true;
                 case State.Lip: model.Show("Rope_Hang_Idle", 0.5f, 0.1f); return true;
                 case State.Bars when barMoving && model.HasClip(BarMoveClip): model.Loop(BarMoveClip, barPh, 0.12f); return true;
                 case State.Bars when model.HasClip(BarHangClip): model.LoopSeconds(BarHangClip, g.clock, 0.15f); return true;

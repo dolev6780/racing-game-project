@@ -89,14 +89,15 @@ namespace Cloudborne
         // cupped hands drawn back to the hip. Both turned in Blender to face forward (meshy_character.py --take).
         const string FireClip = "Fire_Palms", GatherClip = "Power_Gather", WhirlClip = "Motion_Whirl", CrouchClip = "Motion_Crouch";
         const float BlastTime = 0.4f;
-        // Clips from Meshy's animation library. Hanging from an edge: the catch and the hang of "Jump and Grab Wall",
-        // the pull-up of "Ladder Climb Finish" (in place; the game lifts him). Measured on the model at its game size,
-        // hanging he has his hands HangReach above his feet and HangAhead in front of him.
+        // Clips from Meshy's animation library. Hanging from an edge: "Bar Hang Idle", still at arm's length; the pull-up
+        // of "Ladder Climb Finish" (in place; the game lifts him). An edge is caught with his hands HangReach above his
+        // feet; hanging, they are FreeHangReach above them.
         public const float HangReach = 1.43f;
         // the clips the user chose in Meshy's library (Raja_Climb_Clips): the wall flip, the flying fist in the air, the
-        // spell cast for the ki ball, the catch of a bar, the hang along a ledge's lip
+        // spell cast for the ki ball, the catch of a bar (its hang-and-climb along a ledge's lip looked like climbing,
+        // not hanging: the user - it is still loaded, unused)
         const string WallFlipClip = "Wall_Flip", AirFistClip = "Flying_Fist_Kick", CastClip = "mage_soell_cast_3",
-            BarCatchClip = "Jump_and_Hang_on_Bar", LipLeftClip = "Hang_and_Climb_Left", LipRightClip = "Hang_and_Climb_Rght";
+            BarCatchClip = "Jump_and_Hang_on_Bar";
         const float WallFlipTime = 0.55f, BarCatchTime = 0.28f;
         float wallFlipT;
         /// <summary>Test hook: he takes hold of the edge at (edgeX, top), facing dir, as if he had caught it.</summary>
@@ -104,10 +105,12 @@ namespace Cloudborne
 
         /// <summary>Hanging from a ledge with nothing under it: his feet that far under the edge, his middle that far out.</summary>
         public const float FreeHangReach = 1.68f, FreeHangOff = 0.16f;
+        // hanging against a wall: his middle that far out from its face (his legs hang straight down in front of it)
+        const float BracedOff = 0.24f;
         bool freeHang;
         /// <summary>Whether he hangs at arm's length, his legs straight (nothing under the edge to put his feet on).</summary>
         public bool FreeHanging => state == State.Hang && freeHang;
-        const float HangAhead = 0.38f, ClimbOnto = 0.45f, CatchTime = 0.18f, ClimbTime = 0.6f, GrabRest = 0.35f;
+        const float ClimbOnto = 0.45f, CatchTime = 0.18f, ClimbTime = 0.6f, GrabRest = 0.35f;
         // how far through the pull-up he has risen, and come forward, by each moment of it (the clip's own hips)
         static readonly float[] ClimbU = { 0f, 0.083f, 0.25f, 0.417f, 0.583f, 0.75f, 0.917f, 1f };
         static readonly float[] ClimbRise = { 0f, 0.145f, 0.42f, 0.52f, 0.97f, 0.98f, 1f, 1f };
@@ -656,7 +659,9 @@ namespace Cloudborne
             // with a wall under the edge his feet go against it; under a ledge there is none: he hangs at arm's length,
             // his legs straight (the user: hanging in the air, knees drawn up against nothing)
             freeHang = g.level != null && !g.level.FaceUnder(edgeX, top);
-            hangX = edgeX - dir * (freeHang ? FreeHangOff : HangAhead); hangY = top - (freeHang ? FreeHangReach : HangReach);
+            // every hang a still one, at arm's length, arms straight (Bar Hang Idle): the catch and hang of "Jump and Grab
+            // Wall" stretched his arms, bent them and drew his knees up - it looked like climbing, not hanging (the user)
+            hangX = edgeX - dir * (freeHang ? FreeHangOff : BracedOff); hangY = top - FreeHangReach;
             x = hangX; y = hangY; vx = vy = 0; air = true; jumps = 0; airDashed = false; airHits = 0; flipT = 0;
             CbFx.Spark(new Vector3(edgeX, top + 0.05f, -0.4f), CbFx.Dust, 6, 2, 0.35f, 0.35f, 3);
             CbFx.Sfx("block", 0.4f);
@@ -1334,7 +1339,9 @@ namespace Cloudborne
                 // hanging from an edge: the catch of "Jump and Grab Wall" (arms flung up, knees drawn in), then its hang,
                 // swaying a little; the pull-up: "Ladder Climb Finish" from hands on the top (0.25) to standing (0.85)
                 // under a ledge, nothing to put his feet on: hanging at arm's length, legs straight (Bar Hang Idle)
-                case State.Hang when freeHang && model.HasClip("Bar_Hang_Idle"):
+                // every hang: still, at arm's length, legs straight (Bar Hang Idle) - at a wall too (the user: not like
+                // climbing, his hands going up, his arms stretching and his body rising - just hanging there)
+                case State.Hang when model.HasClip("Bar_Hang_Idle"):
                     model.LoopSeconds("Bar_Hang_Idle", g.clock, 0.12f);
                     break;
                 case State.Hang:
