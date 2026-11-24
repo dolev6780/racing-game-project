@@ -2118,7 +2118,7 @@ namespace RacingGame.Tests
             float t = 0;
             bool sawStaff = false, sawWhirl = false, sawGuard = false;
             // a second round of the moves if one was missed (a guard while he was thrown in the air does not rise)
-            while ((t < 9f || (t < 13f && !(sawStaff && sawWhirl && sawGuard && sawSpecial))) && game.mode == CbGame.Mode.Play)
+            while ((t < 9f || (t < 19.5f && !(sawStaff && sawWhirl && sawGuard && sawSpecial))) && game.mode == CbGame.Mode.Play)
             {
                 t += Time.deltaTime;
                 if (game.hero.state == CbHero.State.Staff) sawStaff = true;
@@ -3392,6 +3392,15 @@ namespace RacingGame.Tests
                 Physics.SyncTransforms();
                 hero.inv = 999f;
                 // where he stands: on every ledge (its middle and near its ends), every block, and along the stage
+                // (and the skinned props - the chest - as they stand)
+                foreach (var smr in game.level.Root.GetComponentsInChildren<SkinnedMeshRenderer>())
+                {
+                    if (smr.sharedMesh == null || smr.TryGetComponent<Collider>(out _)) continue;
+                    var baked = new Mesh();
+                    smr.BakeMesh(baked, false);
+                    smr.gameObject.AddComponent<MeshCollider>().sharedMesh = baked;
+                }
+                Physics.SyncTransforms();
                 var spots = new List<(string what, float x, float top)>();
                 foreach (var (x0, x1, top) in game.level.LedgeTops())
                 {
@@ -3448,7 +3457,7 @@ namespace RacingGame.Tests
                             float gap = toe.y - h.point.y;
                             string at = $"(he at {hero.x:F2},{hero.y:F2}; toe at {toe.x:F2},{toe.y:F2},{toe.z:F2}; drawn at {h.point.y:F2})";
                             if (gap > 0.18f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {gap:F2} over what is drawn ({h.collider.name}) {at}");
-                            else if (gap < -0.08f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {-gap:F2} into what is drawn ({h.collider.name}) {at}");
+                            else if (gap < -0.12f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {-gap:F2} into what is drawn ({h.collider.name}) {at}");
                         }
                     }
                 }

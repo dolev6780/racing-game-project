@@ -120,8 +120,12 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 
 ## Where things stand (update this section as work goes on)
 
-- **Touch test.** It went from 495 places, to 44, to 15, to 6. The last fixes (chest depth, test lines and edges)
-  are pushed in `3dd748d`; check its run.
+- **Touch test.** It went from 495 places, to 44, to 15, to 6, to 3 (run 286): the chest (a skinned model the
+  test could not see; it now bakes skinned props into colliders) and 0.10 m at the tower by the waterfall.
+- **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
+  1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
+- **The lip hang's picture** (run 286): one frame of the hang-and-climb clip shows him nearly horizontal, legs
+  swung up; check with the user whether it reads well.
 - **Animations.** The user chose Meshy 94, 132, 446, 447, 448, 449, 450 and 485; they are in:
   - Air fist: 94.
   - Ki-ball cast: 132.

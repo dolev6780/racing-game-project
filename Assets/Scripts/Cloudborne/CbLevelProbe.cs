@@ -167,6 +167,9 @@ namespace Cloudborne
         }
         public const float SurfaceReach = 0.55f;
 
+        /// <summary>Test hook: the level's own root (its models under it).</summary>
+        public Transform Root => root;
+
         /// <summary>Whether this stage's level is still built (not destroyed by a stage built after it).</summary>
         public bool Alive => root != null;
 
