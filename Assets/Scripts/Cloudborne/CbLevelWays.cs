@@ -956,7 +956,8 @@ namespace Cloudborne
             // stood in the air in front of it)
             var t = CbArt.Joint(root, ChestX, 0, 0f, "chest");
             // the model: opened, it glows and bursts with what was inside
-            chestModel = Model("Chest", t, new Vector3(1f, 0.81f, 0.88f), 180f);
+            // (as deep as his stance is wide across the path: his feet stand 0.36 either side of his line)
+            chestModel = Model("Chest", t, new Vector3(1f, 0.81f, 1.1f), 180f);
             if (chestModel != null)
             {
                 // its lid, split from the box (Tools/Blender/split_part.py), swings open on its hinge (the model only
