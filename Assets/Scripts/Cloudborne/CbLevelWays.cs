@@ -108,7 +108,7 @@ namespace Cloudborne
         // (the swinging logs are gone - the stage was long for a phone: the user - and the race from the lever through
         // its gate, past the low log, is shorter)
         public const float LeverX = 259.5f, RaceGateX = 265.5f, RaceLogX = 262.4f, LeverOpenTime = 4f;
-        const float ChestX = 421.5f;
+        const float ChestX = 421.5f, ChestStand = 1.0f;
         // the darts fly from the guardian's mouth: over a ducking Raja, into a standing one
         const float DartY = 1.35f;
 
@@ -975,6 +975,15 @@ namespace Cloudborne
                 float lidTop = 0.81f;
                 var cs = Solidify(chestModel);
                 if (TopOf(cs, ChestX, 0f, 0.2f, 1.4f, out float lt) || TopOf(cs, ChestX, 0.12f, 0.2f, 1.4f, out lt)) lidTop = lt;
+                // its lid as wide as the place he stands on it (his feet stood past a narrower lid, in the air: the
+                // touch test) - the model widened to it if its lid is drawn narrower
+                if (FindTop(cs, ChestX, 0.8f, lidTop, 0.25f, out _, out float c0, out float c1) && c1 - c0 < ChestStand)
+                {
+                    float k = Mathf.Min(1.6f, ChestStand / Mathf.Max(0.3f, c1 - c0));
+                    var sc = chestModel.localScale;
+                    chestModel.localScale = new Vector3(sc.x * k, sc.y, sc.z * k);
+                    Physics.SyncTransforms();
+                }
                 blocks.Add(new Block { x0 = ChestX - 0.5f, x1 = ChestX + 0.5f, top = lidTop, t = t });
                 return;
             }
