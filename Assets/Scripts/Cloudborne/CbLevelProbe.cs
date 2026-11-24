@@ -250,6 +250,23 @@ namespace Cloudborne
             }
         }
 
+        /// <summary>
+        /// The front edge of a ledge his hands reach at (x, hy), with room either side of him along it (not its ends -
+        /// those are caught from the side, FindEdge): its top and its span. For hanging from its lip, facing it.
+        /// </summary>
+        public bool LipNear(float x, float hy, out float top, out float x0, out float x1)
+        {
+            top = x0 = x1 = 0;
+            foreach (var l in ledges)
+            {
+                if (l.gone || x < l.x0 + LipInset || x > l.x1 - LipInset || hy < l.top - 0.2f || hy > l.top + 0.25f) continue;
+                top = l.top; x0 = l.x0; x1 = l.x1;
+                return true;
+            }
+            return false;
+        }
+        public const float LipInset = 0.25f;
+
         /// <summary>How many steps drawn on the rocks were found that nothing else let him stand on.</summary>
         public int RockSteps { get; private set; }
 

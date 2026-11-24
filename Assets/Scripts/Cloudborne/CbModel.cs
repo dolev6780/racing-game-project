@@ -143,6 +143,7 @@ namespace Cloudborne
             var extras = new List<AnimationClip>(Resources.LoadAll<AnimationClip>(path + "_Clips"));
             extras.AddRange(Resources.LoadAll<AnimationClip>(path + "_More_Clips"));
             extras.AddRange(Resources.LoadAll<AnimationClip>(path + "_Dodge_Clips"));
+            extras.AddRange(Resources.LoadAll<AnimationClip>(path + "_Climb_Clips"));
             foreach (var extra in extras)
             {
                 if (extra == null || !extra.legacy || extra.name.StartsWith("__preview__")) continue;

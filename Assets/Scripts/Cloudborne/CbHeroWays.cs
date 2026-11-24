@@ -38,6 +38,8 @@ namespace Cloudborne
             // pushing into it is enough (there is no up on the controls now)
             if (into != 0 && input.y > -0.3f && lv.VineWallAt(x, y, into, out float edgeX, out float top)) { StartVine(into, edgeX, top); return true; }
             if (state != State.Air || grabCd > 0) return false;
+            // the front edge of a ledge he did not quite reach (the user's choice of hang: along a ledge's lip, facing it)
+            if (vy < 0.5f && input.y > -0.3f && lv.LipNear(x, y + LipReach, out float lt, out float l0, out float l1)) { StartLip(lt, l0, l1); return true; }
             var po = lv.PoleNear(x, y + RopeReach);
             if (po != null && vy < 6f) { StartPole(po); return true; }
             var v = lv.VineNear(x, y + RopeReach);
@@ -71,6 +73,7 @@ namespace Cloudborne
                     return true;
                 case State.Bars when bar != null: at = new Vector3(0, bar.y + BarPoleUp, 0); return true;
                 case State.Pole when pole != null: at = new Vector3(pole.x, pole.y, 0); across = true; return true;
+                case State.Lip: at = new Vector3(0, lipTop + 0.02f, 0); return true;
                 // hanging from an edge: his palms on its corner
                 case State.Hang: at = new Vector3(grabX - grabDir * 0.06f, grabTop + 0.02f, 0); across = true; return true;
                 case State.Zip when zip != null: at = new Vector3(0, zip.At(x), 0); return true;
@@ -236,6 +239,55 @@ namespace Cloudborne
             }
         }
 
+        // ---------- along a ledge's lip ----------
+
+        float lipTop, lipX0, lipX1, lipPh, lipZ;
+        int lipMoving;
+        // his hands over his feet hanging from a lip, how fast he goes along it, how far in front of the ledge he hangs
+        const float LipReach = 1.7f, LipShimmy = 1.3f, LipFront = -0.75f, LipZSpeed = 3f, LipStride = 0.9f;
+        /// <summary>Whether he hangs from a ledge's front edge (its lip), facing it.</summary>
+        public bool OnLip => state == State.Lip;
+
+        void StartLip(float top, float l0, float l1)
+        {
+            TakeHold();
+            state = State.Lip;
+            lipTop = top; lipX0 = l0; lipX1 = l1;
+            y = top - LipReach;
+            lipMoving = 0;
+            CbFx.Spark(new Vector3(x, top + 0.05f, -0.8f), CbFx.Dust, 6, 2, 0.35f, 0.35f, 3);
+            CbFx.Sfx("block", 0.4f);
+        }
+
+        /// <summary>
+        /// Hanging from a ledge's lip, facing it (the user's choice: Meshy's hang and climb left and right): the stick
+        /// takes him along it hand over hand (not past its ends); up or JUMP pulls him up onto it; down lets go.
+        /// </summary>
+        void UpdateLip(ref Pose pose, CbInput input, float dt)
+        {
+            vx = vy = 0;
+            y = lipTop - LipReach;
+            if (g.level != null && !g.level.EdgeHolds(x, lipTop)) { state = State.Air; t = 0; air = true; jumps = 1; grabCd = GrabRest; return; }
+            lipMoving = Mathf.Abs(input.x) > 0.3f ? (input.x > 0 ? 1 : -1) : 0;
+            float nx = Mathf.Clamp(x + lipMoving * LipShimmy * dt, lipX0 + CbLevel.LipInset, lipX1 - CbLevel.LipInset);
+            if (Mathf.Abs(nx - x) < 1e-4f) lipMoving = 0;
+            else { x = nx; lipPh += LipShimmy * dt / LipStride; }
+            if (lipMoving != 0) facing = lipMoving;
+            ArmsUp(ref pose);
+            if (t < CatchTime) return;
+            if (input.y < -0.5f)
+            {
+                state = State.Air; t = 0; air = true; jumps = 1; vy = 0; grabCd = GrabRest;
+            }
+            else if (input.y > 0.5f || input.jump)
+            {
+                // pulled up straight over the lip onto the top (the climb from a hang, onto where he is along it)
+                grabX = x; grabTop = lipTop; grabDir = 0; hangX = x; hangY = y;
+                state = State.Climb; t = 0;
+                CbFx.Sfx("jump", 0.4f);
+            }
+        }
+
         // ---------- a swing pole ----------
 
         CbLevel.Pole pole;
@@ -369,6 +421,10 @@ namespace Cloudborne
                 // hanging from a vine, a rope or the zipline
                 case State.Swing:
                 case State.Zip: model.Show("Rope_Hang_Idle", 0.5f, 0.1f); return true;
+                // catching the bar or the pole: Meshy's "Jump and Hang on Bar" from his hands going up (0.38) to hanging (0.62)
+                case State.Bars when t < BarCatchTime && model.HasClip(BarCatchClip):
+                case State.Pole when t < BarCatchTime && model.HasClip(BarCatchClip):
+                    model.Window(BarCatchClip, 0.38f, 0.62f, t / BarCatchTime, 0.05f); return true;
                 // round a swing pole: hanging by both hands, arms straight up, turned about it (CbHero.Update)
                 case State.Pole when model.HasClip(BarHangClip): model.LoopSeconds(BarHangClip, g.clock, 0.15f); return true;
                 case State.Pole: model.Show("Rope_Hang_Idle", 0.5f, 0.1f); return true;
@@ -376,6 +432,11 @@ namespace Cloudborne
                 // the bar: hanging from it by both hands, arms straight up (Meshy's "Bar Hang Idle"), and along it hand
                 // over hand, facing the way he goes, legs swinging (made in Meshy from a description); the shimmy he
                 // had looked like clinging to a wall, not a pole (the user)
+                // along a ledge's lip, facing it: Meshy's hang-and-climb to the side he goes; still, its hang
+                case State.Lip when lipMoving != 0 && model.HasClip(LipLeftClip):
+                    model.Loop(lipMoving < 0 ? LipLeftClip : LipRightClip, lipPh, 0.12f); return true;
+                case State.Lip when model.HasClip(LipLeftClip): model.Show(LipLeftClip, 0f, 0.12f); return true;
+                case State.Lip: model.Show("Rope_Hang_Idle", 0.5f, 0.1f); return true;
                 case State.Bars when barMoving && model.HasClip(BarMoveClip): model.Loop(BarMoveClip, barPh, 0.12f); return true;
                 case State.Bars when model.HasClip(BarHangClip): model.LoopSeconds(BarHangClip, g.clock, 0.15f); return true;
                 case State.Bars:

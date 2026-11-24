@@ -41,7 +41,7 @@ namespace Cloudborne
     /// </summary>
     public partial class CbHero
     {
-        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo, Hang, Climb, Swim, Down, Victory, Swing, Vine, Bars, Zip, Kick, Slide, Pole }
+        public enum State { Idle, Run, Air, Atk, Staff, Blast, Special, Guard, Dash, Hurt, Dead, FireCombo, Hang, Climb, Swim, Down, Victory, Swing, Vine, Bars, Zip, Kick, Slide, Pole, Lip }
         public enum Move { None, Whirl, Launch, Thrust, Slam, Land, Smash, FireWhirl, BlazePalm, Lunge, Cyclone, Throw }
 
         struct Attack { public float dur, a, b, range, dmg, kb, up; public bool fin; }
@@ -93,6 +93,12 @@ namespace Cloudborne
         // the pull-up of "Ladder Climb Finish" (in place; the game lifts him). Measured on the model at its game size,
         // hanging he has his hands HangReach above his feet and HangAhead in front of him.
         public const float HangReach = 1.43f;
+        // the clips the user chose in Meshy's library (Raja_Climb_Clips): the wall flip, the flying fist in the air, the
+        // spell cast for the ki ball, the catch of a bar, the hang along a ledge's lip
+        const string WallFlipClip = "Wall_Flip", AirFistClip = "Flying_Fist_Kick", CastClip = "mage_soell_cast_3",
+            BarCatchClip = "Jump_and_Hang_on_Bar", LipLeftClip = "Hang_and_Climb_Left", LipRightClip = "Hang_and_Climb_Rght";
+        const float WallFlipTime = 0.55f, BarCatchTime = 0.28f;
+        float wallFlipT;
         /// <summary>Test hook: he takes hold of the edge at (edgeX, top), facing dir, as if he had caught it.</summary>
         public void TestHang(int dir, float edgeX, float top) => StartHang(dir, edgeX, top);
 
@@ -636,6 +642,8 @@ namespace Cloudborne
             vy = WallKickUp; vx = -wallDir * WallKickOut; facing = -wallDir;
             wallT = 0; wallLockT = WallLock; sliding = false;
             jumps = 1; airDashed = false; flipT = 0; state = State.Air;
+            // off the wall in a flip (Meshy's "Wall Flip", the user's choice)
+            wallFlipT = WallFlipTime;
             CbFx.Sfx("jump", 0.7f);
             CbFx.Spark(new Vector3(x + wallDir * CbLevel.HalfWidth, y + 0.3f, -0.3f), CbFx.Dust, 8, 3, 0.45f, 0.35f, 2);
         }
@@ -775,6 +783,7 @@ namespace Cloudborne
             sinceDash += dt;
             if (input.atk) buffer = 0.25f; else buffer = Mathf.Max(0, buffer - dt);
             spearFlipT = Mathf.Max(0, spearFlipT - dt);
+            wallFlipT = state == State.Air ? Mathf.Max(0, wallFlipT - dt) : 0;
             if (input.heavy) heavyBuffer = 0.25f; else heavyBuffer = Mathf.Max(0, heavyBuffer - dt);
             if (!input.heavyDown) holdUsed = false;
             if (state != State.Dead) ki = Mathf.Min(100, ki + KiRegen * CbSave.KiRegenMul * dt);
@@ -800,6 +809,7 @@ namespace Cloudborne
                 case State.Bars: UpdateBars(ref pose, input, dt); break;
                 case State.Zip: UpdateZip(ref pose, input, dt); break;
                 case State.Pole: UpdatePole(ref pose, input, dt); break;
+                case State.Lip: UpdateLip(ref pose, input, dt); break;
                 case State.Climb: UpdateClimb(ref pose); break;
                 case State.Swim: UpdateSwim(ref pose, dt); break;
                 case State.Down: UpdateDown(ref pose, input, dt); break;
@@ -1096,7 +1106,7 @@ namespace Cloudborne
         public bool Storming => state == State.Special && !FireAwake;
 
         /// <summary>Holding on to a vine, a vine wall, a bar or a zipline: the game places him itself.</summary>
-        bool Holding => state == State.Swing || state == State.Vine || state == State.Bars || state == State.Zip || state == State.Pole;
+        bool Holding => state == State.Swing || state == State.Vine || state == State.Bars || state == State.Zip || state == State.Pole || state == State.Lip;
 
         /// <summary>
         /// The height he stands (or hangs, or clings) at: his own while on something, the last one in a jump or a fall,
@@ -1236,6 +1246,9 @@ namespace Cloudborne
                 // the somersault shows the tuck of the backflip clip (its hips' turn removed): the game turns him
                 // sliding down a wall: clinging to it, arms up and knees in (the reach of "Jump and Grab Wall")
                 case State.Air when sliding: model.Show("Jump_and_Grab_Wall", 0.62f, 0.1f); break;
+                // off a wall: Meshy's wall flip from his feet on the wall (0.42) over and down (0.85)
+                case State.Air when wallFlipT > 0 && model.HasClip(WallFlipClip):
+                    model.Window(WallFlipClip, 0.42f, 0.85f, 1 - wallFlipT / WallFlipTime, 0.05f); break;
                 case State.Air when flipT > 0: model.Window("Backflip_Jump", 0.3f, 0.52f, 1 - flipT / FlipTime, 0.06f); break;
                 // the spear dodge: Meshy's backflip, whole (the user chose it)
                 case State.Air when spearFlipT > 0 && model.HasClip(SpearFlipClip):
@@ -1255,7 +1268,9 @@ namespace Cloudborne
                 {
                     float u = t / Paw[combo].dur;
                     // each strike lands inside its hit window (Paw[].a to .b)
-                    if (air) model.Window("Jumping_Punch", 0.25f, 0.6f, u);
+                    // in the air: Meshy's flying fist, from the leap to the punch thrown out (0.46-0.66, measured)
+                    if (air && model.HasClip(AirFistClip)) model.Window(AirFistClip, 0.46f, 0.66f, u);
+                    else if (air) model.Window("Jumping_Punch", 0.25f, 0.6f, u);
                     else if (combo == 0) model.Window("Punch_Combo", 0.25f, 0.5f, u);
                     else if (combo == 1) model.Window("Punch_Combo", 0.5f, 0.75f, u);
                     else if (combo == 2) model.Window("Lunge_Spin_Kick", 0.5f, 0.95f, u);
@@ -1297,6 +1312,8 @@ namespace Cloudborne
                     else model.Window("Charged_Upward_Slash", 0.12f, 0.45f, (t - StormWindup - StormFlurry) / (StormTime - StormWindup - StormFlurry));
                     break;
                 // both palms thrust from the hip: the fireball leaves at 0.4 of the shot, as they reach full stretch
+                // the ki ball: Meshy's spell cast - gathered, then both hands thrown forward (0.3) as it flies
+                case State.Blast when model.HasClip(CastClip): model.Window(CastClip, 0.1f, 0.55f, t / BlastTime); break;
                 case State.Blast: model.Window(FireClip, 0.1f, 0.8f, t / BlastTime); break;
                 // the special: power gathered low at the hip, then both palms pushed out and held while the beam runs
                 case State.Special:
@@ -1666,13 +1683,16 @@ namespace Cloudborne
         void Place()
         {
             float dt = Time.deltaTime;
-            f.root.localPosition = new Vector3(x, y, 0) + GripFix(dt);
+            // hanging from a ledge's lip he is in front of it (its face toward the camera), easing back to his line after
+            lipZ = Mathf.MoveTowards(lipZ, state == State.Lip ? LipFront : 0f, LipZSpeed * dt);
+            f.root.localPosition = new Vector3(x, y, lipZ) + GripFix(dt);
             squashV += (-squash * 320f - squashV * 17f) * dt;
             squash = Mathf.Clamp(squash + squashV * dt, -0.3f, 0.3f);
             // about his feet, keeping his volume
             f.body.localScale = new Vector3(1 + squash * 0.55f, 1 - squash, 1 + squash * 0.55f);
             // turned from side-on towards the camera (which looks along +Z): the modelled Raja shows his profile
-            float target = facing * (90f + (model != null ? 8f : 25f));
+            // (on a ledge's lip he faces it, away from the camera)
+            float target = state == State.Lip ? 0f : facing * (90f + (model != null ? 8f : 25f));
             float cur = f.body.localEulerAngles.y;
             f.body.localRotation = Quaternion.Euler(0, Mathf.LerpAngle(cur, target, 1 - Mathf.Exp(-18f * Time.deltaTime)), 0);
         }

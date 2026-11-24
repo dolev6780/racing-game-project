@@ -382,8 +382,12 @@ namespace RacingGame.Tests
             Assert.IsNotNull(game.hero.model, "Raja's model did not load (Resources/Cloudborne/Raja, legacy animation)");
             // 42 in his own file (the slide among them), the dive kick and a first crawl made later on a new rig of the
             // same model (Raja_Clips: its own copy of the slide is not added twice), and the crawl on hands and knees,
-            // hanging from a bar and going along it (Raja_More_Clips), and the backflip over a spear (Raja_Dodge_Clips)
-            Assert.AreEqual(48, game.hero.model.ClipCount, "Raja's model is missing animation clips");
+            // hanging from a bar and going along it (Raja_More_Clips), the backflip over a spear (Raja_Dodge_Clips), and the
+            // six the user chose in Meshy's library (Raja_Climb_Clips: the flying fist, the spell cast, the hang and climb
+            // left and right, the wall flip, the jump and hang on a bar)
+            foreach (var clip in new[] { "Flying_Fist_Kick", "mage_soell_cast_3", "Hang_and_Climb_Left", "Hang_and_Climb_Rght", "Wall_Flip", "Jump_and_Hang_on_Bar" })
+                Assert.IsTrue(game.hero.model.HasClip(clip), $"Raja has no {clip} clip");
+            Assert.AreEqual(54, game.hero.model.ClipCount, "Raja's model is missing animation clips");
             // from Meshy's animation library: catching an edge, pulling up over it, treading water, getting up, cheering;
             // hanging from a vine, climbing it, along a bar, pushing, walking the log; the dive kick from a description
             foreach (var clip in new[] { "Jump_and_Grab_Wall", "Ladder_Climb_Finish", "Swim_Idle", "Stand_Up1", "Victory_Cheer",
@@ -3478,6 +3482,48 @@ namespace RacingGame.Tests
         {
             for (; t != null; t = t.parent) if (t.name == "lod1") return true;
             return false;
+        }
+
+        [UnityTest]
+        public IEnumerator ZzHeHangsAlongALedgesLipAndPullsHimselfUp()
+        {
+            // the user chose Meshy's hang and climb left and right: falling short of a ledge he catches its front edge,
+            // hangs from it facing it, goes along it either way and pulls himself up onto it
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            hero.inv = 999f;
+            var ledge = game.level.LedgeTops().Find(l => l.x1 - l.x0 > 1.4f && l.top > 2f && l.top < 9f);
+            Assert.Greater(ledge.x1, ledge.x0, "No ledge wide enough to hang along");
+            float mid = (ledge.x0 + ledge.x1) / 2;
+            game.Teleport(mid);
+            hero.y = ledge.top - 1.75f;
+            hero.vx = 0; hero.vy = -0.5f;
+            hero.state = CbHero.State.Air;
+            yield return Frames(3);
+            Assert.IsTrue(hero.OnLip, "Raja did not catch the ledge's lip");
+            yield return new WaitForSeconds(0.4f);
+            var palms = (hero.model.Palm(hero.model.leftHand) + hero.model.Palm(hero.model.rightHand)) * 0.5f;
+            Assert.Less(Mathf.Abs(palms.y - ledge.top), 0.15f, "Raja's hands are not on the ledge's lip");
+            game.TestInput = i => i.x = 1;
+            yield return new WaitForSeconds(0.5f);
+            Assert.IsTrue(hero.OnLip, "Going along the lip, Raja let go");
+            Assert.Greater(hero.x, mid + 0.3f, "Raja did not go along the lip to the right");
+            float right = hero.x;
+            game.TestInput = i => i.x = -1;
+            yield return new WaitForSeconds(0.5f);
+            Assert.Less(hero.x, right - 0.3f, "Raja did not go along the lip to the left");
+            Assert.GreaterOrEqual(hero.x, ledge.x0 + CbLevel.LipInset - 0.01f, "Raja went past the lip's end");
+            yield return TakePictures(new[] { ("lip_hang", float.NaN, 0f) }, 0f);
+            bool up = false;
+            game.TestInput = i => { if (!up) { i.jump = true; up = true; } };
+            for (float w = 0; w < 1.5f && hero.state != CbHero.State.Idle; w += Time.deltaTime) yield return null;
+            game.TestInput = null;
+            Assert.AreEqual(CbHero.State.Idle, hero.state, "Raja did not pull himself up onto the ledge");
+            Assert.AreEqual(ledge.top, hero.y, 0.05f, "Raja is not standing on the ledge he pulled himself onto");
         }
 
         [UnityTest]
