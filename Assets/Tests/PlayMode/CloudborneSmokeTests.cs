@@ -3504,7 +3504,12 @@ namespace Cloudborne.Tests
                         if (!any)
                         {
                             if (atEdge && ++outOver == 1) continue;
-                            fails.Add($"{stage} {what} x {x:F1}: his {foot} foot in the air (nothing drawn under it) (he at {hero.x:F2},{hero.y:F2}; toe at {toe.x:F2},{toe.y:F2},{toe.z:F2})");
+                            // what is solid near it (to see why nothing was under it)
+                            var near = new List<string>();
+                            foreach (var c in Physics.OverlapSphere(toe, 1.2f))
+                                if (c.transform.root == game.transform.root && near.Count < 6)
+                                    near.Add($"{c.name}[{c.bounds.min.x:F2}..{c.bounds.max.x:F2}, y {c.bounds.min.y:F2}..{c.bounds.max.y:F2}, z {c.bounds.min.z:F2}..{c.bounds.max.z:F2}{(c.enabled && c.gameObject.activeInHierarchy ? "" : " off")}]");
+                            fails.Add($"{stage} {what} x {x:F1}: his {foot} foot in the air (nothing drawn under it) (he at {hero.x:F2},{hero.y:F2}; toe at {toe.x:F2},{toe.y:F2},{toe.z:F2}; near: {string.Join(" ", near)})");
                         }
                         else
                         {
@@ -3512,7 +3517,9 @@ namespace Cloudborne.Tests
                             string at = $"(he at {hero.x:F2},{hero.y:F2}; toe at {toe.x:F2},{toe.y:F2},{toe.z:F2}; drawn at {h.point.y:F2})";
                             // (at an edge one foot may be out over a drop too deep to step down to: level with the
                             // step he stands on, his toes over its edge)
-                            if (gap > 0.18f && atEdge && Mathf.Abs(toe.y - top) < 0.15f && gap > CbLimbIK.StepDown && ++outOver == 1) continue;
+                            // (likewise one foot over a drawn step deeper than a foot steps down to, on stairs whose
+                            // drawn steps are deeper than the way he walks up them)
+                            if (gap > 0.18f && Mathf.Abs(toe.y - top) < 0.15f && gap > CbLimbIK.StepDown && ++outOver == 1) continue;
                             if (gap > 0.18f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {gap:F2} over what is drawn ({h.collider.name}) {at}");
                             else if (gap < -0.12f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {-gap:F2} into what is drawn ({h.collider.name}) {at}");
                         }

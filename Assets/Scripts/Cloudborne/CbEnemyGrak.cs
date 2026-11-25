@@ -51,6 +51,9 @@ namespace Cloudborne
         float grakT, openT, grakHurt, walkPh, chargePh, stanceFor, grakStars;
         int grakPhase = 1, fireballs;
         bool sawAblaze, grakDown;
+        // his saw ablaze, he never charges twice running: after a charge from afar, fire (he charged six times in a row
+        // and never threw the fire his burning saw is for - CI's test, and a dull fight)
+        bool chargedLast;
         Color grakGlow;
         Transform saw, sawDisc, sawFire;
         class Wave { public float x, life; public int dir; }
@@ -214,7 +217,12 @@ namespace Cloudborne
                         float want2 = dist > GrakCloseIn * 0.8f ? Mathf.Sign(dx) * GrakWalk : 0;
                         vx = Mathf.MoveTowards(vx, want2, 12f * dt);
                         if (grakT < stanceFor || hero.state == CbHero.State.Dead || g.mode != CbGame.Mode.Play) break;
-                        if (dist > GrakChargeFrom) StartGrak(grakPhase == 3 && Random.value < 0.45f ? GrakMove.Fire : GrakMove.Scrape);
+                        if (dist > GrakChargeFrom)
+                        {
+                            bool fireNow = grakPhase == 3 && (chargedLast || Random.value < 0.45f);
+                            chargedLast = !fireNow && grakPhase == 3;
+                            StartGrak(fireNow ? GrakMove.Fire : GrakMove.Scrape);
+                        }
                         else if (grakPhase == 3 && Random.value < 0.35f) StartGrak(dist > 3f ? GrakMove.Fire : GrakMove.Slam);
                         else if (dist < GrakCloseIn) StartGrak(Random.value < 0.55f ? GrakMove.Swing : GrakMove.Chop);
                         else if (grakT > stanceFor + 2.5f) StartGrak(GrakMove.Scrape);

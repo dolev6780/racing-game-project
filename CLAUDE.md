@@ -125,14 +125,15 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 
 ## Where things stand (update this section as work goes on)
 
-- **Run 289 (7ef081d, with APK): 82 of 84 pass.** The headband, the start wall and the guard pass now.
-  - Touch test: the chest again, and stairs at x 450.7. The chest is skinned: `Solidify` measured only MeshFilters,
-    so nothing measured it, and the test baked it without its scale. Now `Solidify` bakes skinned parts too
-    (`BakeMesh(m, true)`), and so does the test. On the stairs (0.58 m steps) a foot hung halfway down a step:
-    `CbLimbIK.StepDown` (0.42) - a foot doesn't step down further standing; it stays level, toes over the edge (the
-    test allows one such foot at an edge). Local, not yet run.
-  - `RajasFireWakesBeforeGraksThreePhases`: Grak flung no fire in 20 s (his moves are random). Now 30 s, and the
-    failure lists his moves.
+- **Run 290 (d23d5cd): 82 of 84 pass.**
+  - The chest still: nothing under his feet at x 421.32 and 421.85 (the chest model is two plain meshes, Chest and
+    ChestLid, Fit to fill x ±0.5, z ±0.55, so rays there should hit it). The failure now lists the colliders near
+    the foot, to see why (local, not yet run).
+  - Stone stairs (x 425.6, 450.4): with `CbLimbIK.StepDown` the foot now stays level with his step, but the spots
+    were not counted as edges (the drawn steps are deeper than the way he walks up them). The test allows one foot
+    level with his step over a drawn drop deeper than StepDown.
+  - Grak charged six times running with his saw ablaze and never threw fire (two runs in a row). In phase 3 he now
+    never charges twice running: after a charge from afar, fire (`chargedLast`).
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body
