@@ -4,7 +4,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace RacingGame.EditorTools
+namespace Cloudborne.EditorTools
 {
     /// <summary>
     /// Project setup for the Cloudborne prototype: an empty "Cloudborne" scene (the game builds itself from code),

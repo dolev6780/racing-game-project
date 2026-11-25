@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using RacingGame.Core;
-using RacingGame.UI;
 using UnityEngine;
 using UnityEngine.UI;
 

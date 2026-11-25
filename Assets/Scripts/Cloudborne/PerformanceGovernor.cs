@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-namespace RacingGame.Core
+namespace Cloudborne
 {
     /// <summary>
     /// Keeps phones near 60 fps: when frames run slow, renders the 3D view at a slightly lower

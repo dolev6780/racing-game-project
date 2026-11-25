@@ -19,7 +19,7 @@ namespace Cloudborne
             Screen.autorotateToPortraitUpsideDown = false;
             Screen.autorotateToLandscapeLeft = true;
             Screen.autorotateToLandscapeRight = true;
-            RacingGame.Core.PerformanceGovernor.Install();
+            PerformanceGovernor.Install();
             string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
             if (scene == "Cloudborne" || string.IsNullOrEmpty(scene)) CbGame.Boot();
         }

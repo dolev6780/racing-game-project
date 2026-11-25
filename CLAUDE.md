@@ -79,6 +79,11 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 
 ## How the game is built (the parts touched most lately)
 
+- **No racing game left (the user):** the code assemblies are `Cloudborne`, `Cloudborne.Editor`,
+  `Cloudborne.Tests.PlayMode`; namespaces `Cloudborne`, `Cloudborne.EditorTools`, `Cloudborne.Tests`; shaders
+  `Cloudborne/...`; the URP asset `Assets/Settings/Cloudborne_URP.asset`. `InputBridge` (touch pointers),
+  `UIKit` (panels, rings, labels) and `PerformanceGovernor` live in `Assets/Scripts/Cloudborne`. Only the GitHub
+  repository's name still says racing.
 - **The game:** `CbGame` (+ `CbGameRuns`), `CbHero` (+ `CbHeroWays`, `CbHeroGuard`, `CbHeroThrow`), `CbEnemy*`,
   `CbItems`, `CbHud`.
 - **Levels:** `CbLevel` partials per stage and feature:

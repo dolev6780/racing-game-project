@@ -1,6 +1,6 @@
 using UnityEditor;
 
-namespace RacingGame.EditorTools
+namespace Cloudborne.EditorTools
 {
     /// <summary>
     /// Import settings for the modelled Cloudborne characters (Resources/Cloudborne/...): legacy animation, since the

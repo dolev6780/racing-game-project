@@ -3,7 +3,7 @@ using UnityEditor;
 using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
 
-namespace RacingGame.EditorTools
+namespace Cloudborne.EditorTools
 {
     /// <summary>
     /// Runs every play mode test from the command line and exits with 0 (all passed) or 1.
@@ -14,7 +14,7 @@ namespace RacingGame.EditorTools
     [InitializeOnLoad]
     public static class CiTests
     {
-        const string RunningKey = "RacingGame.CiTests.Running";
+        const string RunningKey = "Cloudborne.CiTests.Running";
         const string ResultsPath = "artifacts/playmode-results.xml";
 
         static CiTests()

@@ -6,7 +6,7 @@ using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 
-namespace RacingGame.EditorTools
+namespace Cloudborne.EditorTools
 {
     /// <summary>
     /// Keeps a cloned copy of the project up to date: pulls the latest commits from GitHub when the editor
@@ -18,7 +18,7 @@ namespace RacingGame.EditorTools
     [InitializeOnLoad]
     public static class GitUpdate
     {
-        const string CheckedKey = "RacingGame.GitUpdate.Checked";
+        const string CheckedKey = "Cloudborne.GitUpdate.Checked";
         static Task<string> pulling;
 
         static GitUpdate()

@@ -1,6 +1,6 @@
 // Soft, alpha-blended round puffs for particles (damaged-kart smoke). Uses vertex colour from the particle system.
 // Two versions: URP (first SubShader) and the built-in pipeline (fallback).
-Shader "RacingGame/Smoke"
+Shader "Cloudborne/Smoke"
 {
     Properties
     {

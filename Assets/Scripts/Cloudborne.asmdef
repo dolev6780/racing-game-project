@@ -1,16 +1,13 @@
 {
-    "name": "RacingGame.Editor",
-    "rootNamespace": "RacingGame.EditorTools",
+    "name": "Cloudborne",
+    "rootNamespace": "Cloudborne",
     "references": [
-        "RacingGame",
+        "Unity.InputSystem",
+        "UnityEngine.UI",
         "Unity.RenderPipelines.Core.Runtime",
-        "Unity.RenderPipelines.Universal.Runtime",
-        "UnityEditor.TestRunner",
-        "UnityEngine.TestRunner"
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

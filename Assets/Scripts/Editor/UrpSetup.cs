@@ -4,19 +4,19 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-namespace RacingGame.EditorTools
+namespace Cloudborne.EditorTools
 {
     /// <summary>
     /// Switches the project to the Universal Render Pipeline. Runs automatically when the editor
     /// loads (and before CI builds), so a fresh clone needs no manual setup:
-    /// creates Assets/Settings/RacingGame_URP.asset (+ its renderer) tuned for phones and assigns it
+    /// creates Assets/Settings/Cloudborne_URP.asset (+ its renderer) tuned for phones and assigns it
     /// as the default pipeline. Re-run from the menu to re-apply the settings.
     /// </summary>
     [InitializeOnLoad]
     public static class UrpSetup
     {
-        public const string AssetPath = "Assets/Settings/RacingGame_URP.asset";
-        const string RendererPath = "Assets/Settings/RacingGame_URP_Renderer.asset";
+        public const string AssetPath = "Assets/Settings/Cloudborne_URP.asset";
+        const string RendererPath = "Assets/Settings/Cloudborne_URP_Renderer.asset";
 
         static UrpSetup()
         {

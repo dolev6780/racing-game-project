@@ -1,5 +1,5 @@
 // Soft additive glow for particles (drift sparks, boost flames). Uses vertex colour from the particle system.
-Shader "RacingGame/Sparks"
+Shader "Cloudborne/Sparks"
 {
     Properties
     {

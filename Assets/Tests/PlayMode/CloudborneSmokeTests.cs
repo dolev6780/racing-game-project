@@ -6,7 +6,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace RacingGame.Tests
+namespace Cloudborne.Tests
 {
     /// <summary>
     /// Plays the Cloudborne prototype for real: starts a run, walks into the first fight zone and uses every move
@@ -3285,7 +3285,7 @@ namespace RacingGame.Tests
         /// </summary>
         IEnumerator TakePictures((string name, float x, float y)[] spots, float wait = 2.5f)
         {
-            // the game's own camera (Camera.main can be another scene's: the first pictures were of the kart race)
+            // the game's own camera (Camera.main can be another scene's)
             var cam = game.GetComponentInChildren<Camera>();
             Assert.IsNotNull(cam, "No game camera");
             // Only here is the game drawn in CI (into a picture): the shaders compile for the first time and any

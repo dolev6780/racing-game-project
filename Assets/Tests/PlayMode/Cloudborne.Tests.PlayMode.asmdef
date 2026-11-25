@@ -1,8 +1,8 @@
 {
-    "name": "RacingGame.Tests.PlayMode",
-    "rootNamespace": "RacingGame.Tests",
+    "name": "Cloudborne.Tests.PlayMode",
+    "rootNamespace": "Cloudborne.Tests",
     "references": [
-        "RacingGame",
+        "Cloudborne",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

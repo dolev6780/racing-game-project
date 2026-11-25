@@ -5,7 +5,7 @@ using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
-namespace RacingGame.EditorTools
+namespace Cloudborne.EditorTools
 {
     /// <summary>
     /// Command-line / CI builds (GameCI calls BuildAndroid through "buildMethod").
@@ -17,7 +17,6 @@ namespace RacingGame.EditorTools
         public static void BuildAndroid()
         {
             UrpSetup.Ensure(true);
-            // This branch builds the Cloudborne prototype (the racing game stays in the project, outside the build).
             string scene = CloudborneSetup.Ensure();
 
             string path = Arg("-customBuildPath") ?? "build/Android/Cloudborne.apk";

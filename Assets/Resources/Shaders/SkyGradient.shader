@@ -1,6 +1,6 @@
 // Bright cartoon sky: three-colour gradient, glowing sun and drifting puffy clouds.
 // Used as a procedural skybox material (RenderSettings.skybox).
-Shader "RacingGame/SkyGradient"
+Shader "Cloudborne/SkyGradient"
 {
     Properties
     {

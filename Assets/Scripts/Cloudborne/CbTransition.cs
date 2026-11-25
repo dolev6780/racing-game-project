@@ -1,5 +1,4 @@
 using System;
-using RacingGame.UI;
 using UnityEngine;
 using UnityEngine.UI;
 

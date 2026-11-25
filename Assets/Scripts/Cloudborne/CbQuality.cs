@@ -13,7 +13,7 @@ namespace Cloudborne
     /// </list>
     /// SETTINGS chooses it, or AUTO (the default): picked from the phone's memory and cores the first time, and stepped
     /// down a level for good when the game keeps running under StepDownFps for StepDownAfter seconds of play (the 3D
-    /// view's resolution drops first: RacingGame.Core.PerformanceGovernor). Off a phone it is always High.
+    /// view's resolution drops first: PerformanceGovernor). Off a phone it is always High.
     /// </summary>
     public static class CbQuality
     {

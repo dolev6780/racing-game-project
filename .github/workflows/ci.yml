@@ -52,7 +52,7 @@ jobs:
         if: env.UNITY_LICENSE != ''
         with:
           targetPlatform: StandaloneLinux64
-          buildMethod: RacingGame.EditorTools.CiTests.RunPlayModeTests
+          buildMethod: Cloudborne.EditorTools.CiTests.RunPlayModeTests
           manualExit: true
       - uses: actions/upload-artifact@v4
         if: always() && env.UNITY_LICENSE != ''
@@ -96,7 +96,7 @@ jobs:
           targetPlatform: Android
           buildName: Cloudborne
           # Sets up URP and the Cloudborne scene, then builds a 64-bit (IL2CPP, ARM64) APK.
-          buildMethod: RacingGame.EditorTools.BuildScript.BuildAndroid
+          buildMethod: Cloudborne.EditorTools.BuildScript.BuildAndroid
       - uses: actions/upload-artifact@v4
         if: env.UNITY_LICENSE != ''
         with:

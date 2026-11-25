@@ -2,7 +2,7 @@
 // banded lighting with tinted shadows, a crisp specular highlight, rim light and an optional outline.
 // Two versions: URP (first SubShader) and the built-in pipeline (fallback). Receives and casts shadows, supports fog.
 // _Cull Off draws both sides of thin surfaces such as leaves, lit from the side that faces the camera.
-Shader "RacingGame/Toon"
+Shader "Cloudborne/Toon"
 {
     Properties
     {
