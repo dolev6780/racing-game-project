@@ -2142,6 +2142,31 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator RajasHeadbandTailStirsALittle()
+        {
+            // the user: standing still, his headband's tail moves just slightly (a bone added for it: CbHeadband)
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var model = game.hero.model;
+            Assert.IsNotNull(model, "Raja's model did not load");
+            Assert.IsNotNull(model.headband, "Raja's headband tail was not found on his model");
+            Assert.Contains(model.headband.transform, model.skin.bones, "The headband tail's bone does not move his skin");
+            float most = 0;
+            var first = model.headband.transform.localRotation;
+            for (float w = 0; w < 1.5f; w += Time.deltaTime)
+            {
+                most = Mathf.Max(most, Quaternion.Angle(first, model.headband.transform.localRotation));
+                yield return null;
+            }
+            Debug.Log($"HEADBAND swayed up to {most:F1} degrees standing still");
+            Assert.Greater(most, 1f, "Raja's headband tail does not stir");
+            Assert.Less(most, 30f, "Raja's headband tail flaps too much standing still");
+        }
+
+        [UnityTest]
         public IEnumerator AtTheStartAnInvisibleWallIsBehindHim()
         {
             // the user: nothing behind Raja at the start - no gate there, an invisible wall he can't pass

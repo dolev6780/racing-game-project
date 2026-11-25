@@ -23,7 +23,7 @@ namespace Cloudborne.EditorTools
         const string Lip = Folder + "Jungle/Ground/GroundLip",
             Clump = Folder + "Jungle/Backdrop/BushClump", WaterSide = Folder + "Jungle/Water/WaterSide";
 
-        public override uint GetVersion() => 8;
+        public override uint GetVersion() => 9;
 
         void OnPreprocessTexture()
         {
@@ -87,7 +87,8 @@ namespace Cloudborne.EditorTools
             model.materialImportMode = ModelImporterMaterialImportMode.None;
             model.importCameras = false;
             model.importLights = false;
-            model.isReadable = assetPath.StartsWith(Scenery);
+            // (Raja readable too: his headband's tail gets a bone of its own at runtime - CbHeadband)
+            model.isReadable = assetPath.StartsWith(Scenery) || assetPath.EndsWith("Raja/Raja.fbx");
             // a file of clips only (NAME_Clips.fbx: a skeleton and its clips, made later for a character already in the
             // game) has one root, its skeleton: kept as a child of the file's own root, as in the character's file, so
             // its clips animate the same paths. Unity otherwise makes that skeleton the root, and the clips moved and

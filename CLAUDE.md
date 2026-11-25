@@ -151,6 +151,15 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 - **Rocks.** The user said climbing on the rocks "doesn't render well". Steps on them are now standable
   (`AddRockSteps`). Still waiting for a screenshot of the render problem.
 - **FPS:** the user says it is fine (run 288's APK).
+- **The look of the jungle (the user's marked screenshot, local, not yet run):**
+  - `PaintedCutout` got `_Wind` (the painting's top sways, gusts rolling along the stage), `_Dapple` (sunlight
+    drifting over leaves) and depth shading for the ground's face (`_ShadeTop`, `_Deep`, `_DeepOver`, `_Ao`).
+  - The hedge, its clumps, the row of trees and the grass lip sway; a second, hazier, mirrored row of trees stands at
+    z 34 for depth; the earth face darkens with depth and lies in shadow under the lip.
+  - Swaying plant cards scattered in front of the hedge, along the path's back edge and over the front edge.
+  - Raja's headband tail stirs: `CbHeadband` adds a bone at its knot at runtime (Raja's mesh is now readable,
+    `CharacterImport` version 9). Test: `RajasHeadbandTailStirsALittle`.
+  - No new art yet; new paintings (a better ground, separate tree layers) would go through Canva first.
 - **Stage 1-1.**
   - The user chose to keep the stage as it is for now (no new Canva route), and fix it piece by piece from the start.
   - Behind him at the start: no gate, an invisible wall at `CbWorld.StartWall` (-0.5; every stage starts at x 0).

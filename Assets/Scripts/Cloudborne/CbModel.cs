@@ -94,6 +94,8 @@ namespace Cloudborne
 
         /// <summary>How far the model is raised (+) or lowered (-) now to keep its feet on the ground (test hook).</summary>
         public float GroundFix => groundFix;
+        /// <summary>Raja's headband tail, swaying (null if it isn't found).</summary>
+        public CbHeadband headband;
         /// <summary>His limbs' solver (null for a model without the usual skeleton).</summary>
         public CbLimbIK ik;
         /// <summary>How far his toe bones sit over his soles (world, his model's scale).</summary>
@@ -172,6 +174,8 @@ namespace Cloudborne
             // the hair or ears rise about 6% of the toe-to-crown span above the head bone's end, the toes sit 4% above the floor.
             skin = root.GetComponentInChildren<SkinnedMeshRenderer>(true);
             if (skin != null) ToBindPose(skin);
+            // Raja's headband tail stirs a little (a bone added for it: CbHeadband)
+            if (path.EndsWith("Raja/Raja")) headband = CbHeadband.Add(skin, head, bones["head_end"], headFront);
             var fwd = headFront.position - head.position;
             fwd.y = 0;
             root.localRotation = Quaternion.FromToRotation(parent.InverseTransformDirection(fwd.normalized), Vector3.forward) * root.localRotation;

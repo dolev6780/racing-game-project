@@ -211,7 +211,7 @@ namespace Cloudborne
         static readonly string[] FlowerCards = { "Flower1", "Flower2", "Flower3", "Flower4", "Flower5" };
         static Shader cutout;
         // how far the tops of the grass and flower cards sway in the breeze, in metres
-        const float CardSway = 0.05f;
+        const float CardSway = 0.05f, PlantSway = 0.08f;
 
         /// <summary>An unlit cut-out material for a painting with a clear background; null if it can't be drawn.</summary>
         /// <summary>
@@ -271,7 +271,7 @@ namespace Cloudborne
         }
 
         /// <summary>The grass and flower cards in the project: their material, width over height, and whether a flower.</summary>
-        static List<(Material m, float aspect, bool flower)> LoadCards()
+        static List<(Material m, float aspect, bool flower)> LoadCards(float sway = CardSway)
         {
             var list = new List<(Material, float, bool)>();
             foreach (var (names, flower) in new[] { (GrassCards, false), (FlowerCards, true) })
@@ -282,7 +282,7 @@ namespace Cloudborne
                     var m = Cutout(tex, 0f, new Color(0.86f, 0.88f, 0.86f));
                     if (m == null) continue;
                     // their tops sway in the breeze (the jungle stood still)
-                    m.SetFloat("_Sway", CardSway);
+                    m.SetFloat("_Sway", sway);
                     list.Add((m, tex.width / (float)tex.height, flower));
                 }
             return list;
@@ -293,7 +293,8 @@ namespace Cloudborne
         /// z, height metres tall from bottom, repeated along it; the perspective camera gives it its parallax, and the
         /// farther it is the more it fades into the haze. False if its painting isn't in the project.
         /// </summary>
-        bool BuildLayer(string name, float z, float bottom, float height, float haze, List<(float a, float b)> spans = null, Color? tint = null)
+        bool BuildLayer(string name, float z, float bottom, float height, float haze, List<(float a, float b)> spans = null, Color? tint = null,
+            float wind = 0f, float dapple = 0f, bool mirror = false, float shift = 0f)
         {
             var tex = Resources.Load<Texture2D>("Cloudborne/Jungle/Backdrop/" + name);
             var m = Cutout(tex, haze, tint);
@@ -301,12 +302,17 @@ namespace Cloudborne
             tex.wrapModeU = TextureWrapMode.Repeat;
             tex.wrapModeV = TextureWrapMode.Clamp;
             float tileW = height * tex.width / tex.height;
+            // the leaves stir in the breeze (wind: how far its top sways, in metres) and sunlight drifts over them (the
+            // user: the painted trees and bushes looked like a picture stuck on)
+            m.SetFloat("_Wind", wind / tileW);
+            m.SetFloat("_Dapple", dapple);
             spans ??= new List<(float, float)> { (-120f, End + 120f) };
             foreach (var (from, to) in spans)
             {
-                // each piece lined up with the world, so the painting runs on unbroken where pieces meet
-                float w = to - from;
-                var piece = new Material(m) { mainTextureScale = new Vector2(w / tileW, 1), mainTextureOffset = new Vector2(from / tileW, 0) };
+                // each piece lined up with the world, so the painting runs on unbroken where pieces meet (mirrored and
+                // shifted along for a second row, so its trees don't stand behind the same trees)
+                float w = to - from, k = mirror ? -1f : 1f;
+                var piece = new Material(m) { mainTextureScale = new Vector2(k * w / tileW, 1), mainTextureOffset = new Vector2(k * (from + shift) / tileW, 0) };
                 var t = CbArt.Part(CbMesh.Quad, piece, root, new Vector3((from + to) / 2, bottom + height / 2, z), new Vector3(w, height, 1), shadows: false);
                 t.name = name;
             }
@@ -327,6 +333,8 @@ namespace Cloudborne
 
         /// <summary>The ground behind the path where the bushes stand: all of it but the streams and rivers.</summary>
         static List<(float a, float b)> BushGround() => BankToBank(-120f, End + 120f, 0.3f);
+        // how far the hedge's top sways in the breeze (metres); how far back the second, hazier row of trees stands
+        const float HedgeWind = 0.07f, FarRowZ = 34f;
 
         bool layers;
 
@@ -362,7 +370,17 @@ namespace Cloudborne
             if (lip != null)
             {
                 var flat = Cutout(face.mainTexture as Texture2D, 0f, StageTint);
-                if (flat != null) { flat.SetFloat("_Cutoff", 0f); face = flat; }
+                if (flat != null)
+                {
+                    flat.SetFloat("_Cutoff", 0f);
+                    // the earth darker the deeper it goes, in a soft shadow under the grass lip: it sits back behind
+                    // the grass, one ground with it, not a flat picture under it (the user)
+                    flat.SetFloat("_ShadeTop", -0.05f);
+                    flat.SetFloat("_Deep", 0.6f);
+                    flat.SetFloat("_DeepOver", 2.6f);
+                    flat.SetFloat("_Ao", 0.35f);
+                    face = flat;
+                }
                 lipTex.wrapModeU = TextureWrapMode.Repeat;
                 lipTex.wrapModeV = TextureWrapMode.Clamp;
             }
@@ -440,6 +458,31 @@ namespace Cloudborne
                     var at = p + new Vector3(0, h * 0.48f, 0);
                     Add(CbMesh.Quad, m, Matrix4x4.TRS(at, Quaternion.Euler(0, Random.Range(-25f, 25f), 0), new Vector3(h * aspect * (Random.value < 0.5f ? -1 : 1), h, 1)));
                 }
+            }
+            if (cards.Count > 0 && NewLook && !CbStage.Treetops)
+            {
+                // the user: plants here and there, of every size, stirring in a light breeze - in front of the hedge (it
+                // repeated the same bushes), along the path's back edge and over the front edge of the ground (straight
+                // lines where the path met the grass)
+                var tall = LoadCards(PlantSway);
+                foreach (var (z0, z1, gap0, gap1, h0, h1, flowers) in new[]
+                {
+                    (2.15f, 2.8f, 0.5f, 1.3f, 0.6f, 1.25f, 0.3f),
+                    (1.45f, 1.85f, 0.3f, 0.8f, 0.3f, 0.6f, 0.2f),
+                    (GroundFront + 0.04f, GroundFront + 0.3f, 0.7f, 1.6f, 0.2f, 0.38f, 0.25f),
+                })
+                    for (float x = -40f; x < End; x += Random.Range(gap0, gap1))
+                    {
+                        var p = new Vector3(x, 0, Random.Range(z0, z1));
+                        if (Wet(p.x, p.z) || OverPit(p.x)) continue;
+                        bool wantFlower = Random.value < flowers;
+                        var pick = tall.FindAll(c => c.flower == wantFlower);
+                        if (pick.Count == 0) pick = tall;
+                        var (m, aspect, _) = pick[Random.Range(0, pick.Count)];
+                        float h = Random.Range(h0, h1);
+                        Add(CbMesh.Quad, m, Matrix4x4.TRS(p + new Vector3(0, h * 0.48f, 0), Quaternion.Euler(0, Random.Range(-20f, 20f), 0),
+                            new Vector3(h * aspect * (Random.value < 0.5f ? -1 : 1), h, 1)));
+                    }
             }
             var grassMats = new[] { CbArt.Toon("#357a33"), CbArt.Toon("#468a3c"), CbArt.Toon("#2a6a30"), CbArt.Toon("#559443") };
             for (int i = 0; i < (cards.Count > 0 ? 0 : 3600); i++)
@@ -734,7 +777,7 @@ namespace Cloudborne
         const float EndBarkTile = 2.4f;
 
         // the lip: drawn a little smaller than the face, so the leaves rise only a hand's breadth over the path's edge
-        const float LipScale = 0.7f, TreetopsLipAbove = 0.3f;
+        const float LipScale = 0.7f, TreetopsLipAbove = 0.3f, LipWind = 0.025f;
 
         /// <summary>The leaves and flowers of the grass lip along the front edge from a to b, over the face's top.</summary>
         void LipQuad(Material lip, float a, float b)
@@ -749,6 +792,9 @@ namespace Cloudborne
             bool moss = LipPath.StartsWith(TreetopsGroundDir);
             float below = (moss ? tex.height * (1 - TreetopsLipAbove) : 40) * mpp * LipScale;
             var m = new Material(lip) { mainTextureScale = new Vector2((b - a) / tileW, 1), mainTextureOffset = new Vector2(a / tileW, 0) };
+            // its leaves and flowers stir in the breeze (its foot, over the face, stays)
+            m.SetFloat("_Wind", LipWind / tileW);
+            m.SetFloat("_Dapple", 0.05f);
             var t = CbArt.Part(CbMesh.Quad, m, root, new Vector3((a + b) / 2, h / 2 - below, GroundFront - 0.03f), new Vector3(b - a, h, 1), shadows: false);
             t.name = "groundLip";
         }
@@ -987,6 +1033,13 @@ namespace Cloudborne
 
         /// <summary>Whether a spot near the path is in one of the streams (they run from the front edge back to z 10).</summary>
         // (stage 1-5: no green grass, flowers, palms or leaves - the jungle round the temple is burnt)
+        /// <summary>Whether x is over one of the hidden pits (or near its edge).</summary>
+        static bool OverPit(float x)
+        {
+            foreach (var (x0, x1) in CbLevel.Pits) if (x > x0 - 0.4f && x < x1 + 0.4f) return true;
+            return false;
+        }
+
         static bool Wet(float x, float z, float margin = 0.5f) => CbStage.River || CbStage.Ember || z < CbLevel.WaterBack + 1f && CbLevel.InWater(x, margin);
 
         /// <summary>
@@ -1137,14 +1190,17 @@ namespace Cloudborne
                 // (stage 1-1: the row of trees goes on to the end now, as its jungle painting does; not in the treetops:
                 // the jungle floor's trees stood in front of its painting of the canopy - two pictures that didn't go
                 // together, the user said of 1-1's)
-                mid = CbStage.Jungle && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
+                // (a second row further back, hazier and mirrored, so the trees stand in depth, not on one flat picture;
+                // the leaves of every row stir in the breeze, sunlight drifting over them - the user)
+                if (CbStage.Jungle) BuildLayer("JungleMid", FarRowZ, -1.2f, 15f, 0.55f, null, null, 0.2f, 0.05f, true, 7f);
+                mid = CbStage.Jungle && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f, null, null, 0.16f, 0.07f);
                 var hedge = BushGround();
-                near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, StageTint);
+                near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, StageTint, HedgeWind, 0.08f);
                 // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and
                 // the old leaf models showed there)
                 var behind = new List<(float a, float b)>();
                 foreach (var (x0, x1) in CbLevel.Waters) behind.Add((x0 - 1f, x1 + 1f));
-                if (!CbStage.River) BuildLayer("JungleNear", CbLevel.WaterBack + 0.7f, -0.15f, 1.9f, 0f, behind, PaintTint);
+                if (!CbStage.River) BuildLayer("JungleNear", CbLevel.WaterBack + 0.7f, -0.15f, 1.9f, 0f, behind, PaintTint, HedgeWind, 0.08f);
                 // where it meets a river, a rounded clump closes it (it ended in a straight cut)
                 var clumpTex = Resources.Load<Texture2D>(ClumpPath);
                 var clump = clumpTex != null ? Cutout(clumpTex, 0f, StageTint) : null;
@@ -1152,6 +1208,8 @@ namespace Cloudborne
                 {
                     clumpTex.wrapMode = TextureWrapMode.Clamp;
                     float cw = ClumpHeight * clumpTex.width / clumpTex.height;
+                    clump.SetFloat("_Wind", HedgeWind / cw);
+                    clump.SetFloat("_Dapple", 0.08f);
                     foreach (var (a, b) in hedge)
                         foreach (var (end, inward) in new[] { (a, 1f), (b, -1f) })
                         {
