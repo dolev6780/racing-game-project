@@ -1075,7 +1075,9 @@ namespace Cloudborne
                 foreach (var toe in new[] { lt, rt })
                 {
                     float tx = x + (toe.x - f.root.position.x), tz = toe.z - f.root.position.z;
-                    if (g.level.SurfaceUnder(tx, y, tz, out float sy)) { any = true; low = Mathf.Min(low, sy - y); }
+                    // (a drop deeper than a foot steps down to standing is not under it: that foot stays on his step,
+                    // its toes over the edge - CbLimbIK.StepDown)
+                    if (g.level.SurfaceUnder(tx, y, tz, out float sy) && sy - y > -CbLimbIK.StepDown) { any = true; low = Mathf.Min(low, sy - y); }
                     else low = Mathf.Min(low, 0f);
                 }
                 if (any) surface = Mathf.Clamp(low, -CbLevel.SurfaceReach, CbLevel.SurfaceReach);

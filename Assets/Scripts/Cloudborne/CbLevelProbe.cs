@@ -29,6 +29,18 @@ namespace Cloudborne
                 mc.sharedMesh = mf.sharedMesh;
                 list.Add(mc);
             }
+            // and its skinned parts (the chest, whose lid opens), baked as they stand, in their own space (with their
+            // scale: baked without it, the surface lay far from where it is drawn and nothing measured the chest)
+            foreach (var smr in model.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                if (smr.sharedMesh == null || IsLighterCopy(smr.transform)) continue;
+                var baked = new Mesh { name = smr.sharedMesh.name + "_Solid" };
+                smr.BakeMesh(baked, true);
+                var mc = smr.gameObject.GetComponent<MeshCollider>();
+                if (mc == null) mc = smr.gameObject.AddComponent<MeshCollider>();
+                mc.sharedMesh = baked;
+                list.Add(mc);
+            }
             Physics.SyncTransforms();
             return list;
         }

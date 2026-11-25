@@ -125,13 +125,14 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 
 ## Where things stand (update this section as work goes on)
 
-- **Touch test.** It went from 495 places, to 44, to 15, to 6, to 3, to 2 (runs 287 and 288, 80-81 of 82 tests
-  pass): only the chest is left. Widening it along his line (run 288) did not help: his feet stand 0.36 m in front of
-  and behind his line, and the lid is shallower than that. Also the stage's reset set the model's scale back to 1.
-  Now the lid's depth is measured (`LidDepth`) and the model deepened to 0.9 m and centred, and the reset keeps the
-  fitted size (local, not yet run).
-- **The first fight's guard** (`EveryMoveWorksInTheFirstFight`) failed in run 288 in all three rounds. GUARD is now
-  held through its whole phase, and the failure message lists his states while it was held (local, not yet run).
+- **Run 289 (7ef081d, with APK): 82 of 84 pass.** The headband, the start wall and the guard pass now.
+  - Touch test: the chest again, and stairs at x 450.7. The chest is skinned: `Solidify` measured only MeshFilters,
+    so nothing measured it, and the test baked it without its scale. Now `Solidify` bakes skinned parts too
+    (`BakeMesh(m, true)`), and so does the test. On the stairs (0.58 m steps) a foot hung halfway down a step:
+    `CbLimbIK.StepDown` (0.42) - a foot doesn't step down further standing; it stays level, toes over the edge (the
+    test allows one such foot at an edge). Local, not yet run.
+  - `RajasFireWakesBeforeGraksThreePhases`: Grak flung no fire in 20 s (his moves are random). Now 30 s, and the
+    failure lists his moves.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body

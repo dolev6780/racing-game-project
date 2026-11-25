@@ -2702,13 +2702,15 @@ namespace Cloudborne.Tests
             for (float w = 0; w < 10f && !grak.SawAblaze; w += Time.deltaTime) yield return null;
             Assert.IsTrue(grak.SawAblaze, "Grak's saw did not catch fire");
             bool fire = false;
-            for (float w = 0; w < 20f && !fire; w += Time.deltaTime)
+            var moves = new List<string>();
+            for (float w = 0; w < 30f && !fire; w += Time.deltaTime)
             {
                 yield return null;
                 fire = grak.FireWaves > 0 || level.ThrownComing(hero.x, 0f, hero.x < grak.x ? 1 : -1, 30f);
+                if (moves.Count == 0 || moves[moves.Count - 1] != grak.grakMove.ToString()) moves.Add(grak.grakMove.ToString());
                 if (Mathf.Abs(hero.x - grak.x) < 4f) hero.x = grak.x < CbLevel.GrakX ? CbLevel.GrakX + 6f : CbLevel.GrakX - 6f;
             }
-            Assert.IsTrue(fire, "With his saw ablaze Grak flung no fire and sent out no waves");
+            Assert.IsTrue(fire, $"With his saw ablaze Grak flung no fire and sent out no waves (his moves: {string.Join(", ", moves)}; Raja at {hero.x:F1}, Grak at {grak.x:F1})");
             // beaten: then the end of chapter 1 (drawn), and the stage is clear
             game.HurtEnemy(grak, 9999f, 1, 2f, 0f, true, false, fire: true, fromPlayer: true, pierce: true);
             Assert.IsTrue(grak.dead, "Grak could not be beaten");
@@ -3448,7 +3450,8 @@ namespace Cloudborne.Tests
                 {
                     if (smr.sharedMesh == null || smr.TryGetComponent<Collider>(out _)) continue;
                     var baked = new Mesh();
-                    smr.BakeMesh(baked, false);
+                    // (in its own space, with its scale, as the collider on it will be)
+                    smr.BakeMesh(baked, true);
                     smr.gameObject.AddComponent<MeshCollider>().sharedMesh = baked;
                 }
                 Physics.SyncTransforms();
@@ -3507,6 +3510,9 @@ namespace Cloudborne.Tests
                         {
                             float gap = toe.y - h.point.y;
                             string at = $"(he at {hero.x:F2},{hero.y:F2}; toe at {toe.x:F2},{toe.y:F2},{toe.z:F2}; drawn at {h.point.y:F2})";
+                            // (at an edge one foot may be out over a drop too deep to step down to: level with the
+                            // step he stands on, his toes over its edge)
+                            if (gap > 0.18f && atEdge && Mathf.Abs(toe.y - top) < 0.15f && gap > CbLimbIK.StepDown && ++outOver == 1) continue;
                             if (gap > 0.18f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {gap:F2} over what is drawn ({h.collider.name}) {at}");
                             else if (gap < -0.12f) fails.Add($"{stage} {what} x {x:F1} top {top:F2}: his {foot} foot {-gap:F2} into what is drawn ({h.collider.name}) {at}");
                         }

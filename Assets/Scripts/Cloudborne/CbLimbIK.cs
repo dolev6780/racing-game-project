@@ -34,6 +34,12 @@ namespace Cloudborne
 
         // how far a foot may be moved up or down, how near the floor a toe counts as planted, how fast the limbs ease in
         const float FootReach = 0.55f, Planted = 0.1f, Ease = 14f, PalmOut = 0.05f;
+        /// <summary>
+        /// The deepest step a standing foot goes down to (one foot on a step, the other on the one below). Over a deeper
+        /// drop (the stone stairs' steps are 0.58) the foot stays level with the step he stands on, its toes over the
+        /// edge: it hung in the air halfway down (the touch test).
+        /// </summary>
+        public const float StepDown = 0.42f;
 
         void LateUpdate()
         {
@@ -51,6 +57,7 @@ namespace Cloudborne
             if (l.weight <= 0 || surface == null) return;
             var toe = l.tip.position;
             float? s = surface(toe);
+            if (s.HasValue && s.Value < floorY - StepDown) s = null;
             float ground = s ?? floorY;
             float want = ground + toeLift;
             bool planted = toe.y - floorY < toeLift + Planted;
