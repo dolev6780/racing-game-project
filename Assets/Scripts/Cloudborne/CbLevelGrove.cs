@@ -114,7 +114,7 @@ namespace Cloudborne
             AddLantern(4f);
             AddLantern(56f);
             AddLantern(94f);
-            AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
+            // (no gate behind him at the start: an invisible wall just behind where he starts - the user; CbWorld.StartWall)
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
             for (int i = 0; i < BellCount; i++)
             {

@@ -214,7 +214,7 @@ namespace Cloudborne
             // (the one before the stone bridge stood on its steps: moved back off them)
             foreach (var x in new[] { 108f, 133f, 196f, 242f, 284f, 309f, 366f, 420.5f, 458f }) AddLantern(x);
             // the ends of the stage: closed gates where he can go no further
-            AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
+            // (no gate behind him at the start: an invisible wall just behind where he starts - the user; CbWorld.StartWall)
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
 
             // ---- after the first fight: a fallen trunk across the path, thorns on it - slide or crawl under it

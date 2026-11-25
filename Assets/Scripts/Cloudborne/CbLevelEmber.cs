@@ -50,7 +50,7 @@ namespace Cloudborne
 
         void BuildEmber()
         {
-            AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
+            // (no gate behind him at the start: an invisible wall just behind where he starts - the user; CbWorld.StartWall)
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
             // the courtyard's floor: worn sandstone slabs over the path, from just before the arena to its end
             var slab = CbArt.NewToon(Color.white, 0f, SlabTexture());

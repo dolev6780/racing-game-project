@@ -42,7 +42,7 @@ namespace Cloudborne
         {
             BuildTunnels();
             foreach (var x in new[] { 60f, 118f, 178f, 248f, 318f, 341f }) AddLantern(x);
-            AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
+            // (no gate behind him at the start: an invisible wall just behind where he starts - the user; CbWorld.StartWall)
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
 
             // ---- into the treetops: a short rope bridge over the first gap, thorns on the bough after it

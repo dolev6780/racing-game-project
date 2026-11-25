@@ -16,6 +16,9 @@ namespace Cloudborne
     {
         // the stage runs from LevelMin to LevelMax; it is cleared at the shrine gate at GoalX, once every fight is won
         public const float LevelMin = -8f;
+        // an invisible wall just behind where he starts: he can't go back past it (the gate that stood behind him at
+        // LevelMin is gone - the user); the scenery still runs on behind it, to LevelMin and beyond
+        public const float StartWall = -0.5f;
         public static float LevelMax => CbStage.Treetops ? CbLevel.TreetopsMax : CbStage.Grove ? CbLevel.GroveMax : CbStage.River ? CbLevel.RiverMax
             : CbStage.Ember ? CbLevel.EmberMax : 494f;
         public static float GoalX => CbStage.Treetops ? CbLevel.TreetopsGoal : CbStage.Grove ? CbLevel.GroveGoal : CbStage.River ? CbLevel.RiverGoal

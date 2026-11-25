@@ -79,7 +79,7 @@ namespace Cloudborne
 
         void BuildRiver()
         {
-            AddEndGate(CbWorld.LevelMin - HalfWidth - 0.15f - EndGateHalf, 1);
+            // (no gate behind him at the start: an invisible wall just behind where he starts - the user; CbWorld.StartWall)
             AddEndGate(CbWorld.LevelMax + HalfWidth + 0.15f + EndGateHalf, -1);
             var stone = M("#5d5f5a");
             foreach (var (x, h) in RiverRocks)

@@ -1026,7 +1026,7 @@ namespace Cloudborne
             // physics: the path, the stone blocks he can't walk through, the ledges he lands on (hanging from an edge,
             // pulling himself up or treading water, the game places him itself)
             if (state != State.Hang && state != State.Climb && state != State.Swim && !Holding) StepPhysics(input, dt);
-            float lo = g.lockZone != null ? g.lockZone.x - 10.5f : CbWorld.LevelMin;
+            float lo = Mathf.Max(CbWorld.StartWall, g.lockZone != null ? g.lockZone.x - 10.5f : CbWorld.StartWall);
             float hi = g.lockZone != null ? g.lockZone.x + 10.5f : CbWorld.LevelMax;
             x = Mathf.Clamp(x, lo, hi);
 

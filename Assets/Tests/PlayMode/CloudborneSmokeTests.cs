@@ -2142,6 +2142,26 @@ namespace RacingGame.Tests
         }
 
         [UnityTest]
+        public IEnumerator AtTheStartAnInvisibleWallIsBehindHim()
+        {
+            // the user: nothing behind Raja at the start - no gate there, an invisible wall he can't pass
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            hero.inv = 999f;
+            foreach (var t in game.level.Root.GetComponentsInChildren<Transform>(true))
+                Assert.IsFalse(t.name == "endGate" && t.localPosition.x < 10f, "A gate still stands behind him at the start");
+            game.TestInput = i => i.x = -1;
+            yield return new WaitForSeconds(1.5f);
+            game.TestInput = null;
+            Assert.GreaterOrEqual(hero.x, CbWorld.StartWall - 0.01f, "Raja went back past the start");
+            Assert.Less(hero.x, CbWorld.StartWall + 0.3f, "Raja did not walk back to the wall behind him");
+        }
+
+        [UnityTest]
         public IEnumerator ButterfliesScatterAndBirdsCrossTheSky()
         {
             // the jungle's small life (it stood still): butterflies flutter about the meadow behind the path and scatter
@@ -3414,7 +3434,7 @@ namespace RacingGame.Tests
                     if (x1 - x0 > 0.9f) { spots.Add(("ledge's end", x0 + 0.3f, top)); spots.Add(("ledge's end", x1 - 0.3f, top)); }
                 }
                 foreach (var (x0, x1, top) in game.level.BlockTops()) spots.Add(("block", (x0 + x1) / 2, top));
-                for (float x = CbWorld.LevelMin + 4f; x < CbWorld.LevelMax - 4f; x += 3f)
+                for (float x = CbWorld.StartWall + 0.5f; x < CbWorld.LevelMax - 4f; x += 3f)
                     // (not right at an edge: there his feet are out over it - the ledges' ends are tried on their own)
                     if (!CbLevel.InWater(x, 0.6f) && game.level.StandableAt(x)
                         && Mathf.Abs(game.level.SupportAt(x - 0.4f, 40f) - game.level.SupportAt(x, 40f)) < 0.3f && Mathf.Abs(game.level.SupportAt(x + 0.4f, 40f) - game.level.SupportAt(x, 40f)) < 0.3f)
