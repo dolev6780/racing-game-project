@@ -2159,7 +2159,8 @@ namespace Cloudborne.Tests
             Assert.IsNotNull(top, "The water-top shader is missing");
             if (top.isSupported)
                 Assert.AreEqual("Cloudborne/WaterTop", GameObject.Find("water").GetComponent<Renderer>().sharedMaterial.shader.name, "The streams' top is not the rippling water");
-            yield return TakePictures(new[] { ("stream_long", 77.5f, 0f), ("stream_vines", 198.5f, 0f), ("stream_raft", 308.5f, 0f) });
+            // (and the ground's front edge on open ground: the face's own painted grass, no lip laid over it)
+            yield return TakePictures(new[] { ("stream_long", 77.5f, 0f), ("stream_vines", 198.5f, 0f), ("stream_raft", 308.5f, 0f), ("ground_edge", 12f, 0f) });
         }
 
         [UnityTest]

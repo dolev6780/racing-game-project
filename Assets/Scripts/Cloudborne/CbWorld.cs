@@ -167,7 +167,8 @@ namespace Cloudborne
         public const float FaceHeight = 3.5f;
         // how far the jungle's face painting is raised (its flower row under the lip), and where in it (a part of its
         // height from the top) the earth begins under the grass's bumps
-        const float FaceGrassShift = 0.3f, FaceEarthAt = 0.29f;
+        // (no shift: with no lip over it, the painting's own top row of flowers is the edge)
+        const float FaceGrassShift = 0f, FaceEarthAt = 0.29f;
         // the ground runs from GroundFrom to GroundTo, cut where the streams cross it
         const float GroundFrom = -80f;
         static float GroundTo => End + 50f;
@@ -380,10 +381,12 @@ namespace Cloudborne
                     // the grass, one ground with it, not a flat picture under it (the user)
                     // (from where the earth begins under the grass's bumps: shaded from just under the lip, the face's
                     // grass came out darker than the lip's and the line between them showed - the user)
+                    // (gradually, from nothing: a shadow starting all at once drew a straight line across the grass's
+                    // bumps - the user)
                     flat.SetFloat("_ShadeTop", FaceGrassShift - FaceEarthAt * FaceHeight);
                     flat.SetFloat("_Deep", 0.6f);
                     flat.SetFloat("_DeepOver", 2.2f);
-                    flat.SetFloat("_Ao", 0.3f);
+                    flat.SetFloat("_Ao", 0f);
                     face = flat;
                 }
                 lipTex.wrapModeU = TextureWrapMode.Repeat;
@@ -402,7 +405,10 @@ namespace Cloudborne
             foreach (var (a, b) in BankToBank(GroundFrom, GroundTo, 0f))
             {
                 FaceQuad(face, a, b, 0f, -GroundDepth);
-                if (lip != null) LipQuad(lip, a, b);
+                // (the painted lip only for stage 1-2's moss: elsewhere the face's own painting - its row of flowers,
+                // its grass hanging in bumps over the earth, all of one piece - is the edge; the lip laid over it
+                // ended in a straight line of another green, a cut through the grass: the user, twice)
+                if (lip != null && CbStage.Treetops) LipQuad(lip, a, b);
             }
             foreach (var (x0, x1) in CbLevel.Pits)
             {

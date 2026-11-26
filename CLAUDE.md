@@ -160,6 +160,11 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     raised `FaceGrassShift` (0.3 m) so its own flower row lies under the lip and the lip ends on plain grass of its
     colour; the face's shading starts where its earth begins (`FaceEarthAt`); no dapple on the lip. Bank slopes
     follow the same shift.
+- **The ground's edge (the user, run 293's APK: still cut):** the lip ended in a straight line of a slightly other
+  green, and the face's shadow started all at once (another line across the grass's bumps). The painted lip is now
+  only for stage 1-2's moss; elsewhere the face's own painting (its flower row and grass bumps, one piece) is the
+  edge (`FaceGrassShift` 0), and its shading deepens gradually from where the earth begins (`_Ao` 0). Picture
+  `ground_edge` in `ZzzStreamsSeenThroughTheirClearWater`. Local, not yet run.
 - **Clear streams (the user's reference picture: see-through water, what is under it showing; local, not yet run):**
   - `WaterFront` on the jungle's streams: turquoise and see-through at the top (alpha 0.3), bluer and denser deeper
     (0.82 over 3.4 m); it ends at `CbLevel.StreamBed` (WaterLevel - 3), the earth's face below.
