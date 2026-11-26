@@ -171,6 +171,10 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     to it, round stones on it, weed (tinted grass cards) swaying on it. Rocks standing in the water go on down to the
     bed (not standable: kept out of `rockSolids`), the footbridge's posts too. The stormy river (1-4) is unchanged.
   - Picture test `ZzzStreamsSeenThroughTheirClearWater` (stream_long, stream_vines, stream_raft).
+  - The user (run 291's pictures): the water under the surface looks good; the top of the water (at ground level)
+    needs work. New `WaterTop` shader on the clear streams' top: the painted ripples (35%) under turquoise flowing
+    towards the camera, the sky mirrored when seen flat, the jungle's green mirrored near the far bank, sun glints,
+    foam along the banks and at the back, see-through at the front (local, not yet run).
 - **Stage 1-1.**
   - The user chose to keep the stage as it is for now (no new Canva route), and fix it piece by piece from the start.
   - Behind him at the start: no gate, an invisible wall at `CbWorld.StartWall` (-0.5; every stage starts at x 0).

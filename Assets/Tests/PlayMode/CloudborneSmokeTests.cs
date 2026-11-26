@@ -2155,6 +2155,10 @@ namespace Cloudborne.Tests
             yield return Frames(2);
             game.hero.inv = 999f;
             Assert.IsNotNull(GameObject.Find("streamBed"), "The streams have no bed to see through their water");
+            var top = Resources.Load<Shader>("Shaders/WaterTop");
+            Assert.IsNotNull(top, "The water-top shader is missing");
+            if (top.isSupported)
+                Assert.AreEqual("Cloudborne/WaterTop", GameObject.Find("water").GetComponent<Renderer>().sharedMaterial.shader.name, "The streams' top is not the rippling water");
             yield return TakePictures(new[] { ("stream_long", 77.5f, 0f), ("stream_vines", 198.5f, 0f), ("stream_raft", 308.5f, 0f) });
         }
 

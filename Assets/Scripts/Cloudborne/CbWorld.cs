@@ -886,7 +886,20 @@ namespace Cloudborne
                 if (clear) StreamBedAndWeed(face, x0, x1, back);
                 // the water: its surface, flowing towards the camera
                 Material surface;
-                if (paintedSurface != null)
+                var topShader = clear ? Resources.Load<Shader>("Shaders/WaterTop") : null;
+                if (topShader != null && topShader.isSupported)
+                {
+                    // the clear streams' top: rippling and flowing, mirroring the sky and the jungle, glinting, foam
+                    // along its banks, a little see-through at the front (the painted surface only slid along: the user)
+                    surface = new Material(topShader) { name = "waterTop", renderQueue = (int)RenderQueue.Transparent - 1 };
+                    if (surfaceTex != null) surface.mainTexture = surfaceTex;
+                    surface.mainTextureScale = new Vector2(w / 5f, (farEdge - GroundFront) / 10f);
+                    surface.SetFloat("_X0", x0);
+                    surface.SetFloat("_X1", x1);
+                    surface.SetFloat("_Z0", GroundFront);
+                    surface.SetFloat("_Z1", farEdge);
+                }
+                else if (paintedSurface != null)
                 {
                     // the new look: drawn as painted, in the cross-section's turquoise, its ripples drawn out in depth
                     // (seen this low, a finer repeat blurred into a flat stripe)
