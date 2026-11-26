@@ -162,6 +162,11 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   - Raja's headband tail stirs: `CbHeadband` adds a bone at its knot at runtime (Raja's mesh is now readable,
     `CharacterImport` version 9). Test: `RajasHeadbandTailStirsALittle`.
   - No new art yet; new paintings (a better ground, separate tree layers) would go through Canva first.
+  - The user (run 289's APK): the trees should not move (their wind and dapple are off; the far row stays, still);
+    the ground showed a straight cut through the flowers where the lip ends over the face. The face painting is
+    raised `FaceGrassShift` (0.3 m) so its own flower row lies under the lip and the lip ends on plain grass of its
+    colour; the face's shading starts where its earth begins (`FaceEarthAt`); no dapple on the lip. Bank slopes
+    follow the same shift.
 - **Stage 1-1.**
   - The user chose to keep the stage as it is for now (no new Canva route), and fix it piece by piece from the start.
   - Behind him at the start: no gate, an invisible wall at `CbWorld.StartWall` (-0.5; every stage starts at x 0).

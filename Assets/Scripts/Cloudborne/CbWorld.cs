@@ -165,6 +165,9 @@ namespace Cloudborne
         static readonly Color PathTone = new Color(0.86f, 0.8f, 0.78f), BoughTone = new Color(0.78f, 0.76f, 0.7f);
         // the painted face shows its full height over FaceHeight metres, then repeats its bottom row (dark earth)
         public const float FaceHeight = 3.5f;
+        // how far the jungle's face painting is raised (its flower row under the lip), and where in it (a part of its
+        // height from the top) the earth begins under the grass's bumps
+        const float FaceGrassShift = 0.3f, FaceEarthAt = 0.29f;
         // the ground runs from GroundFrom to GroundTo, cut where the streams cross it
         const float GroundFrom = -80f;
         static float GroundTo => End + 50f;
@@ -375,10 +378,12 @@ namespace Cloudborne
                     flat.SetFloat("_Cutoff", 0f);
                     // the earth darker the deeper it goes, in a soft shadow under the grass lip: it sits back behind
                     // the grass, one ground with it, not a flat picture under it (the user)
-                    flat.SetFloat("_ShadeTop", -0.05f);
+                    // (from where the earth begins under the grass's bumps: shaded from just under the lip, the face's
+                    // grass came out darker than the lip's and the line between them showed - the user)
+                    flat.SetFloat("_ShadeTop", FaceGrassShift - FaceEarthAt * FaceHeight);
                     flat.SetFloat("_Deep", 0.6f);
-                    flat.SetFloat("_DeepOver", 2.6f);
-                    flat.SetFloat("_Ao", 0.35f);
+                    flat.SetFloat("_DeepOver", 2.2f);
+                    flat.SetFloat("_Ao", 0.3f);
                     face = flat;
                 }
                 lipTex.wrapModeU = TextureWrapMode.Repeat;
@@ -531,10 +536,13 @@ namespace Cloudborne
             float tileW = FaceTileWidth(face.mainTexture);
             // as if the face ran from y = 0 down to -GroundDepth, so the earth lines up whatever piece of it this is
             float rows = GroundDepth / FaceHeight;
+            // (the jungle's painting raised FaceGrassShift: its own top row of flowers lies under the lip, and the lip
+            // ends on the plain grass below it - it ended across those flowers, a straight cut through them: the user)
+            float shift = CbStage.Treetops || !NewLook ? 0f : FaceGrassShift;
             var m = new Material(face)
             {
                 mainTextureScale = new Vector2(w / tileW, rows * h / GroundDepth),
-                mainTextureOffset = new Vector2(a / tileW, 1 - rows),
+                mainTextureOffset = new Vector2(a / tileW, 1 - rows - shift / FaceHeight),
             };
             var t = CbArt.Part(CbMesh.Quad, m, root, new Vector3((a + b) / 2, (yTop + yBottom) / 2, GroundFront - 0.01f), new Vector3(w, h, 1), shadows: false);
             t.name = "groundFace";
@@ -726,8 +734,10 @@ namespace Cloudborne
                 float xa = edge - toWater * 0.02f, xb = edge + toWater * reach;
                 verts[2 * i] = new Vector3(xa, y, 0);
                 verts[2 * i + 1] = new Vector3(xb, y, 0);
-                uvs[2 * i] = new Vector2(xa / tileW, 1 + y / FaceHeight);
-                uvs[2 * i + 1] = new Vector2(xb / tileW, 1 + y / FaceHeight);
+                // (raised as the face's painting is, so the bank's earth lines up with it)
+                float v = 1 + (y - (CbStage.Treetops || !NewLook ? 0f : FaceGrassShift)) / FaceHeight;
+                uvs[2 * i] = new Vector2(xa / tileW, v);
+                uvs[2 * i + 1] = new Vector2(xb / tileW, v);
                 if (i == 0) continue;
                 int a = 2 * i - 2, t = 6 * (i - 1);
                 tris[t] = a; tris[t + 1] = a + 2; tris[t + 2] = a + 1;
@@ -794,7 +804,6 @@ namespace Cloudborne
             var m = new Material(lip) { mainTextureScale = new Vector2((b - a) / tileW, 1), mainTextureOffset = new Vector2(a / tileW, 0) };
             // its leaves and flowers stir in the breeze (its foot, over the face, stays)
             m.SetFloat("_Wind", LipWind / tileW);
-            m.SetFloat("_Dapple", 0.05f);
             var t = CbArt.Part(CbMesh.Quad, m, root, new Vector3((a + b) / 2, h / 2 - below, GroundFront - 0.03f), new Vector3(b - a, h, 1), shadows: false);
             t.name = "groundLip";
         }
@@ -1192,8 +1201,9 @@ namespace Cloudborne
                 // together, the user said of 1-1's)
                 // (a second row further back, hazier and mirrored, so the trees stand in depth, not on one flat picture;
                 // the leaves of every row stir in the breeze, sunlight drifting over them - the user)
-                if (CbStage.Jungle) BuildLayer("JungleMid", FarRowZ, -1.2f, 15f, 0.55f, null, null, 0.2f, 0.05f, true, 7f);
-                mid = CbStage.Jungle && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f, null, null, 0.16f, 0.07f);
+                // (the trees stand still: the user - only the bushes and plants stir)
+                if (CbStage.Jungle) BuildLayer("JungleMid", FarRowZ, -1.2f, 15f, 0.55f, null, null, 0f, 0f, true, 7f);
+                mid = CbStage.Jungle && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
                 var hedge = BushGround();
                 near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, StageTint, HedgeWind, 0.08f);
                 // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and
