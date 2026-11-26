@@ -125,15 +125,12 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 
 ## Where things stand (update this section as work goes on)
 
-- **Run 290 (d23d5cd): 82 of 84 pass.**
-  - The chest still: nothing under his feet at x 421.32 and 421.85 (the chest model is two plain meshes, Chest and
-    ChestLid, Fit to fill x ±0.5, z ±0.55, so rays there should hit it). The failure now lists the colliders near
-    the foot, to see why (local, not yet run).
-  - Stone stairs (x 425.6, 450.4): with `CbLimbIK.StepDown` the foot now stays level with his step, but the spots
-    were not counted as edges (the drawn steps are deeper than the way he walks up them). The test allows one foot
-    level with his step over a drawn drop deeper than StepDown.
-  - Grak charged six times running with his saw ablaze and never threw fire (two runs in a row). In phase 3 he now
-    never charges twice running: after a charge from afar, fire (`chargedLast`).
+- **Run 291 (3e895ab): 84 of 85 pass.** Grak, the stairs, the headband, the start wall pass.
+  - The chest: its lid stood open (2.5 m up behind the box): the touch test picks up the key in the treetops, and
+    standing on the chest (y < 1) opened it under his feet. Now it opens only from the ground beside it (y < 0.4),
+    and the lid falls shut again after the treasure bursts out (`ChestShut` 3.2 s). Local, not yet run.
+  - The clear water came out grey (the earth behind showing through more than the water's colour): denser
+    turquoise (alpha 0.55 at the top, 0.9 deep over 2.6 m). Local, not yet run.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body

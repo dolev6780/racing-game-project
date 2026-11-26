@@ -141,6 +141,8 @@ namespace Cloudborne
         Quaternion chestLidRest;
         Vector3 chestHinge;
         float chestLidAngle, chestOpenT;
+        // how long the lid takes to swing open, when it has fallen shut again, and how long it takes to fall shut
+        const float ChestOpenTime = 0.5f, ChestShut = 3.2f, ChestCloseTime = 0.45f;
         // the chest model's turn as fitted to where he stands (the reset puts it back to this)
         Vector3 chestScale = Vector3.one, chestPos;
         // the lever's handle (its own part of the model, turning about where it meets the base): how far it is thrown
@@ -1463,7 +1465,9 @@ namespace Cloudborne
                 if (run > 2.2f) c.animal.gameObject.SetActive(false);
             }
             // the chest: the key opens it, a tiger token inside
-            if (!chestOpen && Mathf.Abs(hero.x - ChestX) < 1.3f && hero.y < 1f)
+            // (walking up to it on the ground: standing on it, its lid swung up under his feet and he stood in the air
+            // over the open box - the touch test)
+            if (!chestOpen && Mathf.Abs(hero.x - ChestX) < 1.3f && hero.y < 0.4f)
             {
                 if (g.HasKey)
                 {
@@ -1477,12 +1481,16 @@ namespace Cloudborne
                 }
                 else if (!chestHinted) { chestHinted = true; g.hud.SetTip("A locked chest. Its key is up in the treetops..."); }
             }
-            // the lid swinging open, and staying open
-            if (chestOpen && chestLidPart != null && chestOpenT < 1f)
+            // the lid swinging open, the treasure bursting out, and the lid falling shut again (open, its box stood
+            // hollow where he could still stand on its lid: he stood in the air over it)
+            if (chestOpen && chestLidPart != null && chestOpenT < ChestShut)
             {
-                chestOpenT = Mathf.MoveTowards(chestOpenT, 1f, dt / 0.5f);
-                float k = 1 - (1 - chestOpenT) * (1 - chestOpenT);
+                chestOpenT = Mathf.MoveTowards(chestOpenT, ChestShut, dt);
+                float k = chestOpenT < ChestOpenTime ? 1 - Mathf.Pow(1 - chestOpenT / ChestOpenTime, 2)
+                    : chestOpenT < ChestShut - ChestCloseTime ? 1f
+                    : Mathf.Pow((ChestShut - chestOpenT) / ChestCloseTime, 2);
                 chestLidPart.rotation = Quaternion.AngleAxis(chestLidAngle * k, chestHinge) * chestLidRest;
+                if (chestOpenT >= ChestShut) CbFx.Sfx("block", 0.5f);
             }
             if (waterfallMat != null) waterfallMat.mainTextureOffset = new Vector2(0, Time.time * 1.2f);
             // spray and mist where it lands

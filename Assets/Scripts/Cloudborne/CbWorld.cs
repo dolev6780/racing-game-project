@@ -839,9 +839,10 @@ namespace Cloudborne
                 // keeps its deep opaque water)
                 if (!CbStage.River)
                 {
-                    front.SetColor("_Shallow", new Color(0.32f, 0.82f, 0.92f, 0.3f));
-                    front.SetColor("_Deep", new Color(0.05f, 0.34f, 0.6f, 0.82f));
-                    front.SetFloat("_DepthFade", 3.4f);
+                    // (thinner, it came out grey: the earth behind showed through more than the water's own colour)
+                    front.SetColor("_Shallow", new Color(0.12f, 0.76f, 0.9f, 0.55f));
+                    front.SetColor("_Deep", new Color(0.02f, 0.36f, 0.66f, 0.9f));
+                    front.SetFloat("_DepthFade", 2.6f);
                 }
             }
             var sideTex = NewLook && front == null ? Resources.Load<Texture2D>(WaterSidePath) : null;
