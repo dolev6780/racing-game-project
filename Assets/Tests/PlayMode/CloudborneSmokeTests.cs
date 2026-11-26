@@ -2189,6 +2189,44 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator ABigBlowKnocksASoldierDownAndHeTakesHisTimeGettingUp()
+        {
+            // the user: struck down, they were up again at once and straight back into the fight
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            yield return Frames(2);
+            var hero = game.hero;
+            hero.inv = 999f;
+            float waited = 0;
+            while (game.enemies.Count < 1 && waited < 6f) { waited += Time.deltaTime; yield return null; }
+            Assert.AreEqual(1, game.enemies.Count, "The first post sent out no soldier");
+            var e = game.enemies[0];
+            e.hp = 999f;
+            // a finisher's blow
+            game.HurtEnemy(e, 1f, e.x >= hero.x ? 1 : -1, 8f, 5f, true, false, false, true);
+            Assert.IsTrue(e.Floored, "A big blow did not knock the soldier down");
+            float down = 0, rising = 0;
+            bool struck = false;
+            while (e.Floored && down < 5f)
+            {
+                down += Time.deltaTime;
+                if (e.Rising) rising += Time.deltaTime;
+                if (e.state == CbEnemy.State.Atk) struck = true;
+                yield return null;
+            }
+            Debug.Log($"KNOCKDOWN down {down:F2} s, getting up {rising:F2} s");
+            Assert.IsFalse(e.Floored, "The soldier never got up");
+            Assert.IsFalse(struck, "The soldier struck out while he was down");
+            Assert.Greater(down, CbEnemy.LieTime + CbEnemy.RiseTime * 0.8f, "The soldier was up again at once");
+            Assert.Greater(rising, CbEnemy.RiseTime * 0.8f, "The soldier sprang up instead of getting up");
+            // and up, a moment before he swings again
+            float calm = 0;
+            while (e.state != CbEnemy.State.Atk && calm < 0.5f) { calm += Time.deltaTime; yield return null; }
+            Assert.GreaterOrEqual(calm, 0.5f, "Up again, the soldier swung at once");
+        }
+
+        [UnityTest]
         public IEnumerator AtTheStartAnInvisibleWallIsBehindHim()
         {
             // the user: nothing behind Raja at the start - no gate there, an invisible wall he can't pass

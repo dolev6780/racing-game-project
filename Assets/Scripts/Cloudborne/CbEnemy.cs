@@ -240,6 +240,14 @@ namespace Cloudborne
             switch (state)
             {
                 case State.Dying: model.Window("dying_backwards", 0f, 0.85f, t); break;
+                case State.Hurt when floored:
+                    // thrown: flying; struck where he stands: falling over backwards; then down on his back (his fall's
+                    // end, where it lies still); then up off his back (his fall played back)
+                    if (downPhase == 0 && y > ground + 0.25f) model.Show("BeHit_FlyUp", vy > 0 ? 0.3f : 0.5f, 0.1f);
+                    else if (downPhase == 0) model.Window(DownClip, fellStanding ? 0.22f : 0.5f, DownLie, fellStanding ? t / FallTime : 1f, 0.06f);
+                    else if (downPhase == 1) model.Window(DownClip, 0.55f, DownLie, downT / 0.15f, 0.06f);
+                    else model.Window(DownClip, DownLie, 0.2f, Mathf.SmoothStep(0f, 1f, downT / RiseTime), 0.06f);
+                    break;
                 case State.Hurt:
                     if (y > ground + 0.25f) model.Show("BeHit_FlyUp", vy > 0 ? 0.3f : 0.5f, 0.1f);
                     else model.Window("Hit_Reaction", 0.1f, 0.6f, t / 0.42f);
@@ -275,6 +283,10 @@ namespace Cloudborne
                 }
             }
         }
+
+        // his fall on his back (the clip of his beating: down at 0.55, lying still from DownLie)
+        const string DownClip = "dying_backwards";
+        const float DownLie = 0.7f;
 
         void AnimateBoss()
         {
@@ -384,6 +396,20 @@ namespace Cloudborne
         float hitSquash;
         const float HitSquashTime = 0.14f;
 
+        // Knocked down (the user: struck down, they were up again at once - straight back into the fight): a big blow
+        // (a finisher, a launcher, a sweep: KnockKb or KnockUp) throws him off his feet. He flies, lands with a bounce,
+        // lies there LieTime, gets up over RiseTime (his fall played back - up off his back) and only then comes on
+        // again, a moment later. Hit on the ground he bounces and stays down a little longer; getting up, a blow pushes
+        // him but doesn't floor him again.
+        public const float KnockKb = 7f, KnockUp = 4f, LieTime = 0.85f, RiseTime = 0.6f, FallTime = 0.38f;
+        bool floored, bounced, fellStanding;
+        int downPhase;
+        float downT;
+        /// <summary>On the ground or getting up after a big blow (test hook).</summary>
+        public bool Floored => floored;
+        /// <summary>Getting up off the ground (test hook).</summary>
+        public bool Rising => floored && downPhase == 2;
+
         public void Stagger(int dir, float kb, float up)
         {
             hitSquash = HitSquashTime;
@@ -401,9 +427,67 @@ namespace Cloudborne
                 kb *= 0.5f;
                 up = Mathf.Min(up, 3);
             }
+            else if (floored)
+            {
+                // getting up: pushed, not floored again
+                if (downPhase == 2) { vx = dir * Mathf.Min(kb, 2f); return; }
+                // on the ground (or still falling): a bounce, and down a little longer
+                vx = dir * Mathf.Min(kb, 3f);
+                vy = Mathf.Max(vy, Mathf.Min(up, 3.5f));
+                downPhase = 0; downT = 0; bounced = true; fellStanding = false;
+                state = State.Hurt; t = 0;
+                return;
+            }
+            else if (kb >= KnockKb || up >= KnockUp)
+            {
+                floored = true; bounced = false; downPhase = 0; downT = 0;
+                // struck on the ground without much lift: he falls over backwards where he stands
+                fellStanding = up < 2.5f;
+            }
             vx = dir * kb;
             vy = up;
             state = State.Hurt; t = 0;
+        }
+
+        /// <summary>Down after a big blow: falling or flying, then lying there, then getting up.</summary>
+        void UpdateDown(float dt)
+        {
+            bool onGround = y <= ground + 0.01f && vy <= 0;
+            downT += dt;
+            switch (downPhase)
+            {
+                case 0:
+                    // flying (or falling over): down when he lands
+                    if (onGround && t > (fellStanding ? FallTime : 0.1f))
+                    {
+                        CbFx.Puff(new Vector3(x, y + 0.1f, -0.3f), new Color(0.78f, 0.72f, 0.62f), 6, 1.4f, 0.6f, 0.5f);
+                        if (!bounced && !fellStanding)
+                        {
+                            // a hard landing: he bounces once
+                            bounced = true;
+                            vy = 2.6f; vx *= 0.5f;
+                            g.shake = Mathf.Max(g.shake, 0.12f);
+                            CbFx.Sfx("heavy", 0.45f);
+                            break;
+                        }
+                        downPhase = 1; downT = 0; vx *= 0.35f;
+                    }
+                    break;
+                case 1:
+                    vx = Mathf.MoveTowards(vx, 0, 8f * dt);
+                    if (downT >= LieTime) { downPhase = 2; downT = 0; vx = 0; }
+                    break;
+                default:
+                    vx = 0;
+                    if (downT >= RiseTime)
+                    {
+                        floored = false;
+                        state = State.Move; t = 0;
+                        // up, he gathers himself before he swings again
+                        cd = Mathf.Max(cd, Random.Range(0.6f, 1.0f));
+                    }
+                    break;
+            }
         }
 
         /// <summary>How long a beaten enemy lies there before he vanishes in a puff of smoke.</summary>
@@ -631,7 +715,13 @@ namespace Cloudborne
                     break;
                 case State.Hurt:
                     pose.lean = -0.6f; pose.headX = -0.5f; pose.sLz = 1.1f; pose.sRz = -1.1f; pose.sLx = 0.5f; pose.sRx = 0.5f;
-                    if (t > (Boss ? 0.3f : 0.42f) && y <= ground + 0.01f) state = State.Move;
+                    if (floored) { UpdateDown(dt); break; }
+                    if (t > (Boss ? 0.3f : 0.42f) && y <= ground + 0.01f)
+                    {
+                        state = State.Move;
+                        // (he swung straight back out of his flinch: a moment to gather himself first)
+                        if (!Boss) cd = Mathf.Max(cd, 0.4f);
+                    }
                     break;
                 case State.Atk when Boss:
                     BossAttack(ref pose, dt, hero);

@@ -126,6 +126,13 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 ## Where things stand (update this section as work goes on)
 
 - **Run 294 (65a3220): all 85 tests pass.** The ground's edge is one piece (no lip in the jungle).
+- **Combat (the user: struck down, the soldiers were up again at once, straight back into the fight):** a big blow
+  (`CbEnemy.KnockKb` 7 or `KnockUp` 4: the combo finisher, launchers, the slide, the sweep kick, fire finishers)
+  floors a soldier: he flies (or falls over where he stands), bounces once, lies `LieTime` 0.85 s, gets up over
+  `RiseTime` 0.6 s (his `dying_backwards` played back), then waits 0.6-1 s before swinging. Hit on the ground he
+  bounces and stays down; getting up, a blow only pushes him. After an ordinary flinch he waits 0.4 s. (Raja's
+  `Stand_Up1` can't drive the hyenas: their rig is 1.34 times taller in its own units.) Test
+  `ABigBlowKnocksASoldierDownAndHeTakesHisTimeGettingUp`. Local, not yet run.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body
