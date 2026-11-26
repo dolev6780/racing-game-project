@@ -125,12 +125,8 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 
 ## Where things stand (update this section as work goes on)
 
-- **Run 291 (3e895ab): 84 of 85 pass.** Grak, the stairs, the headband, the start wall pass.
-  - The chest: its lid stood open (2.5 m up behind the box): the touch test picks up the key in the treetops, and
-    standing on the chest (y < 1) opened it under his feet. Now it opens only from the ground beside it (y < 0.4),
-    and the lid falls shut again after the treasure bursts out (`ChestShut` 3.2 s). Local, not yet run.
-  - The clear water came out grey (the earth behind showing through more than the water's colour): denser
-    turquoise (alpha 0.55 at the top, 0.9 deep over 2.6 m). Local, not yet run.
+- **Run 292 (fe90538): all 85 tests pass.** The chest (it shuts again; opens only from the ground), the stairs,
+  Grak, the headband, the start wall, the clear streams and their `WaterTop` all pass; no shader errors.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body
