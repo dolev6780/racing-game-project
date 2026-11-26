@@ -110,6 +110,11 @@ namespace Cloudborne
         public const float WaterLevel = -0.45f;
         /// <summary>How far back from the path the streams run before they come out of the ground.</summary>
         public const float WaterBack = 6.5f;
+        /// <summary>
+        /// The streams' sandy bed, seen through their clear water (the user: water like in their picture - clear, deep,
+        /// what is under it showing): the rocks standing in them rise from it, the footbridge's posts stand on it.
+        /// </summary>
+        public const float StreamBed = WaterLevel - 3.0f;
         // below the path where the water is: deep enough that falling in is falling in
         const float Deep = -50f, StepUp = 0.3f;
         // the long rope bridge over the first stream (a screen and a half: the user), sagging RopeSag in the middle,
@@ -178,6 +183,7 @@ namespace Cloudborne
                 Build();
                 BuildWays();
                 DressBanks();
+                BedStones();
             }
             // every step drawn on a rock can be stood on (CbLevelProbe)
             AddRockSteps();
@@ -220,6 +226,20 @@ namespace Cloudborne
             // remembered for placing: the model's bottom centre, in the holder's own units
             holder.localPosition = -new Vector3(b.center.x, b.min.y, b.center.z) * s;
             return holder;
+        }
+
+        /// <summary>Round mossy stones lying on the jungle streams' sandy beds, seen through their clear water.</summary>
+        void BedStones()
+        {
+            if (!CbStage.Jungle) return;
+            foreach (var (x0, x1) in Waters)
+                for (float x = x0 + Random.Range(0.8f, 2.5f); x < x1 - 0.8f; x += Random.Range(3.5f, 6f))
+                {
+                    var stone = BankStone(root, Random.Range(0.6f, 1.4f), Random.Range(0f, 360f), out _, out _);
+                    if (stone == null) return;
+                    stone.name = "bedStone";
+                    PlaceBankStone(stone, new Vector3(x, StreamBed - 0.08f, Random.Range(CbWorld.GroundFront + 0.9f, WaterBack - 1.2f)));
+                }
         }
 
         /// <summary>Sets a bank stone (BankStone) down with its bottom centre at bottom.</summary>
@@ -480,6 +500,15 @@ namespace Cloudborne
             if (FitTop(tall ? RiverRockPath : RiverStonePath, t, new Vector3(-width / 2, WaterLevel - 0.6f, -0.8f), new Vector3(width / 2, top, 1f)) == null
                 && Fit(CliffDir + "Pillar/Pillar", t, new Vector3(-width / 2, WaterLevel - 0.6f, -0.8f), new Vector3(width / 2, top, 1f)) == null)
                 EarthSlab(t, -width / 2, width / 2, WaterLevel - 0.6f, top, -0.8f, 1f, earth ??= EarthMat(), grass ??= GrassMat());
+            // under the water, seen through it: the rock goes on down to the stream's bed, a little broader (it ended
+            // in the water a hand under the surface)
+            // (not a rock to step on: its tops are under the water)
+            if (!CbStage.River)
+            {
+                int solids = rockSolids.Count;
+                Fit(RiverRockPath, t, new Vector3(-width * 0.58f, StreamBed - 0.2f, -0.9f), new Vector3(width * 0.58f, WaterLevel - 0.4f, 1.1f));
+                rockSolids.RemoveRange(solids, rockSolids.Count - solids);
+            }
             blocks.Add(new Block { x0 = x - width / 2, x1 = x + width / 2, top = top, t = t });
         }
 

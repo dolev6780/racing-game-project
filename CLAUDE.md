@@ -167,6 +167,13 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     raised `FaceGrassShift` (0.3 m) so its own flower row lies under the lip and the lip ends on plain grass of its
     colour; the face's shading starts where its earth begins (`FaceEarthAt`); no dapple on the lip. Bank slopes
     follow the same shift.
+- **Clear streams (the user's reference picture: see-through water, what is under it showing; local, not yet run):**
+  - `WaterFront` on the jungle's streams: turquoise and see-through at the top (alpha 0.3), bluer and denser deeper
+    (0.82 over 3.4 m); it ends at `CbLevel.StreamBed` (WaterLevel - 3), the earth's face below.
+  - Under it (`CbWorld.StreamBedAndWeed`, `CbLevel.BedStones`): a sandy bed, the channel's back and side walls down
+    to it, round stones on it, weed (tinted grass cards) swaying on it. Rocks standing in the water go on down to the
+    bed (not standable: kept out of `rockSolids`), the footbridge's posts too. The stormy river (1-4) is unchanged.
+  - Picture test `ZzzStreamsSeenThroughTheirClearWater` (stream_long, stream_vines, stream_raft).
 - **Stage 1-1.**
   - The user chose to keep the stage as it is for now (no new Canva route), and fix it piece by piece from the start.
   - Behind him at the start: no gate, an invisible wall at `CbWorld.StartWall` (-0.5; every stage starts at x 0).

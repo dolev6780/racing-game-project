@@ -834,6 +834,15 @@ namespace Cloudborne
             {
                 front = new Material(frontShader) { name = "waterFront", renderQueue = (int)RenderQueue.Transparent };
                 front.SetFloat("_Level", level);
+                // the jungle's streams clear, like the user's picture: the bed, the banks under the water, the stones and
+                // the weed on the bottom show through, turquoise near the top and bluer the deeper (the stormy river
+                // keeps its deep opaque water)
+                if (!CbStage.River)
+                {
+                    front.SetColor("_Shallow", new Color(0.32f, 0.82f, 0.92f, 0.3f));
+                    front.SetColor("_Deep", new Color(0.05f, 0.34f, 0.6f, 0.82f));
+                    front.SetFloat("_DepthFade", 3.4f);
+                }
             }
             var sideTex = NewLook && front == null ? Resources.Load<Texture2D>(WaterSidePath) : null;
             var paintedSide = sideTex != null ? Cutout(sideTex, 0f, PaintTint) : null;
@@ -859,18 +868,21 @@ namespace Cloudborne
                     var behind = new Material(grass) { mainTextureScale = new Vector2(w / GrassTile, (GroundBack - back) / GrassTile), mainTextureOffset = new Vector2(x0 / GrassTile, 0) };
                     CbArt.Box(behind, root, new Vector3(c, bankTop - GroundDepth / 2, (back + GroundBack) / 2), new Vector3(w, GroundDepth, GroundBack - back));
                 }
-                CbArt.Box(CbArt.Toon("#2d4a3a"), root, new Vector3(c, bed - 1f, (GroundFront + back) / 2), new Vector3(w, 2f, back - GroundFront));
-                // the banks: earth walls from the grass down into the water
+                bool clear = front != null && !CbStage.River;
+                if (!clear) CbArt.Box(CbArt.Toon("#2d4a3a"), root, new Vector3(c, bed - 1f, (GroundFront + back) / 2), new Vector3(w, 2f, back - GroundFront));
+                // the banks: earth walls from the grass down into the water (through clear water, down to its bed)
                 var bank = new Material(face);
-                float tileW = FaceTileWidth(face.mainTexture), rows = 1.2f / FaceHeight;
+                float wallH = clear ? -CbLevel.StreamBed : 1.2f;
+                float tileW = FaceTileWidth(face.mainTexture), rows = wallH / FaceHeight;
                 bank.mainTextureScale = new Vector2((back - GroundFront) / tileW, rows);
                 bank.mainTextureOffset = new Vector2(0, 1 - rows);
                 // (a hair inside the channel, so they don't flicker against the ground's own sides)
                 if (!CbStage.River)
                 {
-                    CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x0 + 0.01f, -0.6f, (GroundFront + back) / 2), new Vector3(back - GroundFront, 1.2f, 1), Quaternion.Euler(0, -90, 0), shadows: false);
-                    CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x1 - 0.01f, -0.6f, (GroundFront + back) / 2), new Vector3(back - GroundFront, 1.2f, 1), Quaternion.Euler(0, 90, 0), shadows: false);
+                    CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x0 + 0.01f, -wallH / 2, (GroundFront + back) / 2), new Vector3(back - GroundFront, wallH, 1), Quaternion.Euler(0, -90, 0), shadows: false);
+                    CbArt.Part(CbMesh.Quad, bank, root, new Vector3(x1 - 0.01f, -wallH / 2, (GroundFront + back) / 2), new Vector3(back - GroundFront, wallH, 1), Quaternion.Euler(0, 90, 0), shadows: false);
                 }
+                if (clear) StreamBedAndWeed(face, x0, x1, back);
                 // the water: its surface, flowing towards the camera
                 Material surface;
                 if (paintedSurface != null)
@@ -893,7 +905,7 @@ namespace Cloudborne
                 if (front != null)
                 {
                     // from above the highest wave down to as deep as the painted cross-section went
-                    float top = level + FrontAbove, bottom = level - SideDepth;
+                    float top = level + FrontAbove, bottom = clear ? CbLevel.StreamBed : level - SideDepth;
                     CbArt.Part(CbMesh.Quad, front, root, new Vector3(c, (top + bottom) / 2, GroundFront - 0.012f), new Vector3(w, top - bottom, 1), shadows: false).name = "waterSide";
                     under = bottom;
                 }
@@ -929,6 +941,52 @@ namespace Cloudborne
                         Place(LeavesModel, far, new Vector3(x + Random.Range(-0.3f, 0.3f), 0, back + Random.Range(0.1f, 0.6f)), Random.Range(0.7f, 1f));
             }
         }
+
+        /// <summary>
+        /// What shows through a stream's clear water: its sandy bed, the back of its channel going down to it, round
+        /// stones lying on it and weed growing up from it, swaying in the current.
+        /// </summary>
+        void StreamBedAndWeed(Material face, float x0, float x1, float back)
+        {
+            float w = x1 - x0, c = (x0 + x1) / 2, bed = CbLevel.StreamBed;
+            var sandTex = Resources.Load<Texture2D>(GroundPath("Path"));
+            var sand = CbArt.NewToon(new Color(0.86f, 0.84f, 0.72f), 0f, sandTex);
+            sand.SetFloat("_SpecStrength", 0f);
+            sand.mainTextureScale = new Vector2(w / PathWidth, (back - GroundFront) / PathWidth);
+            sand.mainTextureOffset = new Vector2(x0 / PathWidth, 0);
+            CbArt.Part(CbMesh.Quad, sand, root, new Vector3(c, bed, (GroundFront + back) / 2), new Vector3(w, back - GroundFront, 1), CbArt.Rot(Mathf.PI / 2), shadows: false).name = "streamBed";
+            // the back of the channel under the water, the earth's painting going on down
+            var wall = new Material(face);
+            float tileW = FaceTileWidth(face.mainTexture), h = CbLevel.WaterLevel - bed;
+            wall.mainTextureScale = new Vector2(w / tileW, h / FaceHeight);
+            wall.mainTextureOffset = new Vector2(x0 / tileW, 1 - (-CbLevel.WaterLevel + h) / FaceHeight);
+            CbArt.Part(CbMesh.Quad, wall, root, new Vector3(c, (CbLevel.WaterLevel + bed) / 2, back - 0.02f), new Vector3(w, h, 1), shadows: false).name = "streamBack";
+            // (the stones lying on it: CbLevel.BedStones)
+            // weed growing up from it, swaying in the current (the grass cards, tinted to the water's greens)
+            var weed = LoadCards(WeedSway);
+            if (weed.Count == 0) return;
+            var tints = new[] { new Color(0.45f, 0.8f, 0.62f), new Color(0.38f, 0.7f, 0.66f), new Color(0.55f, 0.85f, 0.55f) };
+            var batches = new Dictionary<Material, List<CombineInstance>>();
+            var tinted = new Dictionary<(Material, int), Material>();
+            for (float x = x0 + 0.3f; x < x1 - 0.3f; x += Random.Range(0.35f, 0.9f))
+            {
+                var (m0, aspect, _) = weed[Random.Range(0, weed.Count)];
+                int ti = Random.Range(0, tints.Length);
+                if (!tinted.TryGetValue((m0, ti), out var m))
+                {
+                    m = new Material(m0);
+                    m.SetColor("_Color", tints[ti]);
+                    tinted[(m0, ti)] = m;
+                }
+                float hh = Random.Range(0.5f, 1.4f), z = Random.Range(GroundFront + 0.3f, back - 0.4f);
+                if (!batches.TryGetValue(m, out var list)) batches[m] = list = new List<CombineInstance>();
+                list.Add(new CombineInstance { mesh = CbMesh.Quad, transform = Matrix4x4.TRS(new Vector3(x, bed + hh * 0.46f, z),
+                    Quaternion.Euler(0, Random.Range(-25f, 25f), 0), new Vector3(hh * aspect * (Random.value < 0.5f ? -1 : 1), hh, 1)) });
+            }
+            foreach (var kv in batches) MakeBatch(kv.Key, kv.Value, root, false);
+        }
+        // how far the weed on a stream's bed sways in the current (metres at its top)
+        const float WeedSway = 0.14f;
 
         /// <summary>A water texture drawn in code (until the painted one is approved): soft light ripples on teal.</summary>
         static Texture2D WaterTexture()

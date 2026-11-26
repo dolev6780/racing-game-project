@@ -2141,6 +2141,23 @@ namespace Cloudborne.Tests
             Assert.IsNull(game.lockZone, "A soldier on his own shut an arena");
         }
 
+        /// <summary>
+        /// Not a check: the streams seen from their banks (the user: water clear like in their picture - the bed, the
+        /// banks under the water, stones and weed showing through). Named to run late, after the stage's pictures.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ZzzStreamsSeenThroughTheirClearWater()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            game.hero.inv = 999f;
+            Assert.IsNotNull(GameObject.Find("streamBed"), "The streams have no bed to see through their water");
+            yield return TakePictures(new[] { ("stream_long", 77.5f, 0f), ("stream_vines", 198.5f, 0f), ("stream_raft", 308.5f, 0f) });
+        }
+
         [UnityTest]
         public IEnumerator RajasHeadbandTailStirsALittle()
         {

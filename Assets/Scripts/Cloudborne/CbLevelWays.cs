@@ -776,7 +776,8 @@ namespace Cloudborne
             foreach (int side in new[] { -1, 1 })
             {
                 foreach (float z in new[] { zFront, zBack })
-                    CbArt.Cylinder(Wood, t, new Vector3(side * half, (WaterLevel - 1.2f + FootbridgeTop + 0.9f) / 2, z), 0.09f, FootbridgeTop + 0.9f - (WaterLevel - 1.2f));
+                    // (down to the stream's bed: the water is clear)
+                    CbArt.Cylinder(Wood, t, new Vector3(side * half, (StreamBed + FootbridgeTop + 0.9f) / 2, z), 0.09f, FootbridgeTop + 0.9f - StreamBed);
                 CbArt.Cylinder(VineGreen, t, new Vector3(side * half, FootbridgeTop + 0.8f, (zFront + zBack) / 2), 0.035f, zBack - zFront, Quaternion.Euler(90, 0, 0));
             }
             overhangs.Add(new Overhang { x0 = x - half, x1 = x + half, bottom = FootbridgeBottom, top = FootbridgeTop, t = t });
