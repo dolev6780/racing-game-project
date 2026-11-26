@@ -125,8 +125,7 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 
 ## Where things stand (update this section as work goes on)
 
-- **Run 292 (fe90538): all 85 tests pass.** The chest (it shuts again; opens only from the ground), the stairs,
-  Grak, the headband, the start wall, the clear streams and their `WaterTop` all pass; no shader errors.
+- **Run 294 (65a3220): all 85 tests pass.** The ground's edge is one piece (no lip in the jungle).
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body
@@ -164,7 +163,8 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   green, and the face's shadow started all at once (another line across the grass's bumps). The painted lip is now
   only for stage 1-2's moss; elsewhere the face's own painting (its flower row and grass bumps, one piece) is the
   edge (`FaceGrassShift` 0), and its shading deepens gradually from where the earth begins (`_Ao` 0). Picture
-  `ground_edge` in `ZzzStreamsSeenThroughTheirClearWater`. Local, not yet run.
+  `ground_edge` in `ZzzStreamsSeenThroughTheirClearWater`. Run 294: all 85 pass; the picture shows the edge of one
+  piece, no cut.
 - **Clear streams (the user's reference picture: see-through water, what is under it showing; local, not yet run):**
   - `WaterFront` on the jungle's streams: turquoise and see-through at the top (alpha 0.3), bluer and denser deeper
     (0.82 over 3.4 m); it ends at `CbLevel.StreamBed` (WaterLevel - 3), the earth's face below.
