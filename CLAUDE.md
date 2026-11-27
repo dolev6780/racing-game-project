@@ -192,7 +192,8 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
   remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge
   and RuinWall removed. Harder: the gorge's water starts after 1.2 s (was 1.6) and rises 0.46 m/s (was 0.38);
-  crumbling ledges give way after 0.38 s (was 0.5). Credits 413.
+  crumbling ledges give way after 0.38 s (was 0.5); soldiers swing again after 0.8-1.5 s (was 1-1.9) and throw
+  spears every 1.8-2.7 s (was 2.2-3.2). Credits 413.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body

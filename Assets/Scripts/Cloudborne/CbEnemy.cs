@@ -749,7 +749,7 @@ namespace Cloudborne
                             CbFx.Sfx("swing", 0.6f);
                         }
                     }
-                    if (t > ThrowWind + 0.4f) { state = State.Move; throwing = false; cd = Random.Range(2.2f, 3.2f); }
+                    if (t > ThrowWind + 0.4f) { state = State.Move; throwing = false; cd = Random.Range(1.8f, 2.7f); }
                     break;
                 }
                 case State.Atk:
@@ -777,7 +777,7 @@ namespace Cloudborne
                     }
                     if (t > wind + 0.35f)
                     {
-                        state = State.Move; cd = Random.Range(1f, 1.9f);
+                        state = State.Move; cd = Random.Range(0.8f, 1.5f); // (the user: harder - it was 1-1.9 s between swings)
                         // most of the time a step back out of reach after the blow
                         if (Random.value < 0.65f) backT = BackTime;
                     }
