@@ -2322,10 +2322,18 @@ namespace Cloudborne.Tests
             foreach (var t in game.level.Root.GetComponentsInChildren<Transform>(true))
                 Assert.IsFalse(t.name == "endGate" && t.localPosition.x < 10f, "A gate still stands behind him at the start");
             game.TestInput = i => i.x = -1;
-            yield return new WaitForSeconds(1.5f);
+            yield return new WaitForSeconds(3f);
             game.TestInput = null;
             Assert.GreaterOrEqual(hero.x, CbWorld.StartWall - 0.01f, "Raja went back past the start");
             Assert.Less(hero.x, CbWorld.StartWall + 0.3f, "Raja did not walk back to the wall behind him");
+            // the wall at the screen's left edge (the user), Raja whole in view against it
+            var cam = game.GetComponentInChildren<Camera>();
+            yield return new WaitForSeconds(1f);
+            var left = cam.WorldToViewportPoint(new Vector3(CbWorld.StartWall, 1f, 0f));
+            var him = cam.WorldToViewportPoint(new Vector3(hero.x, 1f, 0f));
+            Debug.Log($"START wall at viewport x {left.x:0.000}, Raja at {him.x:0.000}");
+            Assert.AreEqual(0f, left.x, 0.08f, "The wall at the start is not at the screen's left edge");
+            Assert.Greater(him.x, 0.02f, "Raja is not in view against the wall");
         }
 
         [UnityTest]

@@ -224,8 +224,9 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     foam along the banks and at the back, see-through at the front (local, not yet run).
 - **Stage 1-1.**
   - The user chose to keep the stage as it is for now (no new Canva route), and fix it piece by piece from the start.
-  - Behind him at the start: no gate, an invisible wall at `CbWorld.StartWall` (-0.5; every stage starts at x 0).
-    The scenery still runs on behind it. Test: `AtTheStartAnInvisibleWallIsBehindHim` (local, not yet run).
+  - Behind him at the start: no gate, an invisible wall at `CbWorld.StartWall` (every stage starts at x 0). The user
+    (later): it should be at the screen's left edge - now -5, and the camera never scrolls back past it (`CbGame`,
+    tx >= wall - 0.5 + half the view). Test: `AtTheStartAnInvisibleWallIsBehindHim` (checks the viewport too).
   - The start's tower and springy leaf were removed by the user, so 1-1 has one secret (the cracked boulder).
   - The swing pole was removed from the river, to be placed where the user says.
 - **Next art to redo through Canva and Meshy (proposed):** the waterfall, the raft river's small footbridge, the

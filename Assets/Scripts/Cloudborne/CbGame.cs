@@ -2117,6 +2117,9 @@ namespace Cloudborne
             // riding the river: the view well ahead, to see what is coming
             if (CbStage.River && Riding) tx = hero.x + RideLook;
             tx = Mathf.Lerp(tx, CbLevel.GorgeMiddle, gorge * 0.6f);
+            // the invisible wall at the start is the screen's left edge: the view doesn't scroll back past it (his
+            // whole body still in view against it)
+            if (mode == Mode.Play) tx = Mathf.Max(tx, CbWorld.StartWall - 0.5f + dist * tanH * cam.aspect);
             // half the height he stands at; high up the mountain the camera climbs with him. In a jump, where he took
             // off from: only past JumpFree over it does the view follow him up (and at once down, off a ledge or into
             // the water)
