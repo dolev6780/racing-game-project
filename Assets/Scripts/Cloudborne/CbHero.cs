@@ -401,6 +401,15 @@ namespace Cloudborne
             }
         }
 
+        // the pogo off thorns: how high it springs him; a moment after it the thorns don't hurt (he is going up off them)
+        const float PogoUp = 10f;
+        float pogoT;
+        static bool pogoTold;
+        /// <summary>Test hook: a dive kick now (as HIT in the air).</summary>
+        public void TestDiveKick() => StartDiveKick();
+        /// <summary>Just bounced off spikes (they don't hurt him on the way up).</summary>
+        public bool Pogoing => pogoT > 0;
+
         void StartDiveKick()
         {
             state = State.Kick; t = 0; hitSet.Clear(); kickLanded = false; kickLandT = 0; combo = 0;
@@ -442,6 +451,19 @@ namespace Cloudborne
                     vy = 8.5f; vx = -facing * 2.5f; state = State.Air; jumps = 1;
                     return;
                 }
+            }
+            // the pogo: diving onto thorns he bounces off their spikes unhurt, high, his double jump and dash back
+            if (g.level != null && g.level.SpikesUnder(fx, fy, out float spikes))
+            {
+                y = Mathf.Max(y, spikes + 0.05f);
+                vy = PogoUp; vx = facing * 2.2f; state = State.Air; jumps = 1; airDashed = false;
+                pogoT = 0.25f;
+                CbFx.Spark(new Vector3(fx, spikes + 0.1f, -0.4f), new Color(1f, 0.9f, 0.5f) * 2f, 12, 6, 0.3f, 0.35f, 2);
+                CbVfx.Ring(new Vector3(fx, spikes + 0.1f, -0.4f), new Color(1f, 0.85f, 0.4f), 1.4f, 0.2f);
+                CbFx.Sfx("block", 0.7f);
+                g.shake = Mathf.Max(g.shake, 0.15f);
+                if (!pogoTold) { pogoTold = true; g.hud.SetTip("Bounce! Dive-kick (HIT in the air) onto thorns to spring off them"); }
+                return;
             }
             if (g.items != null) g.items.HitCrates(x, y, facing, 1f);
             if (!air && t > KickHang + 0.02f)
@@ -797,6 +819,7 @@ namespace Cloudborne
         {
             t += dt;
             inv = Mathf.Max(0, inv - dt);
+            pogoT = Mathf.Max(0, pogoT - dt);
             landT = Mathf.Max(0, landT - dt);
             jumpT += dt;
             parryT = Mathf.Max(0, parryT - dt);

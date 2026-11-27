@@ -516,6 +516,22 @@ namespace Cloudborne
 
         void AddDraft(float x0, float x1, float y0, float y1) => drafts.Add(new Draft { x0 = x0, x1 = x1, y0 = y0, y1 = y1 });
 
+        /// <summary>
+        /// The pogo (the user's ideas: a dive onto spikes bounces off them): something spiky right under the dive kick's
+        /// foot at (x, footY) - a thorn hedge's top.
+        /// </summary>
+        public bool SpikesUnder(float x, float footY, out float top)
+        {
+            top = 0;
+            foreach (var th in thorns)
+                if (!th.b.broken && x > th.b.x0 - 0.35f && x < th.b.x1 + 0.35f && footY < th.b.top + 0.55f && footY > th.b.top - 0.7f)
+                {
+                    top = th.b.top;
+                    return true;
+                }
+            return false;
+        }
+
         void AddThorns(float x)
         {
             var t = CbArt.Joint(root, x, 0, 0f, "thorns");
@@ -1566,7 +1582,7 @@ namespace Cloudborne
         {
             // thorns prick him if he walks into them
             foreach (var th in thorns)
-                if (!th.b.broken && hero.y < th.b.top && hero.x > th.b.x0 - HalfWidth - 0.05f && hero.x < th.b.x1 + HalfWidth + 0.05f)
+                if (!th.b.broken && !hero.Pogoing && hero.y < th.b.top && hero.x > th.b.x0 - HalfWidth - 0.05f && hero.x < th.b.x1 + HalfWidth + 0.05f)
                     hero.TakeHit(6, hero.x < (th.b.x0 + th.b.x1) / 2 ? -1 : 1);
             // pits: stood on, the leaves give way; falling in, spikes
             foreach (var p in pits)

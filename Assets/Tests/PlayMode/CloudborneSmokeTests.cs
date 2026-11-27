@@ -2288,6 +2288,36 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator ADiveKickOntoThornsBouncesOffThem()
+        {
+            // the user's ideas (the pogo): diving onto thorns springs him off them, unhurt, his double jump back
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var hero = game.hero;
+            game.Teleport(244.6f);
+            hero.y = 4.2f; hero.vx = hero.vy = 0; hero.facing = 1;
+            hero.state = CbHero.State.Air;
+            yield return null;
+            float hp = hero.hp, lowest = 99f, highestAfter = 0f;
+            bool bounced = false;
+            hero.TestDiveKick();
+            for (float w = 0; w < 1.4f; w += Time.deltaTime)
+            {
+                if (hero.Pogoing) bounced = true;
+                if (!bounced) lowest = Mathf.Min(lowest, hero.y);
+                else highestAfter = Mathf.Max(highestAfter, hero.y);
+                yield return null;
+            }
+            Debug.Log($"POGO lowest {lowest:0.00}, up to {highestAfter:0.00} after the bounce, hp {hp} -> {hero.hp}");
+            Assert.IsTrue(bounced, "The dive kick onto the thorns did not bounce off them");
+            Assert.AreEqual(hp, hero.hp, 0.01f, "Bouncing off the thorns hurt him");
+            Assert.Greater(highestAfter, lowest + 1.5f, "The bounce did not spring him up");
+        }
+
+        [UnityTest]
         public IEnumerator ARedHeavyBlowGoesThroughTheGuard()
         {
             // the user's ideas (The Lost Crown): a gold blow is guarded, a red heavy one only dodged
