@@ -11,11 +11,12 @@ namespace Cloudborne
     /// </summary>
     public class CbWeather
     {
+        // (run 301's picture: thin pale streaks were lost against the leaves - wider, longer, brighter now)
         // where the rain falls (the canopy and the waterfall), how far it fades in and out on either side
         public const float RainFrom = 362f, RainTo = 410f, RainEdge = 10f;
-        const int Drops = 140;
+        const int Drops = 170;
         // the drops: a box round the camera's aim they fall through, how fast, how long each streak is
-        const float BoxW = 26f, BoxH = 16f, BoxNear = -3f, BoxFar = 8f, FallSpeed = 22f, Streak = 0.55f, Slant = 0.18f;
+        const float BoxW = 26f, BoxH = 16f, BoxNear = -3f, BoxFar = 8f, FallSpeed = 22f, Streak = 0.85f, Slant = 0.18f;
         // the afternoon at the stage's end: the sun's colour and strength, its fall from the morning's direction
         static readonly Color Morning = new Color(1f, 0.93f, 0.78f), Afternoon = new Color(1f, 0.76f, 0.5f), Storm = new Color(0.72f, 0.8f, 0.9f);
         const float StormDim = 0.55f;
@@ -44,10 +45,10 @@ namespace Cloudborne
             baseSky = RenderSettings.ambientSkyColor;
             baseEquator = RenderSettings.ambientEquatorColor;
             baseGround = RenderSettings.ambientGroundColor;
-            var mat = CbArt.Glow(new Color(0.78f, 0.86f, 0.95f, 0.55f), CbArt.Soft);
+            var mat = CbArt.Glow(new Color(0.85f, 0.92f, 1f, 0.8f), CbArt.Soft);
             for (int i = 0; i < Drops; i++)
             {
-                drops[i] = CbArt.Part(CbMesh.Quad, mat, root, Vector3.zero, new Vector3(0.025f, Streak, 1), Quaternion.Euler(0, 0, Slant * Mathf.Rad2Deg), shadows: false);
+                drops[i] = CbArt.Part(CbMesh.Quad, mat, root, Vector3.zero, new Vector3(0.04f, Streak, 1), Quaternion.Euler(0, 0, Slant * Mathf.Rad2Deg), shadows: false);
                 drops[i].name = "rain";
                 dropAt[i] = new Vector3(Random.Range(-BoxW / 2, BoxW / 2), Random.Range(0, BoxH), Random.Range(BoxNear, BoxFar));
                 drops[i].gameObject.SetActive(false);

@@ -55,6 +55,8 @@ namespace Cloudborne
         bool heavy;
         /// <summary>Test hook: his next blow is a heavy one.</summary>
         public bool forceHeavy;
+        /// <summary>Test hook: no heavy blows by chance (the tests that guard or count a blow's harm want the usual one).</summary>
+        public static bool NoChanceHeavy;
         /// <summary>Winding up or striking a heavy blow (red: a guard doesn't stop it).</summary>
         public bool HeavyBlow => state == State.Atk && heavy;
         /// <summary>Winding up a blow at Raja (not yet struck): a blow on him now is a counter (CbGame.HurtEnemy).</summary>
@@ -887,7 +889,7 @@ namespace Cloudborne
                         state = State.Atk; t = 0; hitDone = false; vx = 0; backT = 0; charging = false; throwing = false;
                         // now and then a heavy blow (the user: ideas from The Lost Crown): red, it goes through a guard -
                         // only a dodge gets out of it; the usual blow gold, to be guarded or returned
-                        heavy = forceHeavy || Random.value < HeavyChance * CbSave.HardMul(1.6f);
+                        heavy = forceHeavy || !NoChanceHeavy && Random.value < HeavyChance * CbSave.HardMul(1.6f);
                         forceHeavy = false;
                         // the warning over his head as he winds up (the glint on his blade alone was easy to miss)
                         g.hud.Popup(new Vector3(x, HitHeight + 1.15f, 0), heavy ? "!!" : "!", heavy ? CbHud.PopStyle.Hurt : CbHud.PopStyle.Big);

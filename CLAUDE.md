@@ -195,6 +195,13 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   The touch test's "legs not straight down" in every hang came from the same. The pogo test started too far on (the
   dive overshot the hedge). A rock step was found on a RockBlock's bump (150.2): the rock kit is now solid for the feet
   but kept out of `rockSolids` (no steps on its walls).
+- **Run 301 (099d28a): 92/95.** The hang is right at last: `HANG pose top 6.20: crown 6.08, wrists 6.17/6.17, arm
+  straight 0.94` (head under the edge, hands on it over his head; picture hang_pose). Failures, fixed locally: the
+  perfect guard met a chance red heavy blow (the tests now set `CbEnemy.NoChanceHeavy`); the sinking-stone check used
+  95.2, now a lotus (now 86.6); the letter at 89 was not taken (the test now holds him under it and logs `LETTER`
+  lines - read them if it fails again). The rain was hard to see: wider, longer, brighter streaks.
+- **Staffs' models (local):** Meshy StaffFire/StaffWind/StaffVine (90 credits, 113 left) in `Props/Staff`, 1.75 m,
+  grip 0.35 like the oak staff; symmetric (decorated at both ends). `TintStaff` swaps the model in his hand.
 - **The user's ideas list (inspired by The Lost Crown, Kirby and the Forgotten Land and others; the user: "let's
   do everything").** Done locally, not yet run: gold/red blows (`CbEnemy.HeavyChance` 0.25: a red "!!", longer
   wind-up, unblockable, 1.5x, knocks down - only a dodge escapes; the usual "!" now gold); the pogo (a dive kick onto a
@@ -226,10 +233,9 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   back past the start, swimming or dying ends the try.
   Staffs (`CbSave.StaffsOwned/StaffKind/NextStaff`, a STAFF row in Baba's workshop - the upgrade rows now 52 apart):
   oak, FIRE 120 (staff blows burn), WIND 150 (the whirl draws soldiers in, other blows x1.6 knockback), VINE 150
-  (staff blows pull the soldier to him) - in `CbGame.HurtEnemy` when `hero.StaffSwinging`. Until their models come
-  (Canva MAHcIhNLLDI drawn, waiting for the user's approval and download) the staff is tinted and its trail coloured
-  (`TintStaff`).
-  Still to do: the staffs' models, camp hub (foreground leaves were already there: `CbWorld`'s near layer).
+  (staff blows pull the soldier to him) - in `CbGame.HurtEnemy` when `hero.StaffSwinging`. Their models (Canva
+  MAHcIhNLLDI approved) are in his hand (`TintStaff`), the trail coloured to match.
+  Still to do: camp hub (foreground leaves were already there: `CbWorld`'s near layer).
 - **Performance and challenge (the user: keep improving performance, graphics and challenge; local, not yet run):**
   the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
   remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge
