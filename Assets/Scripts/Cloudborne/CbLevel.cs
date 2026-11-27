@@ -346,7 +346,9 @@ namespace Cloudborne
             // (drifting less far, and a little further from the rock: drifting back it went into the rock - the user's
             // picture)
             AddLog(92.9f, 0.7f, 5.2f);
-            AddStone(95.2f, true);
+            // (a lotus where a sinking stone was: landed on from the log before it, it throws him on over the stone after
+            // it - the user's ideas, launchers)
+            AddLotus(95.2f, 5.5f);
             AddStone(97.4f, false);
             AddLog(99.8f, 0, 0);
 

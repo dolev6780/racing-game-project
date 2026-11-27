@@ -403,7 +403,7 @@ namespace Cloudborne
 
         // the pogo off thorns: how high it springs him; a moment after it the thorns don't hurt (he is going up off them)
         const float PogoUp = 10f;
-        float pogoT;
+        float pogoT, lotusT;
         static bool pogoTold;
         /// <summary>Test hook: a dive kick now (as HIT in the air).</summary>
         public void TestDiveKick() => StartDiveKick();
@@ -820,6 +820,7 @@ namespace Cloudborne
             t += dt;
             inv = Mathf.Max(0, inv - dt);
             pogoT = Mathf.Max(0, pogoT - dt);
+            lotusT = Mathf.Max(0, lotusT - dt);
             landT = Mathf.Max(0, landT - dt);
             jumpT += dt;
             parryT = Mathf.Max(0, parryT - dt);
@@ -963,8 +964,10 @@ namespace Cloudborne
                     // turning round at a run: a skid, a puff of dust at his feet
                     if (!air && Mathf.Abs(vx) > 4.5f && input.x * vx < -0.3f && Random.value < 0.6f)
                         CbFx.Spark(new Vector3(x + Mathf.Sign(vx) * 0.25f, y + 0.08f, -0.3f), CbFx.Dust, 2, 2.2f, 0.4f, 0.35f, 1);
-                    vx += (input.x * top - vx) * Damp(air ? 6 : 14, dt);
-                    if (Mathf.Abs(input.x) > 0.1f) facing = input.x > 0 ? 1 : -1;
+                    // (thrown on by a lotus: carried, the stick only adding to it a moment)
+                    if (lotusT > 0 && air) vx = Mathf.Sign(vx) * Mathf.Max(Mathf.Abs(vx), Mathf.Abs(input.x * top));
+                    else vx += (input.x * top - vx) * Damp(air ? 6 : 14, dt);
+                    if (Mathf.Abs(input.x) > 0.1f && lotusT <= 0) facing = input.x > 0 ? 1 : -1;
                     // riding the river (stage 1-4): carried along on his log, the stick only speeding him or holding him back
                     if (g.Riding) { vx = g.RideVx(input.x); facing = 1; }
                 }
@@ -1202,6 +1205,8 @@ namespace Cloudborne
                 if (bounce > 0)
                 {
                     vy = bounce; air = true; jumps = 1; airDashed = false;
+                    // a lotus throws him on along the way he faces
+                    if (g.level.BouncePush != 0) { vx = facing * g.level.BouncePush; lotusT = 0.6f; }
                     if (state == State.Atk) { state = State.Air; combo = 0; }
                     CbFx.Sfx("jump", 0.8f);
                     CbFx.Spark(new Vector3(x, y + 0.1f, -0.3f), new Color(0.5f, 0.9f, 0.4f) * 1.5f, 10, 4, 0.35f, 0.4f, 4);

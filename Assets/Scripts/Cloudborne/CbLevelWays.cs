@@ -56,7 +56,7 @@ namespace Cloudborne
         public class Bar { public float x0, x1, y; public float[] thorns = new float[0]; }
         /// <summary>A rope slid down from (x0, y0) to (x1, y1).</summary>
         public class Zip { public float x0, y0, x1, y1; public float At(float x) => Mathf.Lerp(y0, y1, Mathf.InverseLerp(x0, x1, x)); }
-        class Leaf { public float x, half, top, squash; public Transform t; }
+        class Leaf { public float x, half, top, squash, bounce = LeafBounce, push; public Transform t; }
         // a spring leaf: how thick its pad is (under it, low, he passes), how high the modelled one stands
         const float LeafPad = 0.45f, LeafTop = 1.25f;
         class Draft { public float x0, x1, y0, y1; }
@@ -1302,13 +1302,33 @@ namespace Cloudborne
             return 0;
         }
 
-        /// <summary>Landing on a springy leaf at (x, y): how hard it throws him up (0 if not on one).</summary>
+        /// <summary>Landing on a springy leaf (or a lotus pad) at (x, y): how hard it throws him up (0 if not on one);
+        /// BouncePush how hard on along the way (a lotus throws him onward).</summary>
         public float BounceAt(float x, float y)
         {
+            BouncePush = 0;
             foreach (var l in leaves)
-                if (Mathf.Abs(x - l.x) < l.half && Mathf.Abs(y - l.top) < 0.05f) { l.squash = 1; return LeafBounce; }
+                if (Mathf.Abs(x - l.x) < l.half && Mathf.Abs(y - l.top) < 0.05f) { l.squash = 1; BouncePush = l.push; return l.bounce; }
             return 0;
         }
+        /// <summary>How hard the last bounce threw him on along the way (0: straight up).</summary>
+        public float BouncePush { get; private set; }
+
+        // A lotus pad floating on a stream (the user's ideas: launchers that throw him on - the lotus of stage 1-4, drawn
+        // in Canva, approved, built by Meshy): landed on from a jump it throws him up and onward; walked onto, it holds him
+        const float LotusBounce = 12.5f, LotusTop = 0.3f, LotusWide = 1.9f;
+        const string LotusPath = "Cloudborne/River/Lotus/Lotus";
+
+        void AddLotus(float x, float push)
+        {
+            var t = CbArt.Joint(root, x, WaterLevel, 0f, "lotusPad");
+            if (Fit(LotusPath, t, new Vector3(-LotusWide / 2, -0.2f, -LotusWide / 2), new Vector3(LotusWide / 2, LotusTop, LotusWide / 2)) == null)
+                CbArt.Part(CbMesh.Leaf(), M("#e98bb4"), t, new Vector3(0, LotusTop * 0.6f, 0), new Vector3(LotusWide, 0.2f, LotusWide), shadows: false);
+            leaves.Add(new Leaf { x = x, half = LotusWide * 0.42f, top = WaterLevel + LotusTop, t = t, bounce = LotusBounce, push = push });
+        }
+
+        /// <summary>Test hook: where the lotus pads float (x).</summary>
+        public List<float> LotusXs { get { var l = new List<float>(); foreach (var lf in leaves) if (lf.push != 0) l.Add(lf.x); return l; } }
 
         /// <summary>
         /// Raja on the ground at (x, y) pressing towards dir against the stone block: it slides ahead of him, as far as

@@ -200,7 +200,10 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   canopy's bar, A over the gorge's jut; `CbGame.Letters` bits, a banner with the word, "R-A-J-A n/4" on the results.
   Hard mode (`CbSave.Hard`, SETTINGS > DIFFICULTY, where LANGUAGE was): soldiers' blows and spears x1.4, heavy blows
   x1.6 as often, the gorge's water x1.25, crumbling ledges x0.75 the time; HARD on the results.
-  Still to do: lotus launchers, trial rooms, time trials, chase, totem masks, staff upgrades, camp hub, ink-brush FX, foreground leaves, time of day/rain.
+  Lotus launchers: `AddLotus` (the 1-4 lotus model on the water, a leaf with `bounce` 12.5 and `push` 5.5): landed on
+  from a jump it throws him up and on (`BouncePush`, `lotusT` keeps the throw); one in the long river at 95.2 in place
+  of a sinking stone.
+  Still to do: trial rooms, time trials, chase, totem masks, staff upgrades, camp hub, ink-brush FX, foreground leaves, time of day/rain.
 - **Performance and challenge (the user: keep improving performance, graphics and challenge; local, not yet run):**
   the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
   remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge

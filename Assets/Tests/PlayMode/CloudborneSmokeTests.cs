@@ -2288,6 +2288,29 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator ALotusThrowsHimOnOverTheRiver()
+        {
+            // the user's ideas (launchers): landed on from a jump, the lotus pad throws him up and on
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            var lotus = game.level.LotusXs;
+            Assert.Greater(lotus.Count, 0, "No lotus pad in the river");
+            var hero = game.hero;
+            hero.inv = 999f;
+            float lx = lotus[0];
+            game.Teleport(lx);
+            hero.y = 2.5f; hero.vx = 0; hero.vy = -6f; hero.facing = 1; hero.state = CbHero.State.Air;
+            float top = 0, far = lx;
+            for (float w = 0; w < 1.2f; w += Time.deltaTime) { top = Mathf.Max(top, hero.y); far = Mathf.Max(far, hero.x); yield return null; }
+            Debug.Log($"LOTUS at {lx:0.0}: up to {top:0.00}, on to {far:0.00}");
+            Assert.Greater(far, lx + 3f, "The lotus did not throw him on");
+            Assert.AreNotEqual(CbHero.State.Swim, hero.state, "Thrown by the lotus he fell in the river");
+        }
+
+        [UnityTest]
         public IEnumerator HardModeMakesTheSoldiersHitHarder()
         {
             // the user's ideas (as Kirby's wild mode): a harder setting, kept
