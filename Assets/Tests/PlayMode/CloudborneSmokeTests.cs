@@ -2288,6 +2288,37 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator HardModeMakesTheSoldiersHitHarder()
+        {
+            // the user's ideas (as Kirby's wild mode): a harder setting, kept
+            bool was = CbSave.Hard;
+            try
+            {
+                CbSave.Hard = false;
+                Assert.AreEqual(1f, CbSave.HardMul(1.4f));
+                CbSave.Hard = true;
+                Assert.AreEqual(1.4f, CbSave.HardMul(1.4f), 0.001f);
+                game = CbGame.Boot();
+                yield return Frames(3);
+                game.StartGame();
+                game.Teleport(14f);
+                float waited = 0;
+                while (game.enemies.Count < 1 && waited < 6f) { waited += Time.deltaTime; yield return null; }
+                Assert.AreEqual(1, game.enemies.Count, "The first post sent out no soldier");
+                // his blow on Raja, unguarded
+                var hero = game.hero;
+                hero.inv = 0; hero.hp = hero.MaxHp;
+                float hp = hero.hp;
+                game.enemies[0].forceHeavy = false;
+                waited = 0;
+                while (hero.hp >= hp && waited < 8f) { hero.inv = 0; waited += Time.deltaTime; yield return null; }
+                Debug.Log($"HARD a soldier's blow took {hp - hero.hp:0.0}");
+                Assert.Greater(hp - hero.hp, 8f * 1.3f, "In hard mode the soldier's blow was no harder");
+            }
+            finally { CbSave.Hard = was; }
+        }
+
+        [UnityTest]
         public IEnumerator FourGoldenLettersAreHiddenInTheJungle()
         {
             // the user's ideas (as Kirby's and Donkey Kong's hidden letters): R-A-J-A, four golden letters in hard places

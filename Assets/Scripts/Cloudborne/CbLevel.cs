@@ -1547,9 +1547,9 @@ namespace Cloudborne
                     || hero.Hanging && Mathf.Abs(hero.GrabTop - l.top) < 0.02f && hero.GrabX >= l.x0 - 0.01f && hero.GrabX <= l.x1 + 0.01f;
                 l.stood = on ? l.stood + dt : Mathf.Max(0, l.stood - dt);
                 // shaking more and more, then it drops
-                float shake = l.stood > 0 ? Mathf.Sin(Time.time * 60) * 0.04f * (l.stood / CrumbleAfter) : 0;
+                float shake = l.stood > 0 ? Mathf.Sin(Time.time * 60) * 0.04f * (l.stood / (CrumbleAfter * CbSave.HardMul(0.75f))) : 0;
                 l.t.localPosition = l.home + new Vector3(shake, 0, 0);
-                if (l.stood >= CrumbleAfter)
+                if (l.stood >= CrumbleAfter * CbSave.HardMul(0.75f))
                 {
                     l.gone = true;
                     CbFx.Spark(new Vector3((l.x0 + l.x1) / 2, l.top, -0.4f), CbFx.Dust, 12, 3, 0.5f, 0.5f, 6);

@@ -139,7 +139,7 @@ namespace Cloudborne
             bool shield = k == Kind.Shield, sergeant = k == Kind.Sergeant, thrower = k == Kind.Thrower, tusk = k == Kind.Tusk, grak = k == Kind.Grak;
             hp = max = grak ? GrakHp : tusk ? TuskHp : sergeant ? 320 : shield ? 46 : thrower ? 28 : 34;
             speed = sergeant ? 2.3f : shield ? 2.1f : 2.7f;
-            dmg = sergeant ? 9 : shield ? 10 : 8;
+            dmg = (sergeant ? 9 : shield ? 10 : 8) * CbSave.HardMul(1.4f);
             reach = sergeant ? 1.9f : shield ? 1.6f : 1.5f;
             scoreValue = grak ? 5000 : sergeant || tusk ? 3000 : shield ? 500 : thrower ? 400 : 300;
             if (shield) w = 0.6f;
@@ -755,7 +755,7 @@ namespace Cloudborne
                         if (!hitDone)
                         {
                             hitDone = true;
-                            g.level?.ThrowSpear(x + facing * 0.6f, y + 1.25f, facing * ThrowSpeed, SpearDamage);
+                            g.level?.ThrowSpear(x + facing * 0.6f, y + 1.25f, facing * ThrowSpeed, SpearDamage * CbSave.HardMul(1.4f));
                             spearAway = 0.9f;
                             CbFx.Sfx("swing", 0.6f);
                         }
@@ -887,7 +887,7 @@ namespace Cloudborne
                         state = State.Atk; t = 0; hitDone = false; vx = 0; backT = 0; charging = false; throwing = false;
                         // now and then a heavy blow (the user: ideas from The Lost Crown): red, it goes through a guard -
                         // only a dodge gets out of it; the usual blow gold, to be guarded or returned
-                        heavy = forceHeavy || Random.value < HeavyChance;
+                        heavy = forceHeavy || Random.value < HeavyChance * CbSave.HardMul(1.6f);
                         forceHeavy = false;
                         // the warning over his head as he winds up (the glint on his blade alone was easy to miss)
                         g.hud.Popup(new Vector3(x, HitHeight + 1.15f, 0), heavy ? "!!" : "!", heavy ? CbHud.PopStyle.Hurt : CbHud.PopStyle.Big);

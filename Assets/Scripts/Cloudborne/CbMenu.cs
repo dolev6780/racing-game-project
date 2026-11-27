@@ -56,7 +56,7 @@ namespace Cloudborne
         bool resetArmed;
         readonly HashSet<int> seen = new HashSet<int>(), now = new HashSet<int>();
 
-        Text coinsTxt, shopCoins, shopMsg, volumeTxt, padsTxt, graphicsTxt, replayTxt, resetTxt;
+        Text coinsTxt, shopCoins, shopMsg, volumeTxt, padsTxt, graphicsTxt, replayTxt, resetTxt, hardTxt;
         Btn resetBtn;
         readonly List<(Text status, StageInfo stage)> stageCards = new List<(Text, StageInfo)>();
         readonly List<(Btn buy, Image[] pips, CbSave.Upgrade up)> shopRows = new List<(Btn, Image[], CbSave.Upgrade)>();
@@ -238,8 +238,9 @@ namespace Cloudborne
             resetBtn = Button(Page.Settings, panel, "", new Vector2(0, 1), new Vector2(0, 1), new Vector2(380, y), new Vector2(198, 40), ResetProgress, 15);
             resetTxt = resetBtn.label;
             y -= 45;
-            Row("LANGUAGE");
-            UIKit.Label(panel, "ENGLISH  ·  Hebrew coming later", 13, Dim, new Vector2(0, 1), new Vector2(0, 1), new Vector2(380, y), new Vector2(330, 40), TextAnchor.MiddleLeft);
+            // (the language row made way for it: English only for now)
+            Row("DIFFICULTY");
+            hardTxt = Button(Page.Settings, panel, "", new Vector2(0, 1), new Vector2(0, 1), new Vector2(380, y), new Vector2(198, 40), () => { CbSave.Hard = !CbSave.Hard; Refresh(); }, 15).label;
             Back(Page.Settings, panel);
         }
 
@@ -329,6 +330,8 @@ namespace Cloudborne
             volumeTxt.text = Mathf.RoundToInt(CbSave.Volume * 100) + "%";
             padsTxt.text = CbSave.Pads == 0 ? "AUTO" : CbSave.Pads == 1 ? "ALWAYS" : "OFF";
             graphicsTxt.text = CbQuality.Label;
+            hardTxt.text = CbSave.Hard ? "HARD" : "NORMAL";
+            hardTxt.color = CbSave.Hard ? Ember : Paper;
             replayTxt.text = CbSave.IntroSeen ? "PLAY IT AGAIN" : "PLAYS NEXT TIME";
             resetTxt.text = resetArmed ? "SURE? TAP AGAIN" : "RESET";
         }

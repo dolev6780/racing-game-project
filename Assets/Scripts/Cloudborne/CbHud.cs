@@ -498,7 +498,7 @@ namespace Cloudborne
                 float c = Ease((t - CountFrom) / CountTime);
                 float time = res.time * c;
                 resultStats.text = $"SCORE {Mathf.RoundToInt(res.score * c):N0}    ·    MAX COMBO {Mathf.RoundToInt(res.combo * c)}    ·    TIME {(int)(time / 60)}:{(int)(time % 60):00}\n" +
-                    $"{(CbStage.River ? "GOLDEN LOTUSES" : "TIGER TOKENS")} {res.tokens}/3    ·    FRIENDS FREED {res.friends}/3" + (CbStage.Jungle ? $"    ·    R-A-J-A {resLetters}/4" : "") + (res.flawless ? "    ·    NO HIT TAKEN!" : "");
+                    $"{(CbStage.River ? "GOLDEN LOTUSES" : "TIGER TOKENS")} {res.tokens}/3    ·    FRIENDS FREED {res.friends}/3" + (CbStage.Jungle ? $"    ·    R-A-J-A {resLetters}/4" : "") + (res.flawless ? "    ·    NO HIT TAKEN!" : "") + (CbSave.Hard ? "    ·    <color=#ff6a3a>HARD</color>" : "");
             }
             // the rank, stamped in with a thud
             float r = (t - RankAt) / 0.14f;

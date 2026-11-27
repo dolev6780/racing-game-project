@@ -155,6 +155,19 @@ namespace Cloudborne
         }
         const string LearnedKey = "cb_learned";
 
+        /// <summary>
+        /// Hard mode (the user's ideas, as Kirby's wild mode): soldiers hit 40% harder and swing heavy blows more often,
+        /// the gorge's water rises a quarter faster, crumbling ledges give way sooner. A setting, kept.
+        /// </summary>
+        public static bool Hard
+        {
+            get => PlayerPrefs.GetInt(HardKey, 0) == 1;
+            set { PlayerPrefs.SetInt(HardKey, value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+        const string HardKey = "cb_hard";
+        /// <summary>How much harder: 1 normally.</summary>
+        public static float HardMul(float hard) => Hard ? hard : 1f;
+
         /// <summary>The touch buttons: 0 shown on phones only (auto), 1 always, 2 never (a controller).</summary>
         public static int Pads
         {

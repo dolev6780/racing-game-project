@@ -404,7 +404,7 @@ namespace Cloudborne
                         if (Random.value < 0.5f)
                             CbFx.Spark(new Vector3(GorgeFrom + Random.Range(0f, 0.6f), GorgeRim + 0.2f, StreamZ - 0.2f), CbFx.Water, 2, 4f, 0.3f, 0.5f, 8, 1.5f);
                     }
-                    else FloodLevel = Mathf.Min(FloodTop, FloodLevel + dt * (hero.y - FloodLevel > FloodLead ? FloodChase : FloodRise));
+                    else FloodLevel = Mathf.Min(FloodTop, FloodLevel + dt * (hero.y - FloodLevel > FloodLead ? FloodChase : FloodRise * CbSave.HardMul(1.25f)));
                     if (InGorge(hero.x) && hero.y + FloodCatch < FloodLevel && hero.state != CbHero.State.Swim && hero.state != CbHero.State.Dead)
                     {
                         floodCaught = true;
