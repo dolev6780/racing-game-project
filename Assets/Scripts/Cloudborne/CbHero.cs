@@ -1149,6 +1149,8 @@ namespace Cloudborne
                 return parent != null ? parent.TransformPoint(new Vector3(p.x, sy, p.z)).y : sy;
             };
             ik.hands = GripPoint(out var at, out bool across);
+            // hanging still from an edge: the body brought to the hands, not the hands pulled down to the edge
+            ik.alignToGrip = state == State.Hang;
             if (ik.hands)
             {
                 ik.grip = f.root.parent != null ? f.root.parent.TransformPoint(at) : at;

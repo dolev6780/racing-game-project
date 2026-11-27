@@ -188,6 +188,13 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     darker with cracks; the walls (`RockWall`: the gate cliff, the back wall - now on to MountainTo + 1 for the far
     side's ledges - the summit cliff, the shoulder, the jut) are rows of RockBlock, the top row's grass the walkable
     top, the rows under it turned over. RockStairs, RockShelves and RockStep not used yet. Not yet run.
+- **Run 300 (a03c726): 87/90.** The hang test measured the user's complaint exactly: crown 0.93 m OVER the edge,
+  arms straight down to it - with Hang and Climb the body stood ~1 m too high for the clip's hands (its hips curve
+  differs from Bar Hang Idle's), and the hands' IK pulled the arms down. Fix: `CbLimbIK.alignToGrip` (on while
+  `State.Hang`) moves the body by its hips each frame so the clip's own palms meet the grip, before the hands' solve.
+  The touch test's "legs not straight down" in every hang came from the same. The pogo test started too far on (the
+  dive overshot the hedge). A rock step was found on a RockBlock's bump (150.2): the rock kit is now solid for the feet
+  but kept out of `rockSolids` (no steps on its walls).
 - **The user's ideas list (inspired by The Lost Crown, Kirby and the Forgotten Land and others; the user: "let's
   do everything").** Done locally, not yet run: gold/red blows (`CbEnemy.HeavyChance` 0.25: a red "!!", longer
   wind-up, unblockable, 1.5x, knocks down - only a dodge escapes; the usual "!" now gold); the pogo (a dive kick onto a

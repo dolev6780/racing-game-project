@@ -694,9 +694,11 @@ namespace Cloudborne
             holder.localScale = s;
             holder.localPosition = lo - Vector3.Scale(b.min, s);
             // the rocks and slabs he stands on solid, so his feet find their drawn tops (CbLevel.SurfaceUnder)
-            if (path.StartsWith(CliffDir) || path == RiverRockPath || path == CliffRockPath || path == CrackedRockPath || path == RiverStonePath
-                || path.StartsWith(WaysDir + "Rock"))
+            if (path.StartsWith(CliffDir) || path == RiverRockPath || path == CliffRockPath || path == CrackedRockPath || path == RiverStonePath)
                 rockSolids.AddRange(Solidify(holder));
+            // the gorge's rock kit: solid for his feet, but no steps found on its blocks' sides (they are walls, their
+            // tops the ways: a step found on a block's bump stood him on air - run 300)
+            else if (path.StartsWith(WaysDir + "Rock")) Solidify(holder);
             return holder;
         }
 

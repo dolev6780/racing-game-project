@@ -436,7 +436,6 @@ namespace Cloudborne
                 // the root deeper than the lip: else the other turn
                 if (yaw == 90f && Under(cs, back - 0.5f) > Under(cs, GorgeLedgeFront + 0.4f))
                 {
-                    rockSolids.RemoveAll(c => cs.Contains(c));
                     Object.DestroyImmediate(holder.gameObject);
                     continue;
                 }

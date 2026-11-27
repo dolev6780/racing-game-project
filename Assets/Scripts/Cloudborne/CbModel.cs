@@ -213,6 +213,7 @@ namespace Cloudborne
             ik.rightLeg = Limb("RightUpLeg", "RightLeg", "RightFoot", "RightToeBase");
             ik.leftArm = Limb("LeftArm", "LeftForeArm", "LeftHand", null);
             ik.rightArm = Limb("RightArm", "RightForeArm", "RightHand", null);
+            bones.TryGetValue("Hips", out ik.hips);
             var fitScale = root.localScale;
             if (!TurnsByModel.TryGetValue(path, out clipTurns))
                 TurnsByModel[path] = clipTurns = MeasureClipTurns(parent);

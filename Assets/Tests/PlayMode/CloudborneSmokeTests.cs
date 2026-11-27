@@ -2441,8 +2441,9 @@ namespace Cloudborne.Tests
             game.SkipFights();
             yield return Frames(2);
             var hero = game.hero;
-            game.Teleport(244.6f);
-            hero.y = 4.2f; hero.vx = hero.vy = 0; hero.facing = 1;
+            // (from where the dive's slant brings his foot down onto the hedge's top: from further on he overshot it)
+            game.Teleport(243.8f);
+            hero.y = 3.6f; hero.vx = hero.vy = 0; hero.facing = 1;
             hero.state = CbHero.State.Air;
             yield return null;
             float hp = hero.hp, lowest = 99f, highestAfter = 0f;

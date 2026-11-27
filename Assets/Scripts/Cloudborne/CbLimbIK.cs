@@ -41,9 +41,32 @@ namespace Cloudborne
         /// </summary>
         public const float StepDown = 0.42f;
 
+        /// <summary>
+        /// Hanging (the user, again and again: his head stood over the shelf, his arms folded down to it): the whole body
+        /// moved, by its hips, so that the clip's own palms - up over his head - meet the grip; the hands' solve then
+        /// only trims them. Without it the body stood where the game put his feet, whatever height the clip drew his
+        /// hands at, and the hands' solve pulled the arms down to the edge.
+        /// </summary>
+        public bool alignToGrip;
+        public Transform hips;
+        /// <summary>How far the body was moved to bring the palms to the grip this frame (world, for the tests).</summary>
+        public Vector3 aligned;
+
         void LateUpdate()
         {
             float dt = Time.deltaTime;
+            aligned = Vector3.zero;
+            if (alignToGrip && hands && hips != null && leftArm != null && rightArm != null)
+            {
+                Vector3 Palm(Limb l) => l.end.position + (l.end.position - l.lower.position).normalized * PalmOut;
+                var mid = (Palm(leftArm) + Palm(rightArm)) * 0.5f;
+                var d = new Vector3(handsAcross ? grip.x - mid.x : 0f, grip.y - mid.y, 0f);
+                if (d.sqrMagnitude < 1.5f * 1.5f)
+                {
+                    hips.position += d;
+                    aligned = d;
+                }
+            }
             Foot(leftLeg, dt);
             Foot(rightLeg, dt);
             Hand(leftArm, dt);
