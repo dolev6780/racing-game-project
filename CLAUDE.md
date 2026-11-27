@@ -210,7 +210,9 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   only for stage 1-2's moss; elsewhere the face's own painting (its flower row and grass bumps, one piece) is the
   edge (`FaceGrassShift` 0), and its shading deepens gradually from where the earth begins (`_Ao` 0). Picture
   `ground_edge` in `ZzzStreamsSeenThroughTheirClearWater`. Run 294: all 85 pass; the picture shows the edge of one
-  piece, no cut.
+  piece, no cut. Later the user disliked the face's green band of flowers (blurred, "pixel like Minecraft"): the
+  face is now a new sharp painting (Canva MAHcIB3WxiQ, the user's download, cropped and made to tile with PIL): a thin
+  grass fringe over layered earth, roots and pebbles (`GroundFace.png` 1840x615, `FaceEarthAt` 0.09).
 - **Clear streams (the user's reference picture: see-through water, what is under it showing; local, not yet run):**
   - `WaterFront` on the jungle's streams: turquoise and see-through at the top (alpha 0.3), bluer and denser deeper
     (0.82 over 3.4 m); it ends at `CbLevel.StreamBed` (WaterLevel - 3), the earth's face below.

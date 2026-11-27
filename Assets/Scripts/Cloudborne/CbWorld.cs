@@ -166,10 +166,10 @@ namespace Cloudborne
         static readonly Color PathTone = new Color(0.86f, 0.8f, 0.78f), BoughTone = new Color(0.78f, 0.76f, 0.7f);
         // the painted face shows its full height over FaceHeight metres, then repeats its bottom row (dark earth)
         public const float FaceHeight = 3.5f;
-        // how far the jungle's face painting is raised (its flower row under the lip), and where in it (a part of its
-        // height from the top) the earth begins under the grass's bumps
-        // (no shift: with no lip over it, the painting's own top row of flowers is the edge)
-        const float FaceGrassShift = 0f, FaceEarthAt = 0.29f;
+        // how far the jungle's face painting is raised, and where in it (a part of its height from the top) the earth
+        // begins under the grass (the user: no green band of blurred flowers - a new, sharp painting, approved in
+        // Canva, MAHcIB3WxiQ: a thin fringe of grass over layered earth with roots and pebbles)
+        const float FaceGrassShift = 0f, FaceEarthAt = 0.09f;
         // the ground runs from GroundFrom to GroundTo, cut where the streams cross it
         const float GroundFrom = -80f;
         static float GroundTo => End + 50f;
