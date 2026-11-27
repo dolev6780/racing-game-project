@@ -2288,6 +2288,29 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator ZzzTheDayTurnsAndItRainsOverTheCanopy()
+        {
+            // the user's ideas: the day turning over the stage, a stretch of rain with lightning
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            Assert.IsNotNull(game.weather, "Stage 1-1 has no weather");
+            game.hero.inv = 999f;
+            game.Teleport(20f);
+            yield return new WaitForSeconds(0.5f);
+            Assert.Less(game.weather.Day, 0.15f, "At the start it is not morning");
+            Assert.AreEqual(0f, game.weather.Rain, 0.01f, "It rains at the start");
+            yield return TakePictures(new[] { ("weather_rain", (CbWeather.RainFrom + CbWeather.RainTo) / 2f, 0f), ("weather_afternoon", 420f, 0f) });
+            game.Teleport((CbWeather.RainFrom + CbWeather.RainTo) / 2f);
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(game.weather.Rain, 0.9f, "It does not rain over the canopy");
+            Assert.Greater(GameObject.FindObjectsByType<Transform>(FindObjectsSortMode.None).Count(t => t.name == "rain" && t.gameObject.activeInHierarchy), 50, "No rain falls");
+            Assert.Greater(game.weather.Day, 0.6f, "Over the canopy it is still morning");
+        }
+
+        [UnityTest]
         public IEnumerator ALotusThrowsHimOnOverTheRiver()
         {
             // the user's ideas (launchers): landed on from a jump, the lotus pad throws him up and on

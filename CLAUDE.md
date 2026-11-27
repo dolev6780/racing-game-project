@@ -203,7 +203,10 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   Lotus launchers: `AddLotus` (the 1-4 lotus model on the water, a leaf with `bounce` 12.5 and `push` 5.5): landed on
   from a jump it throws him up and on (`BouncePush`, `lotusT` keeps the throw); one in the long river at 95.2 in place
   of a sinking stone.
-  Still to do: trial rooms, time trials, chase, totem masks, staff upgrades, camp hub, ink-brush FX, foreground leaves, time of day/rain.
+  Time of day and rain (`CbWeather`, 1-1 only): the sun warms from morning to afternoon gold over the stage and sinks
+  10 degrees; over the canopy and the waterfall (362-410, 10 m fades) it rains - dimmer, cooler light, 140 streaks
+  round the camera, lightning every 4-9 s. Pictures weather_rain, weather_afternoon.
+  Still to do: trial rooms, time trials, chase, totem masks, staff upgrades, camp hub, ink-brush FX (foreground leaves were already there: `CbWorld` near layer).
 - **Performance and challenge (the user: keep improving performance, graphics and challenge; local, not yet run):**
   the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
   remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge

@@ -578,6 +578,7 @@ namespace Cloudborne
             RenderSettings.fogStartDistance = 24f;
             RenderSettings.fogEndDistance = 175f;
             StageLight();
+            MakeWeather();
         }
 
         /// <summary>
@@ -719,6 +720,15 @@ namespace Cloudborne
             level = new CbLevel(this, transform);
             jungleAmbushes = treetopsAmbushes = null;
             StageLight();
+            MakeWeather();
+        }
+
+        /// <summary>Stage 1-1's time of day and rain (CbWeather), made fresh for the stage's light.</summary>
+        public CbWeather weather;
+        void MakeWeather()
+        {
+            weather?.Destroy();
+            weather = CbStage.Jungle ? new CbWeather(transform, sun) : null;
         }
 
         /// <summary>The drawn prologue (the night the cloud temple fell), then a fade into the opening scene.</summary>
@@ -2104,6 +2114,7 @@ namespace Cloudborne
             world.Update(clock, camX);
             critters.Update(clock, camX, camY, hero.x, hero.y);
             UpdateCamera(raw);
+            if (weather != null && cam != null) weather.Update(raw, new Vector3(cam.transform.position.x, cam.transform.position.y, 0));
             ShowFoesOffScreen();
             CbVfx.Update(cam, raw);
             UpdateCloseUp(raw);
