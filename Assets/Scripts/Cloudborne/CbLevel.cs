@@ -99,7 +99,8 @@ namespace Cloudborne
         public const float HalfWidth = 0.35f;
         // the cracked wall: taller than a double jump, two staff blows break it
         public const float WallX = 76f, WallHeight = 5.4f;
-        const float CrumbleAfter = 0.5f;
+        // (the user: the challenges harder - 0.5 s gave time to look round on it)
+        const float CrumbleAfter = 0.38f;
 
         /// <summary>The streams across stage 1-1 (x from, to): the rope bridge's, the long river, the brook.</summary>
         static readonly (float x0, float x1)[] JungleWaters = { (31.4f, 55.4f), (79f, 103f), (200f, 232f), (310f, 360f), (426f, 450f) };

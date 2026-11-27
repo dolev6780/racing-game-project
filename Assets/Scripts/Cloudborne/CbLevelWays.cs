@@ -173,7 +173,7 @@ namespace Cloudborne
 
         const string WaysDir = "Cloudborne/Jungle/Ways/";
         static readonly string[] Bare = { "BranchTree" };
-        static readonly string[] Leafy = { "RuinWall", "RuinLedge", "VineTree", "CaveArch", "StakedLog", "TreePlatform", "MossBranch", "BranchTree" };
+        static readonly string[] Leafy = { "VineTree", "CaveArch", "StakedLog", "TreePlatform", "MossBranch", "BranchTree" };
         const float LeafyOutline = 0.25f;
 
         /// <summary>

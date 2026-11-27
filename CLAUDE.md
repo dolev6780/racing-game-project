@@ -93,8 +93,9 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   - `CbLevelClimb`: the climbing kit, the swing pole.
   - `CbLevelProbe`: probes surfaces from the meshes.
 - **Meshy kits (approved drawings):**
-  - In `Jungle/Ways`: RuinLedge (pillar under a ledge), RuinWall (towers; taken out of the stages by the user),
-    TreePlatform (1-2's ledges), SwingPole, StakedLog (thorny low passages), CaveArch + CaveGate
+  - In `Jungle/Ways`: (RuinLedge and RuinWall, unused once the towers and pillars went, were removed from Resources -
+    in git history), TreePlatform (1-2's ledges), WoodPlatform(Small) + BranchTree + MossBranch (1-1's hanging
+    ledges), the gorge's rock kit (RockLedge, RockBlock, RockPlatform, RockStairs, RockShelves, RockStep), SwingPole, StakedLog (thorny low passages), CaveArch + CaveGate
     (the ambush tunnels; the gate sinks while raiders come out), StoneStairs (stone bridge), VineTree.
   - Leafy models get a thin outline (`Leafy` in `CbLevelWays`).
 - **Touching what is drawn (`CbLevelProbe`).**
@@ -187,6 +188,11 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     darker with cracks; the walls (`RockWall`: the gate cliff, the back wall - now on to MountainTo + 1 for the far
     side's ledges - the summit cliff, the shoulder, the jut) are rows of RockBlock, the top row's grass the walkable
     top, the rows under it turned over. RockStairs, RockShelves and RockStep not used yet. Not yet run.
+- **Performance and challenge (the user: keep improving performance, graphics and challenge; local, not yet run):**
+  the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
+  remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge
+  and RuinWall removed. Harder: the gorge's water starts after 1.2 s (was 1.6) and rises 0.46 m/s (was 0.38);
+  crumbling ledges give way after 0.38 s (was 0.5). Credits 413.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body

@@ -23,8 +23,9 @@ namespace Cloudborne
         public const float ShoulderX = 148.4f, ShoulderTop = 4f;
         // the water: its foot (under the gorge's floor), as high as it comes, how fast it rises (faster while he is
         // more than FloodLead above it), how long after the boulder drops it starts, how far over his feet catches him
-        public const float FloodFloor = -0.4f, FloodTop = 9.0f, FloodRise = 0.38f, FloodChase = 1.1f, FloodLead = 4.5f, FloodCatch = 0.9f;
-        const float FloodWait = 1.6f;
+        // (the user: the challenges harder - it rose 0.38 m/s after 1.6 s, slow enough to dawdle)
+        public const float FloodFloor = -0.4f, FloodTop = 9.0f, FloodRise = 0.46f, FloodChase = 1.1f, FloodLead = 4.5f, FloodCatch = 0.9f;
+        const float FloodWait = 1.2f;
         // the water's front, a little in front of everything in the gorge, and the gorge's back wall
         const float FloodFront = -1.15f, GorgeBack = 2.4f;
 
