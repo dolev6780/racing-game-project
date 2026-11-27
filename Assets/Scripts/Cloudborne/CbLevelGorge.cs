@@ -100,6 +100,11 @@ namespace Cloudborne
             if (frontShader != null && frontShader.isSupported)
             {
                 floodMat = new Material(frontShader) { name = "floodFront", renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent };
+                // clear, as the streams are: the gorge's rock showing through it (left standing at the summit's height
+                // after the climb, it stood there a wall of dark blue - the user)
+                floodMat.SetColor("_Shallow", new Color(0.12f, 0.76f, 0.9f, 0.5f));
+                floodMat.SetColor("_Deep", new Color(0.03f, 0.4f, 0.68f, 0.78f));
+                floodMat.SetFloat("_DepthFade", 6f);
                 floodFrontQuad = CbArt.Part(CbMesh.Quad, floodMat, root, new Vector3((GorgeFrom + GorgeTo) / 2, 0, FloodFront), Vector3.one, shadows: false);
                 floodFrontQuad.name = "floodFront";
             }

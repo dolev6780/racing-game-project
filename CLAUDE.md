@@ -134,6 +134,17 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   bounces and stays down; getting up, a blow only pushes him. After an ordinary flinch he waits 0.4 s. (Raja's
   `Stand_Up1` can't drive the hyenas: their rig is 1.34 times taller in its own units.) Test
   `ABigBlowKnocksASoldierDownAndHeTakesHisTimeGettingUp`. Local, not yet run.
+- **The user's four points (photos from the phone; local, not yet run):**
+  - The gorge's water, left at the summit's height after the climb, stood a wall of dark blue: now clear like the
+    streams (alpha 0.5 at the top, 0.78 deep over 6 m).
+  - No hang along a ledge's front lip (his back to the camera): only from a ledge's ends, from the side. `StartLip`
+    is kept, unused; the test is now `ShortOfALedgeHeDoesNotHangWithHisBackToUs`.
+  - The pull-up from the side: the hang is held `HangHold` 0.35 s (hands up over his head, head below them), then
+    `ClimbTime` 0.8 s in two parts: hauled up to the edge from arms straight (`PullPart`, palms kept on the edge),
+    then the mantle (`Ladder_Climb_Finish` 0.25-0.85).
+  - The staff 0.72 of its size (`StaffScale`): as tall as Raja, it looked far too big.
+  - Next (the user): the ledges' supports (rock pillars) look bad - instead, wooden platforms hanging from the
+    background's trees. Through Canva first.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body

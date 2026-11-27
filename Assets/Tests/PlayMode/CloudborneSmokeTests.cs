@@ -3627,10 +3627,9 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
-        public IEnumerator ZzWhenShortOfALedgeHeHangsAlongItsLip()
+        public IEnumerator ShortOfALedgeHeDoesNotHangWithHisBackToUs()
         {
-            // falling short of a ledge he catches its front edge, hangs from it facing it (still, at arm's length), goes
-            // along it either way and pulls himself up onto it
+            // the user: no hanging along a ledge's front lip, his back to the camera - only from its ends, from the side
             game = CbGame.Boot();
             yield return Frames(3);
             game.StartGame();
@@ -3639,42 +3638,17 @@ namespace Cloudborne.Tests
             var hero = game.hero;
             hero.inv = 999f;
             var ledge = game.level.LedgeTops().Find(l => l.x1 - l.x0 > 1.4f && l.top > 2f && l.top < 9f);
-            Assert.Greater(ledge.x1, ledge.x0, "No ledge wide enough to hang along");
+            Assert.Greater(ledge.x1, ledge.x0, "No ledge wide enough to try");
             float mid = (ledge.x0 + ledge.x1) / 2;
             game.Teleport(mid);
             hero.y = ledge.top - 1.75f;
             hero.vx = 0; hero.vy = -0.5f;
             hero.state = CbHero.State.Air;
-            yield return Frames(3);
-            Assert.IsTrue(hero.OnLip, "Raja did not catch the ledge's lip");
-            yield return new WaitForSeconds(0.4f);
-            var palms = (hero.model.Palm(hero.model.leftHand) + hero.model.Palm(hero.model.rightHand)) * 0.5f;
-            Assert.Less(Mathf.Abs(palms.y - ledge.top), 0.15f, "Raja's hands are not on the ledge's lip");
-            // going along it he just hangs there: his body does not rise and fall (the user: Meshy's hang-and-climb lifted
-            // him and swung his legs up at every step - it looked like climbing)
-            game.TestInput = i => i.x = 1;
-            float chestLo = float.MaxValue, chestHi = float.MinValue;
             for (float w = 0; w < 0.5f; w += Time.deltaTime)
             {
-                float c = hero.model.chest.position.y;
-                chestLo = Mathf.Min(chestLo, c); chestHi = Mathf.Max(chestHi, c);
+                Assert.IsFalse(hero.OnLip, "Raja hung along a ledge's lip, his back to the camera");
                 yield return null;
             }
-            Assert.Less(chestHi - chestLo, 0.12f, "Going along the lip, Raja's body rises and falls as if climbing");
-            Assert.IsTrue(hero.OnLip, "Going along the lip, Raja let go");
-            Assert.Greater(hero.x, mid + 0.3f, "Raja did not go along the lip to the right");
-            float right = hero.x;
-            game.TestInput = i => i.x = -1;
-            yield return new WaitForSeconds(0.5f);
-            Assert.Less(hero.x, right - 0.3f, "Raja did not go along the lip to the left");
-            Assert.GreaterOrEqual(hero.x, ledge.x0 + CbLevel.LipInset - 0.01f, "Raja went past the lip's end");
-            yield return TakePictures(new[] { ("lip_hang", float.NaN, 0f) }, 0f);
-            bool up = false;
-            game.TestInput = i => { if (!up) { i.jump = true; up = true; } };
-            for (float w = 0; w < 1.5f && hero.state != CbHero.State.Idle; w += Time.deltaTime) yield return null;
-            game.TestInput = null;
-            Assert.AreEqual(CbHero.State.Idle, hero.state, "Raja did not pull himself up onto the ledge");
-            Assert.AreEqual(ledge.top, hero.y, 0.05f, "Raja is not standing on the ledge he pulled himself onto");
         }
 
         [UnityTest]

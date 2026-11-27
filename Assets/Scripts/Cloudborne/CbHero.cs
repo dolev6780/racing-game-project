@@ -110,7 +110,11 @@ namespace Cloudborne
         bool freeHang;
         /// <summary>Whether he hangs at arm's length, his legs straight (nothing under the edge to put his feet on).</summary>
         public bool FreeHanging => state == State.Hang && freeHang;
-        const float ClimbOnto = 0.45f, CatchTime = 0.18f, ClimbTime = 0.6f, GrabRest = 0.35f;
+        // (the hang shown a moment before he pulls himself up - HangHold - hands up over his head, and the pull-up
+        // from it slower, in two parts: hauled up to the edge, his palms on it - PullPart - then over it: he went from
+        // the catch straight into the clip's mantle, chest at the edge, which read wrong - the user)
+        const float ClimbOnto = 0.45f, CatchTime = 0.18f, HangHold = 0.35f, ClimbTime = 0.8f, PullPart = 0.42f, GrabRest = 0.35f;
+        bool Pulling => state == State.Climb && t / ClimbTime < PullPart;
         // how far through the pull-up he has risen, and come forward, by each moment of it (the clip's own hips)
         static readonly float[] ClimbU = { 0f, 0.083f, 0.25f, 0.417f, 0.583f, 0.75f, 0.917f, 1f };
         static readonly float[] ClimbRise = { 0f, 0.145f, 0.42f, 0.52f, 0.97f, 0.98f, 1f, 1f };
@@ -126,6 +130,7 @@ namespace Cloudborne
         // can: so he climbs a wall, or a shaft, jump by jump (the user was stuck at the foot of the mountain's walls)
         const float WallSlide = 3.5f, WallCoyote = 0.12f, WallLock = 0.15f, WallKickUp = 11f, WallKickOut = 6.5f;
 
+        const float StaffScale = 0.72f;
         static readonly Vector3 StaffBackPos = new Vector3(0.02f, 0.32f, -0.3f);
         static readonly Quaternion StaffBackRot = CbArt.Rot(-0.12f, 0, 0.82f);
         static readonly Vector3 StaffHandPos = new Vector3(0, -0.02f, 0.02f);
@@ -230,6 +235,8 @@ namespace Cloudborne
                 foreach (var r in f.body.GetComponentsInChildren<Renderer>(true))
                     if (!r.transform.IsChildOf(model.root)) r.enabled = false;
             staff = RigBuilder.Staff();
+            // (a fighting staff a little over his shoulder's height: as tall as he is, it looked far too big - the user)
+            staff.localScale = Vector3.one * StaffScale;
             // a glowing trail off the staff's tip as it swings (an anime action game's smear: the user)
             var tip = CbArt.Joint(staff, 0, 1.1f, 0, "staffTip");
             staffTrail = tip.gameObject.AddComponent<TrailRenderer>();
@@ -678,7 +685,7 @@ namespace Cloudborne
             if (t < CatchTime) return;
             float toward = input.x * grabDir;
             if (input.y < -0.5f || toward < -0.3f) LetGo();
-            else if (toward > 0.3f || input.y > 0.5f || input.jump) { state = State.Climb; t = 0; CbFx.Sfx("jump", 0.4f); }
+            else if (t >= HangHold && (toward > 0.3f || input.y > 0.5f || input.jump)) { state = State.Climb; t = 0; CbFx.Sfx("jump", 0.4f); }
         }
 
         void LetGo()
@@ -1350,7 +1357,12 @@ namespace Cloudborne
                     if (t < CatchTime) model.Window("Jump_and_Grab_Wall", 0.45f, 0.75f, t / CatchTime, 0.05f);
                     else model.Show("Jump_and_Grab_Wall", 0.82f + Mathf.PingPong(t * 0.08f, 0.12f));
                     break;
-                case State.Climb: model.Window("Ladder_Climb_Finish", 0.25f, 0.85f, t / ClimbTime, 0.06f); break;
+                // pulling himself up from the hang: from arms straight up (the hang) into the clip's haul, his palms on
+                // the edge; then over it, the clip's mantle to standing
+                case State.Climb when t / ClimbTime < PullPart:
+                    model.Window("Ladder_Climb_Finish", 0.12f, 0.25f, t / ClimbTime / PullPart, 0.15f);
+                    break;
+                case State.Climb: model.Window("Ladder_Climb_Finish", 0.25f, 0.85f, (t / ClimbTime - PullPart) / (1 - PullPart), 0.06f); break;
                 // plunging in: his fall's pose; then treading water
                 case State.Swim when swimPhase == 0: model.Show("Regular_Jump", 0.5f, 0.12f); break;
                 case State.Swim: model.LoopSeconds("Swim_Idle", t); break;

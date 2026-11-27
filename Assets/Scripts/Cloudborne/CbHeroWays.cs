@@ -38,8 +38,8 @@ namespace Cloudborne
             // pushing into it is enough (there is no up on the controls now)
             if (into != 0 && input.y > -0.3f && lv.VineWallAt(x, y, into, out float edgeX, out float top)) { StartVine(into, edgeX, top); return true; }
             if (state != State.Air || grabCd > 0) return false;
-            // the front edge of a ledge he did not quite reach (the user's choice of hang: along a ledge's lip, facing it)
-            if (vy < 0.5f && input.y > -0.3f && lv.LipNear(x, y + LipReach, out float lt, out float l0, out float l1)) { StartLip(lt, l0, l1); return true; }
+            // (no hanging along a ledge's front lip, his back to the camera: only from a ledge's ends, seen from the side
+            // - the user; StartLip is kept, unused)
             var po = lv.PoleNear(x, y + RopeReach);
             if (po != null && vy < 6f) { StartPole(po); return true; }
             var v = lv.VineNear(x, y + RopeReach);
@@ -76,6 +76,8 @@ namespace Cloudborne
                 case State.Lip: at = new Vector3(0, lipTop + 0.02f, 0); return true;
                 // hanging from an edge: his palms on its corner
                 case State.Hang: at = new Vector3(grabX - grabDir * 0.06f, grabTop + 0.02f, 0); across = true; return true;
+                // pulling himself up: his palms stay on the edge while he hauls himself up to it
+                case State.Climb when Pulling: at = new Vector3(grabX - grabDir * 0.06f, grabTop + 0.02f, 0); across = true; return true;
                 case State.Zip when zip != null: at = new Vector3(0, zip.At(x), 0); return true;
             }
             return false;
