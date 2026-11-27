@@ -2175,7 +2175,8 @@ namespace Cloudborne.Tests
                 {
                     var rb = r.GetComponent<Renderer>().bounds;
                     // straight up from its back corner, from its top to well over it
-                    Assert.Less(rb.size.x, 0.12f, $"A rope at x {t.position.x:0.0} is not straight up");
+                    // (wound round the branch at its top: as wide as the branch is thick there)
+                    Assert.Less(rb.size.x, 1.6f, $"A rope at x {t.position.x:0.0} is not straight up");
                     Assert.Greater(rb.center.z, pb.center.z, $"A rope at x {t.position.x:0.0} is not at the platform's back");
                     Assert.AreEqual(pb.max.y, rb.min.y, 0.15f, $"A rope at x {t.position.x:0.0} does not start at the platform's knots");
                     Assert.Greater(rb.max.y, pb.max.y + 1.2f, $"A rope at x {t.position.x:0.0} does not go up to a branch");

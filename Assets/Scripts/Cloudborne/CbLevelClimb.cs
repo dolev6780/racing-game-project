@@ -120,13 +120,21 @@ namespace Cloudborne
                 {
                     float under = Under(h, k);
                     Vector3 end;
+                    Lashing lash = null;
                     if (under != float.MaxValue) end = new Vector3(k.x, under, k.z);
-                    else if (!FindBranch(k, treeSolids, out end))
+                    else if (FindBranch(k, treeSolids, out end))
+                    {
+                        // wound round the branch where it meets it (the user: they only touched it)
+                        lash = Lash(end, treeSolids);
+                        if (lash != null) end = lash.centre - Vector3.up * lash.radius;
+                        else end += Vector3.up * 0.08f;
+                    }
+                    else
                     {
                         if (!h.branch) { h.branch = true; }
                         end = new Vector3(k.x, h.top + h.over + (h.x1 - h.x0) * BranchLong * BranchTall * BranchCore, k.z);
                     }
-                    HangRopeBetween(h.t, k, end);
+                    HangRopeBetween(h.t, k, end, lash);
                 }
                 if (!h.branch) continue;
                 // no tree's branch over it: a branch of its own
@@ -140,12 +148,57 @@ namespace Cloudborne
             foreach (var c in treeSolids) if (c != null) Object.DestroyImmediate(c);
         }
 
+        /// <summary>Where a rope is wound round a branch (in the level): the branch's middle there, its way, its
+        /// half-thickness.</summary>
+        class Lashing { public Vector3 centre, axis; public float radius; }
+
+        /// <summary>
+        /// The branch round the point under it (in the level) where a rope meets it: its thickness from a ray down onto
+        /// its top, its way from rays up at a little distance round about (where they still meet it on both sides).
+        /// Null if it can't be told (the rope then just goes into it).
+        /// </summary>
+        Lashing Lash(Vector3 under, List<Collider> solids)
+        {
+            bool Up(Vector3 p, out float y)
+            {
+                y = 0;
+                var from = root.TransformPoint(new Vector3(p.x, under.y - 0.6f, p.z));
+                float best = float.MaxValue;
+                foreach (var c in solids)
+                    if (c != null && c.Raycast(new Ray(from, Vector3.up), out var hit, 1.4f) && hit.distance < best) best = hit.distance;
+                if (best == float.MaxValue) return false;
+                y = under.y - 0.6f + best;
+                return true;
+            }
+            // its top, straight over: from above, down
+            var above = root.TransformPoint(under + Vector3.up * 2f);
+            float topDist = float.MaxValue;
+            foreach (var c in solids)
+                if (c != null && c.Raycast(new Ray(above, Vector3.down), out var hit, 2f) && hit.distance < topDist) topDist = hit.distance;
+            if (topDist == float.MaxValue) return null;
+            float thick = (under.y + 2f - topDist) - under.y;
+            if (thick < 0.08f || thick > 1.4f) return null;
+            // its way: the turn round which the branch's underside goes on, both ways, most evenly
+            Vector3 best = Vector3.zero;
+            float bestDiff = float.MaxValue;
+            for (int i = 0; i < 12; i++)
+            {
+                float ang = i * Mathf.PI / 12;
+                var d = new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * 0.3f;
+                if (!Up(under + d, out float ya) || !Up(under - d, out float yb)) continue;
+                float diff = Mathf.Abs(ya - under.y) + Mathf.Abs(yb - under.y);
+                if (diff < bestDiff) { bestDiff = diff; best = d.normalized; }
+            }
+            if (best == Vector3.zero) return null;
+            return new Lashing { centre = under + Vector3.up * thick / 2, axis = best, radius = thick / 2 + HangRope * 0.6f };
+        }
+
         /// <summary>
         /// A rope from a knot (in the level) up to where it is tied, in the platform's joint: two strands twisted round
-        /// each other like the platform's own lashings (a plain stick looked poor: the user), bound thicker where it is
-        /// lashed round the branch.
+        /// each other like the platform's own lashings (a plain stick looked poor: the user); wound three times round
+        /// the branch where it meets it (it only touched the branch: the user).
         /// </summary>
-        void HangRopeBetween(Transform t, Vector3 from, Vector3 to)
+        void HangRopeBetween(Transform t, Vector3 from, Vector3 to, Lashing lash = null)
         {
             var d = to - from;
             float len = d.magnitude;
@@ -163,12 +216,28 @@ namespace Cloudborne
                 var radii = new List<float>();
                 for (float s = 0; s <= len + 0.001f; s += Mathf.Min(0.04f, len / 8f))
                 {
-                    // a twist about every 9 cm; the binding at the top: the last LashLong, fatter
+                    // a twist about every 9 cm
                     float turn = s / 0.09f * Mathf.PI * 2 + strand * Mathf.PI;
-                    float lash = Mathf.Clamp01((s - (len - LashLong)) / 0.03f);
-                    float twist = HangRope * 0.55f * (1f + lash * 0.8f);
-                    pts.Add(o + axis * s + (side * Mathf.Cos(turn) + up * Mathf.Sin(turn)) * twist);
-                    radii.Add(HangRope * 0.6f * (1f + lash * 0.7f));
+                    pts.Add(o + axis * s + (side * Mathf.Cos(turn) + up * Mathf.Sin(turn)) * HangRope * 0.55f);
+                    radii.Add(HangRope * 0.6f);
+                }
+                TaperedRope(verts, tris, pts, radii, 5);
+            }
+            if (lash != null)
+            {
+                // the turns round the branch: a coil along it, a rope's width apart, from the rope's own side
+                var c = lash.centre - t.localPosition;
+                var a = lash.axis;
+                var u = Vector3.Cross(a, Vector3.up).normalized;
+                if (u.sqrMagnitude < 0.01f) u = Vector3.forward;
+                const int Turns = 3, Steps = 18;
+                var pts = new List<Vector3>();
+                var radii = new List<float>();
+                for (int i = 0; i <= Turns * Steps; i++)
+                {
+                    float f = i / (float)Steps, ang = f * Mathf.PI * 2 - Mathf.PI / 2;
+                    pts.Add(c + a * (f - Turns / 2f) * HangRope * 2.3f + (Vector3.up * Mathf.Sin(ang) + u * Mathf.Cos(ang)) * lash.radius);
+                    radii.Add(HangRope * 0.75f);
                 }
                 TaperedRope(verts, tris, pts, radii, 5);
             }
@@ -182,8 +251,6 @@ namespace Cloudborne
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = hangRopeMat;
         }
-        // where the rope is bound round the branch
-        const float LashLong = 0.16f;
 
         /// <summary>Where a rope from knot k meets a tree's branch over it: straight up, or as little to the front or back
         /// as it takes (the branch crosses the path at a slant).</summary>
@@ -201,8 +268,7 @@ namespace Cloudborne
                     if (c != null && c.Raycast(new Ray(from, Vector3.up), out var hit, 12f) && hit.distance < best)
                     {
                         best = hit.distance;
-                        // a little into the branch
-                        at = root.InverseTransformPoint(hit.point + Vector3.up * 0.08f);
+                        at = root.InverseTransformPoint(hit.point);
                     }
                 if (best < float.MaxValue && at.y > k.y + 1.2f) return true;
             }
