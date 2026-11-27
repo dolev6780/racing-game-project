@@ -66,12 +66,30 @@ namespace Cloudborne
         static readonly Color[] StaffTints = { Color.white, new Color(1f, 0.55f, 0.35f), new Color(0.75f, 0.9f, 1f), new Color(0.6f, 0.95f, 0.55f) };
         static readonly Color[] StaffTrails = { Color.white, new Color(1f, 0.5f, 0.15f), new Color(0.6f, 0.85f, 1f), new Color(0.45f, 1f, 0.45f) };
 
-        /// <summary>The staff in his hand coloured for the kind he carries (CbSave.StaffKind).</summary>
+        // the staffs' own models (Canva MAHcIhNLLDI approved, built by Meshy), beside the oak staff's
+        static readonly string[] StaffModels = { "Staff", "StaffFire", "StaffWind", "StaffVine" };
+        int dressedStaff = -1;
+
+        /// <summary>
+        /// The staff in his hand for the kind he carries (CbSave.StaffKind): its own model if it is in the project (the
+        /// staff's tip, with its trail, kept), else the oak staff coloured; the trail glows to match.
+        /// </summary>
         public void TintStaff()
         {
             if (staff == null) return;
             int k = CbSave.StaffKind;
-            CbArt.Tint(staff, StaffTints[k]);
+            if (k != dressedStaff)
+            {
+                string path = "Cloudborne/Props/Staff/" + StaffModels[k];
+                if (Resources.Load<GameObject>(path) != null)
+                {
+                    foreach (Transform c in staff)
+                        if (c.name != "staffTip") Object.Destroy(c.gameObject);
+                    CbArt.Prop(path, staff);
+                }
+                else CbArt.Tint(staff, StaffTints[k]);
+                dressedStaff = k;
+            }
             if (staffTrail != null && staffTrail.material != null) staffTrail.material.color = StaffTrails[k] * (k == 0 ? 1f : 1.6f);
         }
 
