@@ -48,6 +48,41 @@ namespace Cloudborne
             return true;
         }
 
+        // The staffs (the user's ideas list: staff upgrades - bought at Baba's, one carried at a time): the oak staff he
+        // starts with, fire (its blows set soldiers burning), wind (its whirl draws them in, its blows throw them far),
+        // vine (its blows pull a soldier to him)
+        public static readonly string[] StaffNames = { "OAK STAFF", "FIRE STAFF", "WIND STAFF", "VINE STAFF" };
+        public static readonly string[] StaffDescs = { "", "Staff blows set soldiers burning", "The whirl draws them in, blows throw them far", "Staff blows pull a soldier to you" };
+        public static readonly int[] StaffPrices = { 0, 120, 150, 150 };
+        /// <summary>The staffs owned (bits; the oak staff always).</summary>
+        public static int StaffsOwned
+        {
+            get => PlayerPrefs.GetInt(StaffsKey, 1) | 1;
+            set { PlayerPrefs.SetInt(StaffsKey, value | 1); PlayerPrefs.Save(); }
+        }
+        /// <summary>The staff he carries (0 oak, 1 fire, 2 wind, 3 vine).</summary>
+        public static int StaffKind
+        {
+            get { int k = PlayerPrefs.GetInt(StaffKey, 0); return (StaffsOwned & (1 << k)) != 0 ? k : 0; }
+            set { PlayerPrefs.SetInt(StaffKey, value); PlayerPrefs.Save(); }
+        }
+        const string StaffsKey = "cb_staffs", StaffKey = "cb_staff";
+
+        /// <summary>The next staff along: owned, carried; not yet, bought if there are coins enough (else skipped, with
+        /// what it lacks said). "" or the message.</summary>
+        public static string NextStaff()
+        {
+            string msg = "";
+            for (int step = 1; step <= StaffNames.Length; step++)
+            {
+                int k = (StaffKind + step) % StaffNames.Length;
+                if ((StaffsOwned & (1 << k)) != 0) { StaffKind = k; return msg; }
+                if (Coins >= StaffPrices[k]) { Coins -= StaffPrices[k]; StaffsOwned |= 1 << k; StaffKind = k; return ""; }
+                if (msg == "") msg = $"{StaffPrices[k] - Coins} more coins for the {StaffNames[k]}";
+            }
+            return msg;
+        }
+
         public static float MaxHp => 100 + 20 * Level(0);
         public static float KiRegenMul => 1 + 0.4f * Level(1);
         public static float DamageMul => 1 + 0.1f * Level(2);

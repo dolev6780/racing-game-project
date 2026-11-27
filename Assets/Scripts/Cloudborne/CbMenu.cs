@@ -56,7 +56,7 @@ namespace Cloudborne
         bool resetArmed;
         readonly HashSet<int> seen = new HashSet<int>(), now = new HashSet<int>();
 
-        Text coinsTxt, shopCoins, shopMsg, volumeTxt, padsTxt, graphicsTxt, replayTxt, resetTxt, hardTxt;
+        Text coinsTxt, shopCoins, shopMsg, volumeTxt, padsTxt, graphicsTxt, replayTxt, resetTxt, hardTxt, staffName, staffDesc, staffBtn;
         Btn resetBtn;
         readonly List<(Text status, StageInfo stage)> stageCards = new List<(Text, StageInfo)>();
         readonly List<(Btn buy, Image[] pips, CbSave.Upgrade up)> shopRows = new List<(Btn, Image[], CbSave.Upgrade)>();
@@ -198,7 +198,7 @@ namespace Cloudborne
             for (int i = 0; i < CbSave.Upgrades.Length; i++)
             {
                 var u = CbSave.Upgrades[i];
-                var row = UIKit.Panel(panel, u.id, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -72 - i * 64), new Vector2(740, 56), new Color(1, 1, 1, 0.06f)).rectTransform;
+                var row = UIKit.Panel(panel, u.id, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -66 - i * 52), new Vector2(740, 48), new Color(1, 1, 1, 0.06f)).rectTransform;
                 UIKit.Label(row, u.name, 17, Gold, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(18, 10), new Vector2(300, 22), TextAnchor.MiddleLeft, true);
                 UIKit.Label(row, u.desc, 12, Paper, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(18, -12), new Vector2(340, 18), TextAnchor.MiddleLeft);
                 var pips = new Image[u.Max];
@@ -207,6 +207,19 @@ namespace Cloudborne
                 var up = u;
                 var buy = Button(Page.Workshop, row, "BUY", new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-12, 0), new Vector2(150, 40), () => Buy(up), 16);
                 shopRows.Add((buy, pips, u));
+            }
+            // the staff carried: tap for the next (bought if not owned yet)
+            {
+                var row = UIKit.Panel(panel, "staffs", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -66 - CbSave.Upgrades.Length * 52), new Vector2(740, 48), new Color(1, 1, 1, 0.06f)).rectTransform;
+                staffName = UIKit.Label(row, "", 17, Gold, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(18, 10), new Vector2(360, 22), TextAnchor.MiddleLeft, true);
+                staffDesc = UIKit.Label(row, "", 12, Paper, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(18, -12), new Vector2(420, 18), TextAnchor.MiddleLeft);
+                staffBtn = Button(Page.Workshop, row, "", new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-12, 0), new Vector2(150, 40), () =>
+                {
+                    string msg = CbSave.NextStaff();
+                    if (msg != "") { Message(msg, Ember); CbFx.Sfx("block", 0.6f); }
+                    else { Message($"{CbSave.StaffNames[CbSave.StaffKind]} in hand.", Gold); CbFx.Sfx("pickup", 0.6f); }
+                    Refresh();
+                }, 15).label;
             }
             shopMsg = UIKit.Label(panel, "", 13, Paper, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(80, 26), new Vector2(500, 20), TextAnchor.MiddleCenter);
             Back(Page.Workshop, panel);
@@ -326,6 +339,13 @@ namespace Cloudborne
                 for (int k = 0; k < pips.Length; k++) pips[k].color = k < lvl ? Gold : new Color(1, 1, 1, 0.18f);
                 buy.label.text = price > 0 ? $"BUY  {price}" : "MAX";
                 buy.label.color = price > 0 && CbSave.Coins >= price ? Paper : Dim;
+            }
+            {
+                int k = CbSave.StaffKind, next = (k + 1) % CbSave.StaffNames.Length;
+                staffName.text = "STAFF: " + CbSave.StaffNames[k];
+                staffDesc.text = k == 0 ? "Plain oak. Tap for the next staff." : CbSave.StaffDescs[k];
+                bool owned = (CbSave.StaffsOwned & (1 << next)) != 0;
+                staffBtn.text = owned ? "CARRY " + CbSave.StaffNames[next].Split(' ')[0] : $"BUY {CbSave.StaffNames[next].Split(' ')[0]} {CbSave.StaffPrices[next]}";
             }
             volumeTxt.text = Mathf.RoundToInt(CbSave.Volume * 100) + "%";
             padsTxt.text = CbSave.Pads == 0 ? "AUTO" : CbSave.Pads == 1 ? "ALWAYS" : "OFF";

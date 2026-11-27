@@ -224,7 +224,12 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   glowing stones at either end; crossing the first starts a clock under the title (`CbHud.SetTrial`), the second
   gives GOLD/SILVER/BRONZE by `WaysTrials`' times (guesses, to be tuned by playing), best kept in PlayerPrefs;
   back past the start, swimming or dying ends the try.
-  Still to do: staff upgrades, camp hub (foreground leaves were already there: `CbWorld`'s near layer).
+  Staffs (`CbSave.StaffsOwned/StaffKind/NextStaff`, a STAFF row in Baba's workshop - the upgrade rows now 52 apart):
+  oak, FIRE 120 (staff blows burn), WIND 150 (the whirl draws soldiers in, other blows x1.6 knockback), VINE 150
+  (staff blows pull the soldier to him) - in `CbGame.HurtEnemy` when `hero.StaffSwinging`. Until their models come
+  (Canva MAHcIhNLLDI drawn, waiting for the user's approval and download) the staff is tinted and its trail coloured
+  (`TintStaff`).
+  Still to do: the staffs' models, camp hub (foreground leaves were already there: `CbWorld`'s near layer).
 - **Performance and challenge (the user: keep improving performance, graphics and challenge; local, not yet run):**
   the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
   remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge

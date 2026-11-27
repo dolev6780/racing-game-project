@@ -1486,6 +1486,16 @@ namespace Cloudborne
                 CbFx.Sfx("heavy");
             }
             if (fromPlayer) dmg *= CbSave.DamageMul;
+            // the staff he carries (CbSave.StaffKind): fire sets them burning, wind's whirl draws them in and its other
+            // blows throw them far, vine pulls them to him
+            if (fromPlayer && hero.StaffSwinging)
+            {
+                int sk = CbSave.StaffKind;
+                if (sk == 1) fire = true;
+                else if (sk == 2 && hero.CurrentMove == CbHero.Move.Whirl) { dir = e.x > hero.x ? -1 : 1; kb = Mathf.Max(kb, 3f); }
+                else if (sk == 2) kb *= 1.6f;
+                else if (sk == 3) { dir = e.x > hero.x ? -1 : 1; kb = Mathf.Max(kb, 5f); }
+            }
             // a counter: struck as he winds up his blow (after the "!"), half as much again, his blow broken (the user:
             // more feel in the fighting - timing rewarded)
             bool counter = fromPlayer && e.WindingUp;

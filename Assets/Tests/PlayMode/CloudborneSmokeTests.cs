@@ -2365,6 +2365,39 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator StaffsAreBoughtAtBabasAndChangeTheBlows()
+        {
+            // the user's ideas: staff upgrades - fire, wind, vine - bought and carried
+            int owned = CbSave.StaffsOwned, kind = CbSave.StaffKind, coins = CbSave.Coins;
+            try
+            {
+                CbSave.StaffsOwned = 1; CbSave.StaffKind = 0; CbSave.Coins = 0;
+                Assert.AreNotEqual("", CbSave.NextStaff(), "A staff was had for no coins");
+                Assert.AreEqual(0, CbSave.StaffKind);
+                CbSave.Coins = 500;
+                Assert.AreEqual("", CbSave.NextStaff());
+                Assert.AreEqual(1, CbSave.StaffKind, "The fire staff was not bought");
+                Assert.AreEqual(500 - CbSave.StaffPrices[1], CbSave.Coins, "The fire staff cost nothing");
+                game = CbGame.Boot();
+                yield return Frames(3);
+                game.StartGame();
+                game.Teleport(14f);
+                float waited = 0;
+                while (game.enemies.Count < 1 && waited < 6f) { waited += Time.deltaTime; yield return null; }
+                Assert.AreEqual(1, game.enemies.Count, "The first post sent out no soldier");
+                var e = game.enemies[0];
+                e.hp = 999f;
+                // a staff blow with the fire staff sets him burning
+                game.TestInput = i => i.heavy = true;
+                waited = 0;
+                while (e.burnT <= 0 && waited < 3f) { game.hero.facing = e.x > game.hero.x ? 1 : -1; game.hero.x = e.x - game.hero.facing * 1.2f; waited += Time.deltaTime; yield return null; }
+                game.TestInput = null;
+                Assert.Greater(e.burnT, 0f, "The fire staff's blow did not set the soldier burning");
+            }
+            finally { CbSave.StaffsOwned = owned; CbSave.StaffKind = kind; CbSave.Coins = coins; }
+        }
+
+        [UnityTest]
         public IEnumerator ATimeTrialAwardsAMedal()
         {
             // the user's ideas: runs against the clock for gold, silver or bronze

@@ -253,6 +253,7 @@ namespace Cloudborne
             staffTrail.minVertexDistance = 0.05f;
             staffTrail.widthCurve = new AnimationCurve(new Keyframe(0, 0.22f), new Keyframe(1, 0f));
             staffTrail.material = CbArt.Glow(Color.white, null);
+            TintStaff();
             staffTrail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             staffTrail.receiveShadows = false;
             staffTrail.emitting = false;
@@ -265,6 +266,8 @@ namespace Cloudborne
         public void Reset()
         {
             TakeOffMask();
+            // (the staff carried may have changed at Baba's since)
+            TintStaff();
             x = y = vx = vy = 0; safeX = safeY = 0; squash = squashV = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
             flipT = 0; inv = 0; move = Move.None; staffHold = 0; sinceDash = 9; airDashed = false; dashCd = 0; empower = false; holdUsed = false;
             CatchStaff(silent: true);
@@ -410,6 +413,9 @@ namespace Cloudborne
         public void TestDiveKick() => StartDiveKick();
         /// <summary>Just bounced off spikes (they don't hurt him on the way up).</summary>
         public bool Pogoing => pogoT > 0;
+        /// <summary>Swinging the staff now (its blows carry the staff's kind: CbSave.StaffKind).</summary>
+        public bool StaffSwinging => state == State.Staff;
+        public Move CurrentMove => move;
 
         void StartDiveKick()
         {
