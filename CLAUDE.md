@@ -163,6 +163,13 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     pictures show each branch reaching over its platform from a big tree behind the path. Its crown's leaf cards drew
     black shards with the outline: the tree is now drawn without one (`Bare`) and its leaves two-sided (local).
     Canopy and waterfall pictures 312-338k triangles (about as before: the mossy branches were as heavy).
+  - The user (a screenshot by the shrine, run 297's build): the tree had black shards (fixed: no outline); the
+    hangers should look better (ropes are now two twisted strands, bound fatter at the branch); the platforms at a
+    few heights under the branch (`HangOvers` 2.7-4.3 m, in turn); trees further back (`TreeZ` 5.5, turn up to 45).
+    The tree looked faceted up close: a finer remesh (45k) was asked of Meshy. The side hang still looked the same:
+    it now holds the start of `Hang_and_Climb_Rght/Left` (446/447, the user's choice: hang, climb on press) and the
+    haul up plays its pull (0.07-0.33), then the mantle. The gorge's ledges are natural rocks (`CliffRock`,
+    `CrackedRock` for crumbling ones; `GorgeRockThick`). Pictures gorge_rock*, hang_pose, hang_pull. Not yet run.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body
