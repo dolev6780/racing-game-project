@@ -224,6 +224,9 @@ namespace Cloudborne
                     var at = new Vector3(cx - s * reach * cos, -TreeSink, zk + reach * sin);
                     var tree = CbArt.Joint(root, at.x, at.y, at.z, "branchTree");
                     if (Model("BranchTree", tree, size, yaw) == null) { Object.Destroy(tree.gameObject); return false; }
+                    // its leaves seen from both sides (from behind they were holes in the crown)
+                    foreach (var r in tree.GetComponentsInChildren<Renderer>())
+                        if (r.sharedMaterial != null && r.sharedMaterial.HasProperty("_Cull")) r.sharedMaterial.SetFloat("_Cull", 0f);
                     var cs = Solidify(tree);
                     Physics.SyncTransforms();
                     if (FindBranch(h.knotL, cs, out var a) && FindBranch(h.knotR, cs, out var b)

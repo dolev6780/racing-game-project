@@ -159,7 +159,10 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     platform's back; the model's branch direction is unknown, so of two yaws the one whose branch rays from both knots
     meet is kept (temporary MeshColliders, destroyed after); a branch may not pass within `HeadRoom` over another
     platform. Ropes go from the knots to where the rays meet the branch (slanted a little in z). No tree fits: the
-    old MossBranch. Local, not yet run.
+    old MossBranch. Run 297: all 87 pass; 6 trees (one platform, at the waterfall, on a branch of its own); the
+    pictures show each branch reaching over its platform from a big tree behind the path. Its crown's leaf cards drew
+    black shards with the outline: the tree is now drawn without one (`Bare`) and its leaves two-sided (local).
+    Canopy and waterfall pictures 312-338k triangles (about as before: the mossy branches were as heavy).
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body

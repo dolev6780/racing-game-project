@@ -172,6 +172,7 @@ namespace Cloudborne
         static Material M(string hex) => CbArt.Toon(hex, CbArt.PropOutline);
 
         const string WaysDir = "Cloudborne/Jungle/Ways/";
+        static readonly string[] Bare = { "BranchTree" };
         static readonly string[] Leafy = { "RuinWall", "RuinLedge", "VineTree", "CaveArch", "StakedLog", "TreePlatform", "MossBranch", "BranchTree" };
         const float LeafyOutline = 0.25f;
 
@@ -187,6 +188,8 @@ namespace Cloudborne
             // the kit's models hung with thin moss, vines and ferns: a thin outline (the full one drew black shards round
             // every strand - the user's picture of the ruin's tower)
             float outline = System.Array.IndexOf(Leafy, name) >= 0 ? LeafyOutline : CbArt.PropOutline;
+            // (the branch tree's crown is cards of leaves: any outline drew black shards round them - run 297's pictures)
+            if (System.Array.IndexOf(Bare, name) >= 0) outline = 0f;
             var fit = Fit(WaysDir + name + "/" + name, turn, new Vector3(-size.x / 2, 0, -size.z / 2), new Vector3(size.x / 2, size.y, size.z / 2), outline);
             if (fit == null) { Object.Destroy(turn.gameObject); return null; }
             return turn;
