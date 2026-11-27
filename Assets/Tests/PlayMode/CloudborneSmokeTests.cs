@@ -1321,6 +1321,8 @@ namespace Cloudborne.Tests
             game.hero.y = 0;
             yield return new WaitForSeconds(1f);
             Assert.AreEqual(0, critters.BirdsTakenOff, "The birds took off with Raja far away");
+            // none on the ground, flapping (the user): hidden in the hedge until they burst out
+            Assert.IsNull(GameObject.Find("perchedBird"), "A bird sits on the ground flapping");
             game.Teleport(x - 1.5f);
             game.hero.y = 0;
             yield return new WaitForSeconds(0.5f);

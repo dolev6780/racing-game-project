@@ -48,13 +48,13 @@ namespace Cloudborne
         readonly Transform root;
         readonly List<Fly> flies = new List<Fly>();
         readonly List<Bird> birds = new List<Bird>();
-        // Birds on the ground behind the path, a few together, pecking about; Raja coming near (or jumping by them) they
-        // take off, up and away from him, and settle back once he has gone on (the user: the birds should move when
-        // he comes near, like the butterflies)
+        // Birds hidden in the hedge behind the path, a few together; Raja coming near (or jumping by them) they burst out
+        // of it, up and away from him, and settle back unseen once he has gone on (the user: the birds should move when
+        // he comes near, like the butterflies - and not sit on the ground flapping, unable to fly)
         class Perched { public Transform t; public Vector3 home, at, vel; public float ph, flown = -1f; public int dir; public bool shown; }
         readonly List<Perched> perched = new List<Perched>();
         const float PerchGap = 24f, PerchFrom = 2.2f, PerchTo = 4.5f, PerchSpan = 0.5f, PerchFright = 4f, PerchJumpFright = 7f,
-            PerchFly = 3.5f, PerchBack = 30f;
+            PerchFly = 3.5f, PerchBack = 30f, PerchHide = 0.45f;
         /// <summary>Test hook: birds on the ground along the stage, and how many are flying off now.</summary>
         public int BirdsPerched => perched.Count;
         public float FirstPerchX => perched.Count > 0 ? perched[0].home.x : float.NaN;
@@ -261,7 +261,9 @@ namespace Cloudborne
             foreach (var b in perched)
             {
                 bool near = Mathf.Abs(b.home.x - camX) < Near + 4f;
-                if (b.flown < 0 && near != b.shown) { b.shown = near; b.t.gameObject.SetActive(near); }
+                // (hidden in the hedge until they burst out of it: on the ground the painting - a bird in flight, its
+                // wings spread - looked like a bird trying and failing to fly: the user)
+                if (b.flown < 0 && b.shown) { b.shown = false; b.t.gameObject.SetActive(false); }
                 if (b.flown < 0)
                 {
                     if (!near) continue;
@@ -272,18 +274,12 @@ namespace Cloudborne
                         b.flown = 0;
                         b.dir = heroX < b.home.x ? 1 : -1;
                         b.vel = new Vector3(b.dir * Random.Range(3.5f, 5.5f), Random.Range(3f, 4.5f), Random.Range(0.5f, 1.5f));
+                        // out of the leaves, wings already beating
+                        b.at = b.home + Vector3.up * PerchHide;
+                        b.t.localPosition = b.at;
                         b.t.gameObject.SetActive(true);
                         b.shown = true;
-                        continue;
                     }
-                    // pecking about: a hop now and then, the head dipping
-                    float hop = Mathf.Max(0, Mathf.Sin(t * 1.7f + b.ph * 3f) - 0.92f) * 3f;
-                    b.at = b.home + new Vector3(Mathf.Sin(t * 0.3f + b.ph) * 0.3f, hop, 0);
-                    b.t.localPosition = b.at;
-                    // wings folded: narrow and low
-                    float peck = Mathf.Sin(t * 5f + b.ph) > 0.7f ? 0.85f : 1f;
-                    b.t.localScale = new Vector3(PerchSpan * 0.55f * b.dir, PerchSpan / birdAspect * 0.75f * peck, 1);
-                    if (Mathf.Sin(t * 0.37f + b.ph * 2f) > 0.98f) b.dir = -b.dir;
                     continue;
                 }
                 // flying off: up and away, wings beating fast, rising faster as it goes
