@@ -2381,6 +2381,10 @@ namespace Cloudborne.Tests
                 game = CbGame.Boot();
                 yield return Frames(3);
                 game.StartGame();
+                yield return Frames(2);
+                // he carries the fire staff's own model (Canva MAHcIhNLLDI, Meshy), not the oak one
+                Assert.IsNotNull(game.hero.Staff.Find("StaffFire"), "He does not carry the fire staff's model");
+                Assert.IsNull(game.hero.Staff.Find("Staff"), "The oak staff's model is still in his hand");
                 game.Teleport(14f);
                 float waited = 0;
                 while (game.enemies.Count < 1 && waited < 6f) { waited += Time.deltaTime; yield return null; }
