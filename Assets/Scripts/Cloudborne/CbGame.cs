@@ -725,10 +725,14 @@ namespace Cloudborne
 
         /// <summary>Stage 1-1's time of day and rain (CbWeather), made fresh for the stage's light.</summary>
         public CbWeather weather;
+        /// <summary>The stage's time trials (CbTrials).</summary>
+        public CbTrials trials;
         void MakeWeather()
         {
             weather?.Destroy();
             weather = CbStage.Jungle ? new CbWeather(transform, sun) : null;
+            trials?.Destroy();
+            trials = new CbTrials(this, transform);
         }
 
         /// <summary>The drawn prologue (the night the cloud temple fell), then a fade into the opening scene.</summary>
@@ -2119,6 +2123,7 @@ namespace Cloudborne
             critters.Update(clock, camX, camY, hero.x, hero.y);
             UpdateCamera(raw);
             if (weather != null && cam != null) weather.Update(raw, new Vector3(cam.transform.position.x, cam.transform.position.y, 0));
+            if (trials != null && mode == Mode.Play) trials.Update(raw, hero);
             ShowFoesOffScreen();
             CbVfx.Update(cam, raw);
             UpdateCloseUp(raw);

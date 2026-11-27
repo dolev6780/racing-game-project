@@ -2365,6 +2365,37 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator ATimeTrialAwardsAMedal()
+        {
+            // the user's ideas: runs against the clock for gold, silver or bronze
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            Assert.IsNotNull(game.trials, "No time trials");
+            Assert.AreEqual(CbTrials.WaysTrials.Length, game.trials.All.Count, "Stage 1-1's trials are not all there");
+            Assert.IsNotNull(GameObject.Find("trialStart"), "No trial stone");
+            var tr = game.trials.All[0];
+            float oldBest = PlayerPrefs.GetFloat("cb_trial_" + tr.name.Replace(' ', '_').ToLowerInvariant(), 0f);
+            game.hero.inv = 999f;
+            game.Teleport(tr.from - 1f);
+            yield return Frames(3);
+            // (just past the stone, still on the bank: the ravine's water starts at 200)
+            game.Teleport(tr.from + 0.3f);
+            yield return Frames(3);
+            Assert.AreEqual(tr, game.trials.Running, "Crossing the trial's stone did not start it");
+            yield return new WaitForSeconds(0.5f);
+            Assert.Greater(game.trials.Clock, 0.3f, "The trial's clock did not run");
+            game.Teleport(tr.to + 0.5f);
+            yield return Frames(3);
+            Assert.IsNull(game.trials.Running, "Reaching the end stone did not finish the trial");
+            Assert.AreEqual("GOLD", game.trials.LastMedal, "A run under the gold time won no gold");
+            // (the best time put back as it was)
+            PlayerPrefs.SetFloat("cb_trial_" + tr.name.Replace(' ', '_').ToLowerInvariant(), oldBest);
+        }
+
+        [UnityTest]
         public IEnumerator TheTotemMasksGiveHimForms()
         {
             // the user's ideas (Kirby's forms): three masks in 1-1 - stone, leaf, vine

@@ -220,7 +220,11 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   terrace, vine 140.6 at the gorge's foot); worn on his head bone 12 s (`FormTime`), blinking at the end. Stone: runs
   x1.35, running into cracked stone / crates / soldiers bursts them, half harm. Leaf: holding JUMP falling, glides at
   `GlideFall` 1.8 m/s. Vine: `VineEverywhere` - every non-smooth block side climbs as vines (`VineWallAt`).
-  Still to do: trial rooms with time medals, staff upgrades, camp hub (foreground leaves were already there: `CbWorld`'s near layer).
+  Time trials (`CbTrials`, made with the weather per stage): 1-1's VINE RAVINE (199.5-239.5) and CANOPY (371-400.5),
+  glowing stones at either end; crossing the first starts a clock under the title (`CbHud.SetTrial`), the second
+  gives GOLD/SILVER/BRONZE by `WaysTrials`' times (guesses, to be tuned by playing), best kept in PlayerPrefs;
+  back past the start, swimming or dying ends the try.
+  Still to do: staff upgrades, camp hub (foreground leaves were already there: `CbWorld`'s near layer).
 - **Performance and challenge (the user: keep improving performance, graphics and challenge; local, not yet run):**
   the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
   remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge

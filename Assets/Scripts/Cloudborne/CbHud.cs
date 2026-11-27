@@ -25,7 +25,9 @@ namespace Cloudborne
         readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt, stageTxt, foeLeft, foeRight;
         float foeT;
         readonly RectTransform comboBox, pads, stickBase, stickKnob, paused, result, pauseBtn, pauseMenuBtn, resultMenuBtn;
-        readonly Text resultTitle, resultStats, fpsTxt, perfTxt;
+        readonly Text resultTitle, resultStats, fpsTxt, perfTxt, trialTxt;
+        /// <summary>A time trial's clock (empty: none running).</summary>
+        public void SetTrial(string s) { trialTxt.text = s; }
         /// <summary>The frame counter at the bottom of the screen while playing (the user: an APK with an FPS counter,
         /// to see how the phone keeps up): frames a second, the slowest frame of the last second, the mean frame's
         /// time, the quality level.</summary>
@@ -131,6 +133,8 @@ namespace Cloudborne
 
             // score, pause
             UIKit.Label(play, "SCORE", 10, new Color(1, 1, 1, 0.8f), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -14), new Vector2(120, 14), TextAnchor.MiddleRight);
+            // a time trial's clock under the stage's title (CbTrials)
+            trialTxt = UIKit.Label(play, "", 22, Gold, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -58), new Vector2(420, 28), TextAnchor.MiddleCenter, true);
             perfTxt = UIKit.Label(play, "", 13, new Color(1, 1, 1, 0.85f), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 12), new Vector2(420, 18), TextAnchor.MiddleCenter, true);
             scoreTxt = UIKit.Label(play, "0", 24, Paper, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -28), new Vector2(160, 28), TextAnchor.MiddleRight, true);
             coinTxt = UIKit.Label(play, "COINS 0", 20, Gold, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -58), new Vector2(160, 24), TextAnchor.MiddleRight, true);
