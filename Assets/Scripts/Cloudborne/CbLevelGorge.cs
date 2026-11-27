@@ -42,6 +42,7 @@ namespace Cloudborne
         Transform floodFrontQuad, floodSurface;
 
         static bool InGorge(float x) => x > GorgeFrom && x < GorgeTo;
+        const string RockBlockPath = "Cloudborne/Jungle/Ways/RockBlock/RockBlock";
 
         /// <summary>The gorge and the summit beyond it (Build calls this where the mountain was).</summary>
         void BuildMountain()
@@ -72,7 +73,8 @@ namespace Cloudborne
 
             // the gorge's back wall, darker, so the ledges and rocks stand out against it
             var back = CbArt.Joint(root, 0, 0, 0, "gorgeBack");
-            RockWall(back, MountainFrom, SummitTo, -0.3f, GorgeRim + 0.5f, GorgeBack, GorgeBack + 1.8f, 1390, 0.35f, 0.52f, 4.4f);
+            // (on down the far side: its ledges jut from it)
+            RockWall(back, MountainFrom, MountainTo + 1f, -0.3f, GorgeRim + 0.5f, GorgeBack, GorgeBack + 1.8f, 1390, 0.35f, 0.52f, 4.4f);
 
             // up the gorge: right, back left, right again (ledges, a shoulder of the summit's cliff, a rock from the back wall)
             AddLedge(141.9f, 1.8f, 2.0f, false);
@@ -206,7 +208,13 @@ namespace Cloudborne
         {
             // (in even rows and columns the same rock repeated read as a brick wall in the stage's pictures: every other
             // row is set half a piece along, the pieces vary in size, and each shows one of the rock's four sides)
-            const float Aspect = 0.85f, Overlap = 0.3f;
+            // the rock kit's block (the user: real, climbable rock, approved in Canva, built by Meshy) - its top row's
+            // grass the walkable top, the rows under it turned over (their grass hidden in the row below); the old
+            // cliff rock if the block isn't in the project
+            bool kit = Resources.Load<GameObject>(RockBlockPath) != null;
+            string path = kit ? RockBlockPath : CliffRockPath;
+            float Aspect = kit ? 1.9f : 0.85f;
+            const float Overlap = 0.3f;
             float w = x1 - x0, h = y1 - y0;
             int cols = Mathf.Max(1, Mathf.RoundToInt(w / cell));
             float cw = w / cols;
@@ -232,7 +240,7 @@ namespace Cloudborne
                     var piece = CbArt.Joint(parent, 0, 0, 0, "piece");
                     var box0 = new Vector3(a, lo, zFront + dz);
                     var box1 = new Vector3(b, hi, zBack);
-                    if ((topRow ? FitTop(CliffRockPath, piece, box0, box1) : Fit(CliffRockPath, piece, box0, box1)) == null)
+                    if ((topRow ? FitTop(path, piece, box0, box1) : Fit(path, piece, box0, box1)) == null)
                     {
                         Object.Destroy(piece.gameObject);
                         return false;
@@ -243,8 +251,9 @@ namespace Cloudborne
                     int side = rng.Next(4);
                     if (topRow) side &= 1;
                     bool flipX = (side & 1) == 1, flipZ = (side & 2) == 2;
-                    piece.localScale = new Vector3(flipX ? -1 : 1, 1, flipZ ? -1 : 1);
-                    piece.localPosition = new Vector3(flipX ? a + b : 0, 0, flipZ ? zFront + dz + zBack : 0);
+                    bool flipY = kit && !topRow;
+                    piece.localScale = new Vector3(flipX ? -1 : 1, flipY ? -1 : 1, flipZ ? -1 : 1);
+                    piece.localPosition = new Vector3(flipX ? a + b : 0, flipY ? lo + hi : 0, flipZ ? zFront + dz + zBack : 0);
                     if (shade < 1f)
                         foreach (var rend in piece.GetComponentsInChildren<Renderer>())
                         {

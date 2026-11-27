@@ -361,7 +361,7 @@ namespace Cloudborne
         /// A ledge on a model's flat top: the model moved so its top lies on his line at `top`, the ledge as wide as the
         /// top is drawn there (as the stage laid it out, `width`, if the rays find none).
         /// </summary>
-        void AddMeasuredLedge(Transform t, Transform holder, float x, float half, float top, float width)
+        void AddMeasuredLedge(Transform t, Transform holder, float x, float half, float top, float width, bool crumbles = false)
         {
             var cs = Solidify(holder);
             float x0 = x - width / 2, x1 = x + width / 2;
@@ -379,7 +379,64 @@ namespace Cloudborne
                     FindTop(cs, x, half, top, 0.3f, out _, out x0, out x1);
                 }
             }
-            ledges.Add(new Ledge { x0 = x0, x1 = x1, top = top, t = t, home = t.localPosition });
+            ledges.Add(new Ledge { x0 = x0, x1 = x1, top = top, crumbles = crumbles, t = t, home = t.localPosition });
+        }
+
+        // ---------- the gorge's rock ledges ----------
+
+        // The rock kit (the user rejected two sheets of rocks as not climbable-looking and approved the third, built by
+        // Meshy): a ledge jutting from a cliff, its top flat, a rounded lip at its front. Up the gorge it juts from the
+        // back wall: its root GorgeLedgeInto into the wall, its lip at GorgeLedgeFront; as tall as drawn for that length.
+        const float GorgeLedgeFront = -0.75f, GorgeLedgeInto = 0.6f, RockLedgeTall = 1.151f / 2f;
+        static Material crumbleRock;
+
+        /// <summary>
+        /// A ledge of the gorge: the kit's rock ledge, its flat top the ledge, jutting from the back wall (no column under
+        /// it). Which way the model's root lies isn't known here: of the two turns, the one with the deep rock at the
+        /// back and the thin lip at the front (rays up from under it). A crumbling one is darker, its cracks showing.
+        /// </summary>
+        bool GorgeLedge(Transform t, float x, float width, float top, bool crumbles)
+        {
+            float back = GorgeBack + GorgeLedgeInto, deep = back - GorgeLedgeFront, tall = deep * RockLedgeTall, wide = width + 0.2f;
+            float mid = (GorgeLedgeFront + back) / 2 - t.localPosition.z;
+            // how far down the rock goes under a point (from below, up to its underside)
+            float Under(List<Collider> cs, float z)
+            {
+                var from = root.TransformPoint(new Vector3(x, top - tall - 0.5f, z));
+                float best = float.MaxValue;
+                foreach (var c in cs)
+                    if (c != null && c.Raycast(new Ray(from, Vector3.up), out var hit, tall + 1f) && hit.distance < best) best = hit.distance;
+                return best;
+            }
+            foreach (float yaw in new[] { 90f, -90f })
+            {
+                var holder = CbArt.Joint(t, 0, top - tall, mid, "rockLedge");
+                if (Model("RockLedge", holder, new Vector3(deep, tall, wide), yaw) == null) { Object.Destroy(holder.gameObject); return false; }
+                var cs = Solidify(holder);
+                Physics.SyncTransforms();
+                // the root deeper than the lip: else the other turn
+                if (yaw == 90f && Under(cs, back - 0.5f) > Under(cs, GorgeLedgeFront + 0.4f))
+                {
+                    rockSolids.RemoveAll(c => cs.Contains(c));
+                    Object.DestroyImmediate(holder.gameObject);
+                    continue;
+                }
+                if (crumbles)
+                {
+                    if (crumbleRock == null)
+                    {
+                        var r0 = holder.GetComponentInChildren<Renderer>();
+                        crumbleRock = new Material(r0.sharedMaterial) { color = r0.sharedMaterial.color * new Color(0.82f, 0.72f, 0.62f) };
+                    }
+                    foreach (var r in holder.GetComponentsInChildren<Renderer>()) r.sharedMaterial = crumbleRock;
+                    var crack = CbArt.Toon("#2b2622");
+                    for (int k = 0; k < 3; k++)
+                        CbArt.Box(crack, t, new Vector3((k - 1) * width * 0.3f, top - 0.25f, GorgeLedgeFront - 0.02f - t.localPosition.z), new Vector3(0.05f, 0.4f, 0.02f), CbArt.Rot(0, 0, k % 2 == 0 ? 0.4f : -0.4f));
+                }
+                AddMeasuredLedge(t, holder, x, wide / 2 + 0.3f, top, width, crumbles);
+                return true;
+            }
+            return false;
         }
 
         // ---------- a swing pole (the user: like the one in his picture, to swing round and fling off) ----------

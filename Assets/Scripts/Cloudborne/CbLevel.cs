@@ -691,7 +691,8 @@ namespace Cloudborne
             holder.localScale = s;
             holder.localPosition = lo - Vector3.Scale(b.min, s);
             // the rocks and slabs he stands on solid, so his feet find their drawn tops (CbLevel.SurfaceUnder)
-            if (path.StartsWith(CliffDir) || path == RiverRockPath || path == CliffRockPath || path == CrackedRockPath || path == RiverStonePath)
+            if (path.StartsWith(CliffDir) || path == RiverRockPath || path == CliffRockPath || path == CrackedRockPath || path == RiverStonePath
+                || path.StartsWith(WaysDir + "Rock"))
                 rockSolids.AddRange(Solidify(holder));
             return holder;
         }
@@ -1010,6 +1011,9 @@ namespace Cloudborne
             bool tree = CbStage.Treetops || CbStage.Grove;
             // the climbing kit (drawn in Canva, approved, built by Meshy): in the jungle a platform of planks hanging
             // from a branch, its top the ledge; in the treetops a platform of planks round a trunk (CbLevelClimb)
+            // up the gorge and down its far side: the approved rock kit's ledge, jutting from the gorge's back wall
+            // (the user: real rock, plainly climbable)
+            if (CbStage.Jungle && x > MountainFrom - 1f && x < MountainTo + 1f && GorgeLedge(t, x, width, top, crumbles)) return;
             if (!crumbles && ClimbKitLedge(t, x, width, top)) return;
             Transform kit = null;
             if (tree)

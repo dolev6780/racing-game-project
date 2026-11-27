@@ -180,7 +180,13 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     the edge, wrists over his head, arms straight (>0.9 of their length).
   - Gorge rocks: the user rejected two Canva sheets (not climbable-looking), approved a third (MAHcIY-kKn4: a flat
     grassy platform, stone stairs, a ledge jutting from a cliff with a lip, a wall with three shelves, a stepping stone).
-    Meshy: RockPlatform, RockStairs, RockLedge, RockShelves, RockStep (150 credits, 428 left). Not yet in the game.
+    Meshy: RockPlatform, RockStairs, RockLedge, RockShelves, RockStep (150 credits) in `Jungle/Ways`, plus RockBlock
+    (Meshy's 3k remesh of RockPlatform, 5 credits - Blender's decimation tore its texture; 423 left). In the gorge:
+    every ledge is `GorgeLedge` (CbLevelClimb): RockLedge jutting from the back wall (its root 0.6 into it, its lip
+    at z -0.75, no column under it; of yaw 90/-90 the one with the deep rock at the back, by rays), crumbling ones
+    darker with cracks; the walls (`RockWall`: the gate cliff, the back wall - now on to MountainTo + 1 for the far
+    side's ledges - the summit cliff, the shoulder, the jut) are rows of RockBlock, the top row's grass the walkable
+    top, the rows under it turned over. RockStairs, RockShelves and RockStep not used yet. Not yet run.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body

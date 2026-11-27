@@ -610,7 +610,7 @@ namespace Cloudborne.Tests
                 // bare rock, no band of grass along the top
                 if (t.name == "terrace" && t.Find("rock") != null && t.Find("lip") == null) rock++;
                 // (a crumbling one the cliff kit's slab; a solid one the cliff kit's slab or a hanging platform)
-                if ((t.name == "ledge" || t.name == "crumblingLedge") && (t.Find("fit") != null || t.Find("woodPlatform") != null)) kitLedges++;
+                if ((t.name == "ledge" || t.name == "crumblingLedge") && (t.Find("fit") != null || t.Find("woodPlatform") != null || t.Find("rockLedge") != null)) kitLedges++;
             }
             // the long stage's vine pillar and waterfall cliff (the ridge and its shaft are gone; the climb is a gorge:
             // its cliffs are built of rock in rows, CbLevelGorge)
