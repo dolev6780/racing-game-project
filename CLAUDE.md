@@ -125,7 +125,8 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 
 ## Where things stand (update this section as work goes on)
 
-- **Run 294 (65a3220): all 85 tests pass.** The ground's edge is one piece (no lip in the jungle).
+- **Run 295 (f511492): 85 of 86 pass.** Only the new knockdown test failed: it never met a soldier (the first post
+  sends him out as Raja comes near: the test now stands him at x 14, as the first fight's test does). Local.
 - **Combat (the user: struck down, the soldiers were up again at once, straight back into the fight):** a big blow
   (`CbEnemy.KnockKb` 7 or `KnockUp` 4: the combo finisher, launchers, the slide, the sweep kick, fire finishers)
   floors a soldier: he flies (or falls over where he stands), bounces once, lies `LieTime` 0.85 s, gets up over

@@ -2195,6 +2195,8 @@ namespace Cloudborne.Tests
             game = CbGame.Boot();
             yield return Frames(3);
             game.StartGame();
+            // (near the first post, as the first fight's test stands him: it sends its soldier out as he comes)
+            game.Teleport(14f);
             yield return Frames(2);
             var hero = game.hero;
             hero.inv = 999f;
