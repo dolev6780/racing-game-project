@@ -188,6 +188,15 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     darker with cracks; the walls (`RockWall`: the gate cliff, the back wall - now on to MountainTo + 1 for the far
     side's ledges - the summit cliff, the shoulder, the jut) are rows of RockBlock, the top row's grass the walkable
     top, the rows under it turned over. RockStairs, RockShelves and RockStep not used yet. Not yet run.
+- **The user's ideas list (inspired by The Lost Crown, Kirby and the Forgotten Land and others; the user: "let's
+  do everything").** Done locally, not yet run: gold/red blows (`CbEnemy.HeavyChance` 0.25: a red "!!", longer
+  wind-up, unblockable, 1.5x, knocks down - only a dodge escapes; the usual "!" now gold); the pogo (a dive kick onto a
+  thorn hedge bounces him `PogoUp` 10, double jump and dash back, thorns harmless while `Pogoing`); hanging platforms
+  dip on landing (`UpdateHangers`); soldiers' break gauge (`AddSoldierBreak`: 34 hp of blows, counters/breaker blows
+  +0.4; full: BREAK!, dazed 2.2 s, 1.5x damage). Already in the game before: the perfect guard returning blows and
+  spears (1-3), counters, Snap's break gauge, results with tokens/friends/no-hit/rank. Waiting: the R-A-J-A letters
+  drawing (Canva MAHcISvQhzY) for the user's approval. Still to do: lotus launchers, trial rooms, time trials, hard
+  mode, chase, totem masks, staff upgrades, camp hub, ink-brush FX, foreground leaves, time of day/rain.
 - **Performance and challenge (the user: keep improving performance, graphics and challenge; local, not yet run):**
   the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
   remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge
