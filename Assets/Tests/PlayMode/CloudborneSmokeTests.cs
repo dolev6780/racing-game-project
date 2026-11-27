@@ -609,8 +609,8 @@ namespace Cloudborne.Tests
             {
                 // bare rock, no band of grass along the top
                 if (t.name == "terrace" && t.Find("rock") != null && t.Find("lip") == null) rock++;
-                // (a crumbling one the cliff kit's slab; a solid one the climbing kit's ruin pillar)
-                if ((t.name == "ledge" || t.name == "crumblingLedge") && (t.Find("fit") != null || t.Find("ruinLedge") != null)) kitLedges++;
+                // (a crumbling one the cliff kit's slab; a solid one the cliff kit's slab or a hanging platform)
+                if ((t.name == "ledge" || t.name == "crumblingLedge") && (t.Find("fit") != null || t.Find("woodPlatform") != null)) kitLedges++;
             }
             // the long stage's vine pillar and waterfall cliff (the ridge and its shaft are gone; the climb is a gorge:
             // its cliffs are built of rock in rows, CbLevelGorge)
@@ -2139,6 +2139,57 @@ namespace Cloudborne.Tests
             Assert.IsTrue(sawGuard, "GUARD did not raise Raja's guard (while it was held he was: " + string.Join(", ", guardStates) + ")");
             Assert.IsTrue(sawSpecial, "SPECIAL did not start the staff storm");
             Assert.IsNull(game.lockZone, "A soldier on his own shut an arena");
+        }
+
+        /// <summary>
+        /// The jungle's ledges (out of the gorge) are wooden platforms hanging on two ropes from a branch over them, or
+        /// from the platform over them (the user: the rock pillars under them looked bad - wood hanging from the
+        /// background's trees). No rock under them; the ropes straight up from the back corners. Pictures from on them,
+        /// named to run late.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator ZzzLedgesHangOnRopesFromBranches()
+        {
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            game.hero.inv = 999f;
+            foreach (var n in new[] { "WoodPlatform", "WoodPlatformSmall", "MossBranch" })
+                Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Jungle/Ways/{n}/{n}"), $"The {n} model is missing");
+            int hung = 0;
+            foreach (Transform t in game.level.Root)
+            {
+                if (t.name != "ledge") continue;
+                bool gorge = t.position.x > CbLevel.MountainFrom - 1f && t.position.x < CbLevel.MountainTo + 1f;
+                var platform = t.Find("woodPlatform");
+                if (gorge) { Assert.IsNull(platform, $"The gorge's ledge at x {t.position.x:0.0} hangs on ropes"); continue; }
+                Assert.IsNotNull(platform, $"The ledge at x {t.position.x:0.0} is not a hanging platform");
+                Assert.IsNull(t.Find("fit"), $"The ledge at x {t.position.x:0.0} still has the cliff's slab");
+                var ropes = new List<Transform>();
+                foreach (Transform c in t) if (c.name == "hangRope") ropes.Add(c);
+                Assert.AreEqual(2, ropes.Count, $"The platform at x {t.position.x:0.0} doesn't hang on two ropes");
+                var pb = platform.GetComponentInChildren<Renderer>().bounds;
+                foreach (var r in ropes)
+                {
+                    var rb = r.GetComponent<Renderer>().bounds;
+                    // straight up from its back corner, from its top to well over it
+                    Assert.Less(rb.size.x, 0.12f, $"A rope at x {t.position.x:0.0} is not straight up");
+                    Assert.Greater(rb.center.z, pb.center.z, $"A rope at x {t.position.x:0.0} is not at the platform's back");
+                    Assert.AreEqual(pb.max.y, rb.min.y, 0.15f, $"A rope at x {t.position.x:0.0} does not start at the platform's knots");
+                    Assert.Greater(rb.max.y, pb.max.y + 1.2f, $"A rope at x {t.position.x:0.0} does not go up to a branch");
+                    Debug.Log($"HANG ledge x {t.position.x:0.00} rope x {rb.center.x:0.00} z {rb.center.z:0.00} y {rb.min.y:0.00}..{rb.max.y:0.00} platform top {pb.max.y:0.00}");
+                }
+                // no rock column under it
+                Assert.IsFalse(System.Array.Exists(GameObject.FindObjectsByType<Transform>(FindObjectsSortMode.None),
+                    o => o.name == "ledgeSupport" && Mathf.Abs(o.position.x - t.position.x) < 0.05f), $"A rock column still stands under the ledge at x {t.position.x:0.0}");
+                hung++;
+            }
+            Assert.GreaterOrEqual(hung, 8, "Too few of the jungle's ledges hang from branches");
+            Assert.IsNotNull(GameObject.Find("hangBranch"), "No branch for the platforms to hang from");
+            yield return TakePictures(new[] { ("hang_shrine", CbLevel.ShrineLedgeX, CbLevel.ShrineLedgeTop), ("hang_shrine_below", CbLevel.ShrineLedgeX - 2.5f, 0f),
+                ("hang_238", 238f, 6.2f), ("hang_canopy", 380.6f, 9.2f), ("hang_waterfall", 401f, 2.6f), ("hang_waterfall_top", 401.2f, 7f) });
         }
 
         /// <summary>

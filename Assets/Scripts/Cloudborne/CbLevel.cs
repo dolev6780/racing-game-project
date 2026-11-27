@@ -185,6 +185,8 @@ namespace Cloudborne
                 DressBanks();
                 BedStones();
             }
+            // the jungle's platforms hang from their branches (CbLevelClimb)
+            HangPlatforms();
             // every step drawn on a rock can be stood on (CbLevelProbe)
             AddRockSteps();
         }
@@ -1006,9 +1008,8 @@ namespace Cloudborne
             grass ??= GrassMat();
             // (in the trees - the treetops, Baba's grove - a log on its tree's branches, not a slab of stone)
             bool tree = CbStage.Treetops || CbStage.Grove;
-            // the climbing kit (drawn in Canva, approved, built by Meshy): in the jungle a ruin's pillar under it, its
-            // top the ledge (a ledge too high for one: the cliff kit's slab on its column of rock); in the treetops a
-            // platform of planks round a trunk (CbLevelClimb)
+            // the climbing kit (drawn in Canva, approved, built by Meshy): in the jungle a platform of planks hanging
+            // from a branch, its top the ledge; in the treetops a platform of planks round a trunk (CbLevelClimb)
             if (!crumbles && ClimbKitLedge(t, x, width, top)) return;
             Transform kit = null;
             if (tree)

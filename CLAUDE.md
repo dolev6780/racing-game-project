@@ -143,16 +143,20 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     `ClimbTime` 0.8 s in two parts: hauled up to the edge from arms straight (`PullPart`, palms kept on the edge),
     then the mantle (`Ladder_Climb_Finish` 0.25-0.85).
   - The staff 0.72 of its size (`StaffScale`): as tall as Raja, it looked far too big.
-  - Next (the user): the ledges' supports (rock pillars) look bad - instead, wooden platforms hanging from the
-    background's trees. Through Canva first.
+  - The ledges' rock pillars (the user: they look bad) are replaced in 1-1 (outside the gorge) by wooden platforms
+    hanging on two ropes from a mossy branch (`HangingPlatform`, `HangPlatforms` in `CbLevelClimb`). Canva kit sheet
+    approved (MAHcHuMkxy0), Meshy: `WoodPlatform`, `WoodPlatformSmall` (ledges up to 1.3 m), `MossBranch` in
+    `Jungle/Ways`, with LOD1s. The platforms' rope stubs were cut off at the knots (the ropes are cylinders up to the
+    branch); a rope with a platform or another's branch over it is tied to that (the waterfall's stacked ledges).
+    RuinLedge is no longer used. Test `ZzzLedgesHangOnRopesFromBranches` (pictures hang_*). Local, not yet run.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body
   rising). Every hang is now `Bar_Hang_Idle`, still, arms straight (`FreeHangReach`), at a wall too (`BracedOff`).
   The 446/447 hang-and-climb clips are loaded but unused (they lift him 0.45 m and swing his legs up).
 - **Towers:** all ruin towers (RuinWall) are out (the user). The stage will be laid out anew from a Canva plan
-  (a presentation, one slide per section) that the user edits and approves. A ledge too high for a pillar is the
-  cliff kit's slab on its column of rock.
+  (a presentation, one slide per section) that the user edits and approves. The jungle's ledges hang from branches
+  (see above).
 - **Animations.** The user chose Meshy 94, 132, 446, 447, 448, 449, 450 and 485; they are in:
   - Air fist: 94.
   - Ki-ball cast: 132.
