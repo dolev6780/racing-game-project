@@ -125,8 +125,10 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 
 ## Where things stand (update this section as work goes on)
 
-- **Run 295 (f511492): 85 of 86 pass.** Only the new knockdown test failed: it never met a soldier (the first post
-  sends him out as Raja comes near: the test now stands him at x 14, as the first fight's test does). Local.
+- **Run 296 (320ab64): all 87 pass** (the knockdown, the lip, the pull-up and the hanging platforms' tests). The
+  pictures: the platforms hang on their ropes; the branches are high, under the HUD's hint box; in the canopy the bar's
+  two trunks (`AddTrunk` at the bar's ends +-1.4) stand right behind the platforms at 380.6 and 388.6; at the
+  waterfall the stacked platforms are behind the falling water (as the old ledges were).
 - **Combat (the user: struck down, the soldiers were up again at once, straight back into the fight):** a big blow
   (`CbEnemy.KnockKb` 7 or `KnockUp` 4: the combo finisher, launchers, the slide, the sweep kick, fire finishers)
   floors a soldier: he flies (or falls over where he stands), bounces once, lies `LieTime` 0.85 s, gets up over
@@ -148,7 +150,7 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     approved (MAHcHuMkxy0), Meshy: `WoodPlatform`, `WoodPlatformSmall` (ledges up to 1.3 m), `MossBranch` in
     `Jungle/Ways`, with LOD1s. The platforms' rope stubs were cut off at the knots (the ropes are cylinders up to the
     branch); a rope with a platform or another's branch over it is tied to that (the waterfall's stacked ledges).
-    RuinLedge is no longer used. Test `ZzzLedgesHangOnRopesFromBranches` (pictures hang_*). Local, not yet run.
+    RuinLedge is no longer used. Test `ZzzLedgesHangOnRopesFromBranches` (pictures hang_*). Run 296: passes.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body
