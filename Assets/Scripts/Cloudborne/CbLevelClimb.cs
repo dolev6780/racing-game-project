@@ -41,10 +41,12 @@ namespace Cloudborne
         // TreeBranchAt of its height up, the stretch the ropes hang from TreeBranchMid of its width from its middle.
         // It stands TreeZ back, turned so its branch reaches forward and over the platform's back.
         const float TreeWide = 1.139f, TreeDeep = 0.785f, TreeSquash = 0.35f, TreeBranchAt = 0.49f, TreeBranchMid = 0.39f,
-            TreeZ = 4f, TreeSink = 0.25f, TreeMaxTurn = 40f;
+            TreeZ = 5.5f, TreeSink = 0.25f, TreeMaxTurn = 45f;
 
         /// <summary>A platform hanging in the jungle: where it is (in the level), its knots, where its ropes go up from.</summary>
-        class Hanger { public Transform t; public float x0, x1, bottom, top, deep; public Vector3 knotL, knotR; public bool branch; }
+        class Hanger { public Transform t; public float x0, x1, bottom, top, deep, over; public Vector3 knotL, knotR; public bool branch; }
+        // how far under its branch each platform hangs, in turn (the user: the platforms at a few heights under the branch)
+        static readonly float[] HangOvers = { 2.7f, 3.6f, 3.1f, 4.3f };
         readonly List<Hanger> hangers = new List<Hanger>();
         static Material hangRopeMat;
 
@@ -73,7 +75,7 @@ namespace Cloudborne
             var p = t.localPosition + holder.localPosition;
             hangers.Add(new Hanger
             {
-                t = t, x0 = p.x - wide / 2, x1 = p.x + wide / 2, bottom = p.y, top = top, deep = deep,
+                t = t, x0 = p.x - wide / 2, x1 = p.x + wide / 2, bottom = p.y, top = top, deep = deep, over = HangOvers[hangers.Count % HangOvers.Length],
                 knotL = p + new Vector3(-kx * wide / 2, thick * 0.92f, kz * deep / 2),
                 knotR = p + new Vector3(kx * wide / 2, thick * 0.92f, kz * deep / 2),
             });
@@ -93,6 +95,7 @@ namespace Cloudborne
             {
                 hangRopeMat = CbArt.NewToon(CbArt.Hex("#c4a272"), CbArt.PropOutline);
                 hangRopeMat.SetFloat("_SpecStrength", 0f);
+                hangRopeMat.SetFloat("_Cull", 0f);
             }
             // a rope this close to a platform over it is tied under it (not brushing past its end)
             const float Near = 0.15f;
@@ -121,14 +124,14 @@ namespace Cloudborne
                     else if (!FindBranch(k, treeSolids, out end))
                     {
                         if (!h.branch) { h.branch = true; }
-                        end = new Vector3(k.x, h.top + BranchOver + (h.x1 - h.x0) * BranchLong * BranchTall * BranchCore, k.z);
+                        end = new Vector3(k.x, h.top + h.over + (h.x1 - h.x0) * BranchLong * BranchTall * BranchCore, k.z);
                     }
                     HangRopeBetween(h.t, k, end);
                 }
                 if (!h.branch) continue;
                 // no tree's branch over it: a branch of its own
                 float len = (h.x1 - h.x0) * BranchLong;
-                var at = new Vector3((h.x0 + h.x1) / 2, h.top + BranchOver, h.knotL.z) - h.t.localPosition;
+                var at = new Vector3((h.x0 + h.x1) / 2, h.top + h.over, h.knotL.z) - h.t.localPosition;
                 var holder = CbArt.Joint(h.t, at.x, at.y, at.z, "hangBranch");
                 if (Model("MossBranch", holder, new Vector3(len, len * BranchTall, len * BranchDeep), 180f) == null)
                     CbArt.Cylinder(Wood, holder, new Vector3(0, len * BranchTall * BranchCore, 0), 0.12f, len, Quaternion.Euler(0, 0, 90));
@@ -137,13 +140,50 @@ namespace Cloudborne
             foreach (var c in treeSolids) if (c != null) Object.DestroyImmediate(c);
         }
 
-        /// <summary>A rope from a knot (in the level) up to where it is tied, in the platform's joint.</summary>
+        /// <summary>
+        /// A rope from a knot (in the level) up to where it is tied, in the platform's joint: two strands twisted round
+        /// each other like the platform's own lashings (a plain stick looked poor: the user), bound thicker where it is
+        /// lashed round the branch.
+        /// </summary>
         void HangRopeBetween(Transform t, Vector3 from, Vector3 to)
         {
             var d = to - from;
-            var rope = CbArt.Cylinder(hangRopeMat, t, (from + to) / 2 - t.localPosition, HangRope, d.magnitude, Quaternion.FromToRotation(Vector3.up, d.normalized));
-            rope.name = "hangRope";
+            float len = d.magnitude;
+            var axis = d / Mathf.Max(0.001f, len);
+            var side = Vector3.Cross(axis, Vector3.forward);
+            if (side.sqrMagnitude < 0.01f) side = Vector3.Cross(axis, Vector3.right);
+            side.Normalize();
+            var up = Vector3.Cross(side, axis);
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+            var o = from - t.localPosition;
+            for (int strand = 0; strand < 2; strand++)
+            {
+                var pts = new List<Vector3>();
+                var radii = new List<float>();
+                for (float s = 0; s <= len + 0.001f; s += Mathf.Min(0.04f, len / 8f))
+                {
+                    // a twist about every 9 cm; the binding at the top: the last LashLong, fatter
+                    float turn = s / 0.09f * Mathf.PI * 2 + strand * Mathf.PI;
+                    float lash = Mathf.Clamp01((s - (len - LashLong)) / 0.03f);
+                    float twist = HangRope * 0.55f * (1f + lash * 0.8f);
+                    pts.Add(o + axis * s + (side * Mathf.Cos(turn) + up * Mathf.Sin(turn)) * twist);
+                    radii.Add(HangRope * 0.6f * (1f + lash * 0.7f));
+                }
+                TaperedRope(verts, tris, pts, radii, 5);
+            }
+            var mesh = new Mesh { name = "hangRope" };
+            mesh.SetVertices(verts);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            var go = new GameObject("hangRope");
+            go.transform.SetParent(t, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = hangRopeMat;
         }
+        // where the rope is bound round the branch
+        const float LashLong = 0.16f;
 
         /// <summary>Where a rope from knot k meets a tree's branch over it: straight up, or as little to the front or back
         /// as it takes (the branch crosses the path at a slant).</summary>
@@ -152,13 +192,13 @@ namespace Cloudborne
             at = default;
             if (solids.Count == 0) return false;
             var from0 = root.TransformPoint(k + Vector3.up * 0.4f);
-            for (int i = 0; i <= 16; i++)
+            for (int i = 0; i <= 24; i++)
             {
                 float dz = (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2) * 0.1f;
                 var from = from0 + Vector3.forward * dz;
                 float best = float.MaxValue;
                 foreach (var c in solids)
-                    if (c != null && c.Raycast(new Ray(from, Vector3.up), out var hit, BranchOver * 2.5f) && hit.distance < best)
+                    if (c != null && c.Raycast(new Ray(from, Vector3.up), out var hit, 12f) && hit.distance < best)
                     {
                         best = hit.distance;
                         // a little into the branch
@@ -189,7 +229,7 @@ namespace Cloudborne
         const float HeadRoom = 2.4f;
 
         /// <summary>
-        /// A tree behind the path, its branch over the platform: as tall as puts its branch BranchOver over the
+        /// A tree behind the path, its branch over the platform: as tall as puts its branch the platform's `over` above the
         /// platform, on whichever side its trunk stands on dry ground (out of the streams), turned so its branch
         /// reaches forward to the platform's back. Kept (its branch made solid until the ropes are tied) if rays from
         /// both knots meet the branch.
@@ -197,7 +237,7 @@ namespace Cloudborne
         bool BranchTree(Hanger h, List<Collider> solids)
         {
             float cx = (h.x0 + h.x1) / 2, zk = h.knotL.z;
-            float tall = (h.top + BranchOver + TreeSink) / TreeBranchAt, wide = tall * TreeWide;
+            float tall = (h.top + h.over + TreeSink) / TreeBranchAt, wide = tall * TreeWide;
             float reach = TreeBranchMid * wide;
             float sin = Mathf.Clamp((TreeZ - zk) / reach, 0f, Mathf.Sin(TreeMaxTurn * Mathf.Deg2Rad));
             float turn = Mathf.Asin(sin) * Mathf.Rad2Deg, cos = Mathf.Cos(turn * Mathf.Deg2Rad);
@@ -230,7 +270,7 @@ namespace Cloudborne
                     var cs = Solidify(tree);
                     Physics.SyncTransforms();
                     if (FindBranch(h.knotL, cs, out var a) && FindBranch(h.knotR, cs, out var b)
-                        && a.y < h.top + BranchOver * 1.8f && b.y < h.top + BranchOver * 1.8f && !OverAnother(h, cs))
+                        && a.y < h.top + h.over * 1.8f && b.y < h.top + h.over * 1.8f && !OverAnother(h, cs))
                     {
                         solids.AddRange(cs);
                         return true;

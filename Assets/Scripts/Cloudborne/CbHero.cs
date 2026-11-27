@@ -115,6 +115,9 @@ namespace Cloudborne
         // the catch straight into the clip's mantle, chest at the edge, which read wrong - the user)
         const float ClimbOnto = 0.45f, CatchTime = 0.18f, HangHold = 0.35f, ClimbTime = 0.8f, PullPart = 0.42f, GrabRest = 0.35f;
         bool Pulling => state == State.Climb && t / ClimbTime < PullPart;
+        // the hang and its haul up (the user's choice, Meshy 446/447): the one whose legs swing away from the edge
+        const string HangClimbClip = "Hang_and_Climb_Rght";
+        string HangClimb => grabDir > 0 ? "Hang_and_Climb_Rght" : "Hang_and_Climb_Left";
         // how far through the pull-up he has risen, and come forward, by each moment of it (the clip's own hips)
         static readonly float[] ClimbU = { 0f, 0.083f, 0.25f, 0.417f, 0.583f, 0.75f, 0.917f, 1f };
         static readonly float[] ClimbRise = { 0f, 0.145f, 0.42f, 0.52f, 0.97f, 0.98f, 1f, 1f };
@@ -1350,6 +1353,12 @@ namespace Cloudborne
                 // under a ledge, nothing to put his feet on: hanging at arm's length, legs straight (Bar Hang Idle)
                 // every hang: still, at arm's length, legs straight (Bar Hang Idle) - at a wall too (the user: not like
                 // climbing, his hands going up, his arms stretching and his body rising - just hanging there)
+                // (the user, run 297: still not the hang they chose - Meshy's "Hang and Climb", 446/447: hanging from the
+                // edge, climbing when they press) its first moment held, arms up over his head, palms on the edge, his
+                // head below them, swaying a touch
+                case State.Hang when model.HasClip(HangClimbClip):
+                    model.Window(HangClimb, 0f, 0.07f, Mathf.PingPong(g.clock * 0.35f, 1f), 0.12f);
+                    break;
                 case State.Hang when model.HasClip("Bar_Hang_Idle"):
                     model.LoopSeconds("Bar_Hang_Idle", g.clock, 0.12f);
                     break;
@@ -1359,6 +1368,11 @@ namespace Cloudborne
                     break;
                 // pulling himself up from the hang: from arms straight up (the hang) into the clip's haul, his palms on
                 // the edge; then over it, the clip's mantle to standing
+                // the haul up from the hang: the same clip's pull (its hands come down to his chest, the legs kicking up),
+                // his palms kept on the edge
+                case State.Climb when t / ClimbTime < PullPart && model.HasClip(HangClimbClip):
+                    model.Window(HangClimb, 0.07f, 0.33f, t / ClimbTime / PullPart, 0.1f);
+                    break;
                 case State.Climb when t / ClimbTime < PullPart:
                     model.Window("Ladder_Climb_Finish", 0.12f, 0.25f, t / ClimbTime / PullPart, 0.15f);
                     break;

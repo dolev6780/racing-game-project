@@ -1018,9 +1018,18 @@ namespace Cloudborne
                 if (kit != null && crumbles)
                     foreach (var r in kit.GetComponentsInChildren<Renderer>()) r.material.color = new Color(0.62f, 0.5f, 0.42f);
             }
+            // up the gorge: a natural rock jutting out, its rough top the ledge (the user: the cut stone slabs there
+            // should be real rock) - a cracked one for a ledge that crumbles
+            float slab = Mathf.Max(0.34f, width * 0.27f);
+            if (kit == null && !tree && CbStage.Jungle && x > MountainFrom - 1f && x < MountainTo + 1f)
+            {
+                slab = Mathf.Max(GorgeRockThick, width * 0.55f);
+                kit = FitTop(crumbles ? CrackedRockPath : CliffRockPath, t,
+                    new Vector3(-width / 2 - 0.12f, top - slab, -0.75f), new Vector3(width / 2 + 0.12f, top, 1.1f));
+            }
             if (kit == null)
                 kit = Fit(CliffDir + (crumbles ? "CrumblingLedge/CrumblingLedge" : "Ledge/Ledge"), t,
-                    new Vector3(-width / 2 - 0.08f, top - Mathf.Max(0.34f, width * 0.27f), -0.7f), new Vector3(width / 2 + 0.08f, top + 0.04f, 0.9f));
+                    new Vector3(-width / 2 - 0.08f, top - slab, -0.7f), new Vector3(width / 2 + 0.08f, top + 0.04f, 0.9f));
             if (kit == null) EarthSlab(t, -width / 2, width / 2, top - 0.55f, top, -0.75f, 0.9f, crumbles ? (crackedEarth ?? earth) : earth, grass);
             if (crumbles && kit == null)
             {
@@ -1036,7 +1045,7 @@ namespace Cloudborne
                 if (FindTop(cs, x, width / 2 + 0.3f, top, 0.25f, out _, out float mx0, out float mx1)) { lx0 = Mathf.Max(lx0 - 0.1f, mx0); lx1 = Mathf.Min(lx1 + 0.1f, mx1); }
             }
             ledges.Add(new Ledge { x0 = lx0, x1 = lx1, top = top, crumbles = crumbles, t = t, home = t.localPosition });
-            AddLedgeSupport(x, width, top - (tree ? 0.45f : Mathf.Max(0.34f, width * 0.27f)) + 0.05f, tree);
+            AddLedgeSupport(x, width, top - (tree ? 0.45f : slab) + 0.05f, tree);
         }
 
         // Nothing hangs in the air (the user: ledges floating with no reason): each rests on something, behind the path
@@ -1044,6 +1053,8 @@ namespace Cloudborne
         // in the trees a trunk with two branches holding its log. A crumbling one's support stays when it falls.
         // how far back the support stands (the ledge reaches 0.9 back), how thick a trunk is
         const float SupportFront = 0.7f, SupportBack = 2.6f, TrunkRadius = 0.3f;
+        // how thick the gorge's rock ledges are at least
+        const float GorgeRockThick = 0.75f;
         static Material supportBark;
 
         void AddLedgeSupport(float x, float width, float under, bool tree)

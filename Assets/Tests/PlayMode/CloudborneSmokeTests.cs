@@ -2205,7 +2205,19 @@ namespace Cloudborne.Tests
             Debug.Log($"HANG {trees} trees, {own} platforms on a branch of their own");
             Assert.GreaterOrEqual(trees, 4, "Too few trees hold the platforms");
             yield return TakePictures(new[] { ("hang_shrine", CbLevel.ShrineLedgeX, CbLevel.ShrineLedgeTop), ("hang_shrine_below", CbLevel.ShrineLedgeX - 2.5f, 0f),
-                ("hang_238", 238f, 6.2f), ("hang_canopy", 380.6f, 9.2f), ("hang_waterfall", 401f, 2.6f), ("hang_waterfall_top", 401.2f, 7f) });
+                ("hang_238", 238f, 6.2f), ("hang_canopy", 380.6f, 9.2f), ("hang_waterfall", 401f, 2.6f), ("hang_waterfall_top", 401.2f, 7f),
+                ("gorge_rock_low", 141.9f, 2.0f), ("gorge_rock", 145.1f, 5.4f) });
+            // hanging from the shrine ledge's end, from the side (Meshy's "Hang and Climb", the user's choice), then a
+            // moment into the haul up when the stick is pushed toward it
+            float top = CbLevel.ShrineLedgeTop, edge = CbLevel.ShrineLedgeX;
+            while (edge > CbLevel.ShrineLedgeX - 3f && game.level.SupportAt(edge - 0.05f, top + 0.5f) > top - 0.1f) edge -= 0.05f;
+            game.Teleport(edge - 1f);
+            game.hero.TestHang(1, edge, top);
+            yield return TakePictures(new[] { ("hang_pose", float.NaN, 0f) }, 1f);
+            Assert.AreEqual(CbHero.State.Hang, game.hero.state, "He didn't stay hanging from the ledge's end");
+            game.TestInput = i => i.x = 1f;
+            yield return TakePictures(new[] { ("hang_pull", float.NaN, 0f) }, 0.2f);
+            game.TestInput = null;
         }
 
         /// <summary>
