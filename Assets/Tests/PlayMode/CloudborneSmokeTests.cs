@@ -2318,6 +2318,37 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator BlowsFillASoldiersBreakGaugeAndBreakHim()
+        {
+            // the user's ideas (The Lost Crown): blows fill a soldier's break gauge; full, he is dazed and open
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.Teleport(14f);
+            yield return Frames(2);
+            game.hero.inv = 999f;
+            float waited = 0;
+            while (game.enemies.Count < 1 && waited < 6f) { waited += Time.deltaTime; yield return null; }
+            Assert.AreEqual(1, game.enemies.Count, "The first post sent out no soldier");
+            var e = game.enemies[0];
+            e.hp = 999f;
+            int dir = e.x >= game.hero.x ? 1 : -1;
+            for (int k = 0; k < 12 && !e.Stunned; k++)
+            {
+                game.HurtEnemy(e, 6f, dir, 1f, 0f, false, false, false, true);
+                yield return new WaitForSeconds(0.15f);
+            }
+            Assert.IsTrue(e.Stunned, "A dozen blows did not break the soldier's guard");
+            Assert.AreEqual(1, game.SoldierBreaks, "The break was not counted");
+            float hp = e.hp;
+            game.HurtEnemy(e, 10f, dir, 1f, 0f, false, false, false, true);
+            Assert.Less(e.hp, hp - 10f * CbSave.DamageMul * 1.4f, "Dazed, he did not take more from a blow");
+            float daze = 0;
+            while (e.Stunned && daze < 4f) { daze += Time.deltaTime; yield return null; }
+            Assert.IsFalse(e.Stunned, "The soldier stayed dazed");
+        }
+
+        [UnityTest]
         public IEnumerator ARedHeavyBlowGoesThroughTheGuard()
         {
             // the user's ideas (The Lost Crown): a gold blow is guarded, a red heavy one only dodged

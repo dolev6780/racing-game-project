@@ -730,6 +730,10 @@ namespace Cloudborne
                         if (!Boss) cd = Mathf.Max(cd, 0.4f);
                     }
                     break;
+                // a soldier broken (his break gauge full): dazed, stars round his head (CbEnemySnap's daze)
+                case State.Move when !Boss && stunT > 0:
+                    Dizzy(ref pose, dt);
+                    break;
                 case State.Atk when Boss:
                     BossAttack(ref pose, dt, hero);
                     break;

@@ -992,6 +992,22 @@ namespace Cloudborne
         const float TunnelLead = 0.45f;
 
         /// <summary>Sergeant Snap broken (his gauge full): BREAK!, the moment slowed, coins spilling from his purse.</summary>
+        /// <summary>A soldier's guard broken: dazed, open to a big blow.</summary>
+        public void SoldierBroken(CbEnemy e)
+        {
+            hud.Popup(new Vector3(e.x, e.HitHeight + 1.5f, 0), "BREAK!", CbHud.PopStyle.Big);
+            hud.ImpactFlash(0.25f);
+            hitstop = Mathf.Max(hitstop, 0.08f);
+            shake = Mathf.Max(shake, 0.3f);
+            CbFx.Sfx("perfect", 0.7f);
+            var at = new Vector3(e.x, e.HitHeight + 0.4f, -0.4f);
+            CbVfx.Ring(at, CbFx.Hit * 0.5f, 2f, 0.3f);
+            CbFx.Spark(at, new Color(1f, 0.85f, 0.3f) * 2f, 16, 7, 0.35f, 0.45f, 3);
+            SoldierBreaks++;
+        }
+        /// <summary>How many soldiers' guards have been broken this run.</summary>
+        public int SoldierBreaks { get; private set; }
+
         public void SnapBroken(CbEnemy e)
         {
             hud.Banner("BREAK!");
@@ -1458,8 +1474,10 @@ namespace Cloudborne
             if (hero.empower && fromPlayer) { dmg *= 2; hero.empower = false; big = true; }
             // Sergeant Snap: broken, he takes half as much again; his gauge fills with Raja's blows, twice as fast while
             // his cleaver is stuck (CbEnemySnap)
-            if (e.Boss && e.Stunned) { dmg *= 1.5f; big = true; }
+            if (e.Stunned) { dmg *= 1.5f; big = true; }
             else if (e.Boss && fromPlayer) e.AddBreak(dmg / CbEnemy.SnapBreakHp * (e.Stuck ? 2f : 1f));
+            // a soldier's break gauge: his share of the blow, more for a counter or a blow returned
+            else if (fromPlayer) e.AddSoldierBreak(dmg / CbEnemy.SoldierBreakHp + (counter || breaker ? CbEnemy.SoldierBreakCounter : 0f));
             e.hp -= dmg;
             e.flash = 0.12f;
             if (fire) { e.burnT = 3; e.burnTick = 0.4f; }

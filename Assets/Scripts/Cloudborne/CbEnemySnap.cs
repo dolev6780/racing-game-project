@@ -46,10 +46,31 @@ namespace Cloudborne
         float ComboLength => furious ? FuryComboTime : ComboTime;
         float Rest(float s) => furious ? s * FuryRest : s;
 
+        // A soldier's break gauge too (the user's ideas, as in The Lost Crown): how much of his health in Raja's blows
+        // fills it, a counter's or a returned blow's share; full, he is dazed SoldierStunTime, taking half as much again
+        public const float SoldierBreakHp = 34f, SoldierBreakCounter = 0.4f, SoldierStunTime = 2.2f;
+
+        /// <summary>A soldier's break gauge filled by amount; full, he is dazed (BREAK!).</summary>
+        public void AddSoldierBreak(float amount)
+        {
+            if (Boss || dead || stunT > 0 || kind == Kind.Tusk || kind == Kind.Grak) return;
+            breakMeter = Mathf.Min(1f, breakMeter + amount / (1f + 0.35f * breaks));
+            // (knocked flying he is broken as he gets up, not in the air)
+            if (breakMeter < 1f || floored) return;
+            breaks++;
+            breakMeter = 0;
+            stunT = SoldierStunTime;
+            if (state == State.Atk || state == State.Hurt) { state = State.Move; t = 0; }
+            hitDone = true;
+            vx = 0;
+            g.SoldierBroken(this);
+        }
+
         /// <summary>Fills his break gauge by amount (a share of it); full, he is broken.</summary>
         public void AddBreak(float amount)
         {
-            if (!Boss || dead || stunT > 0) return;
+            if (!Boss) { AddSoldierBreak(amount); return; }
+            if (dead || stunT > 0) return;
             breakMeter = Mathf.Min(1f, breakMeter + amount / (1f + 0.35f * breaks));
             if (breakMeter >= 1f) Break();
         }
