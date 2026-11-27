@@ -50,6 +50,13 @@ namespace Cloudborne
         const float WaitRing = 1.3f;
         /// <summary>How long a soldier winds up his blow (the glint, the warning): struck then, it is a counter.</summary>
         public const float WindUp = 0.45f;
+        /// <summary>A heavy blow (red, through a guard - dodge it): how often, its longer wind-up, how much harder, how far it throws.</summary>
+        public const float HeavyChance = 0.25f, HeavyWind = 1.35f, HeavyDamage = 1.5f, HeavyKnock = 7f;
+        bool heavy;
+        /// <summary>Test hook: his next blow is a heavy one.</summary>
+        public bool forceHeavy;
+        /// <summary>Winding up or striking a heavy blow (red: a guard doesn't stop it).</summary>
+        public bool HeavyBlow => state == State.Atk && heavy;
         /// <summary>Winding up a blow at Raja (not yet struck): a blow on him now is a counter (CbGame.HurtEnemy).</summary>
         public bool WindingUp => state == State.Atk && !Boss && !throwing && t < WindUp && kind != Kind.Tusk && kind != Kind.Grak;
         /// <summary>Striking at Raja (counted against how many may at once).</summary>
@@ -754,13 +761,15 @@ namespace Cloudborne
                 }
                 case State.Atk:
                 {
-                    const float wind = WindUp;
+                    float wind = heavy ? WindUp * HeavyWind : WindUp;
                     if (t < wind)
                     {
-                        pose.twist = -0.8f; pose.sRx = 0.9f; pose.eR = -1.8f; pose.lean = -0.1f; pose.hLx = -0.4f; pose.kL = 0.5f; pose.bob = -0.08f;
-                        // the warning: a glint on the blade as he winds up (he blinked white every blow: the user)
-                        if (t <= dt && blade != null)
-                            CbFx.Spark(blade.position + new Vector3(0, 0, -0.3f), new Color(1f, 0.95f, 0.7f) * 2f, 5, 2.2f, 0.12f, 0.22f, 0);
+                        pose.twist = heavy ? -1.1f : -0.8f; pose.sRx = heavy ? 1.3f : 0.9f; pose.eR = -1.8f; pose.lean = heavy ? -0.25f : -0.1f; pose.hLx = -0.4f; pose.kL = 0.5f; pose.bob = -0.08f;
+                        // the warning: a glint on the blade as he winds up (he blinked white every blow: the user) - gold
+                        // for a blow to guard, red (and again as it comes) for one to dodge
+                        if ((t <= dt || heavy && t - dt < wind * 0.6f && t >= wind * 0.6f) && blade != null)
+                            CbFx.Spark(blade.position + new Vector3(0, 0, -0.3f), heavy ? new Color(1f, 0.15f, 0.1f) * 2.4f : new Color(1f, 0.85f, 0.35f) * 2f,
+                                heavy ? 9 : 5, 2.2f, 0.12f, 0.22f, 0);
                     }
                     else
                     {
@@ -771,7 +780,11 @@ namespace Cloudborne
                             float ddx = (hero.x - x) * facing;
                             // a raider's slash goes over a ducking Raja; the guard's shield push still hits him
                             bool ducked = kind == Kind.Hyena && hero.Ducking;
-                            if (ddx > -0.3f && ddx < reach + 0.4f && InReachUp(hero) && !ducked) hero.TakeHit(dmg, facing);
+                            if (ddx > -0.3f && ddx < reach + 0.4f && InReachUp(hero) && !ducked)
+                            {
+                                if (heavy) hero.TakeHit(dmg * HeavyDamage, facing, unblockable: true, knock: HeavyKnock);
+                                else hero.TakeHit(dmg, facing);
+                            }
                             CbFx.Sfx("swing", 0.5f);
                         }
                     }
@@ -868,8 +881,12 @@ namespace Cloudborne
                         && InReachUp(hero) && g.MayStrike(this))
                     {
                         state = State.Atk; t = 0; hitDone = false; vx = 0; backT = 0; charging = false; throwing = false;
+                        // now and then a heavy blow (the user: ideas from The Lost Crown): red, it goes through a guard -
+                        // only a dodge gets out of it; the usual blow gold, to be guarded or returned
+                        heavy = forceHeavy || Random.value < HeavyChance;
+                        forceHeavy = false;
                         // the warning over his head as he winds up (the glint on his blade alone was easy to miss)
-                        g.hud.Popup(new Vector3(x, HitHeight + 1.15f, 0), "!", CbHud.PopStyle.Hurt);
+                        g.hud.Popup(new Vector3(x, HitHeight + 1.15f, 0), heavy ? "!!" : "!", heavy ? CbHud.PopStyle.Hurt : CbHud.PopStyle.Big);
                     }
                     if (Mathf.Abs(vx) > 0.4f)
                     {

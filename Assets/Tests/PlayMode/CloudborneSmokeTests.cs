@@ -2288,6 +2288,40 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator ARedHeavyBlowGoesThroughTheGuard()
+        {
+            // the user's ideas (The Lost Crown): a gold blow is guarded, a red heavy one only dodged
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.Teleport(14f);
+            yield return Frames(2);
+            var hero = game.hero;
+            float waited = 0;
+            while (game.enemies.Count < 1 && waited < 6f) { waited += Time.deltaTime; yield return null; }
+            Assert.AreEqual(1, game.enemies.Count, "The first post sent out no soldier");
+            var e = game.enemies[0];
+            e.hp = 999f;
+            e.forceHeavy = true;
+            hero.hp = hero.MaxHp;
+            float hp = hero.hp;
+            // guard up toward him, waiting for his blow
+            bool sawHeavy = false;
+            waited = 0;
+            while (hero.hp >= hp && waited < 8f)
+            {
+                game.TestInput = i => { i.guard = true; i.x = 0; };
+                hero.facing = e.x >= hero.x ? 1 : -1;
+                if (e.HeavyBlow) sawHeavy = true;
+                waited += Time.deltaTime;
+                yield return null;
+            }
+            game.TestInput = null;
+            Assert.IsTrue(sawHeavy, "The soldier never swung a heavy blow");
+            Assert.Less(hero.hp, hp, "The red heavy blow was stopped by the guard");
+        }
+
+        [UnityTest]
         public IEnumerator ABigBlowKnocksASoldierDownAndHeTakesHisTimeGettingUp()
         {
             // the user: struck down, they were up again at once and straight back into the fight
