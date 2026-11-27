@@ -2288,6 +2288,29 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator FourGoldenLettersAreHiddenInTheJungle()
+        {
+            // the user's ideas (as Kirby's and Donkey Kong's hidden letters): R-A-J-A, four golden letters in hard places
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            foreach (var n in CbItems.LetterModels)
+                Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Items/Letters/{n}"), $"The letter model {n} is missing");
+            for (int i = 0; i < 4; i++) Assert.IsNotNull(GameObject.Find("letter" + i), $"Letter {CbItems.LetterWord[i]} ({i}) is not in the stage");
+            Assert.AreEqual(0, game.LettersFound);
+            // reached, it is taken: a banner with the word, the found ones lit
+            var at = CbItems.WaysLetters[1];
+            game.hero.inv = 999f;
+            game.Teleport(at.x);
+            game.hero.y = at.y - 0.6f; game.hero.vy = 0; game.hero.state = CbHero.State.Air;
+            for (float w = 0; w < 1f && game.LettersFound == 0; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(1, game.LettersFound, "Reaching a letter did not take it");
+            Assert.AreEqual(2, game.Letters, "The wrong letter was taken");
+        }
+
+        [UnityTest]
         public IEnumerator ADiveKickOntoThornsBouncesOffThem()
         {
             // the user's ideas (the pogo): diving onto thorns springs him off them, unhurt, his double jump back

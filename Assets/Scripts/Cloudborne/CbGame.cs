@@ -641,7 +641,7 @@ namespace Cloudborne
             posts.Clear();
             foreach (var (x, kind, range, asleep) in PostPlan)
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
-            sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; Secrets = 0; ResetRuns(); HasKey = false; hurtOnce = false; lastHp = hero.hp;
+            sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; Letters = 0; Secrets = 0; ResetRuns(); HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false; FireAwakened = false; bossIntroSeen = false;
             // (stage 1-3 has no boss: Baba's trials, then the way on)
             if (CbStage.Grove) bossStarted = bossDone = true;
@@ -1223,6 +1223,21 @@ namespace Cloudborne
             CbFx.Sfx("perfect", 0.8f);
         }
 
+        /// <summary>The letters R-A-J-A found this run (bits 0-3).</summary>
+        public int Letters { get; private set; }
+        public int LettersFound { get { int n = 0; for (int i = 0; i < 4; i++) if ((Letters & (1 << i)) != 0) n++; return n; } }
+
+        /// <summary>A golden letter found (CbItems): the word with the found ones lit.</summary>
+        public void LetterFound(int which)
+        {
+            Letters |= 1 << which;
+            var word = new System.Text.StringBuilder();
+            for (int i = 0; i < 4; i++)
+                word.Append(i > 0 ? " " : "").Append((Letters & (1 << i)) != 0 ? CbItems.LetterWord[i].ToString() : "_");
+            hud.Banner(LettersFound == 4 ? "R A J A - ALL FOUR!" : word.ToString(), true);
+            CbFx.Sfx("perfect", 0.7f);
+        }
+
         /// <summary>A tiger token found (CbItems).</summary>
         public void TokenFound()
         {
@@ -1238,7 +1253,7 @@ namespace Cloudborne
             CbSave.StageResult(CbStage.Id, won, score, time);
             // stars: cleared, every tiger token, and under seven minutes; a badge for no hit taken
             int stars = (won ? 1 : 0) + (Tokens >= 3 ? 1 : 0) + (won && time < 420f ? 1 : 0);
-            hud.ShowResult(won, score, maxCombo, time, Tokens, level.CagesFreed, stars, won && !hurtOnce);
+            hud.ShowResult(won, score, maxCombo, time, Tokens, level.CagesFreed, stars, won && !hurtOnce, LettersFound);
         }
 
         void UpdateFlow(float dt)

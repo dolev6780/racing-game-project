@@ -12,7 +12,7 @@ namespace Cloudborne
     /// </summary>
     public class CbItems
     {
-        public enum Kind { Mango, KiCrystal, GoldenFruit, Coin, Scroll, Token, Key, Treasure }
+        public enum Kind { Mango, KiCrystal, GoldenFruit, Coin, Scroll, Token, Key, Treasure, Letter }
 
         class Item
         {
@@ -21,6 +21,8 @@ namespace Cloudborne
             public Vector3 pos, vel;
             public float phase, age;
             public bool resting;
+            // a letter of R-A-J-A: which (0-3)
+            public int letter;
         }
 
         class Crate
@@ -44,14 +46,29 @@ namespace Cloudborne
         const float CrateBody = 0.445f, CrateTop = 0.95f;
         // a tiger token is a big coin glowing orange
         // (a secret's treasure: a great gold coin)
-        static readonly string[] ModelNames = { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll", "Coin", "Key", "Coin" };
+        static readonly string[] ModelNames = { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll", "Coin", "Key", "Coin", "Letters" };
         static readonly Color[] Glows =
         {
             new Color(1f, 0.55f, 0.25f, 0.5f), new Color(1f, 0.6f, 0.15f, 0.6f), new Color(1f, 0.85f, 0.3f, 0.7f),
             new Color(1f, 0.8f, 0.25f, 0.45f), new Color(1f, 0.35f, 0.25f, 0.6f), new Color(1f, 0.5f, 0.1f, 0.8f), new Color(1f, 0.9f, 0.4f, 0.7f),
-            new Color(1f, 0.92f, 0.45f, 0.9f),
+            new Color(1f, 0.92f, 0.45f, 0.9f), new Color(0.6f, 1f, 0.7f, 0.8f),
         };
-        static readonly float[] Sizes = { 0.5f, 0.55f, 0.55f, 0.45f, 0.65f, 0.8f, 0.6f, 1f };
+        static readonly float[] Sizes = { 0.5f, 0.55f, 0.55f, 0.45f, 0.65f, 0.8f, 0.6f, 1f, 0.75f };
+        // The letters R-A-J-A (the user's ideas list: four golden letters hidden in each stage, in places that take skill
+        // to reach - drawn in Canva, approved, built by Meshy), one model each; where they lie in stage 1-1
+        public static readonly string[] LetterModels = { "LetterR", "LetterA", "LetterJ", "LetterA2" };
+        public const string LetterWord = "RAJA";
+        public static readonly Vector3[] WaysLetters =
+        {
+            // R: high over the temple's thorns - only the pogo off them reaches it
+            new Vector3(246f, 6.3f, 0),
+            // A: over the rock in the long river, a double jump from its top
+            new Vector3(89f, 4.6f, 0),
+            // J: up over the canopy's bar, from the ledge before it
+            new Vector3(381.9f, 12.9f, 0),
+            // A: over the jut at the gorge's top, the water rising under him
+            new Vector3(147.7f, 13.1f, 0),
+        };
         /// <summary>What a secret's treasure is worth: points, and coins.</summary>
         public const int TreasureScore = 1000, TreasureCoins = 10;
 
@@ -299,6 +316,8 @@ namespace Cloudborne
             for (float x = 216.5f; x < 223f; x += 1.3f) C(x, 3.6f);
             for (int i = 0; i < 4; i++) C(235.5f + i * 0.6f, 2f + i * 1.3f);
             Spawn(Kind.Token, new Vector3(238f, 7.3f, 0), resting: true);
+            // the letters R-A-J-A
+            for (int i = 0; i < WaysLetters.Length; i++) SpawnLetter(i, WaysLetters[i]);
             // the temple of traps
             foreach (var x in new[] { 249f, 253f, 258.5f, 260f, 263.5f, 273.5f, 279.6f }) C(x, 1.2f);
             Spawn(Kind.Coin, new Vector3(255.2f, 2.2f, 0), resting: true);
@@ -337,14 +356,22 @@ namespace Cloudborne
 
         // ---------- items ----------
 
+        /// <summary>A golden letter of R-A-J-A (which: 0-3) floating at pos.</summary>
+        public void SpawnLetter(int which, Vector3 pos)
+        {
+            Spawn(Kind.Letter, pos, true, which);
+        }
+
         /// <summary>Puts an item at pos. A dropped one pops up and falls to the path; a resting one floats where it is.</summary>
-        public void Spawn(Kind kind, Vector3 pos, bool resting = false)
+        public void Spawn(Kind kind, Vector3 pos, bool resting = false, int letter = 0)
         {
             string name = ModelNames[(int)kind];
-            var t = CbArt.Joint(root, pos.x, pos.y, pos.z, name.ToLowerInvariant());
+            var t = CbArt.Joint(root, pos.x, pos.y, pos.z, kind == Kind.Letter ? "letter" + letter : name.ToLowerInvariant());
             // (stage 1-4's tokens are golden lotuses)
             bool lotus = kind == Kind.Token && CbStage.River;
-            var model = CbArt.Prop(lotus ? "Cloudborne/River/Lotus/Lotus" : $"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
+            var model = CbArt.Prop(lotus ? "Cloudborne/River/Lotus/Lotus" : kind == Kind.Letter ? $"Cloudborne/Items/Letters/{LetterModels[letter]}" : $"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
+            // the letter models are a metre tall: as tall as Raja's head
+            if (kind == Kind.Letter && model != null) model.localScale *= 0.85f;
             if (kind == Kind.Token && model != null && !lotus) model.localScale *= 1.8f;
             if (kind == Kind.Treasure && model != null) model.localScale *= 2.4f;
             // the key model lies flat: stood up, its face to the camera
@@ -365,7 +392,7 @@ namespace Cloudborne
             if (!glowMats.TryGetValue(kind, out var gm)) glowMats[kind] = gm = CbArt.Glow(Glows[(int)kind] * 1.6f, CbArt.Soft);
             var glow = CbArt.Part(CbMesh.Quad, gm, t, new Vector3(0, 0, 0.2f), Vector3.one * Sizes[(int)kind] * 2.4f, shadows: false);
             var vel = resting ? Vector3.zero : new Vector3(Random.Range(-2.5f, 2.5f), Random.Range(5f, 7f), 0);
-            items.Add(new Item { kind = kind, t = t, glow = glow, pos = pos, vel = vel, resting = resting, phase = Random.Range(0f, 6f) });
+            items.Add(new Item { kind = kind, t = t, glow = glow, pos = pos, vel = vel, resting = resting, phase = Random.Range(0f, 6f), letter = letter });
         }
 
         /// <summary>What a beaten hyena leaves: always coins, sometimes a mango or a ki crystal.</summary>
@@ -575,6 +602,12 @@ namespace Cloudborne
                     PlayerPrefs.SetInt(BankKey, PlayerPrefs.GetInt(BankKey, 0) + 1);
                     CbFx.Spark(at, CbFx.Flame, 5, 2, 0.25f, 0.3f, -2);
                     CbVfx.Sparkle(at, new Color(1f, 0.9f, 0.5f) * 1.4f, 0.8f, 0.25f);
+                    break;
+                case Kind.Letter:
+                    g.LetterFound(it.letter);
+                    g.score += 750;
+                    CbVfx.Ring(at, new Color(0.5f, 1f, 0.6f) * 0.6f, 2.2f, 0.45f);
+                    CbFx.Spark(at, new Color(1f, 0.85f, 0.3f) * 2f, 24, 5, 0.4f, 0.6f, -3);
                     break;
                 case Kind.Token:
                     g.TokenFound();

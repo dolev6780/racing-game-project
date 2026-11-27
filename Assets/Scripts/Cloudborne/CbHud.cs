@@ -430,9 +430,10 @@ namespace Cloudborne
         public static bool ShowPads => CbSave.Pads == 1 || (CbSave.Pads == 0 && (Application.isMobilePlatform || Application.isEditor));
 
         /// <summary>The results: score, combo, time; tiger tokens, friends freed, stars (and a badge for no hit taken).</summary>
-        public void ShowResult(bool won, int score, int maxCombo, float time, int tokens = 0, int friends = 0, int stars = 0, bool flawless = false)
+        public void ShowResult(bool won, int score, int maxCombo, float time, int tokens = 0, int friends = 0, int stars = 0, bool flawless = false, int letters = 0)
         {
             res = (won, score, maxCombo, time, tokens, friends, stars, flawless);
+            resLetters = letters;
             resultTitle.text = won ? "STAGE CLEAR" : "DEFEATED";
             Rank = won ? RankOf(stars, flawless) : "";
             resultRank.text = Rank;
@@ -462,6 +463,7 @@ namespace Cloudborne
         Outline rankOutline;
         (bool won, int score, int combo, float time, int tokens, int friends, int stars, bool flawless) res;
         float resultT = -1;
+        int resLetters;
         const float StarsAt = 0.3f, StarGap = 0.2f, CountFrom = 0.15f, CountTime = 0.9f, RankAt = 1.3f;
 
         /// <summary>The results have finished coming in (the rank is down).</summary>
@@ -496,7 +498,7 @@ namespace Cloudborne
                 float c = Ease((t - CountFrom) / CountTime);
                 float time = res.time * c;
                 resultStats.text = $"SCORE {Mathf.RoundToInt(res.score * c):N0}    ·    MAX COMBO {Mathf.RoundToInt(res.combo * c)}    ·    TIME {(int)(time / 60)}:{(int)(time % 60):00}\n" +
-                    $"{(CbStage.River ? "GOLDEN LOTUSES" : "TIGER TOKENS")} {res.tokens}/3    ·    FRIENDS FREED {res.friends}/3" + (res.flawless ? "    ·    NO HIT TAKEN!" : "");
+                    $"{(CbStage.River ? "GOLDEN LOTUSES" : "TIGER TOKENS")} {res.tokens}/3    ·    FRIENDS FREED {res.friends}/3" + (CbStage.Jungle ? $"    ·    R-A-J-A {resLetters}/4" : "") + (res.flawless ? "    ·    NO HIT TAKEN!" : "");
             }
             // the rank, stamped in with a thud
             float r = (t - RankAt) / 0.14f;
