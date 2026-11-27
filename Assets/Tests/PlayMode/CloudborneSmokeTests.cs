@@ -2212,12 +2212,29 @@ namespace Cloudborne.Tests
                 ("gorge_rock_low", 141.9f, 2.0f), ("gorge_rock", 145.1f, 5.4f) });
             // hanging from the shrine ledge's end, from the side (Meshy's "Hang and Climb", the user's choice), then a
             // moment into the haul up when the stick is pushed toward it
-            float top = CbLevel.ShrineLedgeTop, edge = CbLevel.ShrineLedgeX;
-            while (edge > CbLevel.ShrineLedgeX - 3f && game.level.SupportAt(edge - 0.05f, top + 0.5f) > top - 0.1f) edge -= 0.05f;
+            // (the edge as the game finds it: a guessed one didn't hold, and he dropped to the ground)
+            Assert.IsTrue(game.level.FindEdge(CbLevel.ShrineLedgeX - 1.6f, CbLevel.ShrineLedgeTop - CbHero.HangReach, 1, out float edge, out float top),
+                "No edge found at the shrine ledge's end");
             game.Teleport(edge - 1f);
             game.hero.TestHang(1, edge, top);
             yield return TakePictures(new[] { ("hang_pose", float.NaN, 0f) }, 1f);
             Assert.AreEqual(CbHero.State.Hang, game.hero.state, "He didn't stay hanging from the ledge's end");
+            // arms straight up over his head, his palms on the edge, his head under it (the user)
+            Transform Bone(string end)
+            {
+                foreach (var b in game.hero.model.root.GetComponentsInChildren<Transform>())
+                    if (b.name.EndsWith(end)) return b;
+                return null;
+            }
+            var head = Bone("head_end"); var wristL = Bone("LeftHand"); var wristR = Bone("RightHand");
+            var armL = Bone("LeftArm"); var foreL = Bone("LeftForeArm");
+            Assert.IsNotNull(head); Assert.IsNotNull(wristL); Assert.IsNotNull(armL); Assert.IsNotNull(foreL);
+            float reach = Vector3.Distance(armL.position, foreL.position) + Vector3.Distance(foreL.position, wristL.position);
+            float straight = Vector3.Distance(armL.position, wristL.position) / reach;
+            Debug.Log($"HANG pose top {top:0.00}: crown {head.position.y:0.00}, wrists {wristL.position.y:0.00}/{wristR.position.y:0.00}, arm straight {straight:0.00}");
+            Assert.Less(head.position.y, top + 0.02f, "Hanging, his head is over the edge");
+            Assert.Greater(Mathf.Min(wristL.position.y, wristR.position.y), head.position.y - 0.05f, "Hanging, his hands are not up over his head");
+            Assert.Greater(straight, 0.9f, "Hanging, his arms are folded, not straight up");
             game.TestInput = i => i.x = 1f;
             yield return TakePictures(new[] { ("hang_pull", float.NaN, 0f) }, 0.2f);
             game.TestInput = null;

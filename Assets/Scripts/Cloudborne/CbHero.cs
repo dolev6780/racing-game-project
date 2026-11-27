@@ -103,11 +103,17 @@ namespace Cloudborne
         /// <summary>Test hook: he takes hold of the edge at (edgeX, top), facing dir, as if he had caught it.</summary>
         public void TestHang(int dir, float edgeX, float top) => StartHang(dir, edgeX, top);
 
-        /// <summary>Hanging from a ledge with nothing under it: his feet that far under the edge, his middle that far out.</summary>
-        public const float FreeHangReach = 1.68f, FreeHangOff = 0.16f;
+        /// <summary>
+        /// Hanging: his feet that far under the edge, his middle that far out. (The user, twice: his head stood over the
+        /// shelf, his arms folded down to it - the hang held him too high for the clip's arms, so the hands' IK bent them.)
+        /// As "Hang and Climb" holds him, his wrists are 1.76 m over his soles: hung that far and a palm's length more,
+        /// his arms are straight up over his head (1.78: a touch short of full stretch, so the palms reach the edge), his palms on the edge, his head under it.
+        /// </summary>
+        public const float FreeHangReach = 1.78f, FreeHangOff = 0.16f;
         // hanging against a wall: his middle that far out from its face (his legs hang straight down in front of it)
         const float BracedOff = 0.24f;
         bool freeHang;
+        float catchX, catchY;
         /// <summary>Whether he hangs at arm's length, his legs straight (nothing under the edge to put his feet on).</summary>
         public bool FreeHanging => state == State.Hang && freeHang;
         // (the hang shown a moment before he pulls himself up - HangHold - hands up over his head, and the pull-up
@@ -672,7 +678,9 @@ namespace Cloudborne
             // every hang a still one, at arm's length, arms straight (Bar Hang Idle): the catch and hang of "Jump and Grab
             // Wall" stretched his arms, bent them and drew his knees up - it looked like climbing, not hanging (the user)
             hangX = edgeX - dir * (freeHang ? FreeHangOff : BracedOff); hangY = top - FreeHangReach;
-            x = hangX; y = hangY; vx = vy = 0; air = true; jumps = 0; airDashed = false; airHits = 0; flipT = 0;
+            // (caught higher, his hands reaching for it: he drops into the hang over CatchTime, not at once)
+            catchX = x; catchY = Mathf.Max(y, hangY);
+            vx = vy = 0; air = true; jumps = 0; airDashed = false; airHits = 0; flipT = 0;
             CbFx.Spark(new Vector3(edgeX, top + 0.05f, -0.4f), CbFx.Dust, 6, 2, 0.35f, 0.35f, 3);
             CbFx.Sfx("block", 0.4f);
         }
@@ -680,7 +688,8 @@ namespace Cloudborne
         /// <summary>Hanging: up, a jump or still pressing towards the edge pulls him up; down or away lets go.</summary>
         void UpdateHang(ref Pose pose, CbInput input)
         {
-            x = hangX; y = hangY; vx = vy = 0;
+            float settle = Mathf.SmoothStep(0f, 1f, t / CatchTime);
+            x = Mathf.Lerp(catchX, hangX, settle); y = Mathf.Lerp(catchY, hangY, settle); vx = vy = 0;
             if (freeHang) { pose.sLx = -2.9f; pose.sRx = -2.9f; pose.eL = -0.1f; pose.eR = -0.1f; pose.hLx = -0.1f; pose.kL = 0.1f; pose.hRx = 0.05f; pose.kR = 0.15f; }
             else { pose.sLx = -2.9f; pose.sRx = -2.9f; pose.eL = -0.2f; pose.eR = -0.2f; pose.hLx = -0.6f; pose.kL = 0.9f; pose.hRx = -0.4f; pose.kR = 0.7f; }
             // a crumbling ledge gave way under his hands

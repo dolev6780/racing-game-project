@@ -171,7 +171,16 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     instead the tree is welded and smooth-shaded (`meshy_prop.py --smooth 75`): rounder trunk and branch. The side hang still looked the same:
     it now holds the start of `Hang_and_Climb_Rght/Left` (446/447, the user's choice: hang, climb on press) and the
     haul up plays its pull (0.07-0.33), then the mantle. The gorge's ledges are natural rocks (`CliffRock`,
-    `CrackedRock` for crumbling ones; `GorgeRockThick`). Pictures gorge_rock*, hang_pose, hang_pull. Not yet run.
+    `CrackedRock` for crumbling ones; `GorgeRockThick`). Pictures gorge_rock*, hang_pose, hang_pull.
+  - Run 299 (1299f26): 85/87. The touch test failed at the gorge's rough rock ledges (166.4) and the summit (151.5);
+    the hang picture test let go (a guessed edge: it now asks `FindEdge`). The user's screenshots (twice): hanging,
+    his head over the shelf and his arms folded down to it. Measured in Blender: in Hang and Climb his wrists are
+    1.76 m over his soles, but he hung 1.68 under the edge, so the hand IK bent his arms. Now `FreeHangReach` 1.78,
+    and he eases down into it over `CatchTime` (caught at `HangReach` 1.43). The test measures his bones: crown under
+    the edge, wrists over his head, arms straight (>0.9 of their length).
+  - Gorge rocks: the user rejected two Canva sheets (not climbable-looking), approved a third (MAHcIY-kKn4: a flat
+    grassy platform, stone stairs, a ledge jutting from a cliff with a lip, a wall with three shelves, a stepping stone).
+    Meshy: RockPlatform, RockStairs, RockLedge, RockShelves, RockStep (150 credits, 428 left). Not yet in the game.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body
