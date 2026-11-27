@@ -2187,7 +2187,23 @@ namespace Cloudborne.Tests
                 hung++;
             }
             Assert.GreaterOrEqual(hung, 8, "Too few of the jungle's ledges hang from branches");
-            Assert.IsNotNull(GameObject.Find("hangBranch"), "No branch for the platforms to hang from");
+            // the branches are trees' standing behind the path (the user: a tree in the background whose branch comes out
+            // over the path), out of the water, not touched by anything in the game
+            Assert.IsNotNull(Resources.Load<GameObject>("Cloudborne/Jungle/Ways/BranchTree/BranchTree"), "The BranchTree model is missing");
+            int trees = 0;
+            foreach (Transform t in game.level.Root)
+            {
+                if (t.name != "branchTree") continue;
+                trees++;
+                Assert.Greater(t.position.z, 2f, $"The tree at x {t.position.x:0.0} stands on the path");
+                Assert.IsFalse(CbLevel.InWater(t.position.x, 1f), $"The tree at x {t.position.x:0.0} stands in a stream");
+                Assert.AreEqual(0, t.GetComponentsInChildren<Collider>().Length, $"The tree at x {t.position.x:0.0} is solid");
+                Debug.Log($"HANG tree x {t.position.x:0.00} z {t.position.z:0.00} yaw {t.GetChild(0).localEulerAngles.y:0} tall {t.GetComponentInChildren<Renderer>().bounds.size.y:0.0}");
+            }
+            int own = 0;
+            foreach (Transform t in game.level.Root) if (t.Find("hangBranch") != null) own++;
+            Debug.Log($"HANG {trees} trees, {own} platforms on a branch of their own");
+            Assert.GreaterOrEqual(trees, 4, "Too few trees hold the platforms");
             yield return TakePictures(new[] { ("hang_shrine", CbLevel.ShrineLedgeX, CbLevel.ShrineLedgeTop), ("hang_shrine_below", CbLevel.ShrineLedgeX - 2.5f, 0f),
                 ("hang_238", 238f, 6.2f), ("hang_canopy", 380.6f, 9.2f), ("hang_waterfall", 401f, 2.6f), ("hang_waterfall_top", 401.2f, 7f) });
         }

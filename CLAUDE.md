@@ -151,6 +151,15 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
     `Jungle/Ways`, with LOD1s. The platforms' rope stubs were cut off at the knots (the ropes are cylinders up to the
     branch); a rope with a platform or another's branch over it is tied to that (the waterfall's stacked ledges).
     RuinLedge is no longer used. Test `ZzzLedgesHangOnRopesFromBranches` (pictures hang_*). Run 296: passes.
+  - The user (run 296's pictures): not what they meant - a beautiful TREE in the background whose branch comes out
+    over the path and holds the platform, the background blending into the path. Canva drawing approved
+    (MAHcHzvuEsE; its swing painted out with PIL), Meshy `BranchTree` (Jungle/Ways, LOD1). `BranchTree()` in
+    `CbLevelClimb`: per platform with a free rope, a tree TreeZ 4 back, depth squeezed `TreeSquash` 0.35, as tall as
+    puts its branch `BranchOver` 3 m over the platform, on a dry side, turned (up to 40 deg) so the branch reaches the
+    platform's back; the model's branch direction is unknown, so of two yaws the one whose branch rays from both knots
+    meet is kept (temporary MeshColliders, destroyed after); a branch may not pass within `HeadRoom` over another
+    platform. Ropes go from the knots to where the rays meet the branch (slanted a little in z). No tree fits: the
+    old MossBranch. Local, not yet run.
 - **Performance (real numbers, run 286):** 1-1 draws 63k-137k triangles, the gorge 220k (its CliffRock pieces 115k),
   1-2 37k-121k (TreePlatform up to 60k). Fine for a phone; the gorge's rocks are the first to lighten if needed.
 - **Hangs (the user, after run 288's APK):** hanging looked like climbing (hands going up, arms stretching, body

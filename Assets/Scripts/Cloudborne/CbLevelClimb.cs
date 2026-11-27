@@ -31,10 +31,17 @@ namespace Cloudborne
         // ---------- the hanging platforms ----------
 
         // how far over its top the branch it hangs from lies; the ropes' thickness
-        const float BranchOver = 3.2f, HangRope = 0.034f;
-        // the branch: as long as so many times the platform's width; its size as parts of its length (as drawn); where
-        // its log's middle lies, as a part of its height (the ropes end in it)
+        const float BranchOver = 3f, HangRope = 0.034f;
+        // the fallback branch (when no tree fits): as long as so many times the platform's width; its size as parts of
+        // its length (as drawn); where its log's middle lies, as a part of its height (the ropes end in it)
         const float BranchLong = 1.35f, BranchTall = 0.39f, BranchDeep = 0.31f, BranchCore = 0.42f;
+        // The tree it hangs from (the user: a beautiful tree in the background whose branch comes out over the path and
+        // holds the platform - drawn in Canva, approved, built by Meshy). As drawn: its width and depth as parts of its
+        // height; its depth squeezed (TreeSquash: its roots spread far to the front and back); its branch's underside
+        // TreeBranchAt of its height up, the stretch the ropes hang from TreeBranchMid of its width from its middle.
+        // It stands TreeZ back, turned so its branch reaches forward and over the platform's back.
+        const float TreeWide = 1.139f, TreeDeep = 0.785f, TreeSquash = 0.35f, TreeBranchAt = 0.49f, TreeBranchMid = 0.39f,
+            TreeZ = 4f, TreeSink = 0.25f, TreeMaxTurn = 40f;
 
         /// <summary>A platform hanging in the jungle: where it is (in the level), its knots, where its ropes go up from.</summary>
         class Hanger { public Transform t; public float x0, x1, bottom, top, deep; public Vector3 knotL, knotR; public bool branch; }
@@ -43,7 +50,8 @@ namespace Cloudborne
 
         /// <summary>
         /// A platform of planks lashed with rope, its top the ledge; its two ropes, knotted at its back corners, go up to
-        /// a branch (HangPlatforms, once the stage is built: a platform over another one's rope takes that rope).
+        /// the branch of a tree behind the path (HangPlatforms, once the stage is built: a platform over another one's
+        /// rope takes that rope).
         /// </summary>
         bool HangingPlatform(Transform t, float x, float width, float top)
         {
@@ -73,9 +81,10 @@ namespace Cloudborne
         }
 
         /// <summary>
-        /// The hanging platforms' ropes and branches: each rope goes straight up from its knot to the first thing over
-        /// it - another platform's underside or another's branch (the waterfall's ledges, one over the other), else the
-        /// branch over its own platform. A platform whose ropes both end under others' has no branch of its own.
+        /// The hanging platforms' ropes, trees and branches. A rope with another platform over it is tied under that one
+        /// (the waterfall's ledges, one over the other); a platform with a rope free of them gets a tree behind the path,
+        /// its branch over the platform, the ropes tied to the branch where the rays from the knots meet it. Where no
+        /// tree's branch can reach, a mossy branch of its own over it (as before).
         /// </summary>
         void HangPlatforms()
         {
@@ -87,41 +96,146 @@ namespace Cloudborne
             }
             // a rope this close to a platform over it is tied under it (not brushing past its end)
             const float Near = 0.15f;
-            float Len(Hanger h) => (h.x1 - h.x0) * BranchLong;
-            float Tie(Hanger h) => h.top + BranchOver + Len(h) * BranchTall * BranchCore;
-            // what is over a knot: the lowest platform (its underside), or with branches known, the lowest branch
-            float Over(Hanger h, Vector3 k, bool branches)
+            // the platform over a knot (its underside), or float.MaxValue
+            float Under(Hanger h, Vector3 k)
             {
-                float end = branches ? float.MaxValue : Tie(h);
+                float end = float.MaxValue;
                 foreach (var o in hangers)
-                {
-                    if (o == h) continue;
-                    if (o.bottom > k.y + 0.3f && o.bottom < end && k.x > o.x0 - Near && k.x < o.x1 + Near) end = o.bottom + 0.06f;
-                    if (!branches || !o.branch) continue;
-                    float half = Len(o) / 2 - 0.15f, mid = (o.x0 + o.x1) / 2;
-                    if (Tie(o) > k.y + 0.3f && Tie(o) < end && Mathf.Abs(k.x - mid) < half) end = Tie(o);
-                }
-                return branches && h.branch ? Mathf.Min(end, Tie(h)) : end;
+                    if (o != h && o.bottom > k.y + 0.3f && o.bottom < end && k.x > o.x0 - Near && k.x < o.x1 + Near) end = o.bottom + 0.06f;
+                return end;
             }
-            // first which have branches of their own (a rope with nothing over it), then the ropes
-            foreach (var h in hangers) h.branch = Over(h, h.knotL, false) >= Tie(h) - 0.01f || Over(h, h.knotR, false) >= Tie(h) - 0.01f;
+            var treeSolids = new List<Collider>();
+            foreach (var h in hangers)
+            {
+                h.branch = Under(h, h.knotL) == float.MaxValue || Under(h, h.knotR) == float.MaxValue;
+                if (h.branch && BranchTree(h, treeSolids)) h.branch = false;
+            }
+            // (trees first: a rope under another's tree's branch is tied to that)
             foreach (var h in hangers)
             {
                 foreach (var k in new[] { h.knotL, h.knotR })
                 {
-                    float end = Over(h, k, true);
-                    // (in the platform's joint, as its ledge's)
-                    var from = k - h.t.localPosition;
-                    var rope = CbArt.Cylinder(hangRopeMat, h.t, new Vector3(from.x, (from.y + end - h.t.localPosition.y) / 2, from.z), HangRope, end - k.y);
-                    rope.name = "hangRope";
+                    float under = Under(h, k);
+                    Vector3 end;
+                    if (under != float.MaxValue) end = new Vector3(k.x, under, k.z);
+                    else if (!FindBranch(k, treeSolids, out end))
+                    {
+                        if (!h.branch) { h.branch = true; }
+                        end = new Vector3(k.x, h.top + BranchOver + (h.x1 - h.x0) * BranchLong * BranchTall * BranchCore, k.z);
+                    }
+                    HangRopeBetween(h.t, k, end);
                 }
                 if (!h.branch) continue;
-                float len = Len(h);
+                // no tree's branch over it: a branch of its own
+                float len = (h.x1 - h.x0) * BranchLong;
                 var at = new Vector3((h.x0 + h.x1) / 2, h.top + BranchOver, h.knotL.z) - h.t.localPosition;
                 var holder = CbArt.Joint(h.t, at.x, at.y, at.z, "hangBranch");
                 if (Model("MossBranch", holder, new Vector3(len, len * BranchTall, len * BranchDeep), 180f) == null)
                     CbArt.Cylinder(Wood, holder, new Vector3(0, len * BranchTall * BranchCore, 0), 0.12f, len, Quaternion.Euler(0, 0, 90));
             }
+            // the trees only drawn: nothing in the game touches them
+            foreach (var c in treeSolids) if (c != null) Object.DestroyImmediate(c);
+        }
+
+        /// <summary>A rope from a knot (in the level) up to where it is tied, in the platform's joint.</summary>
+        void HangRopeBetween(Transform t, Vector3 from, Vector3 to)
+        {
+            var d = to - from;
+            var rope = CbArt.Cylinder(hangRopeMat, t, (from + to) / 2 - t.localPosition, HangRope, d.magnitude, Quaternion.FromToRotation(Vector3.up, d.normalized));
+            rope.name = "hangRope";
+        }
+
+        /// <summary>Where a rope from knot k meets a tree's branch over it: straight up, or as little to the front or back
+        /// as it takes (the branch crosses the path at a slant).</summary>
+        bool FindBranch(Vector3 k, List<Collider> solids, out Vector3 at)
+        {
+            at = default;
+            if (solids.Count == 0) return false;
+            var from0 = root.TransformPoint(k + Vector3.up * 0.4f);
+            for (int i = 0; i <= 16; i++)
+            {
+                float dz = (i % 2 == 0 ? 1 : -1) * ((i + 1) / 2) * 0.1f;
+                var from = from0 + Vector3.forward * dz;
+                float best = float.MaxValue;
+                foreach (var c in solids)
+                    if (c != null && c.Raycast(new Ray(from, Vector3.up), out var hit, BranchOver * 2.5f) && hit.distance < best)
+                    {
+                        best = hit.distance;
+                        // a little into the branch
+                        at = root.InverseTransformPoint(hit.point + Vector3.up * 0.08f);
+                    }
+                if (best < float.MaxValue && at.y > k.y + 1.2f) return true;
+            }
+            return false;
+        }
+
+        /// <summary>Whether a tree's branch passes through the room over another platform (he would stand in it).</summary>
+        bool OverAnother(Hanger h, List<Collider> cs)
+        {
+            foreach (var o in hangers)
+            {
+                if (o == h) continue;
+                for (float x = o.x0; x <= o.x1 + 0.01f; x += (o.x1 - o.x0) / 4f)
+                    for (float z = -0.4f; z <= 0.8f; z += 0.4f)
+                    {
+                        var from = root.TransformPoint(new Vector3(x, o.top + 0.1f, z));
+                        foreach (var c in cs)
+                            if (c != null && c.Raycast(new Ray(from, Vector3.up), out _, HeadRoom)) return true;
+                    }
+            }
+            return false;
+        }
+        // the room over a platform no branch may pass through
+        const float HeadRoom = 2.4f;
+
+        /// <summary>
+        /// A tree behind the path, its branch over the platform: as tall as puts its branch BranchOver over the
+        /// platform, on whichever side its trunk stands on dry ground (out of the streams), turned so its branch
+        /// reaches forward to the platform's back. Kept (its branch made solid until the ropes are tied) if rays from
+        /// both knots meet the branch.
+        /// </summary>
+        bool BranchTree(Hanger h, List<Collider> solids)
+        {
+            float cx = (h.x0 + h.x1) / 2, zk = h.knotL.z;
+            float tall = (h.top + BranchOver + TreeSink) / TreeBranchAt, wide = tall * TreeWide;
+            float reach = TreeBranchMid * wide;
+            float sin = Mathf.Clamp((TreeZ - zk) / reach, 0f, Mathf.Sin(TreeMaxTurn * Mathf.Deg2Rad));
+            float turn = Mathf.Asin(sin) * Mathf.Rad2Deg, cos = Mathf.Cos(turn * Mathf.Deg2Rad);
+            var size = new Vector3(wide, tall, tall * TreeDeep * TreeSquash);
+            // the side with dry ground under the trunk first (the one away from the next platform when both are)
+            var sides = new List<int>();
+            foreach (int s in new[] { 1, -1 })
+            {
+                float tx = cx - s * reach * cos;
+                if (!InWater(tx, 2f)) sides.Add(s);
+            }
+            if (sides.Count == 2)
+            {
+                int i = hangers.IndexOf(h);
+                if (i % 2 == 1) sides.Reverse();
+            }
+            foreach (int s in sides)
+            {
+                // which way the model's branch points isn't known here: of the two turns for this side, the one whose
+                // branch the rays meet
+                float[] yaws = s > 0 ? new[] { turn, 180f + turn } : new[] { 180f - turn, -turn };
+                foreach (float yaw in yaws)
+                {
+                    var at = new Vector3(cx - s * reach * cos, -TreeSink, zk + reach * sin);
+                    var tree = CbArt.Joint(root, at.x, at.y, at.z, "branchTree");
+                    if (Model("BranchTree", tree, size, yaw) == null) { Object.Destroy(tree.gameObject); return false; }
+                    var cs = Solidify(tree);
+                    Physics.SyncTransforms();
+                    if (FindBranch(h.knotL, cs, out var a) && FindBranch(h.knotR, cs, out var b)
+                        && a.y < h.top + BranchOver * 1.8f && b.y < h.top + BranchOver * 1.8f && !OverAnother(h, cs))
+                    {
+                        solids.AddRange(cs);
+                        return true;
+                    }
+                    Object.DestroyImmediate(tree.gameObject);
+                }
+            }
+            return false;
         }
 
         /// <summary>A platform of planks round a trunk, its top the ledge; the trunk behind the path.</summary>

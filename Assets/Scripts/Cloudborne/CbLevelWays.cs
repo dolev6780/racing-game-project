@@ -172,7 +172,7 @@ namespace Cloudborne
         static Material M(string hex) => CbArt.Toon(hex, CbArt.PropOutline);
 
         const string WaysDir = "Cloudborne/Jungle/Ways/";
-        static readonly string[] Leafy = { "RuinWall", "RuinLedge", "VineTree", "CaveArch", "StakedLog", "TreePlatform", "MossBranch" };
+        static readonly string[] Leafy = { "RuinWall", "RuinLedge", "VineTree", "CaveArch", "StakedLog", "TreePlatform", "MossBranch", "BranchTree" };
         const float LeafyOutline = 0.25f;
 
         /// <summary>
