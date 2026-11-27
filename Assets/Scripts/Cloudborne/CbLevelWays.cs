@@ -1288,7 +1288,10 @@ namespace Cloudborne
             edgeX = top = 0;
             foreach (var b in blocks)
             {
-                if (b.broken || b.vines == 0 || b.vines != -dir) continue;
+                if (b.broken) continue;
+                // (with the vine mask on, every rock wall is a vine wall to him)
+                bool vined = b.vines != 0 && b.vines == -dir;
+                if (!vined && !(CbHero.VineEverywhere && !b.smooth && !b.breakable)) continue;
                 float side = dir > 0 ? b.x0 - HalfWidth : b.x1 + HalfWidth;
                 if (Mathf.Abs(x - side) < 0.12f && y < b.top - 0.4f) { edgeX = dir > 0 ? b.x0 : b.x1; top = b.top; return true; }
             }

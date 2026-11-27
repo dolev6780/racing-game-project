@@ -12,7 +12,7 @@ namespace Cloudborne
     /// </summary>
     public class CbItems
     {
-        public enum Kind { Mango, KiCrystal, GoldenFruit, Coin, Scroll, Token, Key, Treasure, Letter }
+        public enum Kind { Mango, KiCrystal, GoldenFruit, Coin, Scroll, Token, Key, Treasure, Letter, Mask }
 
         class Item
         {
@@ -46,18 +46,20 @@ namespace Cloudborne
         const float CrateBody = 0.445f, CrateTop = 0.95f;
         // a tiger token is a big coin glowing orange
         // (a secret's treasure: a great gold coin)
-        static readonly string[] ModelNames = { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll", "Coin", "Key", "Coin", "Letters" };
+        static readonly string[] ModelNames = { "Mango", "KiCrystal", "GoldenFruit", "Coin", "Scroll", "Coin", "Key", "Coin", "Letters", "Masks" };
         static readonly Color[] Glows =
         {
             new Color(1f, 0.55f, 0.25f, 0.5f), new Color(1f, 0.6f, 0.15f, 0.6f), new Color(1f, 0.85f, 0.3f, 0.7f),
             new Color(1f, 0.8f, 0.25f, 0.45f), new Color(1f, 0.35f, 0.25f, 0.6f), new Color(1f, 0.5f, 0.1f, 0.8f), new Color(1f, 0.9f, 0.4f, 0.7f),
-            new Color(1f, 0.92f, 0.45f, 0.9f), new Color(0.6f, 1f, 0.7f, 0.8f),
+            new Color(1f, 0.92f, 0.45f, 0.9f), new Color(0.6f, 1f, 0.7f, 0.8f), new Color(0.55f, 1f, 0.55f, 0.8f),
         };
-        static readonly float[] Sizes = { 0.5f, 0.55f, 0.55f, 0.45f, 0.65f, 0.8f, 0.6f, 1f, 0.75f };
+        static readonly float[] Sizes = { 0.5f, 0.55f, 0.55f, 0.45f, 0.65f, 0.8f, 0.6f, 1f, 0.75f, 0.8f };
         // The letters R-A-J-A (the user's ideas list: four golden letters hidden in each stage, in places that take skill
         // to reach - drawn in Canva, approved, built by Meshy), one model each; where they lie in stage 1-1
         public static readonly string[] LetterModels = { "LetterR", "LetterA", "LetterJ", "LetterA2" };
         public const string LetterWord = "RAJA";
+        // the totem masks in stage 1-1 (stone, leaf, vine: CbHeroMasks)
+        public static readonly Vector3[] WaysMasks = { new Vector3(70f, 1.3f, 0), new Vector3(374f, 9.2f, 0), new Vector3(140.6f, 1.3f, 0) };
         public static readonly Vector3[] WaysLetters =
         {
             // R: high over the temple's thorns - only the pogo off them reaches it
@@ -318,6 +320,8 @@ namespace Cloudborne
             Spawn(Kind.Token, new Vector3(238f, 7.3f, 0), resting: true);
             // the letters R-A-J-A
             for (int i = 0; i < WaysLetters.Length; i++) SpawnLetter(i, WaysLetters[i]);
+            // the totem masks: stone before the cracked wall, leaf on the canopy's first terrace, vine at the gorge's foot
+            for (int i = 0; i < WaysMasks.Length; i++) Spawn(Kind.Mask, WaysMasks[i], true, i);
             // the temple of traps
             foreach (var x in new[] { 249f, 253f, 258.5f, 260f, 263.5f, 273.5f, 279.6f }) C(x, 1.2f);
             Spawn(Kind.Coin, new Vector3(255.2f, 2.2f, 0), resting: true);
@@ -366,10 +370,10 @@ namespace Cloudborne
         public void Spawn(Kind kind, Vector3 pos, bool resting = false, int letter = 0)
         {
             string name = ModelNames[(int)kind];
-            var t = CbArt.Joint(root, pos.x, pos.y, pos.z, kind == Kind.Letter ? "letter" + letter : name.ToLowerInvariant());
+            var t = CbArt.Joint(root, pos.x, pos.y, pos.z, kind == Kind.Letter ? "letter" + letter : kind == Kind.Mask ? "mask" + letter : name.ToLowerInvariant());
             // (stage 1-4's tokens are golden lotuses)
             bool lotus = kind == Kind.Token && CbStage.River;
-            var model = CbArt.Prop(lotus ? "Cloudborne/River/Lotus/Lotus" : kind == Kind.Letter ? $"Cloudborne/Items/Letters/{LetterModels[letter]}" : $"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
+            var model = CbArt.Prop(lotus ? "Cloudborne/River/Lotus/Lotus" : kind == Kind.Letter ? $"Cloudborne/Items/Letters/{LetterModels[letter]}" : kind == Kind.Mask ? $"Cloudborne/Items/Masks/{CbHero.MaskModels[letter]}" : $"Cloudborne/Items/{name}/{name}", t, CbArt.PropOutline);
             // the letter models are a metre tall: as tall as Raja's head
             if (kind == Kind.Letter && model != null) model.localScale *= 0.85f;
             if (kind == Kind.Token && model != null && !lotus) model.localScale *= 1.8f;
@@ -602,6 +606,10 @@ namespace Cloudborne
                     PlayerPrefs.SetInt(BankKey, PlayerPrefs.GetInt(BankKey, 0) + 1);
                     CbFx.Spark(at, CbFx.Flame, 5, 2, 0.25f, 0.3f, -2);
                     CbVfx.Sparkle(at, new Color(1f, 0.9f, 0.5f) * 1.4f, 0.8f, 0.25f);
+                    break;
+                case Kind.Mask:
+                    hero.PutOnMask(it.letter);
+                    g.score += 300;
                     break;
                 case Kind.Letter:
                     g.LetterFound(it.letter);

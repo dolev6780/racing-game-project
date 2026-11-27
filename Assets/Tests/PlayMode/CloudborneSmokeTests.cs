@@ -2365,6 +2365,50 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheTotemMasksGiveHimForms()
+        {
+            // the user's ideas (Kirby's forms): three masks in 1-1 - stone, leaf, vine
+            game = CbGame.Boot();
+            yield return Frames(3);
+            game.StartGame();
+            game.SkipFights();
+            yield return Frames(2);
+            foreach (var n in CbHero.MaskModels)
+                Assert.IsNotNull(Resources.Load<GameObject>($"Cloudborne/Items/Masks/{n}"), $"The mask model {n} is missing");
+            for (int i = 0; i < 3; i++) Assert.IsNotNull(GameObject.Find("mask" + i), $"Mask {i} is not in the stage");
+            var hero = game.hero;
+            hero.inv = 999f;
+            // the leaf mask: taken, he wears it; holding JUMP as he falls, he glides
+            var leaf = CbItems.WaysMasks[1];
+            game.Teleport(leaf.x);
+            hero.y = leaf.y - 0.6f; hero.vy = 0; hero.state = CbHero.State.Air;
+            for (float w = 0; w < 1f && hero.form == CbHero.Form.None; w += Time.deltaTime) yield return null;
+            Assert.AreEqual(CbHero.Form.Leaf, hero.form, "Taking the leaf mask gave no form");
+            Assert.IsNotNull(GameObject.Find("mask"), "The mask is not on his face");
+            game.Teleport(20f);
+            hero.y = 6f; hero.vy = 0; hero.state = CbHero.State.Air;
+            game.TestInput = i => i.jumpHeld = true;
+            float slowest = 0;
+            for (float w = 0; w < 0.8f; w += Time.deltaTime) { slowest = Mathf.Min(slowest, hero.vy); yield return null; }
+            game.TestInput = null;
+            Debug.Log($"MASK leaf: fastest fall {slowest:0.00} m/s");
+            Assert.GreaterOrEqual(slowest, -CbHero.GlideFall - 0.5f, "With the leaf mask he did not glide");
+            // the vine mask: any rock wall climbable
+            hero.PutOnMask(2);
+            Assert.IsTrue(CbHero.VineEverywhere, "The vine mask did not make the walls climbable");
+            // the stone mask: half the harm
+            hero.PutOnMask(0);
+            Assert.IsFalse(CbHero.VineEverywhere, "The vine mask stayed on under the stone one");
+            hero.inv = 0; hero.hp = hero.MaxHp;
+            hero.TakeHit(10, 1);
+            Assert.AreEqual(hero.MaxHp - 10 * CbHero.StoneHarm, hero.hp, 0.01f, "In the stone mask he took the full blow");
+            // it falls away after FormTime
+            hero.formT = 0.05f;
+            yield return new WaitForSeconds(0.3f);
+            Assert.AreEqual(CbHero.Form.None, hero.form, "The mask never fell away");
+        }
+
+        [UnityTest]
         public IEnumerator FourGoldenLettersAreHiddenInTheJungle()
         {
             // the user's ideas (as Kirby's and Donkey Kong's hidden letters): R-A-J-A, four golden letters in hard places

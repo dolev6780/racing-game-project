@@ -264,6 +264,7 @@ namespace Cloudborne
 
         public void Reset()
         {
+            TakeOffMask();
             x = y = vx = vy = 0; safeX = safeY = 0; squash = squashV = 0; facing = 1; hp = MaxHp; ki = 40; state = State.Idle; t = 0; combo = 0; buffer = 0; air = false; jumps = 0;
             flipT = 0; inv = 0; move = Move.None; staffHold = 0; sinceDash = 9; airDashed = false; dashCd = 0; empower = false; holdUsed = false;
             CatchStaff(silent: true);
@@ -794,6 +795,7 @@ namespace Cloudborne
                 g.Blocked(new Vector3(x + facing * 0.6f, y + 1.2f, -0.4f));
                 return;
             }
+            if (form == Form.Stone) dmg *= StoneHarm;
             hp = Mathf.Max(0, hp - dmg);
             hitFlash = HitFlash;
             inv = 0.9f;
@@ -820,6 +822,7 @@ namespace Cloudborne
             t += dt;
             inv = Mathf.Max(0, inv - dt);
             pogoT = Mathf.Max(0, pogoT - dt);
+            UpdateForm(dt);
             lotusT = Mathf.Max(0, lotusT - dt);
             landT = Mathf.Max(0, landT - dt);
             jumpT += dt;
@@ -961,6 +964,7 @@ namespace Cloudborne
                 if (wallLockT <= 0)
                 {
                     float top = crouching ? 0f : pushing ? PushSpeed : input.sprint ? SprintSpeed : RunSpeed;
+                    if (form == Form.Stone) top *= StoneRun;
                     // turning round at a run: a skid, a puff of dust at his feet
                     if (!air && Mathf.Abs(vx) > 4.5f && input.x * vx < -0.3f && Random.value < 0.6f)
                         CbFx.Spark(new Vector3(x + Mathf.Sign(vx) * 0.25f, y + 0.08f, -0.3f), CbFx.Dust, 2, 2.2f, 0.4f, 0.35f, 1);
@@ -1173,6 +1177,8 @@ namespace Cloudborne
             // turns from rising to falling, so the jump hangs before it drops
             float apex = air && input.jumpHeld && state == State.Air && Mathf.Abs(vy) < ApexBand ? ApexGravity : 1f;
             if (state != State.Dash || !air) vy -= Gravity * (vy < 0 && air ? FallGravity : 1f) * apex * dt;
+            // the leaf mask: holding JUMP as he falls, he glides
+            if (form == Form.Leaf && air && input.jumpHeld && vy < -GlideFall) vy = -GlideFall;
             if (vy < -MaxFall) vy = -MaxFall;
             // JUMP let go on the way up: he stops rising (once per jump; not when thrown up by a leaf, a seesaw, a blow)
             if (cuttable && air && vy > JumpCut && !input.jumpHeld && state == State.Air) { vy = JumpCut; cuttable = false; }

@@ -208,7 +208,12 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   round the camera, lightning every 4-9 s. Pictures weather_rain, weather_afternoon.
   Ink strokes (`CbVfx.Ink`, a procedural brushed crescent with drops, dark, drawn over the scene): on every big blow
   and counter by Raja, and two crossed on a BREAK. (The chase already exists: the pack after him, `CbGameRuns`.)
-  Still to do: trial rooms, time trials, totem masks, staff upgrades, camp hub, ink-brush FX (foreground leaves were already there: `CbWorld` near layer).
+  Totem masks (Canva MAHcIQKzEAE approved; Meshy MaskStone/Leaf/Vine in `Items/Masks`, 90 credits, 203 left;
+  `CbHeroMasks`): `Kind.Mask` pickups at `WaysMasks` (stone 70 before the cracked wall, leaf 374 on the canopy's
+  terrace, vine 140.6 at the gorge's foot); worn on his head bone 12 s (`FormTime`), blinking at the end. Stone: runs
+  x1.35, running into cracked stone / crates / soldiers bursts them, half harm. Leaf: holding JUMP falling, glides at
+  `GlideFall` 1.8 m/s. Vine: `VineEverywhere` - every non-smooth block side climbs as vines (`VineWallAt`).
+  Still to do: trial rooms with time medals, staff upgrades, camp hub (foreground leaves were already there: `CbWorld`'s near layer).
 - **Performance and challenge (the user: keep improving performance, graphics and challenge; local, not yet run):**
   the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
   remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge
