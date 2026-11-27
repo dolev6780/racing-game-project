@@ -1006,6 +1006,8 @@ namespace Cloudborne
         public void SoldierBroken(CbEnemy e)
         {
             hud.Popup(new Vector3(e.x, e.HitHeight + 1.5f, 0), "BREAK!", CbHud.PopStyle.Big);
+            CbVfx.Ink(new Vector3(e.x, e.HitHeight - 0.3f, -0.6f), 1, 3.4f, 0.45f);
+            CbVfx.Ink(new Vector3(e.x, e.HitHeight - 0.3f, -0.62f), -1, 3f, 0.45f);
             hud.ImpactFlash(0.25f);
             hitstop = Mathf.Max(hitstop, 0.08f);
             shake = Mathf.Max(shake, 0.3f);
@@ -1505,6 +1507,8 @@ namespace Cloudborne
             else if (fromPlayer) e.AddSoldierBreak(dmg / CbEnemy.SoldierBreakHp + (counter || breaker ? CbEnemy.SoldierBreakCounter : 0f));
             e.hp -= dmg;
             e.flash = 0.12f;
+            // a big blow or a counter: a stroke of ink across it (the user's ideas list)
+            if (fromPlayer && (big || counter)) CbVfx.Ink(new Vector3(e.x, e.HitHeight - 0.35f, -0.6f), dir, 2.6f);
             if (fire) { e.burnT = 3; e.burnTick = 0.4f; }
             combo++;
             comboT = 1.8f;

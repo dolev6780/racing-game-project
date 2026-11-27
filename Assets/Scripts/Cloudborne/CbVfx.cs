@@ -80,6 +80,68 @@ namespace Cloudborne
             Spawn(pos, new Color(1, 1, 1, 1) * 1.6f, tex, size * 0.5f, size, life, true, Random.Range(0f, 360f));
         }
 
+        /// <summary>
+        /// A stroke of ink (the user's ideas list: brush strokes on big blows, as a painted anime game's): a dark crescent
+        /// swept the way the blow goes (dir), tapering at both ends, ragged at its edges, a few drops flung off it -
+        /// drawn over the scene, not glowing.
+        /// </summary>
+        public static void Ink(Vector3 pos, int dir, float size, float life = 0.32f)
+        {
+            var fx = Spawn(pos, new Color(0.07f, 0.05f, 0.09f, 0.92f), InkTexture, size * 0.8f, size, life, true, Random.Range(-30f, 20f), clouds: true);
+            if (fx != null) fx.flip = dir < 0 ? -1f : 1f;
+        }
+
+        static Texture2D inkTex;
+        /// <summary>The ink stroke, made once: a brushed crescent with ragged edges and drops (white; tinted when used).</summary>
+        static Texture2D InkTexture
+        {
+            get
+            {
+                if (inkTex != null) return inkTex;
+                const int W = 256, H = 256;
+                inkTex = new Texture2D(W, H, TextureFormat.RGBA32, false) { name = "InkStroke", wrapMode = TextureWrapMode.Clamp };
+                var px = new Color32[W * H];
+                var rng = new System.Random(7);
+                // the crescent: an arc round a point below the middle, thick in the middle, thin at the ends
+                float cx = W * 0.5f, cy = H * 0.15f, r0 = H * 0.55f;
+                for (int y = 0; y < H; y++)
+                    for (int x = 0; x < W; x++)
+                    {
+                        float dx = x - cx, dy = y - cy;
+                        float r = Mathf.Sqrt(dx * dx + dy * dy), a = Mathf.Atan2(dy, dx);
+                        // along the arc from -1 (one end) to 1 (the other)
+                        float u = (a - Mathf.PI / 2) / (Mathf.PI * 0.42f);
+                        float half = Mathf.Max(0, 1 - u * u) * H * 0.09f;
+                        // the brush's bristles: the edge wavers with the angle
+                        float edge = half * (0.75f + 0.25f * Mathf.PerlinNoise(a * 9f, r * 0.08f));
+                        float d = Mathf.Abs(r - r0);
+                        float alpha = Mathf.Clamp01((edge - d) / 2.5f);
+                        // streaks along it where the brush ran dry
+                        alpha *= 0.65f + 0.35f * Mathf.PerlinNoise(a * 40f, 3.1f);
+                        px[y * W + x] = new Color32(255, 255, 255, (byte)(alpha * 255));
+                    }
+                // drops flung off its outer edge
+                for (int k = 0; k < 14; k++)
+                {
+                    float a = Mathf.PI / 2 + ((float)rng.NextDouble() - 0.5f) * Mathf.PI * 0.8f;
+                    float r = r0 + H * (0.1f + (float)rng.NextDouble() * 0.2f);
+                    float rad = 2f + (float)rng.NextDouble() * 5f;
+                    int ox = Mathf.RoundToInt(cx + Mathf.Cos(a) * r), oy = Mathf.RoundToInt(cy + Mathf.Sin(a) * r);
+                    for (int y = oy - 8; y <= oy + 8; y++)
+                        for (int x = ox - 8; x <= ox + 8; x++)
+                        {
+                            if (x < 0 || y < 0 || x >= W || y >= H) continue;
+                            float dd = Mathf.Sqrt((x - ox) * (x - ox) + (y - oy) * (y - oy));
+                            byte al = (byte)(Mathf.Clamp01((rad - dd) / 1.5f) * 255);
+                            if (al > px[y * W + x].a) px[y * W + x] = new Color32(255, 255, 255, al);
+                        }
+                }
+                inkTex.SetPixels32(px);
+                inkTex.Apply();
+                return inkTex;
+            }
+        }
+
         static readonly Dictionary<string, Texture2D> painted = new Dictionary<string, Texture2D>();
 
         /// <summary>A painted effect from Resources/Cloudborne/Effects, or null; looked up once.</summary>
