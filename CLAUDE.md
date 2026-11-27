@@ -53,7 +53,8 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 ## Tools
 
 - `Tools/Blender/meshy_prop.py`: a Meshy GLB to FBX + albedo for Unity (`-- in.glb OUT_DIR NAME 2 0 [--faces N]`).
-  Use full detail (reduced meshes looked torn). A lighter LOD: run again as `NAME_LOD1 --faces N`, then delete the
+  Use full detail (reduced meshes looked torn). `--smooth DEG` welds and smooth-shades (Meshy's trees came half
+  flat-shaded, all facets up close). A lighter LOD: run again as `NAME_LOD1 --faces N`, then delete the
   `NAME_LOD1_Albedo.png` (`CbArt.Prop` puts LOD1 in an LODGroup with the same material).
 - `Tools/Blender/meshy_character.py`: Meshy animation GLBs to clips for Raja:
   `-- OUT_DIR Raja a.glb b.glb --clips-only --file Raja_<Set>_Clips`. `CbModel` loads `Raja_Clips`,
@@ -166,7 +167,8 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   - The user (a screenshot by the shrine, run 297's build): the tree had black shards (fixed: no outline); the
     hangers should look better (ropes are now two twisted strands, bound fatter at the branch); the platforms at a
     few heights under the branch (`HangOvers` 2.7-4.3 m, in turn); trees further back (`TreeZ` 5.5, turn up to 45).
-    The tree looked faceted up close: a finer remesh (45k) was asked of Meshy. The side hang still looked the same:
+    The tree looked faceted up close: Meshy's finer remesh (45k, 5 credits) looked the same, so it was not used;
+    instead the tree is welded and smooth-shaded (`meshy_prop.py --smooth 75`): rounder trunk and branch. The side hang still looked the same:
     it now holds the start of `Hang_and_Climb_Rght/Left` (446/447, the user's choice: hang, climb on press) and the
     haul up plays its pull (0.07-0.33), then the mantle. The gorge's ledges are natural rocks (`CliffRock`,
     `CrackedRock` for crumbling ones; `GorgeRockThick`). Pictures gorge_rock*, hang_pose, hang_pull. Not yet run.

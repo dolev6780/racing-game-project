@@ -6,7 +6,7 @@ point along Blender's -Y, which is Unity's +Z. --roll DEG then turns it about th
 lying flat stands on its edge with --roll 90). --faces N simplifies it to about N triangles (for scenery
 placed many times). Scenery uses GRIP 0: its foot is the origin.
 
-    blender --background --python Tools/Blender/meshy_prop.py -- in.glb OUT_DIR NAME LENGTH GRIP [--forward] [--roll DEG] [--faces N]
+    blender --background --python Tools/Blender/meshy_prop.py -- in.glb OUT_DIR NAME LENGTH GRIP [--forward] [--roll DEG] [--faces N] [--smooth DEG]
 
 Writes OUT_DIR/NAME.fbx and OUT_DIR/NAME_Albedo.png.
 """
@@ -23,6 +23,9 @@ src, out_dir, name, length, grip = args[0], args[1], args[2], float(args[3]), fl
 forward = "--forward" in args
 roll = float(args[args.index("--roll") + 1]) if "--roll" in args else 0.0
 faces = int(args[args.index("--faces") + 1]) if "--faces" in args else 0
+# --smooth DEG: shade smooth (its own normals cleared, its split vertices welded) up to DEG between faces - Meshy's
+# trees came half flat-shaded, their trunks and roots all facets up close (the user)
+smooth = float(args[args.index("--smooth") + 1]) if "--smooth" in args else 0.0
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=src)
@@ -35,6 +38,14 @@ if len(meshes) > 1:
 obj = bpy.context.view_layer.objects.active
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 obj.name = obj.data.name = name
+if smooth > 0:
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.mesh.remove_doubles(threshold=0.0001)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    if obj.data.has_custom_normals:
+        bpy.ops.mesh.customdata_custom_splitnormals_clear()
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(smooth))
 obj.data.calc_loop_triangles()
 if 0 < faces < len(obj.data.loop_triangles):
     dec = obj.modifiers.new("simplify", "DECIMATE")
