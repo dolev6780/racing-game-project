@@ -44,7 +44,7 @@ namespace Cloudborne
             TreeZ = 5.5f, TreeSink = 0.25f, TreeMaxTurn = 45f;
 
         /// <summary>A platform hanging in the jungle: where it is (in the level), its knots, where its ropes go up from.</summary>
-        class Hanger { public Transform t; public float x0, x1, bottom, top, deep, over; public Vector3 knotL, knotR; public bool branch; }
+        class Hanger { public Transform t; public float x0, x1, bottom, top, deep, over, dip, dipV; public Vector3 knotL, knotR, home; public bool branch, on; }
         // how far under its branch each platform hangs, in turn (the user: the platforms at a few heights under the branch)
         static readonly float[] HangOvers = { 2.7f, 3.6f, 3.1f, 4.3f };
         readonly List<Hanger> hangers = new List<Hanger>();
@@ -75,7 +75,7 @@ namespace Cloudborne
             var p = t.localPosition + holder.localPosition;
             hangers.Add(new Hanger
             {
-                t = t, x0 = p.x - wide / 2, x1 = p.x + wide / 2, bottom = p.y, top = top, deep = deep, over = HangOvers[hangers.Count % HangOvers.Length],
+                t = t, home = t.localPosition, x0 = p.x - wide / 2, x1 = p.x + wide / 2, bottom = p.y, top = top, deep = deep, over = HangOvers[hangers.Count % HangOvers.Length],
                 knotL = p + new Vector3(-kx * wide / 2, thick * 0.92f, kz * deep / 2),
                 knotR = p + new Vector3(kx * wide / 2, thick * 0.92f, kz * deep / 2),
             });
@@ -191,6 +191,25 @@ namespace Cloudborne
             }
             if (best == Vector3.zero) return null;
             return new Lashing { centre = under + Vector3.up * thick / 2, axis = best, radius = thick / 2 + HangRope * 0.6f };
+        }
+
+        // a hanging platform landed on dips on its ropes and springs back (the user's ideas: platforms alive under him)
+        const float DipKick = 0.55f, DipSpring = 55f, DipDamp = 7f, DipMax = 0.08f;
+
+        /// <summary>The hanging platforms dip as he lands on one, and bob back up.</summary>
+        void UpdateHangers(float dt, CbHero hero)
+        {
+            foreach (var h in hangers)
+            {
+                bool on = !hero.InAir && Mathf.Abs(hero.y - h.top) < 0.05f && hero.x > h.x0 - 0.1f && hero.x < h.x1 + 0.1f;
+                if (on && !h.on) h.dipV -= DipKick;
+                h.on = on;
+                if (h.dip == 0 && h.dipV == 0) continue;
+                h.dipV += (-DipSpring * h.dip - DipDamp * h.dipV) * dt;
+                h.dip = Mathf.Clamp(h.dip + h.dipV * dt, -DipMax, DipMax);
+                if (Mathf.Abs(h.dip) < 0.0005f && Mathf.Abs(h.dipV) < 0.005f) { h.dip = 0; h.dipV = 0; }
+                h.t.localPosition = h.home + Vector3.up * h.dip;
+            }
         }
 
         /// <summary>

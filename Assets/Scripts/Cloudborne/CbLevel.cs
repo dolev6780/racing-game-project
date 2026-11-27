@@ -1528,6 +1528,7 @@ namespace Cloudborne
             UpdateTunnels(dt);
             UpdatePoles(dt);
             if (CbStage.Jungle) { UpdateGorge(dt, hero); UpdateBoulder(dt, hero); }
+            UpdateHangers(dt, hero);
             foreach (var l in ledges)
             {
                 if (!l.crumbles) continue;
