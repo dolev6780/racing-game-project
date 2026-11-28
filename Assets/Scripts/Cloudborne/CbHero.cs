@@ -14,7 +14,7 @@ namespace Cloudborne
     public class CbInput
     {
         public float x, y;                 // stick, y > 0 is up
-        public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm, menu, slide;
+        public bool jump, atk, heavy, dash, skill, kiTap, pause, confirm, menu, restart, slide;
         // KI held (CbGame: once the staff throw is learned, a held KI is the throw, a tap the usual KI move)
         public bool staffThrow;
         // the jump came from the stick pushed up (on a vine wall that climbs rather than jumping off)
@@ -26,7 +26,7 @@ namespace Cloudborne
         public bool sprint;
         public float atkHeldT, heavyHeldT;
 
-        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = menu = slide = staffThrow = stickJump = false; dashDir = 0; }
+        public void ClearEdges() { jump = atk = heavy = dash = skill = kiTap = pause = confirm = menu = restart = slide = staffThrow = stickJump = false; dashDir = 0; }
     }
 
     /// <summary>

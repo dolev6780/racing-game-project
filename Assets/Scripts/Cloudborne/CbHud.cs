@@ -24,8 +24,8 @@ namespace Cloudborne
         float speedT, speedDur, speedStrength, linesFlip, flashT, flashA, flashGap;
         readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt, stageTxt, foeLeft, foeRight;
         float foeT;
-        readonly RectTransform comboBox, pads, stickBase, stickKnob, paused, result, pauseBtn, pauseMenuBtn, resultMenuBtn;
-        readonly Text resultTitle, resultStats, fpsTxt, perfTxt, trialTxt, resultMissions;
+        readonly RectTransform comboBox, pads, stickBase, stickKnob, paused, result, pauseBtn, pauseResumeBtn, pauseRestartBtn, pauseMenuBtn, resultMenuBtn;
+        readonly Text resultTitle, resultStats, fpsTxt, perfTxt, trialTxt, resultMissions, pauseStageTxt;
         /// <summary>A time trial's clock (empty: none running).</summary>
         public void SetTrial(string s) { trialTxt.text = s; }
         /// <summary>The frame counter at the bottom of the screen while playing (the user: an APK with an FPS counter,
@@ -132,18 +132,21 @@ namespace Cloudborne
             ((RectTransform)tipTxt.transform).offsetMax = new Vector2(-10, -2);
 
             // score, pause
-            UIKit.Label(play, "SCORE", 10, new Color(1, 1, 1, 0.8f), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -14), new Vector2(120, 14), TextAnchor.MiddleRight);
+            UIKit.Label(play, "SCORE", 10, new Color(1, 1, 1, 0.8f), new Vector2(1, 1), new Vector2(1, 1), new Vector2(-114, -14), new Vector2(120, 14), TextAnchor.MiddleRight);
             // a time trial's clock under the stage's title (CbTrials)
             trialTxt = UIKit.Label(play, "", 22, Gold, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -58), new Vector2(420, 28), TextAnchor.MiddleCenter, true);
             perfTxt = UIKit.Label(play, "", 13, new Color(1, 1, 1, 0.85f), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 12), new Vector2(420, 18), TextAnchor.MiddleCenter, true);
-            scoreTxt = UIKit.Label(play, "0", 24, Paper, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -28), new Vector2(160, 28), TextAnchor.MiddleRight, true);
-            coinTxt = UIKit.Label(play, "COINS 0", 20, Gold, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-76, -58), new Vector2(160, 24), TextAnchor.MiddleRight, true);
+            scoreTxt = UIKit.Label(play, "0", 24, Paper, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-114, -28), new Vector2(160, 28), TextAnchor.MiddleRight, true);
+            coinTxt = UIKit.Label(play, "COINS 0", 20, Gold, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-114, -58), new Vector2(160, 24), TextAnchor.MiddleRight, true);
             // (they pop about their right ends, where the right-aligned numbers are)
             scoreTxt.rectTransform.pivot = coinTxt.rectTransform.pivot = new Vector2(1, 0.5f);
-            pauseBtn = UIKit.Rect(root, "pause", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -12), new Vector2(48, 48));
-            UIKit.Image(pauseBtn, UIKit.Circle, Glass);
-            UIKit.Image(UIKit.Rect(pauseBtn, "ring", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(48, 48)), UIKit.Ring, Paper);
-            UIKit.Label(pauseBtn, "II", 18, Paper, TextAnchor.MiddleCenter, true, false);
+            pauseBtn = UIKit.Rect(root, "pause", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-14, -12), new Vector2(88, 38));
+            UIKit.Image(UIKit.Rect(pauseBtn, "shadow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(2, -3), new Vector2(88, 38)), UIKit.RoundedSmall, Ink);
+            UIKit.Image(UIKit.Rect(pauseBtn, "rim", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(91, 41)), UIKit.RoundedSmall, Gold);
+            UIKit.Image(UIKit.Rect(pauseBtn, "fill", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(88, 38)), UIKit.RoundedSmall, new Color(0.08f, 0.1f, 0.08f, 0.92f));
+            UIKit.Image(UIKit.Rect(pauseBtn, "barL", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(14, 0), new Vector2(4, 14)), null, Gold);
+            UIKit.Image(UIKit.Rect(pauseBtn, "barR", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(22, 0), new Vector2(4, 14)), null, Gold);
+            UIKit.Label(pauseBtn, "PAUSE", 12, Paper, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-10, 0), new Vector2(54, 24), TextAnchor.MiddleRight, true);
 
             // a boss's health: his name over a long red bar, under the tip
             bossBar = UIKit.Rect(play, "boss", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -98), new Vector2(340, 34));
@@ -230,11 +233,19 @@ namespace Cloudborne
 
             // screens
             paused = Overlay("paused");
-            UIKit.Label(paused, "PAUSED", 60, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 50), new Vector2(600, 70), TextAnchor.MiddleCenter, true);
-            BigButton(paused, "RESUME", new Vector2(0, -30));
-            pauseMenuBtn = (RectTransform)BigButton(paused, "MENU", new Vector2(0, -98)).transform.parent;
+            var pauseCard = UIKit.Rect(paused, "card", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(344, 300));
+            UIKit.Image(UIKit.Rect(pauseCard, "shadow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(4, -6), new Vector2(344, 300)), UIKit.Rounded, Ink);
+            UIKit.Image(UIKit.Rect(pauseCard, "rim", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(348, 304)), UIKit.Rounded, new Color(Gold.r, Gold.g, Gold.b, 0.5f));
+            UIKit.Image(UIKit.Rect(pauseCard, "fill", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(344, 300)), UIKit.Rounded, new Color(0.06f, 0.075f, 0.06f, 0.94f));
+            UIKit.Image(UIKit.Rect(pauseCard, "stripe", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -10), new Vector2(280, 3)), null, Ember);
+            var pTitle = UIKit.Label(pauseCard, "PAUSED", 40, Paper, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -20), new Vector2(320, 46), TextAnchor.MiddleCenter, true);
+            pTitle.gameObject.AddComponent<Outline>().effectColor = Ember;
+            pauseStageTxt = UIKit.Label(pauseCard, "", 11, Gold, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -68), new Vector2(310, 18), TextAnchor.MiddleCenter, true);
+            pauseResumeBtn = (RectTransform)BigButton(pauseCard, "RESUME", new Vector2(0, 16), CbArt.Hex("#e2541c"), new Vector2(236, 44), 20).transform.parent;
+            pauseRestartBtn = (RectTransform)BigButton(pauseCard, "RESTART", new Vector2(0, -36), CbArt.Hex("#285c38"), new Vector2(236, 44), 20).transform.parent;
+            pauseMenuBtn = (RectTransform)BigButton(pauseCard, "MENU", new Vector2(0, -88), CbArt.Hex("#222624"), new Vector2(236, 44), 20).transform.parent;
             // how the phone keeps up (frames a second over the last second before the pause)
-            fpsTxt = UIKit.Label(paused, "", 16, new Color(1, 1, 1, 0.7f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -160), new Vector2(600, 24), TextAnchor.MiddleCenter, true);
+            fpsTxt = UIKit.Label(pauseCard, "", 13, new Color(1, 1, 1, 0.65f), new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 14), new Vector2(310, 20), TextAnchor.MiddleCenter, true);
 
             result = Overlay("result");
             resultTitle = UIKit.Label(result, "STAGE CLEAR", 60, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 130), new Vector2(700, 76), TextAnchor.MiddleCenter, true);
@@ -344,12 +355,14 @@ namespace Cloudborne
             return rt;
         }
 
-        Text BigButton(RectTransform parent, string label, Vector2 pos)
+        Text BigButton(RectTransform parent, string label, Vector2 pos, Color? color = null, Vector2? size = null, int font = 26)
         {
-            var rt = UIKit.Rect(parent, "button", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), pos, new Vector2(220, 56));
-            UIKit.Image(UIKit.Rect(rt, "shadow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -5), new Vector2(220, 56)), UIKit.Rounded, Ink);
-            UIKit.Image(UIKit.Rect(rt, "fill", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(220, 56)), UIKit.Rounded, CbArt.Hex("#e2541c"));
-            return UIKit.Label(rt, label, 26, Paper, TextAnchor.MiddleCenter, true);
+            var sz = size ?? new Vector2(220, 56);
+            var rt = UIKit.Rect(parent, "button", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), pos, sz);
+            UIKit.Image(UIKit.Rect(rt, "shadow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -4), sz), UIKit.Rounded, Ink);
+            UIKit.Image(UIKit.Rect(rt, "rim", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, sz + new Vector2(3, 3)), UIKit.Rounded, new Color(Gold.r, Gold.g, Gold.b, 0.45f));
+            UIKit.Image(UIKit.Rect(rt, "fill", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, sz), UIKit.Rounded, color ?? CbArt.Hex("#e2541c"));
+            return UIKit.Label(rt, label, font, Paper, TextAnchor.MiddleCenter, true);
         }
 
         /// <summary>Raja's face drawn into a small texture (orange head, stripes, red band, white muzzle).</summary>
@@ -392,7 +405,11 @@ namespace Cloudborne
         {
             screen = s;
             paused.gameObject.SetActive(s == Screen.Paused);
-            if (s == Screen.Paused) fpsTxt.text = $"{Mathf.RoundToInt(CbGame.Fps)} FPS";
+            if (s == Screen.Paused)
+            {
+                fpsTxt.text = $"{Mathf.RoundToInt(CbGame.Fps)} FPS";
+                if (pauseStageTxt != null) pauseStageTxt.text = CbStage.Title;
+            }
             result.gameObject.SetActive(s == Screen.Result);
             bool playing = s == Screen.None;
             pads.gameObject.SetActive(playing && ShowPads);
@@ -1106,8 +1123,13 @@ namespace Cloudborne
                     // the main menu reads its own taps; MENU on pause and results goes back to it
                     if (!fresh || screen == Screen.Title) continue;
                     if (screen == Screen.Scene && RectTransformUtility.RectangleContainsScreenPoint(skipBtn, p.Position, null)) input.pause = true;
-                    else if ((screen == Screen.Paused && RectTransformUtility.RectangleContainsScreenPoint(pauseMenuBtn, p.Position, null)) ||
-                             (screen == Screen.Result && RectTransformUtility.RectangleContainsScreenPoint(resultMenuBtn, p.Position, null))) input.menu = true;
+                    else if (screen == Screen.Paused)
+                    {
+                        if (HitBox(pauseMenuBtn, p.Position, 6f)) input.menu = true;
+                        else if (HitBox(pauseRestartBtn, p.Position, 6f)) input.restart = true;
+                        else if (HitBox(pauseResumeBtn, p.Position, 6f)) input.confirm = true;
+                    }
+                    else if (screen == Screen.Result && RectTransformUtility.RectangleContainsScreenPoint(resultMenuBtn, p.Position, null)) input.menu = true;
                     else input.confirm = true;
                     continue;
                 }
@@ -1130,7 +1152,7 @@ namespace Cloudborne
                     continue;
                 }
                 if (!fresh) continue;
-                if (Hit(pauseBtn, p.Position, 30)) { input.pause = true; continue; }
+                if (HitBox(pauseBtn, p.Position, 12f)) { input.pause = true; continue; }
                 if (!pads.gameObject.activeSelf) continue;
                 Pad hit = null;
                 foreach (var b in buttons) if (b.pointer == int.MinValue && Hit(b.rt, p.Position, b.radius * 1.15f)) { hit = b; break; }
@@ -1197,6 +1219,14 @@ namespace Cloudborne
             if (!rt.gameObject.activeInHierarchy) return false;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(rt, screenPos, null, out var local);
             return local.magnitude <= radius;
+        }
+
+        static bool HitBox(RectTransform rt, Vector2 screenPos, float pad = 0f)
+        {
+            if (rt == null || !rt.gameObject.activeInHierarchy) return false;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rt, screenPos, null, out var local)) return false;
+            var r = rt.rect;
+            return local.x >= r.xMin - pad && local.x <= r.xMax + pad && local.y >= r.yMin - pad && local.y <= r.yMax + pad;
         }
     }
 }

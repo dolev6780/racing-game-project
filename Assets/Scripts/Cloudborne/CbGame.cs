@@ -1174,6 +1174,7 @@ namespace Cloudborne
         /// <summary>Starts a run (also used by the play mode tests).</summary>
         public void StartGame()
         {
+            AudioListener.pause = false;
             menu?.Hide();
             ResetGame();
             // (from the camp in the menu, far behind the start: the camera there at once, not sliding over)
@@ -2129,6 +2130,7 @@ namespace Cloudborne
             else if (mode == Mode.Paused)
             {
                 if (input.menu && !fade.Busy) fade.FadeThrough(ToMenu);
+                else if (input.restart && !fade.Busy) fade.FadeThrough(StartGame);
                 else if (input.confirm && !fade.Busy) TogglePause();
             }
             else
@@ -2396,6 +2398,7 @@ namespace Cloudborne
                 if (kb.lKey.wasPressedThisFrame || kb.leftShiftKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame) inp.dash = true;
                 if (kb.escapeKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame) inp.pause = true;
                 if (kb.mKey.wasPressedThisFrame || kb.backspaceKey.wasPressedThisFrame) inp.menu = true;
+                if (kb.rKey.wasPressedThisFrame) inp.restart = true;
                 if (kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame || kb.jKey.wasPressedThisFrame) inp.confirm = true;
             }
             var pad = Gamepad.current;
@@ -2445,6 +2448,7 @@ namespace Cloudborne
             if (Input.GetKeyDown(KeyCode.L) || Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.C)) inp.dash = true;
             if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P)) inp.pause = true;
             if (Input.GetKeyDown(KeyCode.M) || Input.GetKeyDown(KeyCode.Backspace)) inp.menu = true;
+            if (Input.GetKeyDown(KeyCode.R)) inp.restart = true;
             if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.J)) inp.confirm = true;
 #endif
         }
