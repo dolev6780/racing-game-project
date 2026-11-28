@@ -248,11 +248,17 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   (pictures camp_menu, camp). Still to model when credits renew (~Dec 10): the staff rack, map board, bench.
 - **Hidden missions (the ideas list, after Kirby's; local, not yet run):** `CbGameMissions.cs` - three per stage
   (`CbGame.Missions`: 1-1 the four letters, a soldier's guard broken, gold in a time trial (`TrialGold`, set by
-  `CbTrials`); 1-2 the secret, the three tokens, a 30 combo; 1-3 no hit, the tokens, a 20 combo; 1-4 the lotuses, no
+  `CbTrials`); 1-2 the secret, the three tokens, a 30 combo; 1-3 no hit, the tokens, gold in Baba's sparring; 1-4 the lotuses, no
   hit, under 4 minutes; 1-5 Grak without a hit, a break, a 40 combo). Checked when the stage is cleared
   (`CheckMissions`), kept in PlayerPrefs (`cb_mission_<stage>_<n>`, forgotten by `ResetProgress`); the results show
   them left of the buttons (done in gold, NEW! for new ones, the rest "???"), the stage cards "★ n/3". Tested in
   `SergeantSnapGuardsTheShrineGate`; picture results_missions in the camp test.
+- **Baba's sparring (the ideas list's challenge rooms, after The Lost Crown; the user chose stage 1-3; local, not yet
+  run):** `CbGameSparring.cs` - after Baba's three trials a big bell (the grove's Bell model x1.25, a red glow) at
+  `SparBellX` 121.5; struck (an attack within 1.4 m), the way shuts (`SparZone` at 117.5) and three waves of soldiers
+  run in while a clock runs (`hud.SetTrial`); all beaten: GOLD/SILVER/BRONZE by `SparGold` 40 / 60 / 90 s (guesses),
+  100/60/30 coins, best in `cb_sparring_best`; quiet for the rest of the run; falling calls it off. 1-3's third
+  mission is now "Win gold in Baba's sparring". Test `ZzzBabasSparringBellStartsAFightAgainstTheClock` (picture sparring).
 - **Performance and challenge (the user: keep improving performance, graphics and challenge; local, not yet run):**
   the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
   remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge

@@ -26,7 +26,7 @@ namespace Cloudborne
             new Mission { stage = "1-2", text = "Land a combo of 30", done = g => g.maxCombo >= 30 },
             new Mission { stage = "1-3", text = "Clear the grove without a hit", done = g => !g.hurtOnce },
             new Mission { stage = "1-3", text = "Collect all three tiger tokens", done = g => g.Tokens >= 3 },
-            new Mission { stage = "1-3", text = "Land a combo of 20", done = g => g.maxCombo >= 20 },
+            new Mission { stage = "1-3", text = "Win gold in Baba's sparring", done = g => g.SparMedal == "GOLD" },
             new Mission { stage = "1-4", text = "Collect all three golden lotuses", done = g => g.Tokens >= 3 },
             new Mission { stage = "1-4", text = "Ride the river without a hit", done = g => !g.hurtOnce },
             new Mission { stage = "1-4", text = "Clear the river in under 4 minutes", done = g => g.time < 240f },

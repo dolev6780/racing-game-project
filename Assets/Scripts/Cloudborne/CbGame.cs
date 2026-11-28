@@ -423,6 +423,7 @@ namespace Cloudborne
             items = new CbItems(this, transform);
             level = new CbLevel(this, transform);
             camp = CbStage.Jungle ? new CbCamp(world.root) : null;
+            MakeSparBell();
             actors = new GameObject("Actors").transform;
             actors.SetParent(transform, false);
             hero = new CbHero(this, actors);
@@ -645,6 +646,7 @@ namespace Cloudborne
             foreach (var (x, kind, range, asleep) in PostPlan)
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
             TrialGold = false;
+            ResetSparring();
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; Letters = 0; Secrets = 0; ResetRuns(); HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false; FireAwakened = false; bossIntroSeen = false;
             // (stage 1-3 has no boss: Baba's trials, then the way on)
@@ -722,6 +724,7 @@ namespace Cloudborne
             items = new CbItems(this, transform);
             level = new CbLevel(this, transform);
             camp = CbStage.Jungle ? new CbCamp(world.root) : null;
+            MakeSparBell();
             jungleAmbushes = treetopsAmbushes = null;
             StageLight();
             MakeWeather();
@@ -1212,6 +1215,7 @@ namespace Cloudborne
             if (bossStarted && !bossDone) { bossStarted = false; boss = null; lockZone = null; hud.HideBoss(); hud.ShowGo(true); }
             foreach (var a in Ambushes)
                 if (a.started && !a.done) { a.started = false; a.wave = 0; lockZone = null; hud.ShowGo(true); }
+            SparringFallen();
             if (CbStage.Grove && lockZone != null) { lockZone = null; level?.LeaveTrial(); hud.ShowGo(true); }
             if (CbStage.River) level?.LeaveSawBarge();
             if (CbStage.Ember) level?.LeaveGrakFight();
@@ -1382,7 +1386,7 @@ namespace Cloudborne
                 }
                 return;
             }
-            if (CbStage.Grove) UpdateTrials();
+            if (CbStage.Grove) { UpdateTrials(); UpdateSparring(dt); }
             // the sergeant waits in front of the gate
             if (lockZone == null && !bossStarted && hero.x > BossX - 7f)
             {

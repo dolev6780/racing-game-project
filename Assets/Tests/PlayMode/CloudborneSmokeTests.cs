@@ -2301,6 +2301,65 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator ZzzBabasSparringBellStartsAFightAgainstTheClock()
+        {
+            // the user's choice (a challenge room, after The Lost Crown's, in Baba's grove): after the three trials a
+            // bell; struck, three waves of soldiers against the clock, a medal and coins
+            float oldBest = CbGame.SparBest;
+            int coins = CbSave.Coins;
+            try
+            {
+                PlayerPrefs.DeleteKey("cb_sparring_best");
+                game = CbGame.Boot();
+                yield return Frames(3);
+                CbStage.Set("1-3");
+                game.BuildStage();
+                game.StartGame();
+                game.SkipFights();
+                yield return Frames(2);
+                Assert.IsNotNull(GameObject.Find("sparBell"), "No sparring bell in Baba's grove");
+                var hero = game.hero;
+                hero.inv = 999f;
+                game.Teleport(CbGame.SparBellX - 3f);
+                yield return Frames(3);
+                Assert.IsFalse(game.Sparring, "The sparring started without the bell being struck");
+                game.StrikeSparBell();
+                yield return Frames(2);
+                Assert.IsTrue(game.Sparring, "Striking the bell did not start the sparring");
+                hero.state = CbHero.State.Idle;
+                // they come running in: a picture of the fight
+                for (float w = 0; w < 2f && game.enemies.Count < 2; w += Time.deltaTime) yield return null;
+                Assert.Greater(game.enemies.Count, 0, "No soldiers came to spar");
+                hero.inv = 999f;
+                yield return TakePictures(new[] { ("sparring", float.NaN, 0f) }, 0.8f);
+                // beaten, wave after wave, quickly: gold
+                for (float w = 0; w < 25f && game.Sparring; w += Time.deltaTime)
+                {
+                    hero.inv = 999f;
+                    foreach (var e in game.enemies.ToArray())
+                        if (!e.dead) game.HurtEnemy(e, 60, e.x > hero.x ? 1 : -1, 8, 2, true, true, false, true);
+                    yield return null;
+                }
+                Assert.IsFalse(game.Sparring, "The sparring never ended");
+                Assert.IsTrue(game.SparDone, "Beating every wave did not win the sparring");
+                Debug.Log($"SPARRING {game.SparClock:0.0}s {game.SparMedal}");
+                Assert.AreEqual("GOLD", game.SparMedal, "A quick sparring won no gold");
+                Assert.AreEqual(coins + 100, CbSave.Coins, "The gold won no coins");
+                Assert.Greater(CbGame.SparBest, 0f, "The best time was not kept");
+                // won, the bell is quiet for the run
+                game.StrikeSparBell();
+                yield return Frames(2);
+                Assert.IsFalse(game.Sparring, "The sparring started again after it was won");
+            }
+            finally
+            {
+                if (oldBest > 0) PlayerPrefs.SetFloat("cb_sparring_best", oldBest); else PlayerPrefs.DeleteKey("cb_sparring_best");
+                CbSave.Coins = coins;
+                CbStage.Set("1-1");
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ZzzRajasCampIsWhereTheMenuIs()
         {
             // the user's ideas (a home between the stages): in the menu Raja stands by his campfire, his hut behind
