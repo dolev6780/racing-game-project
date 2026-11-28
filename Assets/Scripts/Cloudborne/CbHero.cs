@@ -280,6 +280,7 @@ namespace Cloudborne
                 staff.localPosition = StaffBackPos;
                 staff.localRotation = StaffBackRot;
             }
+            if (model?.ik != null) { model.ik.feet = false; model.ik.hands = false; }
             Place();
         }
 
@@ -1935,18 +1936,21 @@ namespace Cloudborne
             PlaceModelStaff(pose, dt);
         }
 
-        /// <summary>Title screen: idle stance, tail swaying.</summary>
+        /// <summary>Title screen: combat-ready stance facing across toward the menu, tail and cloth swaying.</summary>
         public void Idle(float dt)
         {
             var pose = Pose.Base;
             pose.bob = Mathf.Sin(g.clock * 3) * 0.025f - 0.05f;
             f.Apply(pose, dt, 10);
             f.root.localPosition = new Vector3(x, 0, 0);
-            f.body.localRotation = Quaternion.Euler(0, 140, 0);
+            f.body.localRotation = Quaternion.Euler(0, model != null ? -148f : 140f, 0);
             UpdateCloth(dt);
+            UpdateFire(dt);
             if (model != null)
             {
-                model.LoopSeconds("Idle", g.clock);
+                string clip = model.HasClip("Combat_Stance") ? "Combat_Stance" : "Idle";
+                model.LoopSeconds(clip, g.clock, 0.16f);
+                model.GroundFeet(1f, dt);
                 PlaceModelStaff(pose, dt);
             }
         }

@@ -802,7 +802,7 @@ namespace Cloudborne
             if (camp == null) return;
             camp.Refresh();
             hero.x = CbCamp.HeroX;
-            camX = hero.x - 3.4f;
+            camX = hero.x - 3.05f;
         }
 
         /// <summary>The opening scene will play again on the next PLAY (settings).</summary>
@@ -2198,8 +2198,8 @@ namespace Cloudborne
             camBack += (back - camBack) * (1 - Mathf.Exp(-2f * dt));
             dist *= camBack;
             float tx = hero.x + hero.facing * LookAhead;
-            // in the menu Raja stands on the right of the screen, the menu on the left, the camera a little closer
-            if (mode == Mode.Title) { tx = hero.x - 3.4f + Mathf.Sin(clock * 0.2f) * 0.3f; dist *= 0.72f; }
+            // in the menu Raja stands heroically by his camp on the right of the screen, the menu on the left
+            if (mode == Mode.Title) { tx = hero.x - 3.05f + Mathf.Sin(clock * 0.22f) * 0.24f; dist *= 0.70f; }
             if (lockZone != null) tx = Mathf.Clamp(tx, lockZone.x - 3, lockZone.x + 3);
             if (tuskFight) tx = Mathf.Lerp(lockZone.x, hero.x, 0.15f);
             if (bargeFight) tx = Mathf.Lerp(lockZone.x - 2.5f, hero.x, 0.3f);
@@ -2216,6 +2216,7 @@ namespace Cloudborne
             float over = hero.y - stand;
             float at = stand + Mathf.Max(0, over - JumpFree) + Mathf.Min(0, over);
             float ty = CamBase + Mathf.Max(at * 0.5f, at - 2.5f);
+            if (mode == Mode.Title) ty = 1.85f + Mathf.Cos(clock * 0.35f) * 0.05f;
             // on the river the view follows it down the falls (his jumps from his log likewise held)
             if (CbStage.River)
             {
