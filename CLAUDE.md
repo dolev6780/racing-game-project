@@ -203,6 +203,10 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
 - **Run 302 (d9cb411): 97/98.** The run 301 fixes pass; the hang still right. The camp test found a 7th trophy: the
   picture tests' teleports cross the canopy trial and win it, so a medal was saved - the test now clears every
   trial's best (and puts them back) and takes its pictures before counting (local).
+- **Run 304 (8038abc): 98/99.** Passing: the camp (pictures camp/camp_menu: hut, fire on the logs, Raja by it, letters
+  on the shelf), the missions on the results, the sparring (`SPARRING 4.2s GOLD`), the hang. The gorge 429k -> 330k
+  triangles, the waterfall 337k -> 288k (RockLedge, 122-134k, is now the gorge's heaviest). Failed: the sparring test
+  counted 101 coins (a soldier's dropped coin) - now "at least 100"; the missions' font 11 -> 13 (local).
 - **Staffs' models (local):** Meshy StaffFire/StaffWind/StaffVine (90 credits, 113 left) in `Props/Staff`, 1.75 m,
   grip 0.35 like the oak staff; symmetric (decorated at both ends). `TintStaff` swaps the model in his hand.
 - **The user's ideas list (inspired by The Lost Crown, Kirby and the Forgotten Land and others; the user: "let's

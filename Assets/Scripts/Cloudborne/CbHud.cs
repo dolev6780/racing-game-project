@@ -247,7 +247,8 @@ namespace Cloudborne
             rankOutline = resultRank.gameObject.AddComponent<Outline>();
             rankOutline.effectDistance = new Vector2(4, -4);
             // the stage's hidden missions, left of the buttons (CbGame.Missions; the canvas is 844 x 390)
-            resultMissions = UIKit.Label(result, "", 11, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-226, -88), new Vector2(214, 104), TextAnchor.UpperLeft, true);
+            // (13: at 11 run 304's picture showed them small)
+            resultMissions = UIKit.Label(result, "", 13, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-232, -90), new Vector2(226, 110), TextAnchor.UpperLeft, true);
             resultMissions.supportRichText = true;
             resultRankLabel = UIKit.Label(result, "RANK", 16, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(300, 158), new Vector2(120, 20), TextAnchor.MiddleCenter, true);
             BigButton(result, "PLAY AGAIN", new Vector2(0, -50));
