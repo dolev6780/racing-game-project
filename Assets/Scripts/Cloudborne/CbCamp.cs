@@ -25,7 +25,9 @@ namespace Cloudborne
         static readonly string[] StaffModels = { "Staff", "StaffFire", "StaffWind", "StaffVine" };
 
         readonly Transform root;
-        Transform shelf, trophies, staffs;
+        Transform shelf, trophies, staffs, fireHalo;
+        Material haloMat, groundMat;
+        bool hasShaderFire;
         readonly List<(Transform t, float h, float baseX, float tilt)> tongues = new List<(Transform, float, float, float)>();
         float time;
 
@@ -84,42 +86,114 @@ namespace Cloudborne
                 Quaternion.Euler(0, 12f, 0), shadows: false).name = "hutWarmth";
         }
 
-        /// <summary>The fire on the logs: crisp cel-shaded flame tongues without HDR whiteout, a gentle halo and ground glow.</summary>
+        static Mesh flamePlume;
+
+        /// <summary>Unit teardrop flame shell (radius 1, height 1) with smooth radial normals and seamless circular UVs.</summary>
+        static Mesh FlamePlume()
+        {
+            if (flamePlume != null) return flamePlume;
+            const int Segs = 24, Rings = 20;
+            int w = Segs + 1;
+            var verts = new Vector3[w * (Rings + 1)];
+            var norms = new Vector3[w * (Rings + 1)];
+            var uvs = new Vector2[w * (Rings + 1)];
+            var tris = new int[Segs * Rings * 6];
+            for (int iy = 0; iy <= Rings; iy++)
+            {
+                float v = iy / (float)Rings;
+                float rad = Mathf.Max(0.04f, (1f - 0.72f * v) * (0.72f + 0.48f * Mathf.Sin((v * 0.88f + 0.08f) * Mathf.PI)));
+                for (int ix = 0; ix <= Segs; ix++)
+                {
+                    float u = ix / (float)Segs;
+                    float ang = u * Mathf.PI * 2f;
+                    int idx = iy * w + ix;
+                    verts[idx] = new Vector3(Mathf.Cos(ang) * rad, v, Mathf.Sin(ang) * rad);
+                    norms[idx] = new Vector3(Mathf.Cos(ang), 0.25f, Mathf.Sin(ang)).normalized;
+                    uvs[idx] = new Vector2(u, v);
+                }
+            }
+            int k = 0;
+            for (int iy = 0; iy < Rings; iy++)
+                for (int ix = 0; ix < Segs; ix++)
+                {
+                    int a = iy * w + ix, b = a + w;
+                    tris[k++] = a; tris[k++] = b; tris[k++] = a + 1;
+                    tris[k++] = b; tris[k++] = b + 1; tris[k++] = a + 1;
+                }
+            flamePlume = new Mesh { name = "FlamePlume" };
+            flamePlume.vertices = verts;
+            flamePlume.normals = norms;
+            flamePlume.uv = uvs;
+            flamePlume.triangles = tris;
+            flamePlume.RecalculateBounds();
+            return flamePlume;
+        }
+
+        /// <summary>The fire on the logs: layered 3D animated cel-shader flames rising from the logs, plus warm glow and embers.</summary>
         void Fire()
         {
-            var t = CbArt.Joint(root, FireX, 0.14f, FireZ, "campFire");
-            var tex = CbVfx.Painted("Fire");
-            var cutout = Resources.Load<Shader>("Shaders/PaintedCutout");
-            Material flameMat = null;
-            if (tex != null && cutout != null && cutout.isSupported)
+            var t = CbArt.Joint(root, FireX, 0.13f, FireZ, "campFire");
+            var fireShader = Resources.Load<Shader>("Shaders/Campfire");
+            if (fireShader != null && fireShader.isSupported)
             {
-                flameMat = new Material(cutout) { mainTexture = tex };
-                flameMat.SetColor("_Color", new Color(1f, 0.96f, 0.9f, 1f));
-                flameMat.SetFloat("_Cutoff", 0.44f);
-                flameMat.SetFloat("_Haze", 0f);
-                flameMat.SetFloat("_Deep", 1f);
-                flameMat.SetFloat("_Ao", 0f);
+                hasShaderFire = true;
+                var mesh = FlamePlume();
+                var layers = new[]
+                {
+                    (r: 0.27f, h: 0.98f, x:  0.00f, y:  0.00f, z:  0.00f, tx:  0f, tz:  0f, phase: 0.0f, spd: 1.00f, lobes: 3f, sway: 0.30f, core: false),
+                    (r: 0.16f, h: 0.64f, x:  0.00f, y:  0.01f, z: -0.02f, tx:  0f, tz:  0f, phase: 2.2f, spd: 1.35f, lobes: 2f, sway: 0.32f, core: true),
+                    (r: 0.13f, h: 0.54f, x: -0.19f, y: -0.02f, z: -0.05f, tx:  4f, tz: 10f, phase: 4.1f, spd: 1.25f, lobes: 2f, sway: 0.35f, core: false),
+                    (r: 0.12f, h: 0.48f, x:  0.19f, y: -0.02f, z:  0.04f, tx: -3f, tz: -9f, phase: 1.4f, spd: 1.32f, lobes: 2f, sway: 0.34f, core: false),
+                    (r: 0.135f,h: 0.58f, x: -0.04f, y: -0.01f, z:  0.15f, tx: -6f, tz:  3f, phase: 3.0f, spd: 1.18f, lobes: 3f, sway: 0.32f, core: false),
+                };
+                foreach (var s in layers)
+                {
+                    var mat = new Material(fireShader);
+                    mat.SetFloat("_Phase", s.phase);
+                    mat.SetFloat("_Speed", s.spd);
+                    mat.SetFloat("_Lobes", s.lobes);
+                    mat.SetFloat("_Sway", s.sway);
+                    mat.SetFloat("_IsCore", s.core ? 1f : 0f);
+                    var plume = CbArt.Part(mesh, mat, t, new Vector3(s.x, s.y, s.z),
+                        new Vector3(s.r, s.h, s.r), Quaternion.Euler(s.tx, 0f, s.tz), shadows: false);
+                    plume.name = s.core ? "flameCore" : "flame";
+                }
             }
-            var fallbackMat = flameMat ?? CbArt.Glow(new Color(1f, 0.55f, 0.18f, 0.55f), (Texture)tex ?? CbLevel.FlameTexture());
-
-            var specs = new[]
+            else
             {
-                (x: 0f, z: 0f, h: 0.64f, tilt: 0f, flip: 1f),
-                (x: -0.15f, z: -0.04f, h: 0.44f, tilt: 10f, flip: -1f),
-                (x: 0.16f, z: 0.03f, h: 0.40f, tilt: -9f, flip: 1f),
-            };
-            foreach (var s in specs)
-            {
-                var tongue = CbArt.Part(CbMesh.Quad, fallbackMat, t, new Vector3(s.x, s.h / 2f, s.z),
-                    new Vector3(s.h * 0.85f * s.flip, s.h, 1f), Quaternion.Euler(0, 0, s.tilt), shadows: false);
-                tongue.name = "flame";
-                tongues.Add((tongue, s.h, s.x, s.tilt));
+                var tex = CbVfx.Painted("Fire");
+                var cutout = Resources.Load<Shader>("Shaders/PaintedCutout");
+                Material flameMat = null;
+                if (tex != null && cutout != null && cutout.isSupported)
+                {
+                    flameMat = new Material(cutout) { mainTexture = tex };
+                    flameMat.SetColor("_Color", new Color(1f, 0.96f, 0.9f, 1f));
+                    flameMat.SetFloat("_Cutoff", 0.44f);
+                    flameMat.SetFloat("_Haze", 0f);
+                    flameMat.SetFloat("_Deep", 1f);
+                    flameMat.SetFloat("_Ao", 0f);
+                }
+                var fallbackMat = flameMat ?? CbArt.Glow(new Color(1f, 0.55f, 0.18f, 0.55f), (Texture)tex ?? CbLevel.FlameTexture());
+                var specs = new[]
+                {
+                    (x: 0f, z: 0f, h: 0.64f, tilt: 0f, flip: 1f),
+                    (x: -0.15f, z: -0.04f, h: 0.44f, tilt: 10f, flip: -1f),
+                    (x: 0.16f, z: 0.03f, h: 0.40f, tilt: -9f, flip: 1f),
+                };
+                foreach (var s in specs)
+                {
+                    var tongue = CbArt.Part(CbMesh.Quad, fallbackMat, t, new Vector3(s.x, s.h / 2f, s.z),
+                        new Vector3(s.h * 0.85f * s.flip, s.h, 1f), Quaternion.Euler(0, 0, s.tilt), shadows: false);
+                    tongue.name = "flame";
+                    tongues.Add((tongue, s.h, s.x, s.tilt));
+                }
             }
-            // single soft warm halo behind the flame and warm light on the ground around the stones
-            var halo = CbArt.Glow(new Color(1f, 0.52f, 0.14f, 0.24f), CbArt.Soft);
-            CbArt.Part(CbMesh.Quad, halo, t, new Vector3(0, 0.34f, 0.08f), new Vector3(1.25f, 1.1f, 1f), shadows: false).name = "fireHalo";
-            var glow = CbArt.Glow(new Color(1f, 0.56f, 0.2f, 0.32f), CbArt.Soft);
-            CbArt.Part(CbMesh.Quad, glow, t, new Vector3(0, -0.12f, 0), new Vector3(2.6f, 2.0f, 1), Quaternion.Euler(90, 0, 0), shadows: false).name = "fireGround";
+            // subtle warm halo and flickering ground light around the stone ring (kept soft so bloom never washes out the flames)
+            haloMat = CbArt.Glow(new Color(1f, 0.52f, 0.14f, 0.17f), CbArt.Soft);
+            fireHalo = CbArt.Part(CbMesh.Quad, haloMat, t, new Vector3(0, 0.34f, 0.08f), new Vector3(1.1f, 0.95f, 1f), shadows: false);
+            fireHalo.name = "fireHalo";
+            groundMat = CbArt.Glow(new Color(1f, 0.54f, 0.18f, 0.28f), CbArt.Soft);
+            CbArt.Part(CbMesh.Quad, groundMat, t, new Vector3(0, -0.11f, 0), new Vector3(2.6f, 2.0f, 1), Quaternion.Euler(90, 0, 0), shadows: false).name = "fireGround";
         }
 
         /// <summary>What he has found and owns, put out again (the menu opened: CbGame.ToMenu).</summary>
@@ -200,7 +274,7 @@ namespace Cloudborne
             t.localPosition -= new Vector3(0, foot, 0);
         }
 
-        /// <summary>Each frame in the menu: the flames flicker, now and then a spark rises.</summary>
+        /// <summary>Each frame in the menu: the halo and ground light pulse with the flames and rising embers drift up.</summary>
         public void Update(float dt)
         {
             time += dt;
@@ -213,8 +287,17 @@ namespace Cloudborne
                 t.localPosition = new Vector3(bx + Mathf.Sin(time * 4f + i) * 0.012f, h0 * s / 2f, t.localPosition.z);
                 t.localRotation = Quaternion.Euler(0, 0, tilt + Mathf.Sin(time * 3.1f + i * 0.9f) * 4.5f);
             }
-            if (tongues.Count > 0 && Random.value < dt * 2.5f)
-                CbFx.Spark(new Vector3(FireX + Random.Range(-0.2f, 0.2f), 0.55f, FireZ - 0.1f), CbFx.Flame, 1, 1.2f, 0.10f, 0.9f, 1);
+            float flicker = 0.88f + 0.08f * Mathf.Sin(time * 8.4f) + 0.04f * Mathf.Sin(time * 14.7f + 0.9f);
+            if (haloMat != null)
+            {
+                haloMat.SetColor("_Color", new Color(1f, 0.52f, 0.14f, 0.17f * flicker));
+                if (fireHalo != null) fireHalo.localScale = new Vector3(1.1f * (0.95f + 0.06f * flicker), 0.95f * flicker, 1f);
+            }
+            if (groundMat != null)
+                groundMat.SetColor("_Color", new Color(1f, 0.54f, 0.18f, 0.28f * flicker));
+            if ((hasShaderFire || tongues.Count > 0) && Random.value < dt * 4.0f)
+                CbFx.Spark(new Vector3(FireX + Random.Range(-0.22f, 0.22f), Random.Range(0.38f, 0.68f), FireZ + Random.Range(-0.14f, 0.14f)),
+                    Random.value < 0.6f ? CbFx.Flame : CbFx.Fire, 1, 0.65f, 0.08f, 1.05f, -1.2f, Random.Range(-0.15f, 0.20f));
         }
 
         public void Destroy() => Object.Destroy(root.gameObject);
