@@ -329,7 +329,8 @@ namespace Cloudborne
                 if (CbSave.Cleared(s.id))
                 {
                     float t = CbSave.BestTime(s.id);
-                    status.text = $"CLEARED  {(int)(t / 60)}:{(int)(t % 60):00}\nBEST {CbSave.Best(s.id):N0}";
+                    // (and how many of its hidden missions are done: CbGame.Missions)
+                    status.text = $"CLEARED  {(int)(t / 60)}:{(int)(t % 60):00}   ★ {CbGame.MissionsDone(s.id)}/3\nBEST {CbSave.Best(s.id):N0}";
                 }
                 else status.text = CbSave.Best(s.id) > 0 ? $"BEST {CbSave.Best(s.id):N0}\nPLAY" : "PLAY";
             }

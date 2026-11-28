@@ -234,6 +234,7 @@ namespace Cloudborne
             PlayerPrefs.DeleteKey(StaffThrowKey);
             PlayerPrefs.DeleteKey(PerfectGuardKey);
             PlayerPrefs.DeleteKey(LettersEverKey);
+            CbGame.ForgetMissions();
             PlayerPrefs.DeleteKey(MasksEverKey);
             fireAwake = 0;
             staffThrow = 0;

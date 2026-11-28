@@ -25,7 +25,7 @@ namespace Cloudborne
         readonly Text waveTxt, tipTxt, scoreTxt, comboN, goTxt, coinTxt, stageTxt, foeLeft, foeRight;
         float foeT;
         readonly RectTransform comboBox, pads, stickBase, stickKnob, paused, result, pauseBtn, pauseMenuBtn, resultMenuBtn;
-        readonly Text resultTitle, resultStats, fpsTxt, perfTxt, trialTxt;
+        readonly Text resultTitle, resultStats, fpsTxt, perfTxt, trialTxt, resultMissions;
         /// <summary>A time trial's clock (empty: none running).</summary>
         public void SetTrial(string s) { trialTxt.text = s; }
         /// <summary>The frame counter at the bottom of the screen while playing (the user: an APK with an FPS counter,
@@ -246,6 +246,9 @@ namespace Cloudborne
             resultRank.fontStyle = FontStyle.Italic;
             rankOutline = resultRank.gameObject.AddComponent<Outline>();
             rankOutline.effectDistance = new Vector2(4, -4);
+            // the stage's hidden missions, left of the buttons (CbGame.Missions; the canvas is 844 x 390)
+            resultMissions = UIKit.Label(result, "", 11, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-226, -88), new Vector2(214, 104), TextAnchor.UpperLeft, true);
+            resultMissions.supportRichText = true;
             resultRankLabel = UIKit.Label(result, "RANK", 16, Paper, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(300, 158), new Vector2(120, 20), TextAnchor.MiddleCenter, true);
             BigButton(result, "PLAY AGAIN", new Vector2(0, -50));
             resultMenuBtn = (RectTransform)BigButton(result, "MENU", new Vector2(0, -118)).transform.parent;
@@ -434,8 +437,10 @@ namespace Cloudborne
         public static bool ShowPads => CbSave.Pads == 1 || (CbSave.Pads == 0 && (Application.isMobilePlatform || Application.isEditor));
 
         /// <summary>The results: score, combo, time; tiger tokens, friends freed, stars (and a badge for no hit taken).</summary>
-        public void ShowResult(bool won, int score, int maxCombo, float time, int tokens = 0, int friends = 0, int stars = 0, bool flawless = false, int letters = 0)
+        public void ShowResult(bool won, int score, int maxCombo, float time, int tokens = 0, int friends = 0, int stars = 0, bool flawless = false, int letters = 0, string missions = "")
         {
+            resultMissions.text = missions;
+            Missions = missions;
             res = (won, score, maxCombo, time, tokens, friends, stars, flawless);
             resLetters = letters;
             resultTitle.text = won ? "STAGE CLEAR" : "DEFEATED";
@@ -456,6 +461,9 @@ namespace Cloudborne
         /// </summary>
         public static string RankOf(int stars, bool flawless) =>
             stars >= 3 && flawless ? "S" : stars >= 3 || (stars == 2 && flawless) ? "A" : stars == 2 ? "B" : "C";
+
+        /// <summary>The missions' lines the results show (for the tests).</summary>
+        public string Missions { get; private set; } = "";
 
         /// <summary>The rank the results show ("" when defeated).</summary>
         public string Rank { get; private set; } = "";
@@ -509,6 +517,8 @@ namespace Cloudborne
             resultRank.transform.localScale = Vector3.one * (r < 0 ? 0f : Mathf.Lerp(3f, 1f, Ease(r)));
             resultRank.transform.localRotation = Quaternion.Euler(0, 0, -8f);
             resultRankLabel.color = new Color(Paper.r, Paper.g, Paper.b, Mathf.Clamp01(r));
+            // the missions come in with it
+            resultMissions.color = new Color(Paper.r, Paper.g, Paper.b, Mathf.Clamp01(r));
             if (res.won && before < RankAt && t >= RankAt) CbFx.Sfx("heavy", 0.8f);
         }
 

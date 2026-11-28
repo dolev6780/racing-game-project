@@ -104,6 +104,7 @@ namespace Cloudborne
             var tr = running;
             string medal = clock <= tr.gold ? "GOLD" : clock <= tr.silver ? "SILVER" : clock <= tr.bronze ? "BRONZE" : "";
             LastMedal = medal;
+            if (medal == "GOLD") g.TrialGold = true;
             bool record = tr.best <= 0 || clock < tr.best;
             if (record) { tr.best = clock; PlayerPrefs.SetFloat(Key(tr.name), clock); PlayerPrefs.Save(); }
             g.hud.Banner((medal != "" ? medal + "!  " : "") + $"{tr.name} {clock:0.0}s" + (record ? "  NEW BEST" : ""), true);

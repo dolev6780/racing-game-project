@@ -644,6 +644,7 @@ namespace Cloudborne
             posts.Clear();
             foreach (var (x, kind, range, asleep) in PostPlan)
                 posts.Add(new Post { x = x, kind = kind, range = range, asleep = asleep, seat = asleep ? Seat(x) : null });
+            TrialGold = false;
             sectionIdx = tipIdx = 0; checkpointX = 0; Tokens = 0; Letters = 0; Secrets = 0; ResetRuns(); HasKey = false; hurtOnce = false; lastHp = hero.hp;
             boss = null; bossStarted = bossDone = false; FireAwakened = false; bossIntroSeen = false;
             // (stage 1-3 has no boss: Baba's trials, then the way on)
@@ -1290,7 +1291,7 @@ namespace Cloudborne
             CbSave.StageResult(CbStage.Id, won, score, time);
             // stars: cleared, every tiger token, and under seven minutes; a badge for no hit taken
             int stars = (won ? 1 : 0) + (Tokens >= 3 ? 1 : 0) + (won && time < 420f ? 1 : 0);
-            hud.ShowResult(won, score, maxCombo, time, Tokens, level.CagesFreed, stars, won && !hurtOnce, LettersFound);
+            hud.ShowResult(won, score, maxCombo, time, Tokens, level.CagesFreed, stars, won && !hurtOnce, LettersFound, CheckMissions(won));
         }
 
         void UpdateFlow(float dt)

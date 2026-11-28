@@ -147,9 +147,19 @@ namespace Cloudborne.Tests
             Assert.IsTrue(snap.dead, "Snap could not be beaten");
             yield return Frames(3);
             Assert.IsNull(game.lockZone, "The arena did not open after Snap was beaten");
+            // two of 1-1's hidden missions done on the way: all four letters, gold in a time trial (none done before)
+            Assert.AreEqual(0, CbGame.MissionsDone("1-1"), "Missions were done before the stage was played");
+            for (int i = 0; i < 4; i++) game.LetterFound(i);
+            game.TrialGold = true;
             game.Teleport(CbWorld.GoalX + 0.5f);
             yield return WaitForMode(CbGame.Mode.Over, 4f);
             Assert.AreEqual(CbGame.Mode.Over, game.mode, "The stage did not clear at the shrine gate");
+            // the results show them done and new, the third still "???"; they stay done
+            StringAssert.Contains("Find all four R-A-J-A letters  NEW!", game.hud.Missions, "The letters' mission was not shown done");
+            StringAssert.Contains("Win gold in a time trial  NEW!", game.hud.Missions, "The time trial's mission was not shown done");
+            // (the soldiers Snap whistled for, struck hard, may have had their guard broken: the third done too)
+            if (game.SoldierBreaks == 0) StringAssert.Contains("???", game.hud.Missions, "The mission not done was not hidden");
+            Assert.AreEqual(game.SoldierBreaks == 0 ? 2 : 3, CbGame.MissionsDone("1-1"), "The missions done were not kept");
             Assert.Greater(game.hero.hp, 0f);
             // no cheering: the gate opened and he walked on through it (the user)
             Assert.AreNotEqual(CbHero.State.Victory, game.hero.state, "Raja cheered at the shrine gate");
@@ -2324,6 +2334,16 @@ namespace Cloudborne.Tests
                 Assert.AreEqual(0f, game.hero.x, 0.01f, "The stage did not start at its start");
                 var cam = game.GetComponentInChildren<Camera>();
                 Assert.Less(Mathf.Abs(cam.transform.position.x - game.hero.x), 4f, "The camera slid over from the camp");
+                // the stage cleared at once: the results with the hidden missions (a picture of their layout)
+                game.SkipFights();
+                game.TrialGold = true;
+                game.hero.inv = 999f;
+                game.Teleport(CbWorld.GoalX + 0.5f);
+                yield return WaitForMode(CbGame.Mode.Over, 4f);
+                Assert.AreEqual(CbGame.Mode.Over, game.mode, "The stage did not clear at the gate");
+                for (float w = 0; w < 1.8f; w += Time.deltaTime) yield return null;
+                StringAssert.Contains("Win gold in a time trial", game.hud.Missions, "The results show no missions");
+                yield return TakePictures(new[] { ("results_missions", float.NaN, 0f) }, 0.2f);
                 // back to the menu from another stage: the jungle again, and the camp
                 CbStage.Set("1-2");
                 game.BuildStage();
