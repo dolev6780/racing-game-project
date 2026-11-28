@@ -200,6 +200,9 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   perfect guard met a chance red heavy blow (the tests now set `CbEnemy.NoChanceHeavy`); the sinking-stone check used
   95.2, now a lotus (now 86.6); the letter at 89 was not taken (the test now holds him under it and logs `LETTER`
   lines - read them if it fails again). The rain was hard to see: wider, longer, brighter streaks.
+- **Run 302 (d9cb411): 97/98.** The run 301 fixes pass; the hang still right. The camp test found a 7th trophy: the
+  picture tests' teleports cross the canopy trial and win it, so a medal was saved - the test now clears every
+  trial's best (and puts them back) and takes its pictures before counting (local).
 - **Staffs' models (local):** Meshy StaffFire/StaffWind/StaffVine (90 credits, 113 left) in `Props/Staff`, 1.75 m,
   grip 0.35 like the oak staff; symmetric (decorated at both ends). `TintStaff` swaps the model in his hand.
 - **The user's ideas list (inspired by The Lost Crown, Kirby and the Forgotten Land and others; the user: "let's
