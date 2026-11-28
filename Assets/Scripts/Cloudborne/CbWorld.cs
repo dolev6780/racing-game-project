@@ -460,7 +460,7 @@ namespace Cloudborne
                 {
                     bool front = Random.value < 0.18f;
                     var p = new Vector3(Random.Range(-40f, End), 0, front ? Random.Range(GroundFront + 0.05f, GroundFront + 0.35f) : Random.Range(1.7f, 9.5f));
-                    if (Wet(p.x, p.z)) continue;
+                    if (Wet(p.x, p.z) || (CbStage.Jungle && CbCamp.InCampClearing(p.x, p.z))) continue;
                     // grass mostly, a flower now and then
                     bool wantFlower = Random.value < 0.2f;
                     var pick = cards.FindAll(c => c.flower == wantFlower);
@@ -486,7 +486,7 @@ namespace Cloudborne
                     for (float x = -40f; x < End; x += Random.Range(gap0, gap1))
                     {
                         var p = new Vector3(x, 0, Random.Range(z0, z1));
-                        if (Wet(p.x, p.z) || OverPit(p.x)) continue;
+                        if (Wet(p.x, p.z) || OverPit(p.x) || (CbStage.Jungle && CbCamp.InCampClearing(p.x, p.z))) continue;
                         bool wantFlower = Random.value < flowers;
                         var pick = tall.FindAll(c => c.flower == wantFlower);
                         if (pick.Count == 0) pick = tall;
@@ -512,7 +512,7 @@ namespace Cloudborne
                 {
                     bool front = Random.value < 0.25f;
                     var at = new Vector3(Random.Range(-40f, End), 0, front ? Random.Range(GroundFront + 0.1f, GroundFront + 0.4f) : Random.Range(2.2f, 9.5f));
-                    if (Wet(at.x, at.z)) continue;
+                    if (Wet(at.x, at.z) || (CbStage.Jungle && CbCamp.InCampClearing(at.x, at.z))) continue;
                     Place(FernModel, far, at, front ? Random.Range(0.45f, 0.6f) : Random.Range(0.8f, 1.3f));
                 }
             }
@@ -1284,6 +1284,20 @@ namespace Cloudborne
                 if (CbStage.Jungle) BuildLayer("JungleMid", FarRowZ, -1.2f, 15f, 0.55f, null, null, 0f, 0f, true, 7f);
                 mid = CbStage.Jungle && BuildLayer("JungleMid", 18f, -0.6f, 10.5f, 0.3f);
                 var hedge = BushGround();
+                if (CbStage.Jungle)
+                {
+                    // clear the hedge across the camp hut so bushes frame both sides instead of cutting through its doorway
+                    float gapL = CbCamp.HutX - 2.15f, gapR = CbCamp.HutX + 2.15f;
+                    var split = new List<(float a, float b)>();
+                    foreach (var (a, b) in hedge)
+                    {
+                        if (b <= gapL || a >= gapR) { split.Add((a, b)); continue; }
+                        if (a < gapL - 0.5f) split.Add((a, gapL));
+                        if (b > gapR + 0.5f) split.Add((gapR, b));
+                    }
+                    hedge = split;
+                    BuildLayer("JungleNear", 5.6f, -0.15f, 1.9f, 0f, new List<(float, float)> { (gapL - 0.8f, gapR + 0.8f) }, StageTint, HedgeWind, 0.08f);
+                }
                 near = BuildLayer("JungleNear", 3f, -0.15f, 1.9f, 0f, hedge, StageTint, HedgeWind, 0.08f);
                 // and behind each river, where its channel ends: it seems to flow out of the bushes (a flat lawn and
                 // the old leaf models showed there)

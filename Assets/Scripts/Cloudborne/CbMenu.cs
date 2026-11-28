@@ -69,23 +69,26 @@ namespace Cloudborne
         readonly CbGame g;
         readonly RectTransform root;
         readonly CanvasGroup group;
+        readonly CbWorkshop3D workshop3D;
         readonly Dictionary<Page, RectTransform> pages = new Dictionary<Page, RectTransform>();
         readonly Dictionary<Page, RectTransform> panels = new Dictionary<Page, RectTransform>();
         readonly Dictionary<Page, List<Btn>> lists = new Dictionary<Page, List<Btn>>();
         readonly List<Mote> motes = new List<Mote>();
         readonly RectTransform[] logoCrystals = new RectTransform[4];
-        RectTransform mainLogo, mainButtons;
+        RectTransform mainLogo, mainButtons, workshopStageRt;
         Page page;
-        int focus;
+        int focus, workshopSel;
         float prevX, prevY, shopMsgT, animT = 1f;
         bool resetArmed;
         readonly HashSet<int> seen = new HashSet<int>(), now = new HashSet<int>();
 
         Btn playBtn, resetBtn, staffActionBtn;
-        Text playSubTxt, stagesTag, workshopTag, coinsTxt, progressTxt, shopCoins, shopMsg,
+        Text playSubTxt, stagesTag, workshopTag, coinsTxt, progressTxt, shopCoins, shopMsg, workshopStageTitle,
             volumeTxt, padsTxt, graphicsTxt, hardTxt, replayTxt, resetTxt, staffName, staffDesc, staffBtn;
         Image volumeBarFill, staffEmblem;
+        RawImage workshopLiveView;
         readonly Image[] staffPips = new Image[4];
+        readonly List<(RectTransform rt, Image rim, RawImage thumb, Image fallback)> workshopRowCards = new List<(RectTransform, Image, RawImage, Image)>();
         readonly List<(Text status, Image badge, StageInfo stage, int index)> stageCards = new List<(Text, Image, StageInfo, int)>();
         readonly List<(Btn buy, Image[] pips, Text stat, CbSave.Upgrade up)> shopRows = new List<(Btn, Image[], Text, CbSave.Upgrade)>();
 
@@ -95,6 +98,7 @@ namespace Cloudborne
         public CbMenu(CbGame game, Transform parent)
         {
             g = game;
+            workshop3D = new CbWorkshop3D(game != null ? game.transform : parent);
             var go = new GameObject("Menu", typeof(RectTransform));
             go.transform.SetParent(parent, false);
             var canvas = go.AddComponent<Canvas>();
@@ -483,13 +487,37 @@ namespace Cloudborne
             UIKit.Image(UIKit.Rect(coinBox, "gem", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(16, 0), new Vector2(14, 14)), DiamondSprite, Gold);
             shopCoins = UIKit.Label(coinBox, "", 14, Gold, new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-12, 0), new Vector2(115, 22), TextAnchor.MiddleRight, true);
 
-            RectTransform ShopRow(string name, int idx, Color emCol, out Image emblem)
+            // left: live 3D diorama showing Baba + rotating 3D element on the upgrade pedestal
+            workshopStageRt = UIKit.Rect(panel, "stage3d", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-258, -6), new Vector2(252, 232));
+            UIKit.Image(UIKit.Rect(workshopStageRt, "shadow", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(3, -4), new Vector2(252, 232)), ChamferSprite, Ink).type = Image.Type.Sliced;
+            UIKit.Image(UIKit.Rect(workshopStageRt, "rim", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(256, 236)), ChamferSprite, new Color(Gold.r, Gold.g, Gold.b, 0.55f)).type = Image.Type.Sliced;
+            UIKit.Image(workshopStageRt, ChamferSprite, CardCol).type = Image.Type.Sliced;
+
+            var viewRt = UIKit.Rect(workshopStageRt, "view3d", new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -8), new Vector2(236, 194));
+            workshopLiveView = viewRt.gameObject.AddComponent<RawImage>();
+            workshopLiveView.raycastTarget = false;
+            workshopLiveView.texture = workshop3D.LiveTexture;
+            if (workshop3D.LiveTexture == null) workshopLiveView.color = new Color(0.08f, 0.09f, 0.08f, 1f);
+
+            var plaque = UIKit.Rect(workshopStageRt, "plaque", new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(0, 8), new Vector2(232, 22));
+            UIKit.Image(plaque, SlantSprite, new Color(0, 0, 0, 0.55f));
+            workshopStageTitle = UIKit.Label(plaque, "TIGER HEART", 11, Gold, TextAnchor.MiddleCenter, true);
+
+            // right: 4 upgrade/staff cards, each displaying its own rendered 3D element icon
+            RectTransform ShopRow(string name, int idx, Color emCol, out Image fallbackEmblem)
             {
-                var row = UIKit.Rect(panel, name, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(0, -72 - idx * 54), new Vector2(752, 48));
+                var row = UIKit.Rect(panel, name, new Vector2(0.5f, 1), new Vector2(0.5f, 1), new Vector2(126, -68 - idx * 57), new Vector2(502, 51));
+                var rim = UIKit.Image(UIKit.Rect(row, "edge", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(505, 54)), ChamferSprite, new Color(1, 1, 1, 0.1f));
+                rim.type = Image.Type.Sliced;
                 UIKit.Image(row, ChamferSprite, CardCol).type = Image.Type.Sliced;
-                UIKit.Image(UIKit.Rect(row, "edge", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(754, 50)), ChamferSprite, new Color(1, 1, 1, 0.1f)).type = Image.Type.Sliced;
-                UIKit.Image(UIKit.Rect(row, "emblemBg", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(26, 0), new Vector2(26, 26)), DiamondSprite, new Color(emCol.r, emCol.g, emCol.b, 0.25f));
-                emblem = UIKit.Image(UIKit.Rect(row, "emblem", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(26, 0), new Vector2(18, 18)), DiamondSprite, emCol);
+
+                var iconBox = UIKit.Rect(row, "icon3d", new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(6, 0), new Vector2(42, 42));
+                UIKit.Image(iconBox, ChamferSprite, new Color(emCol.r, emCol.g, emCol.b, 0.2f)).type = Image.Type.Sliced;
+                var thumbRt = UIKit.Rect(iconBox, "thumb", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(38, 38));
+                var thumb = thumbRt.gameObject.AddComponent<RawImage>();
+                thumb.raycastTarget = false;
+                fallbackEmblem = UIKit.Image(UIKit.Rect(iconBox, "fb", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(22, 22)), DiamondSprite, emCol);
+                workshopRowCards.Add((row, rim, thumb, fallbackEmblem));
                 return row;
             }
 
@@ -497,39 +525,47 @@ namespace Cloudborne
             for (int i = 0; i < CbSave.Upgrades.Length; i++)
             {
                 var u = CbSave.Upgrades[i];
+                int rowIdx = i;
                 var row = ShopRow(u.id, i, emblemCols[i % emblemCols.Length], out _);
-                UIKit.Label(row, u.name, 15, Gold, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(48, 9), new Vector2(250, 18), TextAnchor.MiddleLeft, true);
-                UIKit.Label(row, u.desc, 11, Paper, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(48, -9), new Vector2(270, 16), TextAnchor.MiddleLeft);
+                UIKit.Label(row, u.name, 14, Gold, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(56, 9), new Vector2(180, 18), TextAnchor.MiddleLeft, true);
+                UIKit.Label(row, u.desc, 10, Paper, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(56, -9), new Vector2(185, 16), TextAnchor.MiddleLeft);
 
-                var stat = UIKit.Label(row, "", 11, Mint, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(314, 0), new Vector2(130, 20), TextAnchor.MiddleLeft, true);
+                var stat = UIKit.Label(row, "", 10, Mint, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(240, 10), new Vector2(120, 16), TextAnchor.MiddleLeft, true);
 
                 var pips = new Image[u.Max];
                 for (int k = 0; k < u.Max; k++)
-                    pips[k] = UIKit.Image(UIKit.Rect(row, "pip", new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(464 + k * 26, 0), new Vector2(16, 16)), DiamondSprite, Dim);
+                    pips[k] = UIKit.Image(UIKit.Rect(row, "pip", new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(252 + k * 24, -10), new Vector2(14, 14)), DiamondSprite, Dim);
 
                 var up = u;
-                var buy = Button(Page.Workshop, row, "BUY", new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-12, 0), new Vector2(164, 34), () => Buy(up), 14, true);
+                var buy = Button(Page.Workshop, row, "BUY", new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-10, 0), new Vector2(130, 34), () => Buy(up, rowIdx), 13, true);
                 shopRows.Add((buy, pips, stat, u));
             }
 
-            // the staff carried: tap for the next (bought if not owned yet), updating the camp hut shelf too
+            // the staff carried: tap for the next (bought if not owned yet), updating the 3D showcase and camp hut too
             {
                 var row = ShopRow("staffs", CbSave.Upgrades.Length, StaffCols[0], out staffEmblem);
-                staffName = UIKit.Label(row, "", 15, Gold, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(48, 9), new Vector2(320, 18), TextAnchor.MiddleLeft, true);
-                staffDesc = UIKit.Label(row, "", 11, Paper, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(48, -9), new Vector2(390, 16), TextAnchor.MiddleLeft);
+                staffName = UIKit.Label(row, "", 13, Gold, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(56, 9), new Vector2(188, 18), TextAnchor.MiddleLeft, true);
+                staffDesc = UIKit.Label(row, "", 10, Paper, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(56, -9), new Vector2(290, 16), TextAnchor.MiddleLeft);
                 for (int k = 0; k < staffPips.Length; k++)
-                    staffPips[k] = UIKit.Image(UIKit.Rect(row, "spip" + k, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(452 + k * 24, 0), new Vector2(14, 14)), DiamondSprite, Dim);
-                staffActionBtn = Button(Page.Workshop, row, "", new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-12, 0), new Vector2(164, 34), () =>
+                    staffPips[k] = UIKit.Image(UIKit.Rect(row, "spip" + k, new Vector2(0, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(252 + k * 22, 10), new Vector2(13, 13)), DiamondSprite, Dim);
+                staffActionBtn = Button(Page.Workshop, row, "", new Vector2(1, 0.5f), new Vector2(1, 0.5f), new Vector2(-10, 0), new Vector2(130, 34), () =>
                 {
+                    SelectWorkshop(3);
                     string msg = CbSave.NextStaff();
                     if (msg != "") { Message(msg, Ember); CbFx.Sfx("block", 0.6f); }
-                    else { Message($"{CbSave.StaffNames[CbSave.StaffKind]} in hand.", Gold); CbFx.Sfx("pickup", 0.6f); g.camp?.Refresh(); }
+                    else
+                    {
+                        Message($"{CbSave.StaffNames[CbSave.StaffKind]} in hand.", Gold);
+                        CbFx.Sfx("pickup", 0.6f);
+                        g.camp?.Refresh();
+                        workshop3D.TriggerUpgrade(3, 0, CbSave.StaffKind, CbSave.StaffsOwned);
+                    }
                     Refresh();
-                }, 13, true);
+                }, 12, true);
                 staffBtn = staffActionBtn.label;
             }
 
-            shopMsg = UIKit.Label(panel, "", 12, Paper, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(78, 25), new Vector2(500, 18), TextAnchor.MiddleCenter, true);
+            shopMsg = UIKit.Label(panel, "", 12, Paper, new Vector2(0.5f, 0), new Vector2(0.5f, 0), new Vector2(126, 24), new Vector2(480, 18), TextAnchor.MiddleCenter, true);
             Back(Page.Workshop, panel);
         }
 
@@ -670,6 +706,7 @@ namespace Cloudborne
         public void Hide()
         {
             Visible = false;
+            workshop3D?.SetActive(false);
             root.gameObject.SetActive(false);
         }
 
@@ -682,9 +719,29 @@ namespace Cloudborne
             shopMsgT = 0;
             animT = 0;
             if (shopMsg != null) shopMsg.text = "";
+            workshop3D?.SetActive(p == Page.Workshop);
+            if (p == Page.Workshop) workshopSel = 0;
             Refresh();
             ApplyEntrance(0f);
             CbFx.Sfx("talk", 0.4f);
+        }
+
+        void SelectWorkshop(int idx)
+        {
+            workshopSel = Mathf.Clamp(idx, 0, 3);
+            int lvl = workshopSel < CbSave.Upgrades.Length ? CbSave.Level(CbSave.Upgrades[workshopSel]) : 0;
+            workshop3D?.Select(workshopSel, lvl, CbSave.StaffKind, CbSave.StaffsOwned);
+            if (workshopStageTitle != null)
+            {
+                if (workshopSel < CbSave.Upgrades.Length)
+                {
+                    var u = CbSave.Upgrades[workshopSel];
+                    workshopStageTitle.text = $"{u.name}  ·  LV {lvl}/{u.Max}";
+                }
+                else workshopStageTitle.text = CbSave.StaffNames[CbSave.StaffKind];
+            }
+            for (int i = 0; i < workshopRowCards.Count; i++)
+                workshopRowCards[i].rim.color = i == workshopSel ? Gold : new Color(1, 1, 1, 0.1f);
         }
 
         void Refresh()
@@ -760,6 +817,16 @@ namespace Cloudborne
                 staffActionBtn.rimIdle = owned || canBuy ? Gold : RimIdle;
             }
 
+            for (int i = 0; i < workshopRowCards.Count; i++)
+            {
+                var card = workshopRowCards[i];
+                var tex = page == Page.Workshop ? workshop3D?.Thumb(i, CbSave.StaffKind) : null;
+                card.thumb.texture = tex;
+                card.thumb.enabled = tex != null;
+                card.fallback.enabled = tex == null;
+            }
+            if (page == Page.Workshop) SelectWorkshop(workshopSel);
+
             volumeTxt.text = Mathf.RoundToInt(CbSave.Volume * 100) + "%";
             if (volumeBarFill != null) volumeBarFill.rectTransform.sizeDelta = new Vector2(126f * Mathf.Clamp01(CbSave.Volume), 16f);
             padsTxt.text = CbSave.Pads == 0 ? "AUTO" : CbSave.Pads == 1 ? "ALWAYS" : "OFF";
@@ -776,14 +843,16 @@ namespace Cloudborne
             }
         }
 
-        void Buy(CbSave.Upgrade u)
+        void Buy(CbSave.Upgrade u, int rowIdx)
         {
+            SelectWorkshop(rowIdx);
             int price = CbSave.Price(u);
             if (price <= 0) { Message("Already at its best.", Dim); CbFx.Sfx("block", 0.6f); return; }
             if (!CbSave.Buy(u)) { Message($"Not enough coins: {price - CbSave.Coins} more to find.", Ember); CbFx.Sfx("block", 0.6f); return; }
             Message($"{u.name} {CbSave.Level(u)}!", Gold);
             CbFx.Sfx("coin");
             CbFx.Sfx("pickup", 0.7f);
+            workshop3D?.TriggerUpgrade(rowIdx, CbSave.Level(u), CbSave.StaffKind, CbSave.StaffsOwned);
             Refresh();
         }
 
@@ -868,6 +937,7 @@ namespace Cloudborne
                 ApplyEntrance(animT);
             }
             AnimateBackdrop(dt);
+            if (page == Page.Workshop) workshop3D?.Update(dt);
             if (shopMsgT > 0) { shopMsgT -= dt; if (shopMsgT <= 0) shopMsg.text = ""; }
             var list = lists[page];
 
@@ -877,26 +947,46 @@ namespace Cloudborne
             prevX = input.x; prevY = input.y;
             if (list.Count > 0)
             {
-                if (next) { focus = (focus + 1) % list.Count; CbFx.Sfx("talk", 0.3f); }
-                if (prev) { focus = (focus + list.Count - 1) % list.Count; CbFx.Sfx("talk", 0.3f); }
+                if (next) { focus = (focus + 1) % list.Count; CbFx.Sfx("talk", 0.3f); if (page == Page.Workshop && focus < 4) SelectWorkshop(focus); }
+                if (prev) { focus = (focus + list.Count - 1) % list.Count; CbFx.Sfx("talk", 0.3f); if (page == Page.Workshop && focus < 4) SelectWorkshop(focus); }
             }
             if (input.pause && page != Page.Main) Show(Page.Main);
             else if (input.confirm && list.Count > 0) Press(list[focus]);
 
-            // touch: a tap presses the button under it
+            // touch: a tap presses the button under it (or previews an element row in the 3D workshop)
             now.Clear();
             foreach (var p in InputBridge.GetPointers())
             {
                 now.Add(p.Id);
                 if (seen.Contains(p.Id) || !Visible) continue;
                 var current = lists[page];
+                bool hitBtn = false;
                 for (int i = 0; i < current.Count; i++)
                     if (current[i].rt.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(current[i].rt, p.Position, null))
                     {
                         focus = i;
                         Press(current[i]);
+                        hitBtn = true;
                         break;
                     }
+                if (!hitBtn && page == Page.Workshop)
+                {
+                    for (int i = 0; i < workshopRowCards.Count; i++)
+                        if (RectTransformUtility.RectangleContainsScreenPoint(workshopRowCards[i].rt, p.Position, null))
+                        {
+                            focus = i;
+                            SelectWorkshop(i);
+                            CbFx.Sfx("talk", 0.35f);
+                            break;
+                        }
+                    if (workshopStageRt != null && RectTransformUtility.RectangleContainsScreenPoint(workshopStageRt, p.Position, null))
+                    {
+                        int nxt = (workshopSel + 1) % 4;
+                        focus = nxt;
+                        SelectWorkshop(nxt);
+                        CbFx.Sfx("talk", 0.35f);
+                    }
+                }
             }
             seen.Clear();
             foreach (var id in now) seen.Add(id);

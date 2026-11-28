@@ -484,7 +484,7 @@ namespace Cloudborne
         static readonly string[] KidModels = { "Cloudborne/Monkey/Monkey" };
         static readonly string[] BabaModels = { "Cloudborne/Baba/Baba" };
         public static readonly Color BabaCol = CbArt.Hex("#f0a050");
-        static RigStyle BabaStyle => new RigStyle
+        public static RigStyle BabaStyle => new RigStyle
         {
             fur = CbArt.Hex("#c8642a"), paw = CbArt.Hex("#9a4a20"), top = CbArt.Hex("#c8642a"), pants = CbArt.Hex("#6a4a2a"),
             belt = CbArt.Hex("#3a2a1a"), wrap = CbArt.Hex("#efe6d4"), scale = 1.05f,

@@ -16,7 +16,8 @@ namespace Cloudborne
         /// <summary>Where Raja stands in the menu (the camera keeps him on the screen's right, the menu on the left).</summary>
         public const float HeroX = -30f;
         // the campfire in front of him on his left, the hut behind him, the shelf behind on his right
-        const float FireX = HeroX - 1.7f, FireZ = -0.3f, HutX = HeroX - 0.6f, HutZ = 3.6f, ShelfX = HeroX + 2.3f, ShelfZ = 1.6f, ShelfYaw = 200f;
+        public const float FireX = HeroX - 1.65f, FireZ = 0.55f, HutX = HeroX - 0.6f, HutZ = 3.6f;
+        const float ShelfX = HeroX + 2.3f, ShelfZ = 1.6f, ShelfYaw = 200f;
         // the shelf's three floors as modelled (measured by rays down through it, for its 1.7 m), its inner width
         static readonly float[] ShelfFloors = { 0.984f, 0.594f, 0.21f };
         const float ShelfInner = 1.36f, ShelfRoom = 0.27f;
@@ -25,7 +26,7 @@ namespace Cloudborne
 
         readonly Transform root;
         Transform shelf, trophies, staffs;
-        readonly List<(Transform t, float h)> tongues = new List<(Transform, float)>();
+        readonly List<(Transform t, float h, float baseX, float tilt)> tongues = new List<(Transform, float, float, float)>();
         float time;
 
         public Transform Root => root;
@@ -34,12 +35,19 @@ namespace Cloudborne
         /// <summary>How many staffs lean on the hut now.</summary>
         public int Staffs => staffs != null ? staffs.childCount : 0;
 
+        /// <summary>True inside the hut footprint, firepit ring and foreground clearing so jungle foliage never pokes through them.</summary>
+        public static bool InCampClearing(float x, float z) =>
+            (Mathf.Abs(x - HutX) < 2.25f && z > 1.75f && z < 5.8f) ||
+            (Mathf.Abs(x - FireX) < 1.05f && z > -0.25f && z < 1.85f) ||
+            (Mathf.Abs(x - HeroX) < 3.1f && z > -0.2f && z < 1.75f);
+
         public CbCamp(Transform parent)
         {
             root = new GameObject("Camp").transform;
             root.SetParent(parent, false);
             var hut = Place("CampHut", HutX, HutZ, 180f + 12f);
-            var fire = Place("Campfire", FireX, FireZ, 180f);
+            if (hut != null) HutInterior(hut);
+            Place("Campfire", FireX, FireZ, 180f);
             shelf = Place("TrophyShelf", ShelfX, ShelfZ, ShelfYaw);
             Fire();
             Refresh();
@@ -53,26 +61,65 @@ namespace Cloudborne
             return t;
         }
 
-        /// <summary>The fire on the logs: tongues of flame flickering each on its own, a warm glow on the ground.</summary>
+        /// <summary>A dark cozy cabin interior backing inside the hut so the open doorway never shows bushes behind it.</summary>
+        void HutInterior(Transform hut)
+        {
+            var rs = hut.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return;
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            var dark = CbArt.Toon("#24150d");
+            dark.SetFloat("_SpecStrength", 0f);
+            dark.SetFloat("_RimStrength", 0f);
+            // seated safely inside the cabin walls below the eaves
+            var back = CbArt.Part(CbMesh.Quad, dark, root,
+                new Vector3(b.center.x, b.min.y + b.size.y * 0.42f, b.center.z + b.size.z * 0.14f),
+                new Vector3(b.size.x * 0.50f, b.size.y * 0.38f, 1f),
+                Quaternion.Euler(0, 12f, 0), shadows: false);
+            back.name = "hutInterior";
+            var glow = CbArt.Glow(new Color(1f, 0.55f, 0.2f, 0.24f), CbArt.Soft);
+            CbArt.Part(CbMesh.Quad, glow, root,
+                new Vector3(b.center.x, b.min.y + b.size.y * 0.39f, b.center.z + b.size.z * 0.08f),
+                new Vector3(b.size.x * 0.34f, b.size.y * 0.28f, 1f),
+                Quaternion.Euler(0, 12f, 0), shadows: false).name = "hutWarmth";
+        }
+
+        /// <summary>The fire on the logs: crisp cel-shaded flame tongues without HDR whiteout, a gentle halo and ground glow.</summary>
         void Fire()
         {
-            var t = CbArt.Joint(root, FireX, 0.12f, FireZ, "campFire");
-            var tex = (Texture)CbVfx.Painted("Fire") ?? CbLevel.FlameTexture();
-            bool painted = CbVfx.Painted("Fire") != null;
-            var outer = CbArt.Glow(painted ? new Color(1f, 0.85f, 0.75f, 1f) : new Color(1f, 0.45f, 0.12f, 1f), tex);
-            var inner = CbArt.Glow(painted ? new Color(1f, 1f, 0.9f, 0.9f) : new Color(1f, 0.82f, 0.4f, 1f), tex);
-            for (int k = 0; k < 7; k++)
+            var t = CbArt.Joint(root, FireX, 0.14f, FireZ, "campFire");
+            var tex = CbVfx.Painted("Fire");
+            var cutout = Resources.Load<Shader>("Shaders/PaintedCutout");
+            Material flameMat = null;
+            if (tex != null && cutout != null && cutout.isSupported)
             {
-                bool core = k % 3 == 1;
-                float h = core ? Random.Range(0.45f, 0.6f) : Random.Range(0.6f, 0.85f);
-                var tongue = CbArt.Part(CbMesh.Quad, core ? inner : outer, t, new Vector3(Random.Range(-0.22f, 0.22f), h / 2, -0.15f + k * 0.05f - (core ? 0.06f : 0f)),
-                    new Vector3(h * 0.9f, h, 1), shadows: false);
-                tongue.name = "flame";
-                tongues.Add((tongue, h));
+                flameMat = new Material(cutout) { mainTexture = tex };
+                flameMat.SetColor("_Color", new Color(1f, 0.96f, 0.9f, 1f));
+                flameMat.SetFloat("_Cutoff", 0.44f);
+                flameMat.SetFloat("_Haze", 0f);
+                flameMat.SetFloat("_Deep", 1f);
+                flameMat.SetFloat("_Ao", 0f);
             }
-            // the warm light it throws on the ground round it
-            var glow = CbArt.Glow(new Color(1f, 0.6f, 0.25f, 0.45f), CbArt.Soft);
-            CbArt.Part(CbMesh.Quad, glow, t, new Vector3(0, -0.1f, 0), new Vector3(3.2f, 2.4f, 1), Quaternion.Euler(90, 0, 0), shadows: false);
+            var fallbackMat = flameMat ?? CbArt.Glow(new Color(1f, 0.55f, 0.18f, 0.55f), (Texture)tex ?? CbLevel.FlameTexture());
+
+            var specs = new[]
+            {
+                (x: 0f, z: 0f, h: 0.64f, tilt: 0f, flip: 1f),
+                (x: -0.15f, z: -0.04f, h: 0.44f, tilt: 10f, flip: -1f),
+                (x: 0.16f, z: 0.03f, h: 0.40f, tilt: -9f, flip: 1f),
+            };
+            foreach (var s in specs)
+            {
+                var tongue = CbArt.Part(CbMesh.Quad, fallbackMat, t, new Vector3(s.x, s.h / 2f, s.z),
+                    new Vector3(s.h * 0.85f * s.flip, s.h, 1f), Quaternion.Euler(0, 0, s.tilt), shadows: false);
+                tongue.name = "flame";
+                tongues.Add((tongue, s.h, s.x, s.tilt));
+            }
+            // single soft warm halo behind the flame and warm light on the ground around the stones
+            var halo = CbArt.Glow(new Color(1f, 0.52f, 0.14f, 0.24f), CbArt.Soft);
+            CbArt.Part(CbMesh.Quad, halo, t, new Vector3(0, 0.34f, 0.08f), new Vector3(1.25f, 1.1f, 1f), shadows: false).name = "fireHalo";
+            var glow = CbArt.Glow(new Color(1f, 0.56f, 0.2f, 0.32f), CbArt.Soft);
+            CbArt.Part(CbMesh.Quad, glow, t, new Vector3(0, -0.12f, 0), new Vector3(2.6f, 2.0f, 1), Quaternion.Euler(90, 0, 0), shadows: false).name = "fireGround";
         }
 
         /// <summary>What he has found and owns, put out again (the menu opened: CbGame.ToMenu).</summary>
@@ -159,16 +206,15 @@ namespace Cloudborne
             time += dt;
             for (int i = 0; i < tongues.Count; i++)
             {
-                var (t, h0) = tongues[i];
-                float s = 1f + Mathf.Sin(time * (8f + i % 5) + i * 1.7f) * 0.16f + Mathf.Sin(time * 13f + i) * 0.06f;
-                t.localScale = new Vector3(h0 * 0.9f * (1.6f - s * 0.6f), h0 * s, 1);
-                var p = t.localPosition;
-                p.y = h0 * s / 2;
-                t.localPosition = p;
-                t.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(time * 3.1f + i * 0.9f) * 6f);
+                var (t, h0, bx, tilt) = tongues[i];
+                float s = 1f + Mathf.Sin(time * (6.8f + i * 1.9f) + i * 1.7f) * 0.11f + Mathf.Sin(time * 11f + i) * 0.04f;
+                float flip = i == 1 ? -1f : 1f;
+                t.localScale = new Vector3(h0 * 0.85f * (1.28f - s * 0.28f) * flip, h0 * s, 1);
+                t.localPosition = new Vector3(bx + Mathf.Sin(time * 4f + i) * 0.012f, h0 * s / 2f, t.localPosition.z);
+                t.localRotation = Quaternion.Euler(0, 0, tilt + Mathf.Sin(time * 3.1f + i * 0.9f) * 4.5f);
             }
             if (tongues.Count > 0 && Random.value < dt * 2.5f)
-                CbFx.Spark(new Vector3(FireX + Random.Range(-0.2f, 0.2f), 0.6f, FireZ - 0.2f), CbFx.Flame, 1, 1.2f, 0.12f, 0.9f, 1);
+                CbFx.Spark(new Vector3(FireX + Random.Range(-0.2f, 0.2f), 0.55f, FireZ - 0.1f), CbFx.Flame, 1, 1.2f, 0.10f, 0.9f, 1);
         }
 
         public void Destroy() => Object.Destroy(root.gameObject);
