@@ -157,6 +157,65 @@ namespace Cloudborne
             });
         }
 
+        /// <summary>Unit teardrop flame shell (radius 1, height 1) with smooth radial normals and seamless circular UVs.</summary>
+        public static Mesh FlamePlume()
+        {
+            return Get("flamePlume", () =>
+            {
+                const int Segs = 24, Rings = 20;
+                int w = Segs + 1;
+                var v = new List<Vector3>(w * (Rings + 1));
+                var n = new List<Vector3>(w * (Rings + 1));
+                var uv = new List<Vector2>(w * (Rings + 1));
+                var tri = new List<int>(Segs * Rings * 6);
+                for (int iy = 0; iy <= Rings; iy++)
+                {
+                    float vv = iy / (float)Rings;
+                    float rad = Mathf.Max(0.04f, (1f - 0.72f * vv) * (0.72f + 0.48f * Mathf.Sin((vv * 0.88f + 0.08f) * Mathf.PI)));
+                    for (int ix = 0; ix <= Segs; ix++)
+                    {
+                        float u = ix / (float)Segs;
+                        float ang = u * Mathf.PI * 2f;
+                        v.Add(new Vector3(Mathf.Cos(ang) * rad, vv, Mathf.Sin(ang) * rad));
+                        n.Add(new Vector3(Mathf.Cos(ang), 0.25f, Mathf.Sin(ang)).normalized);
+                        uv.Add(new Vector2(u, vv));
+                    }
+                }
+                for (int iy = 0; iy < Rings; iy++)
+                    for (int ix = 0; ix < Segs; ix++)
+                    {
+                        int a = iy * w + ix, b = a + w;
+                        tri.Add(a); tri.Add(b); tri.Add(a + 1);
+                        tri.Add(b); tri.Add(b + 1); tri.Add(a + 1);
+                    }
+                return Build(v, n, uv, tri);
+            });
+        }
+
+        /// <summary>Faceted double-pyramid crystal centred on the origin: radius 1 at the waist, tips at y = ±1.</summary>
+        public static Mesh Crystal(int segments = 6)
+        {
+            return Get("crystal" + segments, () =>
+            {
+                var pos = new Vector3[segments + 2];
+                for (int i = 0; i < segments; i++)
+                {
+                    float a = i / (float)segments * Mathf.PI * 2f;
+                    pos[i] = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                }
+                pos[segments] = Vector3.up;
+                pos[segments + 1] = Vector3.down;
+                var tris = new List<int>(segments * 6);
+                for (int i = 0; i < segments; i++)
+                {
+                    int nx = (i + 1) % segments;
+                    tris.Add(i); tris.Add(nx); tris.Add(segments);
+                    tris.Add(nx); tris.Add(i); tris.Add(segments + 1);
+                }
+                return Faceted(pos, tris);
+            });
+        }
+
         /// <summary>Flat leaf in the XY plane, base at the origin, tip at y=3, about 1.7 wide. Visible from both sides.</summary>
         public static Mesh Leaf()
         {

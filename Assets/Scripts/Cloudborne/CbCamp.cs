@@ -86,49 +86,6 @@ namespace Cloudborne
                 Quaternion.Euler(0, 12f, 0), shadows: false).name = "hutWarmth";
         }
 
-        static Mesh flamePlume;
-
-        /// <summary>Unit teardrop flame shell (radius 1, height 1) with smooth radial normals and seamless circular UVs.</summary>
-        static Mesh FlamePlume()
-        {
-            if (flamePlume != null) return flamePlume;
-            const int Segs = 24, Rings = 20;
-            int w = Segs + 1;
-            var verts = new Vector3[w * (Rings + 1)];
-            var norms = new Vector3[w * (Rings + 1)];
-            var uvs = new Vector2[w * (Rings + 1)];
-            var tris = new int[Segs * Rings * 6];
-            for (int iy = 0; iy <= Rings; iy++)
-            {
-                float v = iy / (float)Rings;
-                float rad = Mathf.Max(0.04f, (1f - 0.72f * v) * (0.72f + 0.48f * Mathf.Sin((v * 0.88f + 0.08f) * Mathf.PI)));
-                for (int ix = 0; ix <= Segs; ix++)
-                {
-                    float u = ix / (float)Segs;
-                    float ang = u * Mathf.PI * 2f;
-                    int idx = iy * w + ix;
-                    verts[idx] = new Vector3(Mathf.Cos(ang) * rad, v, Mathf.Sin(ang) * rad);
-                    norms[idx] = new Vector3(Mathf.Cos(ang), 0.25f, Mathf.Sin(ang)).normalized;
-                    uvs[idx] = new Vector2(u, v);
-                }
-            }
-            int k = 0;
-            for (int iy = 0; iy < Rings; iy++)
-                for (int ix = 0; ix < Segs; ix++)
-                {
-                    int a = iy * w + ix, b = a + w;
-                    tris[k++] = a; tris[k++] = b; tris[k++] = a + 1;
-                    tris[k++] = b; tris[k++] = b + 1; tris[k++] = a + 1;
-                }
-            flamePlume = new Mesh { name = "FlamePlume" };
-            flamePlume.vertices = verts;
-            flamePlume.normals = norms;
-            flamePlume.uv = uvs;
-            flamePlume.triangles = tris;
-            flamePlume.RecalculateBounds();
-            return flamePlume;
-        }
-
         /// <summary>The fire on the logs: layered 3D animated cel-shader flames rising from the logs, plus warm glow and embers.</summary>
         void Fire()
         {
@@ -137,7 +94,7 @@ namespace Cloudborne
             if (fireShader != null && fireShader.isSupported)
             {
                 hasShaderFire = true;
-                var mesh = FlamePlume();
+                var mesh = CbMesh.FlamePlume();
                 var layers = new[]
                 {
                     (r: 0.27f, h: 0.98f, x:  0.00f, y:  0.00f, z:  0.00f, tx:  0f, tz:  0f, phase: 0.0f, spd: 1.00f, lobes: 3f, sway: 0.30f, core: false),
