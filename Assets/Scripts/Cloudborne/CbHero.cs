@@ -139,7 +139,7 @@ namespace Cloudborne
         // can: so he climbs a wall, or a shaft, jump by jump (the user was stuck at the foot of the mountain's walls)
         const float WallSlide = 3.5f, WallCoyote = 0.12f, WallLock = 0.15f, WallKickUp = 11f, WallKickOut = 6.5f;
 
-        const float StaffScale = 0.72f;
+        public const float StaffScale = 0.72f;
         static readonly Vector3 StaffBackPos = new Vector3(0.02f, 0.32f, -0.3f);
         static readonly Quaternion StaffBackRot = CbArt.Rot(-0.12f, 0, 0.82f);
         static readonly Vector3 StaffHandPos = new Vector3(0, -0.02f, 0.02f);

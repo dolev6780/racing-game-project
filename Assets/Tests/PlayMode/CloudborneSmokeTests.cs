@@ -2291,6 +2291,53 @@ namespace Cloudborne.Tests
         }
 
         [UnityTest]
+        public IEnumerator ZzzRajasCampIsWhereTheMenuIs()
+        {
+            // the user's ideas (a home between the stages): in the menu Raja stands by his campfire, his hut behind
+            // him, on the shelf what he has found, the staffs he owns leaning on the hut
+            string medalKey = CbTrials.Key(CbTrials.WaysTrials[0].name);
+            float oldBest = PlayerPrefs.GetFloat(medalKey, 0f);
+            try
+            {
+                CbSave.LettersEver = 0b1011;
+                CbSave.MasksEver = 0b101;
+                PlayerPrefs.SetFloat(medalKey, CbTrials.WaysTrials[0].gold - 1f);
+                CbSave.StaffsOwned = 0b1111;
+                CbSave.StaffKind = 0;
+                game = CbGame.Boot();
+                yield return Frames(3);
+                Assert.IsNotNull(game.camp, "No camp in the menu");
+                foreach (var n in new[] { "CampHut", "Campfire", "TrophyShelf" })
+                    Assert.IsNotNull(Resources.Load<GameObject>("Cloudborne/Camp/" + n), $"The camp's {n} model is missing");
+                Assert.AreEqual(CbCamp.HeroX, game.hero.x, 0.01f, "In the menu Raja is not in his camp");
+                Assert.AreEqual(3 + 2 + 1, game.camp.Trophies, "The shelf does not hold three letters, two masks and a medal");
+                Assert.AreEqual(3, game.camp.Staffs, "The three staffs he does not carry do not lean on the hut");
+                yield return TakePictures(new[] { ("camp_menu", float.NaN, 0f) }, 2f);
+                game.menu.Hide();
+                yield return TakePictures(new[] { ("camp", float.NaN, 0f) }, 0.5f);
+                // PLAY: at the stage's start, the camera with him (not sliding over from the camp)
+                game.StartGame();
+                yield return Frames(2);
+                Assert.AreEqual(0f, game.hero.x, 0.01f, "The stage did not start at its start");
+                var cam = game.GetComponentInChildren<Camera>();
+                Assert.Less(Mathf.Abs(cam.transform.position.x - game.hero.x), 4f, "The camera slid over from the camp");
+                // back to the menu from another stage: the jungle again, and the camp
+                CbStage.Set("1-2");
+                game.BuildStage();
+                game.ToMenu();
+                yield return Frames(2);
+                Assert.IsTrue(CbStage.Jungle, "Back in the menu the jungle was not built again");
+                Assert.IsNotNull(game.camp, "Back in the menu there was no camp");
+                Assert.AreEqual(CbCamp.HeroX, game.hero.x, 0.01f, "Back in the menu Raja is not in his camp");
+            }
+            finally
+            {
+                PlayerPrefs.SetFloat(medalKey, oldBest);
+                CbStage.Set("1-1");
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ZzzTheDayTurnsAndItRainsOverTheCanopy()
         {
             // the user's ideas: the day turning over the stage, a stretch of rain with lightning

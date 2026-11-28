@@ -53,7 +53,7 @@ namespace Cloudborne
             }
         }
 
-        static string Key(string name) => "cb_trial_" + name.Replace(' ', '_').ToLowerInvariant();
+        public static string Key(string name) => "cb_trial_" + name.Replace(' ', '_').ToLowerInvariant();
 
         /// <summary>A glowing stone at the path's back edge: a ring of light on the ground in front of it.</summary>
         Transform Stone(float x, string name)

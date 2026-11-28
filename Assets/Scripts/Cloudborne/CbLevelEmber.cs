@@ -133,7 +133,7 @@ namespace Cloudborne
         static Texture2D flameTex;
 
         /// <summary>A tongue of flame drawn in code: wide and bright at its foot, licking up to a point, its edges soft.</summary>
-        static Texture2D FlameTexture()
+        internal static Texture2D FlameTexture()
         {
             if (flameTex != null) return flameTex;
             const int W = 64, H = 128;

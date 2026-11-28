@@ -422,6 +422,7 @@ namespace Cloudborne
             critters = new CbCritters(transform);
             items = new CbItems(this, transform);
             level = new CbLevel(this, transform);
+            camp = CbStage.Jungle ? new CbCamp(world.root) : null;
             actors = new GameObject("Actors").transform;
             actors.SetParent(transform, false);
             hero = new CbHero(this, actors);
@@ -435,6 +436,7 @@ namespace Cloudborne
             mode = Mode.Title;
             hud.SetScreen(CbHud.Screen.Title);
             menu.Open();
+            InCamp();
         }
 
         void OnDestroy()
@@ -718,6 +720,7 @@ namespace Cloudborne
             critters = new CbCritters(transform);
             items = new CbItems(this, transform);
             level = new CbLevel(this, transform);
+            camp = CbStage.Jungle ? new CbCamp(world.root) : null;
             jungleAmbushes = treetopsAmbushes = null;
             StageLight();
             MakeWeather();
@@ -777,10 +780,25 @@ namespace Cloudborne
         {
             CancelInvoke();
             AudioListener.pause = false;
+            // (the menu is in Raja's camp, by stage 1-1's start: back from another stage, the jungle is built again)
+            if (!CbStage.Jungle) { CbStage.Set("1-1"); BuildStage(); }
             ResetGame();
             mode = Mode.Title;
             hud.SetScreen(CbHud.Screen.Title);
             menu.Open();
+            InCamp();
+        }
+
+        /// <summary>Raja's camp (CbCamp), the menu's place: left of stage 1-1's start, seen only from the menu.</summary>
+        public CbCamp camp;
+
+        /// <summary>In the menu Raja stands by his campfire, what he has found on the shelf behind him.</summary>
+        void InCamp()
+        {
+            if (camp == null) return;
+            camp.Refresh();
+            hero.x = CbCamp.HeroX;
+            camX = hero.x - 3.4f;
         }
 
         /// <summary>The opening scene will play again on the next PLAY (settings).</summary>
@@ -1154,6 +1172,8 @@ namespace Cloudborne
         {
             menu?.Hide();
             ResetGame();
+            // (from the camp in the menu, far behind the start: the camera there at once, not sliding over)
+            camX = hero.x;
             mode = Mode.Play;
             hud.SetScreen(CbHud.Screen.None);
             hud.Banner("FIGHT!");
@@ -1247,6 +1267,7 @@ namespace Cloudborne
         public void LetterFound(int which)
         {
             Letters |= 1 << which;
+            CbSave.LettersEver |= 1 << which;
             var word = new System.Text.StringBuilder();
             for (int i = 0; i < 4; i++)
                 word.Append(i > 0 ? " " : "").Append((Letters & (1 << i)) != 0 ? CbItems.LetterWord[i].ToString() : "_");
@@ -2089,6 +2110,7 @@ namespace Cloudborne
             if (mode == Mode.Title)
             {
                 hero.Idle(raw);
+                camp?.Update(raw);
                 menu.Update(raw, input);
             }
             else if (mode == Mode.Scene)

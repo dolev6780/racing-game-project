@@ -194,6 +194,20 @@ namespace Cloudborne
         /// Hard mode (the user's ideas, as Kirby's wild mode): soldiers hit 40% harder and swing heavy blows more often,
         /// the gorge's water rises a quarter faster, crumbling ledges give way sooner. A setting, kept.
         /// </summary>
+        /// <summary>The R-A-J-A letters ever found (bits 0-3), for the trophy shelf in Raja's camp (CbCamp).</summary>
+        public static int LettersEver
+        {
+            get => PlayerPrefs.GetInt(LettersEverKey, 0);
+            set { PlayerPrefs.SetInt(LettersEverKey, value); PlayerPrefs.Save(); }
+        }
+        /// <summary>The totem masks ever worn (bits: stone, leaf, vine), for the trophy shelf in Raja's camp.</summary>
+        public static int MasksEver
+        {
+            get => PlayerPrefs.GetInt(MasksEverKey, 0);
+            set { PlayerPrefs.SetInt(MasksEverKey, value); PlayerPrefs.Save(); }
+        }
+        const string LettersEverKey = "cb_letters_ever", MasksEverKey = "cb_masks_ever";
+
         public static bool Hard
         {
             get => PlayerPrefs.GetInt(HardKey, 0) == 1;
@@ -219,6 +233,8 @@ namespace Cloudborne
             PlayerPrefs.DeleteKey(LearnedKey);
             PlayerPrefs.DeleteKey(StaffThrowKey);
             PlayerPrefs.DeleteKey(PerfectGuardKey);
+            PlayerPrefs.DeleteKey(LettersEverKey);
+            PlayerPrefs.DeleteKey(MasksEverKey);
             fireAwake = 0;
             staffThrow = 0;
             perfectGuard = 0;

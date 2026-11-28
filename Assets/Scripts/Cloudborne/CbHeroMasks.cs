@@ -40,6 +40,7 @@ namespace Cloudborne
             TakeOffMask();
             form = (Form)(kind + 1);
             formT = FormTime;
+            CbSave.MasksEver |= 1 << kind;
             VineEverywhere = form == Form.Vine;
             g.hud.Banner(MaskNames[kind] + "!", true);
             g.hud.SetTip(MaskTips[kind]);

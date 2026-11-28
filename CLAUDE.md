@@ -235,7 +235,14 @@ A 2.5D anime side-scroller for Android, Unity 6 (6000.0.58f2), URP. Namespace `C
   oak, FIRE 120 (staff blows burn), WIND 150 (the whirl draws soldiers in, other blows x1.6 knockback), VINE 150
   (staff blows pull the soldier to him) - in `CbGame.HurtEnemy` when `hero.StaffSwinging`. Their models (Canva
   MAHcIhNLLDI approved) are in his hand (`TintStaff`), the trail coloured to match.
-  Still to do: camp hub (foreground leaves were already there: `CbWorld`'s near layer).
+  Raja's camp (`CbCamp`, local, not yet run): the main menu's place - a clearing at x -30, left of 1-1's start behind
+  the invisible wall (seen only from the menu; `ToMenu` builds 1-1 again when back from another stage, `InCamp` puts
+  him at `CbCamp.HeroX`, `StartGame` snaps the camera to him). Canva kit MAHcKOfhc3g approved (hut, campfire, staff
+  rack, trophy shelf, map board, bench); Meshy so far CampHut, Campfire (its modelled flame cut off in Blender, the
+  game's flickering flame tongues on it), TrophyShelf in `Resources/Cloudborne/Camp` (90 credits, 23 left). The shelf
+  (floors measured at 0.21/0.59/0.98 m) shows `CbSave.LettersEver` (top), `MasksEver` (middle) and the trials' medals
+  (bottom, from their best times); the staffs owned but not carried lean on the hut. Test `ZzzRajasCampIsWhereTheMenuIs`
+  (pictures camp_menu, camp). Still to model when credits renew (~Dec 10): the staff rack, map board, bench.
 - **Performance and challenge (the user: keep improving performance, graphics and challenge; local, not yet run):**
   the climbing vine is Meshy's 2.3k remesh (was 6k; the canopy drew 138k of vines), the coin Meshy's 376-triangle
   remesh (was 1.2k), both fed to Meshy as GLBs made from the game's FBX + albedo (scratchpad `fbx2glb.py`); RuinLedge
