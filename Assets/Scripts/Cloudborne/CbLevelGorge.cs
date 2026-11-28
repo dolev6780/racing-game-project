@@ -44,6 +44,9 @@ namespace Cloudborne
 
         static bool InGorge(float x) => x > GorgeFrom && x < GorgeTo;
         const string RockBlockPath = "Cloudborne/Jungle/Ways/RockBlock/RockBlock";
+        // the same block remeshed lighter by Meshy (1.4k triangles to the block's 3.1k): the walls' rows under the top
+        // one, only their rock face seen (the gorge drew 429k triangles, 217k of them its blocks - run 302)
+        const string RockBlockLightPath = "Cloudborne/Jungle/Ways/RockBlock/RockBlockLight";
 
         /// <summary>The gorge and the summit beyond it (Build calls this where the mountain was).</summary>
         void BuildMountain()
@@ -214,6 +217,7 @@ namespace Cloudborne
             // cliff rock if the block isn't in the project
             bool kit = Resources.Load<GameObject>(RockBlockPath) != null;
             string path = kit ? RockBlockPath : CliffRockPath;
+            string body = kit && Resources.Load<GameObject>(RockBlockLightPath) != null ? RockBlockLightPath : path;
             float Aspect = kit ? 1.9f : 0.85f;
             const float Overlap = 0.3f;
             float w = x1 - x0, h = y1 - y0;
@@ -241,7 +245,7 @@ namespace Cloudborne
                     var piece = CbArt.Joint(parent, 0, 0, 0, "piece");
                     var box0 = new Vector3(a, lo, zFront + dz);
                     var box1 = new Vector3(b, hi, zBack);
-                    if ((topRow ? FitTop(path, piece, box0, box1) : Fit(path, piece, box0, box1)) == null)
+                    if ((topRow ? FitTop(path, piece, box0, box1) : Fit(body, piece, box0, box1)) == null)
                     {
                         Object.Destroy(piece.gameObject);
                         return false;
